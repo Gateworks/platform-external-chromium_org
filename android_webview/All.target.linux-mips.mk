@@ -2,6 +2,12 @@
 
 include $(CLEAR_VARS)
 
+ifeq ($(TARGET_ARCH),mips)
+gyp_target_2nd_arch_var_prefix :=
+else ifeq ($(TARGET_2ND_ARCH),mips)
+gyp_target_2nd_arch_var_prefix := $(TARGET_2ND_ARCH_VAR_PREFIX)
+endif
+
 LOCAL_MODULE_CLASS := GYP
 LOCAL_MODULE := android_webview_All_gyp
 LOCAL_MODULE_STEM := All
@@ -12,7 +18,7 @@ gyp_shared_intermediate_dir := $(call intermediates-dir-for,GYP,shared)
 
 # Make sure our deps are built first.
 GYP_TARGET_DEPENDENCIES := \
-	$(TARGET_OUT_INTERMEDIATE_LIBRARIES)/libwebviewchromium.so \
+	$($(gyp_target_2nd_arch_var_prefix)TARGET_OUT_INTERMEDIATE_LIBRARIES)/libwebviewchromium.so \
 	$(call intermediates-dir-for,GYP,base_base_java_activity_state_gyp)/base_java_activity_state.stamp \
 	$(call intermediates-dir-for,GYP,base_base_java_memory_pressure_level_list_gyp)/base_java_memory_pressure_level_list.stamp \
 	$(call intermediates-dir-for,GYP,content_page_transition_types_java_gyp)/page_transition_types_java.stamp \
