@@ -533,6 +533,15 @@ var BOTTOM_MARGIN_FOR_PREVIEW_PANEL_PX = 52;
     this.commandHandler.updateAvailability();
     this.document_.getElementById('drive-separator').hidden =
         !this.shouldShowDriveSettings();
+
+    // Force to update the gear menu position.
+    // TODO(hirono): Remove the workaround for the crbug.com/374093 after fixing
+    // it.
+    var gearMenu = this.document_.querySelector('#gear-menu');
+    gearMenu.style.left = '';
+    gearMenu.style.right = '';
+    gearMenu.style.top = '';
+    gearMenu.style.bottom = '';
   };
 
   /**
@@ -2844,22 +2853,37 @@ var BOTTOM_MARGIN_FOR_PREVIEW_PANEL_PX = 52;
     var self = this;
     var list = self.currentList_;
     var tryCreate = function() {
-      self.directoryModel_.createDirectory(current(),
-                                           onSuccess, onError);
     };
 
     var onSuccess = function(entry) {
       metrics.recordUserAction('CreateNewFolder');
       list.selectedItem = entry;
+
+      self.table_.list.endBatchUpdates();
+      self.grid_.endBatchUpdates();
+
       self.initiateRename();
     };
 
     var onError = function(error) {
+      self.table_.list.endBatchUpdates();
+      self.grid_.endBatchUpdates();
+
       self.alert.show(strf('ERROR_CREATING_FOLDER', current(),
                            util.getFileErrorString(error.name)));
     };
 
-    tryCreate();
+    var onAbort = function() {
+      self.table_.list.endBatchUpdates();
+      self.grid_.endBatchUpdates();
+    };
+
+    this.table_.list.startBatchUpdates();
+    this.grid_.startBatchUpdates();
+    this.directoryModel_.createDirectory(current(),
+                                         onSuccess,
+                                         onError,
+                                         onAbort);
   };
 
   /**

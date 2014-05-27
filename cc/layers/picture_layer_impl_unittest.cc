@@ -1565,6 +1565,25 @@ TEST_F(PictureLayerImplTest, HighResRequiredIfActiveCantHaveTiles) {
   AssertNoTilesRequired(pending_layer_->LowResTiling());
 }
 
+TEST_F(PictureLayerImplTest, HighResRequiredWhenActiveHasDifferentBounds) {
+  gfx::Size layer_bounds(200, 200);
+  gfx::Size tile_size(100, 100);
+  SetupDefaultTreesWithFixedTileSize(layer_bounds, tile_size);
+
+  gfx::Size pending_layer_bounds(400, 400);
+  pending_layer_->SetBounds(pending_layer_bounds);
+
+  CreateHighLowResAndSetAllTilesVisible();
+
+  active_layer_->SetAllTilesReady();
+
+  // Since the active layer has different bounds, the pending layer needs all
+  // high res tiles in order to activate.
+  pending_layer_->MarkVisibleResourcesAsRequired();
+  AssertAllTilesRequired(pending_layer_->HighResTiling());
+  AssertNoTilesRequired(pending_layer_->LowResTiling());
+}
+
 TEST_F(PictureLayerImplTest, ActivateUninitializedLayer) {
   gfx::Size tile_size(100, 100);
   gfx::Size layer_bounds(400, 400);
@@ -1672,7 +1691,7 @@ TEST_F(PictureLayerImplTest, NoLowResTilingWithGpuRasterization) {
   gfx::Size result_bounds;
 
   SetupDefaultTrees(layer_bounds);
-  EXPECT_FALSE(pending_layer_->ShouldUseGpuRasterization());
+  EXPECT_FALSE(pending_layer_->use_gpu_rasterization());
   EXPECT_EQ(0u, pending_layer_->tilings()->num_tilings());
   pending_layer_->CalculateContentsScale(1.f,
                                          1.f,
@@ -1685,9 +1704,10 @@ TEST_F(PictureLayerImplTest, NoLowResTilingWithGpuRasterization) {
   // Should have a low-res and a high-res tiling.
   ASSERT_EQ(2u, pending_layer_->tilings()->num_tilings());
 
-  pending_layer_->SetUseGpuRasterization(true);
-  EXPECT_TRUE(pending_layer_->ShouldUseGpuRasterization());
-  EXPECT_EQ(0u, pending_layer_->tilings()->num_tilings());
+  ResetTilingsAndRasterScales();
+
+  host_impl_.pending_tree()->SetUseGpuRasterization(true);
+  EXPECT_TRUE(pending_layer_->use_gpu_rasterization());
   pending_layer_->CalculateContentsScale(1.f,
                                          1.f,
                                          1.f,
@@ -1892,60 +1912,6 @@ TEST_F(PictureLayerImplTest, HighResTilingDuringAnimationForCpuRasterization) {
   animating_transform = false;
   contents_scale = 4.f;
 
-  SetContentsScaleOnBothLayers(contents_scale,
-                               device_scale,
-                               page_scale,
-                               maximum_animation_scale,
-                               animating_transform);
-  EXPECT_BOTH_EQ(HighResTiling()->contents_scale(), 4.f);
-}
-
-TEST_F(PictureLayerImplTest, HighResTilingDuringAnimationForGpuRasterization) {
-  gfx::Size tile_size(host_impl_.settings().default_tile_size);
-  SetupDefaultTrees(tile_size);
-  pending_layer_->SetUseGpuRasterization(true);
-  active_layer_->SetUseGpuRasterization(true);
-
-  float contents_scale = 1.f;
-  float device_scale = 1.f;
-  float page_scale = 1.f;
-  float maximum_animation_scale = 1.f;
-  bool animating_transform = false;
-
-  SetContentsScaleOnBothLayers(contents_scale,
-                               device_scale,
-                               page_scale,
-                               maximum_animation_scale,
-                               animating_transform);
-  EXPECT_BOTH_EQ(HighResTiling()->contents_scale(), 1.f);
-
-  // Changing contents scale during an animation should cause tiling resolution
-  // to change, since we're GPU-rasterizing. The maximum animation scale should
-  // not have any effect.
-  animating_transform = true;
-  contents_scale = 2.f;
-  maximum_animation_scale = 4.f;
-
-  SetContentsScaleOnBothLayers(contents_scale,
-                               device_scale,
-                               page_scale,
-                               maximum_animation_scale,
-                               animating_transform);
-  EXPECT_BOTH_EQ(HighResTiling()->contents_scale(), 2.f);
-
-  // Since we're re-rasterizing during the animation, scales smaller than 1
-  // should be respected.
-  contents_scale = 0.5f;
-  SetContentsScaleOnBothLayers(contents_scale,
-                               device_scale,
-                               page_scale,
-                               maximum_animation_scale,
-                               animating_transform);
-  EXPECT_BOTH_EQ(HighResTiling()->contents_scale(), 0.5f);
-
-  // Tiling resolution should also update once we stop animating.
-  contents_scale = 4.f;
-  animating_transform = false;
   SetContentsScaleOnBothLayers(contents_scale,
                                device_scale,
                                page_scale,

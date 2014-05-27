@@ -21,7 +21,6 @@
 #include "cc/quads/solid_color_draw_quad.h"
 #include "cc/quads/tile_draw_quad.h"
 #include "cc/resources/tile_manager.h"
-#include "cc/trees/layer_tree_impl.h"
 #include "ui/gfx/quad_f.h"
 #include "ui/gfx/rect_conversions.h"
 #include "ui/gfx/size_conversions.h"
@@ -63,7 +62,6 @@ PictureLayerImpl::PictureLayerImpl(LayerTreeImpl* tree_impl, int id)
       needs_post_commit_initialization_(true),
       should_update_tile_priorities_(false),
       should_use_low_res_tiling_(tree_impl->settings().create_low_res_tiling),
-      use_gpu_rasterization_(false),
       layer_needs_to_register_itself_(true) {
 }
 
@@ -105,7 +103,6 @@ void PictureLayerImpl::PushPropertiesTo(LayerImpl* base_layer) {
 
   layer_impl->SetIsMask(is_mask_);
   layer_impl->pile_ = pile_;
-  layer_impl->use_gpu_rasterization_ = use_gpu_rasterization_;
 
   // Tilings would be expensive to push, so we swap.
   layer_impl->tilings_.swap(tilings_);
@@ -523,14 +520,6 @@ skia::RefPtr<SkPicture> PictureLayerImpl::GetPicture() {
   return pile_->GetFlattenedPicture();
 }
 
-void PictureLayerImpl::SetUseGpuRasterization(bool use_gpu) {
-  if (use_gpu_rasterization_ == use_gpu)
-    return;
-
-  use_gpu_rasterization_ = use_gpu;
-  RemoveAllTilings();
-}
-
 scoped_refptr<Tile> PictureLayerImpl::CreateTile(PictureLayerTiling* tiling,
                                                const gfx::Rect& content_rect) {
   if (!pile_->CanRaster(tiling->contents_scale(), content_rect))
@@ -539,7 +528,7 @@ scoped_refptr<Tile> PictureLayerImpl::CreateTile(PictureLayerTiling* tiling,
   int flags = 0;
   if (is_using_lcd_text_)
     flags |= Tile::USE_LCD_TEXT;
-  if (ShouldUseGpuRasterization())
+  if (use_gpu_rasterization())
     flags |= Tile::USE_GPU_RASTERIZATION;
   return layer_tree_impl()->tile_manager()->CreateTile(
       pile_.get(),
@@ -562,9 +551,8 @@ const Region* PictureLayerImpl::GetInvalidation() {
 
 const PictureLayerTiling* PictureLayerImpl::GetTwinTiling(
     const PictureLayerTiling* tiling) const {
-
   if (!twin_layer_ ||
-      twin_layer_->ShouldUseGpuRasterization() != ShouldUseGpuRasterization())
+      twin_layer_->use_gpu_rasterization() != use_gpu_rasterization())
     return NULL;
   for (size_t i = 0; i < twin_layer_->tilings_->num_tilings(); ++i)
     if (twin_layer_->tilings_->tiling_at(i)->contents_scale() ==
@@ -578,7 +566,7 @@ size_t PictureLayerImpl::GetMaxTilesForInterestArea() const {
 }
 
 float PictureLayerImpl::GetSkewportTargetTimeInSeconds() const {
-  float skewport_target_time_in_frames = ShouldUseGpuRasterization()
+  float skewport_target_time_in_frames = use_gpu_rasterization()
                                              ? kGpuSkewportTargetTimeInFrames
                                              : kCpuSkewportTargetTimeInFrames;
   return skewport_target_time_in_frames *
@@ -605,7 +593,7 @@ gfx::Size PictureLayerImpl::CalculateTileSize(
       layer_tree_impl()->resource_provider()->max_texture_size();
 
   gfx::Size default_tile_size = layer_tree_impl()->settings().default_tile_size;
-  if (ShouldUseGpuRasterization()) {
+  if (use_gpu_rasterization()) {
     // TODO(ernstm) crbug.com/365877: We need a unified way to override the
     // default-tile-size.
     default_tile_size =
@@ -828,11 +816,12 @@ void PictureLayerImpl::MarkVisibleResourcesAsRequired() const {
     if (twin_low_res)
       twin_high_res = GetTwinTiling(high_res);
   }
-  // If this layer and its twin have different transforms, then don't compare
-  // them and only allow activating to high res tiles, since tiles on each layer
-  // will be in different places on screen.
+  // If this layer and its twin have different bounds or transforms, then don't
+  // compare them and only allow activating to high res tiles, since tiles on
+  // each layer will occupy different areas of the screen.
   if (!twin_high_res || !twin_low_res ||
       twin_layer_->layer_tree_impl()->RequiresHighResToDraw() ||
+      bounds() != twin_layer_->bounds() ||
       draw_properties().screen_space_transform !=
           twin_layer_->draw_properties().screen_space_transform) {
     twin_high_res = NULL;
@@ -921,7 +910,7 @@ PictureLayerTiling* PictureLayerImpl::AddTiling(float contents_scale) {
   DCHECK(pile_->HasRecordings());
 
   if (twin_layer_ &&
-      twin_layer_->ShouldUseGpuRasterization() == ShouldUseGpuRasterization())
+      twin_layer_->use_gpu_rasterization() == use_gpu_rasterization())
     twin_layer_->SyncTiling(tiling);
 
   return tiling;
@@ -1038,11 +1027,6 @@ bool PictureLayerImpl::ShouldAdjustRasterScale(
   if (was_animating_transform_to_screen_ != animating_transform_to_screen)
     return true;
 
-  if (animating_transform_to_screen &&
-      raster_contents_scale_ != ideal_contents_scale_ &&
-      ShouldUseGpuRasterization())
-    return true;
-
   bool is_pinching = layer_tree_impl()->PinchGestureActive();
   if (is_pinching && raster_page_scale_) {
     // We change our raster scale when it is:
@@ -1137,10 +1121,10 @@ void PictureLayerImpl::RecalculateRasterScales(
   raster_contents_scale_ =
       std::max(raster_contents_scale_, MinimumContentsScale());
 
-  // If we're not re-rasterizing during animation, rasterize at the maximum
+  // Since we're not re-rasterizing during animation, rasterize at the maximum
   // scale that will occur during the animation, if the maximum scale is
   // known.
-  if (animating_transform_to_screen && !ShouldUseGpuRasterization()) {
+  if (animating_transform_to_screen) {
     if (maximum_animation_contents_scale > 0.f) {
       raster_contents_scale_ =
           std::max(raster_contents_scale_, maximum_animation_contents_scale);
@@ -1330,7 +1314,7 @@ void PictureLayerImpl::AsValueInto(base::DictionaryValue* state) const {
   }
   state->Set("coverage_tiles", coverage_tiles.release());
   state->SetBoolean("is_using_lcd_text", is_using_lcd_text_);
-  state->SetBoolean("using_gpu_rasterization", ShouldUseGpuRasterization());
+  state->SetBoolean("using_gpu_rasterization", use_gpu_rasterization());
 }
 
 size_t PictureLayerImpl::GPUMemoryUsageInBytes() const {

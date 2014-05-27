@@ -19,7 +19,7 @@ const char kGpuDriverBugListJson[] = LONG_STRING_CONST(
 {
   "name": "gpu driver bug list",
   // Please update the version number whenever you change this file.
-  "version": "5.3",
+  "version": "5.4",
   "entries": [
     {
       "id": 1,
@@ -394,21 +394,6 @@ const char kGpuDriverBugListJson[] = LONG_STRING_CONST(
                     "0x0a04", "0x0a16", "0x0a22", "0x0a26", "0x0a2a"],
       "features": [
         "swizzle_rgba_for_async_readpixels"
-      ]
-    },
-    {
-      "id": 29,
-      "cr_bugs": [278606],
-      "description": "Testing fences is broken on Qualcomm.",
-      "os": {
-        "type": "android"
-      },
-      "gl_vendor": {
-        "op": "beginwith",
-        "value": "Qualcomm"
-      },
-      "features": [
-        "disable_async_readpixels"
       ]
     },
     {
@@ -966,6 +951,18 @@ const char kGpuDriverBugListJson[] = LONG_STRING_CONST(
       },
       "features": [
         "use_virtualized_gl_contexts"
+      ]
+    },
+    {
+      "id": 73,
+      "description": "Using D3D11 causes browser crashes on certain Intel GPUs",
+      "cr_bugs": [310808],
+      "os": {
+        "type": "win"
+      },
+      "vendor_id": "0x8086",
+      "features": [
+        "disable_d3d11"
       ]
     }
   ]

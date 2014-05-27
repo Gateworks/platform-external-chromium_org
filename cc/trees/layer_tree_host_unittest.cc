@@ -4511,7 +4511,6 @@ class LayerTreeHostTestMaxTransferBufferUsageBytes : public LayerTreeHostTest {
  protected:
   virtual void InitializeSettings(LayerTreeSettings* settings) OVERRIDE {
     settings->impl_side_painting = true;
-    settings->default_tile_size = gfx::Size(128, 128);
   }
 
   virtual scoped_ptr<FakeOutputSurface> CreateFakeOutputSurface(bool fallback)
@@ -4542,10 +4541,7 @@ class LayerTreeHostTestMaxTransferBufferUsageBytes : public LayerTreeHostTest {
 
     // Expect that the transfer buffer memory used is equal to the
     // MaxTransferBufferUsageBytes value set in CreateOutputSurface.
-    // NOTE: This is now 1/2 due to raster memory limit in TileManager.
-    //       Only half the limit will be reached unless the task set
-    //       thrashes to a completly new set of tiles.
-    EXPECT_EQ(512 * 1024u, context->GetPeakTransferBufferMemoryUsedBytes());
+    EXPECT_EQ(1024 * 1024u, context->GetTransferBufferMemoryUsedBytes());
     EndTest();
   }
 
@@ -5053,7 +5049,7 @@ class LayerTreeHostTestGpuRasterizationDefault : public LayerTreeHostTest {
     PictureLayerImpl* layer_impl =
         static_cast<PictureLayerImpl*>(root->children()[0]);
 
-    EXPECT_FALSE(layer_impl->ShouldUseGpuRasterization());
+    EXPECT_FALSE(layer_impl->use_gpu_rasterization());
   }
 
   virtual void DidActivateTreeOnThread(LayerTreeHostImpl* host_impl) OVERRIDE {
@@ -5061,7 +5057,7 @@ class LayerTreeHostTestGpuRasterizationDefault : public LayerTreeHostTest {
     PictureLayerImpl* layer_impl =
         static_cast<PictureLayerImpl*>(root->children()[0]);
 
-    EXPECT_FALSE(layer_impl->ShouldUseGpuRasterization());
+    EXPECT_FALSE(layer_impl->use_gpu_rasterization());
     EndTest();
   }
 
@@ -5124,7 +5120,7 @@ class LayerTreeHostTestGpuRasterizationEnabled : public LayerTreeHostTest {
     PictureLayerImpl* layer_impl =
         static_cast<PictureLayerImpl*>(root->children()[0]);
 
-    EXPECT_FALSE(layer_impl->ShouldUseGpuRasterization());
+    EXPECT_FALSE(layer_impl->use_gpu_rasterization());
   }
 
   virtual void DidActivateTreeOnThread(LayerTreeHostImpl* host_impl) OVERRIDE {
@@ -5132,7 +5128,7 @@ class LayerTreeHostTestGpuRasterizationEnabled : public LayerTreeHostTest {
     PictureLayerImpl* layer_impl =
         static_cast<PictureLayerImpl*>(root->children()[0]);
 
-    EXPECT_FALSE(layer_impl->ShouldUseGpuRasterization());
+    EXPECT_FALSE(layer_impl->use_gpu_rasterization());
     EndTest();
   }
 
@@ -5195,7 +5191,7 @@ class LayerTreeHostTestGpuRasterizationForced : public LayerTreeHostTest {
     PictureLayerImpl* layer_impl =
         static_cast<PictureLayerImpl*>(root->children()[0]);
 
-    EXPECT_TRUE(layer_impl->ShouldUseGpuRasterization());
+    EXPECT_TRUE(layer_impl->use_gpu_rasterization());
   }
 
   virtual void DidActivateTreeOnThread(LayerTreeHostImpl* host_impl) OVERRIDE {
@@ -5203,7 +5199,7 @@ class LayerTreeHostTestGpuRasterizationForced : public LayerTreeHostTest {
     PictureLayerImpl* layer_impl =
         static_cast<PictureLayerImpl*>(root->children()[0]);
 
-    EXPECT_TRUE(layer_impl->ShouldUseGpuRasterization());
+    EXPECT_TRUE(layer_impl->use_gpu_rasterization());
     EndTest();
   }
 

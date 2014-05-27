@@ -103,14 +103,6 @@ size_t GetMaxTransferBufferUsageBytes(cc::ContextProvider* context_provider) {
       kMaxTransferBufferUsageBytes);
 }
 
-size_t GetMaxRasterTasksUsageBytes(cc::ContextProvider* context_provider) {
-  // Transfer-buffer/raster-tasks limits are different but related. We make
-  // equal here, as this is ideal when using transfer buffers. When not using
-  // transfer buffers we should still limit raster to something similar, to
-  // preserve caching behavior (and limit memory waste when priorities change).
-  return GetMaxTransferBufferUsageBytes(context_provider);
-}
-
 unsigned GetMapImageTextureTarget(cc::ContextProvider* context_provider) {
   if (!context_provider)
     return GL_TEXTURE_2D;
@@ -1778,13 +1770,13 @@ void LayerTreeHostImpl::SetNeedsRedraw() {
 
 ManagedMemoryPolicy LayerTreeHostImpl::ActualManagedMemoryPolicy() const {
   ManagedMemoryPolicy actual = cached_managed_memory_policy_;
-  // TODO(ernstm): NICE_TO_HAVE is currently triggered for forced GPU
-  // rasterization only. Change the trigger to LTHI::UseGpuRasterization, once
-  // that is implemented.
+  bool any_tree_use_gpu_rasterization =
+      (active_tree_ && active_tree_->use_gpu_rasterization()) ||
+      (pending_tree_ && pending_tree_->use_gpu_rasterization());
   if (debug_state_.rasterize_only_visible_content) {
     actual.priority_cutoff_when_visible =
         gpu::MemoryAllocation::CUTOFF_ALLOW_REQUIRED_ONLY;
-  } else if (settings_.gpu_rasterization_forced) {
+  } else if (any_tree_use_gpu_rasterization) {
     actual.priority_cutoff_when_visible =
         gpu::MemoryAllocation::CUTOFF_ALLOW_NICE_TO_HAVE;
   }
@@ -1806,12 +1798,11 @@ int LayerTreeHostImpl::memory_allocation_priority_cutoff() const {
 }
 
 void LayerTreeHostImpl::ReleaseTreeResources() {
-  if (active_tree_->root_layer())
-    SendReleaseResourcesRecursive(active_tree_->root_layer());
-  if (pending_tree_ && pending_tree_->root_layer())
-    SendReleaseResourcesRecursive(pending_tree_->root_layer());
-  if (recycle_tree_ && recycle_tree_->root_layer())
-    SendReleaseResourcesRecursive(recycle_tree_->root_layer());
+  active_tree_->ReleaseResources();
+  if (pending_tree_)
+    pending_tree_->ReleaseResources();
+  if (recycle_tree_)
+    recycle_tree_->ReleaseResources();
 
   EvictAllUIResources();
 }
@@ -1905,7 +1896,6 @@ void LayerTreeHostImpl::CreateAndSetTileManager(
                           resource_pool_.get(),
                           raster_worker_pool_->AsRasterizer(),
                           direct_raster_worker_pool_->AsRasterizer(),
-                          GetMaxRasterTasksUsageBytes(context_provider),
                           allow_rasterize_on_demand,
                           rendering_stats_instrumentation_);
 
@@ -2881,17 +2871,6 @@ void LayerTreeHostImpl::ActivateAnimations() {
 
 base::TimeDelta LayerTreeHostImpl::LowFrequencyAnimationInterval() const {
   return base::TimeDelta::FromSeconds(1);
-}
-
-void LayerTreeHostImpl::SendReleaseResourcesRecursive(LayerImpl* current) {
-  DCHECK(current);
-  current->ReleaseResources();
-  if (current->mask_layer())
-    SendReleaseResourcesRecursive(current->mask_layer());
-  if (current->replica_layer())
-    SendReleaseResourcesRecursive(current->replica_layer());
-  for (size_t i = 0; i < current->children().size(); ++i)
-    SendReleaseResourcesRecursive(current->children()[i]);
 }
 
 std::string LayerTreeHostImpl::LayerTreeAsJson() const {
