@@ -75,7 +75,6 @@ GYP_TARGET_DEPENDENCIES := \
 	$(call intermediates-dir-for,GYP,ui_gl_gl_jni_headers_gyp,,,$(GYP_VAR_PREFIX))/gl_jni_headers.stamp \
 	$(call intermediates-dir-for,GYP,ui_gl_surface_jni_headers_gyp,,,$(GYP_VAR_PREFIX))/surface_jni_headers.stamp \
 	$(call intermediates-dir-for,STATIC_LIBRARIES,third_party_angle_src_translator_gyp,,,$(GYP_VAR_PREFIX))/third_party_angle_src_translator_gyp.a \
-	$(call intermediates-dir-for,STATIC_LIBRARIES,third_party_angle_src_translator_lib_gyp,,,$(GYP_VAR_PREFIX))/third_party_angle_src_translator_lib_gyp.a \
 	$(call intermediates-dir-for,STATIC_LIBRARIES,third_party_angle_src_preprocessor_gyp,,,$(GYP_VAR_PREFIX))/third_party_angle_src_preprocessor_gyp.a \
 	$(call intermediates-dir-for,STATIC_LIBRARIES,gpu_gles2_cmd_helper_gyp,,,$(GYP_VAR_PREFIX))/gpu_gles2_cmd_helper_gyp.a \
 	$(call intermediates-dir-for,STATIC_LIBRARIES,gpu_gpu_config_gyp,,,$(GYP_VAR_PREFIX))/gpu_gpu_config_gyp.a \
@@ -245,7 +244,6 @@ GYP_TARGET_DEPENDENCIES := \
 	$(call intermediates-dir-for,STATIC_LIBRARIES,ui_surface_surface_gyp,,,$(GYP_VAR_PREFIX))/ui_surface_surface_gyp.a \
 	$(call intermediates-dir-for,GYP,webkit_webkit_strings_gyp,,,$(GYP_VAR_PREFIX))/webkit_strings.stamp \
 	$(call intermediates-dir-for,GYP,third_party_angle_src_commit_id_gyp,,,$(GYP_VAR_PREFIX))/commit_id.stamp \
-	$(call intermediates-dir-for,GYP,third_party_angle_src_copy_scripts_gyp,,,$(GYP_VAR_PREFIX))/copy_scripts.stamp \
 	$(call intermediates-dir-for,STATIC_LIBRARIES,printing_printing_gyp,,,$(GYP_VAR_PREFIX))/printing_printing_gyp.a \
 	$(call intermediates-dir-for,GYP,printing_printing_jni_headers_gyp,,,$(GYP_VAR_PREFIX))/printing_jni_headers.stamp \
 	$(call intermediates-dir-for,GYP,sandbox_sandbox_gyp,,,$(GYP_VAR_PREFIX))/sandbox.stamp \
@@ -607,7 +605,6 @@ LOCAL_STATIC_LIBRARIES := \
 	ui_gfx_gfx_geometry_gyp \
 	ui_gl_gl_gyp \
 	third_party_angle_src_translator_gyp \
-	third_party_angle_src_translator_lib_gyp \
 	third_party_angle_src_preprocessor_gyp \
 	gpu_gles2_cmd_helper_gyp \
 	gpu_gpu_config_gyp \

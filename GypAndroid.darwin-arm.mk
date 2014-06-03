@@ -199,10 +199,8 @@ include $(LOCAL_PATH)/third_party/WebKit/public/blink_headers.target.darwin-arm.
 include $(LOCAL_PATH)/third_party/WebKit/public/blink_minimal.target.darwin-arm.mk
 include $(LOCAL_PATH)/third_party/WebKit/public/blink_skia_config.target.darwin-arm.mk
 include $(LOCAL_PATH)/third_party/angle/src/commit_id.target.darwin-arm.mk
-include $(LOCAL_PATH)/third_party/angle/src/copy_scripts.target.darwin-arm.mk
 include $(LOCAL_PATH)/third_party/angle/src/preprocessor.target.darwin-arm.mk
 include $(LOCAL_PATH)/third_party/angle/src/translator.target.darwin-arm.mk
-include $(LOCAL_PATH)/third_party/angle/src/translator_lib.target.darwin-arm.mk
 include $(LOCAL_PATH)/third_party/ashmem/ashmem.target.darwin-arm.mk
 include $(LOCAL_PATH)/third_party/brotli/brotli.target.darwin-arm.mk
 include $(LOCAL_PATH)/third_party/expat/expat.target.darwin-arm.mk

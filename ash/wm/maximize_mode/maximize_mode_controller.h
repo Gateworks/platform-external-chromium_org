@@ -7,6 +7,7 @@
 
 #include "ash/accelerometer/accelerometer_observer.h"
 #include "ash/ash_export.h"
+#include "ash/display/display_manager.h"
 #include "base/macros.h"
 #include "base/memory/scoped_ptr.h"
 
@@ -22,6 +23,10 @@ class ASH_EXPORT MaximizeModeController : public AccelerometerObserver {
   MaximizeModeController();
   virtual ~MaximizeModeController();
 
+  bool in_set_screen_rotation() const {
+    return in_set_screen_rotation_;
+  }
+
   // True if |rotation_lock_| has been set, and OnAccelerometerUpdated will not
   // change the display rotation.
   bool rotation_locked() {
@@ -33,6 +38,11 @@ class ASH_EXPORT MaximizeModeController : public AccelerometerObserver {
   void set_rotation_locked(bool rotation_locked) {
     rotation_locked_ = rotation_locked;
   }
+
+  // True if it is possible to enter maximize mode in the current
+  // configuration. If this returns false, it should never be the case that
+  // maximize mode becomes enabled.
+  bool CanEnterMaximizeMode();
 
   // AccelerometerObserver:
   virtual void OnAccelerometerUpdated(const gfx::Vector3dF& base,
@@ -48,12 +58,22 @@ class ASH_EXPORT MaximizeModeController : public AccelerometerObserver {
   // screen.
   void HandleScreenRotation(const gfx::Vector3dF& lid);
 
+  // Sets the display rotation and suppresses display notifications.
+  void SetDisplayRotation(DisplayManager* display_manager,
+                          gfx::Display::Rotation rotation);
+
   // An event handler which traps mouse and keyboard events while maximize
   // mode is engaged.
   scoped_ptr<MaximizeModeEventBlocker> event_blocker_;
 
   // When true calls to OnAccelerometerUpdated will not rotate the display.
   bool rotation_locked_;
+
+  // Whether we have ever seen accelerometer data.
+  bool have_seen_accelerometer_data_;
+
+  // True when the screen's orientation is being changed.
+  bool in_set_screen_rotation_;
 
   DISALLOW_COPY_AND_ASSIGN(MaximizeModeController);
 };

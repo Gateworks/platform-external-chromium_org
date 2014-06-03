@@ -151,9 +151,7 @@ AwContents* AwContents::FromID(int render_process_id, int render_view_id) {
 }
 
 AwContents::AwContents(scoped_ptr<WebContents> web_contents)
-    : weak_factory_on_ui_thread_(this),
-      ui_thread_weak_ptr_(weak_factory_on_ui_thread_.GetWeakPtr()),
-      web_contents_(web_contents.Pass()),
+    : web_contents_(web_contents.Pass()),
       shared_renderer_state_(
           BrowserThread::GetMessageLoopProxyForThread(BrowserThread::UI),
           this),
@@ -171,7 +169,8 @@ AwContents::AwContents(scoped_ptr<WebContents> web_contents)
   render_view_host_ext_.reset(
       new AwRenderViewHostExt(this, web_contents_.get()));
 
-  permission_request_handler_.reset(new PermissionRequestHandler(this));
+  permission_request_handler_.reset(
+      new PermissionRequestHandler(this, web_contents_.get()));
 
   AwAutofillManagerDelegate* autofill_manager_delegate =
       AwAutofillManagerDelegate::FromWebContents(web_contents_.get());
@@ -349,15 +348,8 @@ void AwContents::DrawGL(AwDrawGLInfo* draw_info) {
                                  state_restore.framebuffer_binding_ext(),
                                  draw_info,
                                  &result)) {
-    content::BrowserThread::PostTask(
-        content::BrowserThread::UI,
-        FROM_HERE,
-        base::Bind(&AwContents::DidDrawGL, ui_thread_weak_ptr_, result));
+    browser_view_renderer_.DidDrawGL(result);
   }
-}
-
-void AwContents::DidDrawGL(const DrawGLResult& result) {
-  browser_view_renderer_.DidDrawGL(result);
 }
 
 namespace {

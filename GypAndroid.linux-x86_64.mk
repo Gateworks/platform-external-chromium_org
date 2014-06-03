@@ -203,10 +203,8 @@ include $(LOCAL_PATH)/third_party/WebKit/public/blink_headers.target.linux-x86_6
 include $(LOCAL_PATH)/third_party/WebKit/public/blink_minimal.target.linux-x86_64.mk
 include $(LOCAL_PATH)/third_party/WebKit/public/blink_skia_config.target.linux-x86_64.mk
 include $(LOCAL_PATH)/third_party/angle/src/commit_id.target.linux-x86_64.mk
-include $(LOCAL_PATH)/third_party/angle/src/copy_scripts.target.linux-x86_64.mk
 include $(LOCAL_PATH)/third_party/angle/src/preprocessor.target.linux-x86_64.mk
 include $(LOCAL_PATH)/third_party/angle/src/translator.target.linux-x86_64.mk
-include $(LOCAL_PATH)/third_party/angle/src/translator_lib.target.linux-x86_64.mk
 include $(LOCAL_PATH)/third_party/ashmem/ashmem.target.linux-x86_64.mk
 include $(LOCAL_PATH)/third_party/brotli/brotli.target.linux-x86_64.mk
 include $(LOCAL_PATH)/third_party/expat/expat.target.linux-x86_64.mk

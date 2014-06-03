@@ -5,9 +5,12 @@
 #include "ash/wm/maximize_mode/maximize_mode_controller.h"
 
 #include "ash/accelerometer/accelerometer_controller.h"
+#include "ash/ash_switches.h"
 #include "ash/display/display_manager.h"
 #include "ash/shell.h"
 #include "ash/wm/maximize_mode/maximize_mode_event_blocker.h"
+#include "base/auto_reset.h"
+#include "base/command_line.h"
 #include "ui/gfx/vector3d_f.h"
 
 namespace ash {
@@ -82,7 +85,9 @@ float ClockwiseAngleBetweenVectorsInDegrees(const gfx::Vector3dF& base,
 }  // namespace
 
 MaximizeModeController::MaximizeModeController()
-    : rotation_locked_(false) {
+    : rotation_locked_(false),
+      have_seen_accelerometer_data_(false),
+      in_set_screen_rotation_(false) {
   Shell::GetInstance()->accelerometer_controller()->AddObserver(this);
 }
 
@@ -90,9 +95,21 @@ MaximizeModeController::~MaximizeModeController() {
   Shell::GetInstance()->accelerometer_controller()->RemoveObserver(this);
 }
 
+bool MaximizeModeController::CanEnterMaximizeMode() {
+  // If we have ever seen accelerometer data, then HandleHingeRotation may
+  // trigger maximize mode at some point in the future.
+  // The --enable-touch-view-testing switch can also mean that we may enter
+  // maximize mode.
+  return have_seen_accelerometer_data_ ||
+         CommandLine::ForCurrentProcess()->HasSwitch(
+             switches::kAshEnableTouchViewTesting);
+}
+
 void MaximizeModeController::OnAccelerometerUpdated(
     const gfx::Vector3dF& base,
     const gfx::Vector3dF& lid) {
+  have_seen_accelerometer_data_ = true;
+
   // Ignore the reading if it appears unstable. The reading is considered
   // unstable if it deviates too much from gravity and/or the magnitude of the
   // reading from the lid differs too much from the reading from the base.
@@ -169,8 +186,8 @@ void MaximizeModeController::HandleScreenRotation(const gfx::Vector3dF& lid) {
       // Also, SetDisplayRotation will save the setting to the local store,
       // this should be stored in a way that we can distinguish what the
       // rotation was set by.
-      display_manager->SetDisplayRotation(gfx::Display::InternalDisplayId(),
-                                          gfx::Display::ROTATE_0);
+      SetDisplayRotation(display_manager,
+                         gfx::Display::ROTATE_0);
     }
     rotation_locked_ = false;
     return;
@@ -228,9 +245,18 @@ void MaximizeModeController::HandleScreenRotation(const gfx::Vector3dF& lid) {
   // match screen orientation.
   if (new_rotation == gfx::Display::ROTATE_0 ||
       maximize_mode_engaged) {
-    display_manager->SetDisplayRotation(gfx::Display::InternalDisplayId(),
-                                        new_rotation);
+    SetDisplayRotation(display_manager,
+                       new_rotation);
   }
+}
+
+void MaximizeModeController::SetDisplayRotation(
+    DisplayManager* display_manager,
+    gfx::Display::Rotation rotation) {
+  base::AutoReset<bool> auto_in_set_screen_rotation(
+      &in_set_screen_rotation_, true);
+  display_manager->SetDisplayRotation(gfx::Display::InternalDisplayId(),
+                                      rotation);
 }
 
 }  // namespace ash

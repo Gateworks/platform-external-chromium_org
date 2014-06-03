@@ -194,10 +194,8 @@ include $(LOCAL_PATH)/third_party/WebKit/public/blink_headers.target.darwin-mips
 include $(LOCAL_PATH)/third_party/WebKit/public/blink_minimal.target.darwin-mips.mk
 include $(LOCAL_PATH)/third_party/WebKit/public/blink_skia_config.target.darwin-mips.mk
 include $(LOCAL_PATH)/third_party/angle/src/commit_id.target.darwin-mips.mk
-include $(LOCAL_PATH)/third_party/angle/src/copy_scripts.target.darwin-mips.mk
 include $(LOCAL_PATH)/third_party/angle/src/preprocessor.target.darwin-mips.mk
 include $(LOCAL_PATH)/third_party/angle/src/translator.target.darwin-mips.mk
-include $(LOCAL_PATH)/third_party/angle/src/translator_lib.target.darwin-mips.mk
 include $(LOCAL_PATH)/third_party/ashmem/ashmem.target.darwin-mips.mk
 include $(LOCAL_PATH)/third_party/brotli/brotli.target.darwin-mips.mk
 include $(LOCAL_PATH)/third_party/expat/expat.target.darwin-mips.mk

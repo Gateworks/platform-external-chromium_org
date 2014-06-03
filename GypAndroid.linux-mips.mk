@@ -194,10 +194,8 @@ include $(LOCAL_PATH)/third_party/WebKit/public/blink_headers.target.linux-mips.
 include $(LOCAL_PATH)/third_party/WebKit/public/blink_minimal.target.linux-mips.mk
 include $(LOCAL_PATH)/third_party/WebKit/public/blink_skia_config.target.linux-mips.mk
 include $(LOCAL_PATH)/third_party/angle/src/commit_id.target.linux-mips.mk
-include $(LOCAL_PATH)/third_party/angle/src/copy_scripts.target.linux-mips.mk
 include $(LOCAL_PATH)/third_party/angle/src/preprocessor.target.linux-mips.mk
 include $(LOCAL_PATH)/third_party/angle/src/translator.target.linux-mips.mk
-include $(LOCAL_PATH)/third_party/angle/src/translator_lib.target.linux-mips.mk
 include $(LOCAL_PATH)/third_party/ashmem/ashmem.target.linux-mips.mk
 include $(LOCAL_PATH)/third_party/brotli/brotli.target.linux-mips.mk
 include $(LOCAL_PATH)/third_party/expat/expat.target.linux-mips.mk
