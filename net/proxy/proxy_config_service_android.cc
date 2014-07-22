@@ -161,16 +161,30 @@ std::string GetJavaProperty(const std::string& property) {
 }
 
 void CreateStaticProxyConfig(const std::string& host, int port,
-                             ProxyConfig* config) {
+                             const std::string& exclist,ProxyConfig* config) {
   if (port != 0) {
     std::string rules = base::StringPrintf("%s:%d", host.c_str(), port);
     config->proxy_rules().ParseFromString(rules);
+    config->proxy_rules().bypass_rules.Clear();
+    if ( !exclist.empty()) {
+      base::StringTokenizer tokenizer(exclist, ",");
+      while (tokenizer.GetNext()) {
+        std::string token = tokenizer.token();
+        std::string pattern;
+        TrimWhitespaceASCII(token, TRIM_ALL, &pattern);
+        if (pattern.empty())
+          continue;
+        VLOG(0) << "Add bypass rules:" << pattern.c_str();
+        config->proxy_rules().bypass_rules.AddRuleFromString(pattern);
+      }
+    }
   } else {
     *config = ProxyConfig::CreateDirect();
   }
 }
 
 }  // namespace
+
 
 class ProxyConfigServiceAndroid::Delegate
     : public base::RefCountedThreadSafe<Delegate> {
@@ -249,10 +263,11 @@ class ProxyConfigServiceAndroid::Delegate
   }
 
   // Called on the JNI thread.
-  void ProxySettingsChangedTo(const std::string& host, int port) {
+  void ProxySettingsChangedTo(const std::string& host, int port,
+                              const std::string& exclist) {
     DCHECK(OnJNIThread());
     ProxyConfig proxy_config;
-    CreateStaticProxyConfig(host, port, &proxy_config);
+    CreateStaticProxyConfig(host, port, exclist, &proxy_config);
     network_task_runner_->PostTask(
         FROM_HERE,
         base::Bind(
@@ -268,9 +283,11 @@ class ProxyConfigServiceAndroid::Delegate
 
     // ProxyConfigServiceAndroid::JNIDelegate overrides.
     virtual void ProxySettingsChangedTo(JNIEnv* env, jobject jself,
-                                      jstring jhost, jint jport) OVERRIDE {
+                                      jstring jhost, jint jport,
+                                      jstring jexclist) OVERRIDE {
       std::string host = ConvertJavaStringToUTF8(env, jhost);
-      delegate_->ProxySettingsChangedTo(host, jport);
+      std::string exclist = ConvertJavaStringToUTF8(env, jexclist);
+      delegate_->ProxySettingsChangedTo(host, jport, exclist);
     }
 
     virtual void ProxySettingsChanged(JNIEnv* env, jobject self) OVERRIDE {
