@@ -8,14 +8,22 @@
 #include "base/files/file_path.h"
 #include "base/logging.h"
 #include "base/path_service.h"
-#include "net/base/filename_util.h"
+#include "base/strings/string_util.h"
+#include "mojo/shell/filename_util.h"
 #include "url/url_util.h"
 
 namespace mojo {
 namespace shell {
 namespace {
 
-std::string MakeSharedLibraryName(const std::string& host_name) {
+std::string MakeSharedLibraryName(std::string host_name) {
+  // TODO(aa): This should go away soon. In the Chromium repo, all the app
+  // target names start with "mojo_" by convention. But when we have an SDK,
+  // one would assume the libraries would have names that don't have this bit.
+  std::string prefix = "mojo_";
+  if (!StartsWithASCII(host_name, prefix, true))
+    host_name = prefix + host_name;
+
 #if defined(OS_WIN)
   return host_name + ".dll";
 #elif defined(OS_LINUX) || defined(OS_ANDROID)
@@ -47,7 +55,7 @@ MojoURLResolver::MojoURLResolver() {
   // By default, resolve mojo URLs to files living alongside the shell.
   base::FilePath path;
   PathService::Get(base::DIR_MODULE, &path);
-  default_base_url_ = AddTrailingSlashIfNeeded(net::FilePathToFileURL(path));
+  default_base_url_ = AddTrailingSlashIfNeeded(FilePathToFileURL(path));
 }
 
 MojoURLResolver::~MojoURLResolver() {
@@ -70,20 +78,33 @@ void MojoURLResolver::AddLocalFileMapping(const GURL& mojo_url) {
 }
 
 GURL MojoURLResolver::Resolve(const GURL& mojo_url) const {
-  std::map<GURL, GURL>::const_iterator it = url_map_.find(mojo_url);
-  if (it != url_map_.end())
-    return it->second;
+  const GURL mapped_url(ApplyCustomMappings(mojo_url));
 
-  std::string lib = MakeSharedLibraryName(mojo_url.host());
+  // Continue resolving if the mapped url is a mojo: url.
+  if (mapped_url.scheme() != "mojo")
+    return mapped_url;
+
+  std::string lib = MakeSharedLibraryName(mapped_url.host());
 
   if (!base_url_.is_valid() ||
-      local_file_set_.find(mojo_url) != local_file_set_.end()) {
+      local_file_set_.find(mapped_url) != local_file_set_.end()) {
     // Resolve to a local file URL.
     return default_base_url_.Resolve(lib);
   }
 
   // Otherwise, resolve to an URL relative to base_url_.
   return base_url_.Resolve(lib);
+}
+
+GURL MojoURLResolver::ApplyCustomMappings(const GURL& url) const {
+  GURL mapped_url(url);
+  for (;;) {
+    std::map<GURL, GURL>::const_iterator it = url_map_.find(mapped_url);
+    if (it == url_map_.end())
+      break;
+    mapped_url = it->second;
+  }
+  return mapped_url;
 }
 
 }  // namespace shell

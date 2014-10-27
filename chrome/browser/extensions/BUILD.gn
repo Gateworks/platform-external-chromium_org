@@ -86,7 +86,7 @@ static_library("extensions") {
     deps += [
       "//third_party/libevent",
       "//third_party/protobuf:protobuf_lite",
-      #'../chromeos/ime/input_method.gyp:gencode',  TODO(GYP)
+      "//chromeos/ime:gencode",
     ]
   } else {
     sources += [
@@ -104,9 +104,14 @@ static_library("extensions") {
       "api/tabs/ash_panel_contents.h",
     ]
   }
-  if (!use_athena) {
+  if (use_athena) {
+    defines += [ USE_ATHENA ]
     sources += rebase_path(
-        gypi_values.chrome_browser_extensions_non_athena_sources,
+      gypi_values.chrome_browser_extensions_athena_sources,
+        ".", "//chrome")
+  } else {
+    sources += rebase_path(
+      gypi_values.chrome_browser_extensions_non_athena_sources,
         ".", "//chrome")
   }
 
@@ -184,7 +189,13 @@ static_library("extensions") {
   if (is_win || is_mac) {
     deps += [ "//components/wifi" ]
     sources += rebase_path(
-        gypi_values.chrome_browser_extensions_networking_private_sources,
+        gypi_values.chrome_browser_extensions_networking_private_sources_winmac,
+        ".", "//chrome")
+  }
+
+  if (is_linux) {
+    sources += rebase_path(
+        gypi_values.chrome_browser_extensions_networking_private_sources_linux,
         ".", "//chrome")
   }
 

@@ -52,7 +52,7 @@ void QuicServerSession::OnConnectionClosed(QuicErrorCode error,
   QuicSession::OnConnectionClosed(error, from_peer);
   // In the unlikely event we get a connection close while doing an asynchronous
   // crypto event, make sure we cancel the callback.
-  if (crypto_stream_.get() != NULL) {
+  if (crypto_stream_.get() != nullptr) {
     crypto_stream_->CancelOutstandingCallbacks();
   }
   visitor_->OnConnectionClosed(connection()->connection_id(), error);
@@ -123,16 +123,18 @@ void QuicServerSession::OnCongestionWindowChange(QuicTime now) {
   cached_network_params.set_max_bandwidth_timestamp_seconds(
       max_bandwidth_timestamp);
   cached_network_params.set_min_rtt_ms(
-      sent_packet_manager.GetRttStats()->min_rtt().ToMilliseconds());
+      sent_packet_manager.GetRttStats()->MinRtt().ToMilliseconds());
   cached_network_params.set_previous_connection_state(
       bandwidth_recorder.EstimateRecordedDuringSlowStart()
           ? CachedNetworkParameters::SLOW_START
           : CachedNetworkParameters::CONGESTION_AVOIDANCE);
+  cached_network_params.set_timestamp(
+      connection()->clock()->WallNow().ToUNIXSeconds());
   if (!serving_region_.empty()) {
     cached_network_params.set_serving_region(serving_region_);
   }
 
-  crypto_stream_->SendServerConfigUpdate(&cached_network_params);
+  crypto_stream_->SendServerConfigUpdate(&cached_network_params, false);
   last_server_config_update_time_ = now;
 }
 
@@ -155,7 +157,7 @@ bool QuicServerSession::ShouldCreateIncomingDataStream(QuicStreamId id) {
 QuicDataStream* QuicServerSession::CreateIncomingDataStream(
     QuicStreamId id) {
   if (!ShouldCreateIncomingDataStream(id)) {
-    return NULL;
+    return nullptr;
   }
 
   return new QuicSpdyServerStream(id, this);
@@ -163,7 +165,7 @@ QuicDataStream* QuicServerSession::CreateIncomingDataStream(
 
 QuicDataStream* QuicServerSession::CreateOutgoingDataStream() {
   DLOG(ERROR) << "Server push not yet supported";
-  return NULL;
+  return nullptr;
 }
 
 QuicCryptoServerStream* QuicServerSession::GetCryptoStream() {

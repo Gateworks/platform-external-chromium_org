@@ -22,24 +22,24 @@ class TestInProcessContextProvider : public ContextProvider {
  public:
   TestInProcessContextProvider();
 
-  virtual bool BindToCurrentThread() OVERRIDE;
-  virtual gpu::gles2::GLES2Interface* ContextGL() OVERRIDE;
-  virtual gpu::ContextSupport* ContextSupport() OVERRIDE;
-  virtual class GrContext* GrContext() OVERRIDE;
-  virtual Capabilities ContextCapabilities() OVERRIDE;
-  virtual bool IsContextLost() OVERRIDE;
-  virtual void VerifyContexts() OVERRIDE;
-  virtual void DeleteCachedResources() OVERRIDE;
-  virtual bool DestroyedOnMainThread() OVERRIDE;
-  virtual void SetLostContextCallback(
-      const LostContextCallback& lost_context_callback) OVERRIDE;
-  virtual void SetMemoryPolicyChangedCallback(
+  bool BindToCurrentThread() override;
+  gpu::gles2::GLES2Interface* ContextGL() override;
+  gpu::ContextSupport* ContextSupport() override;
+  class GrContext* GrContext() override;
+  Capabilities ContextCapabilities() override;
+  bool IsContextLost() override;
+  void VerifyContexts() override;
+  void DeleteCachedResources() override;
+  bool DestroyedOnMainThread() override;
+  void SetLostContextCallback(
+      const LostContextCallback& lost_context_callback) override;
+  void SetMemoryPolicyChangedCallback(
       const MemoryPolicyChangedCallback& memory_policy_changed_callback)
-      OVERRIDE;
+      override;
 
  protected:
   friend class base::RefCountedThreadSafe<TestInProcessContextProvider>;
-  virtual ~TestInProcessContextProvider();
+  ~TestInProcessContextProvider() override;
 
  private:
   scoped_ptr<gpu::GLInProcessContext> context_;

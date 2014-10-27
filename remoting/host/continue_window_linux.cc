@@ -21,8 +21,8 @@ class ContinueWindowGtk : public ContinueWindow {
 
  protected:
   // ContinueWindow overrides.
-  virtual void ShowUi() OVERRIDE;
-  virtual void HideUi() OVERRIDE;
+  virtual void ShowUi() override;
+  virtual void HideUi() override;
 
  private:
   void CreateWindow();
@@ -115,7 +115,7 @@ void ContinueWindowGtk::OnResponse(GtkDialog* dialog, int response_id) {
 
 // static
 scoped_ptr<HostWindow> HostWindow::CreateContinueWindow() {
-  return scoped_ptr<HostWindow>(new ContinueWindowGtk());
+  return make_scoped_ptr(new ContinueWindowGtk());
 }
 
 }  // namespace remoting

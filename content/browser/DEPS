@@ -5,6 +5,7 @@ include_rules = [
   "+media/base",  # For Android JNI registration.
   "+media/midi",  # For Web MIDI API
   "+media/video",  # For Video Device monitoring in Mac.
+  "+mojo",
   "+sql",
   "+ui/webui",
   "+win8/util",
@@ -13,6 +14,10 @@ include_rules = [
   # since //content shouldn't depend on //components, which is a layer
   # above.
   "+components/tracing",
+
+  # In general, //content shouldn't depend on //device.
+  # This is the an exception.
+  "+device/udev_linux",  # For udev utility and wrapper library.
 
   # Other libraries.
   "+third_party/iaccessible2",
@@ -32,6 +37,7 @@ include_rules = [
   # header-only types, and some selected common code.
   "-third_party/WebKit",
   "+third_party/WebKit/public/platform/WebBatteryStatus.h",
+  "+third_party/WebKit/public/platform/WebCircularGeofencingRegion.h",
   "+third_party/WebKit/public/platform/WebCursorInfo.h",
   "+third_party/WebKit/public/platform/WebGamepad.h",
   "+third_party/WebKit/public/platform/WebGamepads.h",
@@ -47,6 +53,7 @@ include_rules = [
   "+third_party/WebKit/public/platform/WebServiceWorkerCacheError.h",
   "+third_party/WebKit/public/platform/WebServiceWorkerError.h",
   "+third_party/WebKit/public/platform/WebServiceWorkerEventResult.h",
+  "+third_party/WebKit/public/platform/WebServiceWorkerResponseType.h",
   "+third_party/WebKit/public/platform/WebServiceWorkerState.h",
   "+third_party/WebKit/public/platform/WebString.h",
   "+third_party/WebKit/public/platform/WebVibration.h",

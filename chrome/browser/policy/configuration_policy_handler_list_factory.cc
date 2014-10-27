@@ -366,6 +366,12 @@ const PolicyToPreferenceMapEntry kSimplePolicyMap[] = {
   { key::kForceEphemeralProfiles,
     prefs::kForceEphemeralProfiles,
     base::Value::TYPE_BOOLEAN },
+  { key::kSSLVersionMin,
+    prefs::kSSLVersionMin,
+    base::Value::TYPE_STRING },
+  { key::kSSLVersionFallbackMin,
+    prefs::kSSLVersionFallbackMin,
+    base::Value::TYPE_STRING },
 
 #if !defined(OS_MACOSX) && !defined(OS_IOS)
   { key::kFullscreenAllowed,
@@ -606,6 +612,8 @@ scoped_ptr<ConfigurationPolicyHandlerList> BuildHandlerList(
           key::kExtensionAllowedTypes,
           extensions::pref_names::kAllowedTypes,
           base::Bind(GetExtensionAllowedTypesMap))));
+  handlers->AddHandler(make_scoped_ptr<ConfigurationPolicyHandler>(
+      new extensions::ExtensionSettingsPolicyHandler(chrome_schema)));
 #endif
 
 #if !defined(OS_CHROMEOS) && !defined(OS_ANDROID) && !defined(OS_IOS)

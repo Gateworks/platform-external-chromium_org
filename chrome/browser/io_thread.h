@@ -166,6 +166,7 @@ class IOThread : public content::BrowserThreadDelegate {
     scoped_ptr<net::HttpUserAgentSettings> http_user_agent_settings;
     bool enable_ssl_connect_job_waiting;
     bool ignore_certificate_errors;
+    bool use_stale_while_revalidate;
     uint16 testing_fixed_http_port;
     uint16 testing_fixed_https_port;
     Optional<bool> enable_tcp_fast_open_for_ssl;
@@ -185,7 +186,6 @@ class IOThread : public content::BrowserThreadDelegate {
     Optional<bool> enable_websocket_over_spdy;
 
     Optional<bool> enable_quic;
-    Optional<bool> enable_quic_time_based_loss_detection;
     Optional<bool> enable_quic_port_selection;
     Optional<bool> quic_always_require_handshake_confirmation;
     Optional<bool> quic_disable_connection_pooling;
@@ -213,7 +213,7 @@ class IOThread : public content::BrowserThreadDelegate {
            ChromeNetLog* net_log,
            extensions::EventRouterForwarder* extension_event_router_forwarder);
 
-  virtual ~IOThread();
+  ~IOThread() override;
 
   static void RegisterPrefs(PrefRegistrySimple* registry);
 
@@ -255,9 +255,9 @@ class IOThread : public content::BrowserThreadDelegate {
   // BrowserThreadDelegate implementation, runs on the IO thread.
   // This handles initialization and destruction of state that must
   // live on the IO thread.
-  virtual void Init() OVERRIDE;
-  virtual void InitAsync() OVERRIDE;
-  virtual void CleanUp() OVERRIDE;
+  void Init() override;
+  void InitAsync() override;
+  void CleanUp() override;
 
   // Initializes |params| based on the settings in |globals|.
   static void InitializeNetworkSessionParamsFromGlobals(
@@ -349,13 +349,6 @@ class IOThread : public content::BrowserThreadDelegate {
   // Returns true if QUIC packet pacing should be negotiated during the
   // QUIC handshake.
   static bool ShouldEnableQuicPacing(
-      const base::CommandLine& command_line,
-      base::StringPiece quic_trial_group,
-      const VariationParameters& quic_trial_params);
-
-  // Returns true if QUIC time-base loss detection should be negotiated during
-  // the QUIC handshake.
-  static bool ShouldEnableQuicTimeBasedLossDetection(
       const base::CommandLine& command_line,
       base::StringPiece quic_trial_group,
       const VariationParameters& quic_trial_params);

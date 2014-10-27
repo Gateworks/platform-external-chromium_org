@@ -11,10 +11,10 @@
 #include "base/time/time.h"
 #include "base/values.h"
 #include "chrome/test/chromedriver/basic_types.h"
+#include "chrome/test/chromedriver/chrome/browser_info.h"
 #include "chrome/test/chromedriver/chrome/chrome.h"
 #include "chrome/test/chromedriver/chrome/js.h"
 #include "chrome/test/chromedriver/chrome/status.h"
-#include "chrome/test/chromedriver/chrome/version.h"
 #include "chrome/test/chromedriver/chrome/web_view.h"
 #include "chrome/test/chromedriver/session.h"
 #include "third_party/webdriver/atoms.h"
@@ -357,7 +357,7 @@ Status GetElementClickableLocation(
   std::string target_element_id = element_id;
   if (tag_name == "area") {
     // Scroll the image into view instead of the area.
-    const char* kGetImageElementForArea =
+    const char kGetImageElementForArea[] =
         "function (element) {"
         "  var map = element.parentElement;"
         "  if (map.tagName.toLowerCase() != 'map')"
@@ -614,7 +614,7 @@ Status ScrollElementRegionIntoView(
       center, clickable_element_id, &region_offset);
   if (status.IsError())
     return status;
-  const char* kFindSubFrameScript =
+  const char kFindSubFrameScript[] =
       "function(xpath) {"
       "  return document.evaluate(xpath, document, null,"
       "      XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;"

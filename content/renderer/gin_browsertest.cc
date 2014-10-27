@@ -28,7 +28,7 @@ class TestGinObject : public gin::Wrappable<TestGinObject> {
 
  private:
   TestGinObject(bool* alive) : alive_(alive) { *alive_ = true; }
-  virtual ~TestGinObject() { *alive_ = false; }
+  ~TestGinObject() override { *alive_ = false; }
 
   bool* alive_;
 
@@ -42,7 +42,7 @@ class GinBrowserTest : public RenderViewTest {
   GinBrowserTest() {}
   virtual ~GinBrowserTest() {}
 
-  virtual void SetUp() OVERRIDE {
+  virtual void SetUp() override {
     CommandLine::ForCurrentProcess()->AppendSwitchASCII(
         switches::kJavaScriptFlags, "--expose_gc");
 

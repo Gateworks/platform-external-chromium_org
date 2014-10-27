@@ -36,7 +36,7 @@ class ResourceDispatcherHostBrowserTest : public ContentBrowserTest,
   ResourceDispatcherHostBrowserTest() : got_downloads_(false) {}
 
  protected:
-  virtual void SetUpOnMainThread() OVERRIDE {
+  void SetUpOnMainThread() override {
     base::FilePath path = GetTestFilePath("", "");
     BrowserThread::PostTask(
         BrowserThread::IO,
@@ -50,9 +50,8 @@ class ResourceDispatcherHostBrowserTest : public ContentBrowserTest,
         base::Bind(&net::URLRequestFailedJob::AddUrlHandler));
   }
 
-  virtual void OnDownloadCreated(
-      DownloadManager* manager,
-      DownloadItem* item) OVERRIDE {
+  void OnDownloadCreated(DownloadManager* manager,
+                         DownloadItem* item) override {
     if (!got_downloads_)
       got_downloads_ = !!manager->InProgressCount();
   }
@@ -271,7 +270,7 @@ scoped_ptr<net::test_server::HttpResponse> NoContentResponseHandler(
   scoped_ptr<net::test_server::BasicHttpResponse> http_response(
       new net::test_server::BasicHttpResponse);
   http_response->set_code(net::HTTP_NO_CONTENT);
-  return http_response.PassAs<net::test_server::HttpResponse>();
+  return http_response.Pass();
 }
 
 }  // namespace
@@ -450,7 +449,7 @@ scoped_ptr<net::test_server::HttpResponse> HandleRedirectRequest(
   http_response->set_code(net::HTTP_FOUND);
   http_response->AddCustomHeader(
       "Location", request.relative_url.substr(request_path.length()));
-  return http_response.PassAs<net::test_server::HttpResponse>();
+  return http_response.Pass();
 }
 
 }  // namespace

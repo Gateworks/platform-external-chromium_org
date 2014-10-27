@@ -32,8 +32,7 @@ extern const char kHotwordFieldTrialDisabledGroupName[];
 
 // Provides an interface for the Hotword component that does voice triggered
 // search.
-class HotwordService : public content::NotificationObserver,
-                       public extensions::ExtensionRegistryObserver,
+class HotwordService : public extensions::ExtensionRegistryObserver,
                        public KeyedService {
  public:
   // Returns true if the hotword supports the current system language.
@@ -43,22 +42,15 @@ class HotwordService : public content::NotificationObserver,
   static bool IsExperimentalHotwordingEnabled();
 
   explicit HotwordService(Profile* profile);
-  virtual ~HotwordService();
-
-  // Overridden from content::NotificationObserver:
-  virtual void Observe(int type,
-                       const content::NotificationSource& source,
-                       const content::NotificationDetails& details) OVERRIDE;
+  ~HotwordService() override;
 
   // Overridden from ExtensionRegisterObserver:
-  virtual void OnExtensionInstalled(
-      content::BrowserContext* browser_context,
-      const extensions::Extension* extension,
-      bool is_update) OVERRIDE;
-  virtual void OnExtensionUninstalled(
-      content::BrowserContext* browser_context,
-      const extensions::Extension* extension,
-      extensions::UninstallReason reason) OVERRIDE;
+  void OnExtensionInstalled(content::BrowserContext* browser_context,
+                            const extensions::Extension* extension,
+                            bool is_update) override;
+  void OnExtensionUninstalled(content::BrowserContext* browser_context,
+                              const extensions::Extension* extension,
+                              extensions::UninstallReason reason) override;
 
   // Checks for whether all the necessary files have downloaded to allow for
   // using the extension.
@@ -71,6 +63,9 @@ class HotwordService : public content::NotificationObserver,
   // Checks if the user has opted into audio logging. Returns true if the user
   // is opted in, false otherwise..
   bool IsOptedIntoAudioLogging();
+
+  // Returns whether always-on hotwording is enabled.
+  bool IsAlwaysOnEnabled();
 
   // Control the state of the hotword extension.
   void EnableHotwordExtension(ExtensionService* extension_service);
@@ -123,6 +118,9 @@ class HotwordService : public content::NotificationObserver,
   virtual LaunchMode GetHotwordAudioVerificationLaunchMode();
 
  private:
+  // Returns the ID of the extension that may need to be reinstalled.
+  std::string ReinstalledExtensionId();
+
   Profile* profile_;
 
   PrefChangeRegistrar pref_registrar_;

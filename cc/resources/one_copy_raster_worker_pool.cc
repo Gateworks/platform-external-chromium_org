@@ -5,6 +5,7 @@
 #include "cc/resources/one_copy_raster_worker_pool.h"
 
 #include <algorithm>
+#include <limits>
 
 #include "base/debug/trace_event.h"
 #include "base/debug/trace_event_argument.h"
@@ -14,38 +15,35 @@
 #include "cc/resources/resource_pool.h"
 #include "cc/resources/scoped_resource.h"
 #include "gpu/command_buffer/client/gles2_interface.h"
-#include "third_party/skia/include/utils/SkNullCanvas.h"
+#include "ui/gfx/gpu_memory_buffer.h"
 
 namespace cc {
 namespace {
 
 class RasterBufferImpl : public RasterBuffer {
  public:
-  RasterBufferImpl(ResourceProvider* resource_provider,
+  RasterBufferImpl(OneCopyRasterWorkerPool* worker_pool,
+                   ResourceProvider* resource_provider,
                    ResourcePool* resource_pool,
                    const Resource* resource)
-      : resource_provider_(resource_provider),
+      : worker_pool_(worker_pool),
+        resource_provider_(resource_provider),
         resource_pool_(resource_pool),
         resource_(resource),
         raster_resource_(resource_pool->AcquireResource(resource->size())),
-        buffer_(NULL),
-        stride_(0) {
-    // Acquire and map image for raster resource.
-    resource_provider_->AcquireImage(raster_resource_->id());
-    buffer_ = resource_provider_->MapImage(raster_resource_->id(), &stride_);
-  }
+        lock_(new ResourceProvider::ScopedWriteLockGpuMemoryBuffer(
+            resource_provider_,
+            raster_resource_->id())),
+        sequence_(0) {}
 
-  virtual ~RasterBufferImpl() {
-    // First unmap image for raster resource.
-    resource_provider_->UnmapImage(raster_resource_->id());
+  ~RasterBufferImpl() override {
+    // Release write lock in case a copy was never scheduled.
+    lock_.reset();
 
-    // Copy contents of raster resource to |resource_|.
-    resource_provider_->CopyResource(raster_resource_->id(), resource_->id());
-
-    // This RasterBuffer implementation provides direct access to the memory
-    // used by the GPU. Read lock fences are required to ensure that we're not
-    // trying to map a resource that is currently in-use by the GPU.
-    resource_provider_->EnableReadLockFences(raster_resource_->id());
+    // Make sure any scheduled copy operations are issued before we release the
+    // raster resource.
+    if (sequence_)
+      worker_pool_->AdvanceLastIssuedCopyTo(sequence_);
 
     // Return raster resource to pool so it can be used by another RasterBuffer
     // instance.
@@ -53,35 +51,54 @@ class RasterBufferImpl : public RasterBuffer {
   }
 
   // Overridden from RasterBuffer:
-  virtual skia::RefPtr<SkCanvas> AcquireSkCanvas() OVERRIDE {
-    if (!buffer_)
-      return skia::AdoptRef(SkCreateNullCanvas());
-
-    RasterWorkerPool::AcquireBitmapForBuffer(
-        &bitmap_, buffer_, resource_->format(), resource_->size(), stride_);
-    return skia::AdoptRef(new SkCanvas(bitmap_));
-  }
-  virtual void ReleaseSkCanvas(const skia::RefPtr<SkCanvas>& canvas) OVERRIDE {
-    if (!buffer_)
+  void Playback(const PicturePileImpl* picture_pile,
+                const gfx::Rect& rect,
+                float scale,
+                RenderingStatsInstrumentation* stats) override {
+    gfx::GpuMemoryBuffer* gpu_memory_buffer = lock_->gpu_memory_buffer();
+    if (!gpu_memory_buffer)
       return;
 
-    RasterWorkerPool::ReleaseBitmapForBuffer(
-        &bitmap_, buffer_, resource_->format());
+    RasterWorkerPool::PlaybackToMemory(gpu_memory_buffer->Map(),
+                                       raster_resource_->format(),
+                                       raster_resource_->size(),
+                                       gpu_memory_buffer->GetStride(),
+                                       picture_pile,
+                                       rect,
+                                       scale,
+                                       stats);
+    gpu_memory_buffer->Unmap();
+
+    sequence_ = worker_pool_->ScheduleCopyOnWorkerThread(
+        lock_.Pass(), raster_resource_.get(), resource_);
   }
 
  private:
+  OneCopyRasterWorkerPool* worker_pool_;
   ResourceProvider* resource_provider_;
   ResourcePool* resource_pool_;
   const Resource* resource_;
   scoped_ptr<ScopedResource> raster_resource_;
-  uint8_t* buffer_;
-  int stride_;
-  SkBitmap bitmap_;
+  scoped_ptr<ResourceProvider::ScopedWriteLockGpuMemoryBuffer> lock_;
+  CopySequenceNumber sequence_;
 
   DISALLOW_COPY_AND_ASSIGN(RasterBufferImpl);
 };
 
+// Flush interval when performing copy operations.
+const int kCopyFlushPeriod = 4;
+
 }  // namespace
+
+OneCopyRasterWorkerPool::CopyOperation::CopyOperation(
+    scoped_ptr<ResourceProvider::ScopedWriteLockGpuMemoryBuffer> write_lock,
+    ResourceProvider::ResourceId src,
+    ResourceProvider::ResourceId dst)
+    : write_lock(write_lock.Pass()), src(src), dst(dst) {
+}
+
+OneCopyRasterWorkerPool::CopyOperation::~CopyOperation() {
+}
 
 // static
 scoped_ptr<RasterWorkerPool> OneCopyRasterWorkerPool::Create(
@@ -110,6 +127,10 @@ OneCopyRasterWorkerPool::OneCopyRasterWorkerPool(
       context_provider_(context_provider),
       resource_provider_(resource_provider),
       resource_pool_(resource_pool),
+      last_issued_copy_operation_(0),
+      last_flushed_copy_operation_(0),
+      next_copy_operation_sequence_(1),
+      weak_ptr_factory_(this),
       raster_finished_weak_ptr_factory_(this) {
   DCHECK(context_provider_);
 }
@@ -208,6 +229,7 @@ void OneCopyRasterWorkerPool::CheckForCompletedTasks() {
 
   task_graph_runner_->CollectCompletedTasks(namespace_token_,
                                             &completed_tasks_);
+
   for (Task::Vector::const_iterator it = completed_tasks_.begin();
        it != completed_tasks_.end();
        ++it) {
@@ -220,20 +242,67 @@ void OneCopyRasterWorkerPool::CheckForCompletedTasks() {
     task->RunReplyOnOriginThread();
   }
   completed_tasks_.clear();
-
-  context_provider_->ContextGL()->ShallowFlushCHROMIUM();
 }
 
 scoped_ptr<RasterBuffer> OneCopyRasterWorkerPool::AcquireBufferForRaster(
     const Resource* resource) {
   DCHECK_EQ(resource->format(), resource_pool_->resource_format());
   return make_scoped_ptr<RasterBuffer>(
-      new RasterBufferImpl(resource_provider_, resource_pool_, resource));
+      new RasterBufferImpl(this, resource_provider_, resource_pool_, resource));
 }
 
 void OneCopyRasterWorkerPool::ReleaseBufferForRaster(
     scoped_ptr<RasterBuffer> buffer) {
   // Nothing to do here. RasterBufferImpl destructor cleans up after itself.
+}
+
+CopySequenceNumber OneCopyRasterWorkerPool::ScheduleCopyOnWorkerThread(
+    scoped_ptr<ResourceProvider::ScopedWriteLockGpuMemoryBuffer> write_lock,
+    const Resource* src,
+    const Resource* dst) {
+  CopySequenceNumber sequence;
+
+  {
+    base::AutoLock lock(lock_);
+
+    sequence = next_copy_operation_sequence_++;
+
+    pending_copy_operations_.push_back(make_scoped_ptr(
+        new CopyOperation(write_lock.Pass(), src->id(), dst->id())));
+  }
+
+  // Post task that will advance last flushed copy operation to |sequence|
+  // if we have reached the flush period.
+  if ((sequence % kCopyFlushPeriod) == 0) {
+    task_runner_->PostTask(
+        FROM_HERE,
+        base::Bind(&OneCopyRasterWorkerPool::AdvanceLastFlushedCopyTo,
+                   weak_ptr_factory_.GetWeakPtr(),
+                   sequence));
+  }
+
+  return sequence;
+}
+
+void OneCopyRasterWorkerPool::AdvanceLastIssuedCopyTo(
+    CopySequenceNumber sequence) {
+  if (last_issued_copy_operation_ >= sequence)
+    return;
+
+  IssueCopyOperations(sequence - last_issued_copy_operation_);
+  last_issued_copy_operation_ = sequence;
+}
+
+void OneCopyRasterWorkerPool::AdvanceLastFlushedCopyTo(
+    CopySequenceNumber sequence) {
+  if (last_flushed_copy_operation_ >= sequence)
+    return;
+
+  AdvanceLastIssuedCopyTo(sequence);
+
+  // Flush all issued copy operations.
+  context_provider_->ContextGL()->ShallowFlushCHROMIUM();
+  last_flushed_copy_operation_ = last_issued_copy_operation_;
 }
 
 void OneCopyRasterWorkerPool::OnRasterFinished(TaskSet task_set) {
@@ -249,6 +318,32 @@ void OneCopyRasterWorkerPool::OnRasterFinished(TaskSet task_set) {
     TRACE_EVENT_ASYNC_END0("cc", "ScheduledTasks", this);
   }
   client_->DidFinishRunningTasks(task_set);
+}
+
+void OneCopyRasterWorkerPool::IssueCopyOperations(int64 count) {
+  TRACE_EVENT1(
+      "cc", "OneCopyRasterWorkerPool::IssueCopyOperations", "count", count);
+
+  CopyOperation::Deque copy_operations;
+
+  {
+    base::AutoLock lock(lock_);
+
+    for (int64 i = 0; i < count; ++i) {
+      DCHECK(!pending_copy_operations_.empty());
+      copy_operations.push_back(pending_copy_operations_.take_front());
+    }
+  }
+
+  while (!copy_operations.empty()) {
+    scoped_ptr<CopyOperation> copy_operation = copy_operations.take_front();
+
+    // Remove the write lock.
+    copy_operation->write_lock.reset();
+
+    // Copy contents of source resource to destination resource.
+    resource_provider_->CopyResource(copy_operation->src, copy_operation->dst);
+  }
 }
 
 scoped_refptr<base::debug::ConvertableToTraceFormat>

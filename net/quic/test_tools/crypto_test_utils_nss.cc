@@ -29,7 +29,7 @@ class TestChannelIDSource : public ChannelIDSource {
   virtual QuicAsyncStatus GetChannelIDKey(
       const string& hostname,
       scoped_ptr<ChannelIDKey>* channel_id_key,
-      ChannelIDSourceCallback* /*callback*/) OVERRIDE {
+      ChannelIDSourceCallback* /*callback*/) override {
     channel_id_key->reset(new ChannelIDKeyChromium(HostnameToKey(hostname)));
     return QUIC_SUCCESS;
   }
@@ -45,7 +45,7 @@ class TestChannelIDSource : public ChannelIDSource {
 
     crypto::ECPrivateKey* keypair = crypto::ECPrivateKey::Create();
     if (!keypair) {
-      return NULL;
+      return nullptr;
     }
     hostname_to_key_[hostname] = keypair;
     return keypair->Copy();

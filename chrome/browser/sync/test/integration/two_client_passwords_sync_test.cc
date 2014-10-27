@@ -37,19 +37,10 @@ class TwoClientPasswordsSyncTest : public SyncTest {
   TwoClientPasswordsSyncTest() : SyncTest(TWO_CLIENT) {}
   virtual ~TwoClientPasswordsSyncTest() {}
 
-  virtual bool TestUsesSelfNotifications() OVERRIDE { return false; }
+  bool TestUsesSelfNotifications() override { return false; }
 
  private:
   DISALLOW_COPY_AND_ASSIGN(TwoClientPasswordsSyncTest);
-};
-
-class LegacyTwoClientPasswordsSyncTest : public SyncTest {
- public:
-  LegacyTwoClientPasswordsSyncTest() : SyncTest(TWO_CLIENT_LEGACY) {}
-  virtual ~LegacyTwoClientPasswordsSyncTest() {}
-
- private:
-  DISALLOW_COPY_AND_ASSIGN(LegacyTwoClientPasswordsSyncTest);
 };
 
 // TCM ID - 3732277

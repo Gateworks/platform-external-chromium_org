@@ -35,10 +35,22 @@ bool FLAGS_close_quic_connection_unfinished_streams_2 = false;
 // When true, defaults to BBR congestion control instead of Cubic.
 bool FLAGS_quic_use_bbr_congestion_control = false;
 
-// If true, only times out QUIC connections when there has been network
-// activity; packets sent or received.
-bool FLAGS_quic_timeouts_require_activity = false;
-
 // If true, the server will accept slightly more streams than the negotiated
 // limit.
 bool FLAGS_quic_allow_more_open_streams = false;
+
+// If true, then QUIC connections will only timeout when an alarm fires, never
+// when setting a timeout.
+bool FLAGS_quic_timeouts_only_from_alarms = true;
+
+// If true, then QUIC connections will set both idle and overall timeouts in a
+// single method.
+bool FLAGS_quic_unified_timeouts = true;
+
+// If true, store any CachedNetworkParams that are provided in the STK from the
+// CHLO.
+bool FLAGS_quic_store_cached_network_params_from_chlo = false;
+
+// If true, QUIC will be more resilliant to junk packets with valid connection
+// IDs.
+bool FLAGS_quic_drop_junk_packets = true;

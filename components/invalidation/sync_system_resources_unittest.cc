@@ -179,25 +179,21 @@ TEST_F(SyncSystemResourcesTest, WriteState) {
 class TestSyncNetworkChannel : public SyncNetworkChannel {
  public:
   TestSyncNetworkChannel() {}
-  virtual ~TestSyncNetworkChannel() {}
+  ~TestSyncNetworkChannel() override {}
 
   using SyncNetworkChannel::NotifyNetworkStatusChange;
   using SyncNetworkChannel::NotifyChannelStateChange;
   using SyncNetworkChannel::DeliverIncomingMessage;
 
-  virtual void SendMessage(const std::string& message) OVERRIDE {
-  }
+  void SendMessage(const std::string& message) override {}
 
-  virtual void UpdateCredentials(const std::string& email,
-      const std::string& token) OVERRIDE {
-  }
+  void UpdateCredentials(const std::string& email,
+                         const std::string& token) override {}
 
-  virtual int GetInvalidationClientType() OVERRIDE {
-    return 0;
-  }
+  int GetInvalidationClientType() override { return 0; }
 
-  virtual void RequestDetailedStatus(
-      base::Callback<void(const base::DictionaryValue&)> callback) OVERRIDE {
+  void RequestDetailedStatus(
+      base::Callback<void(const base::DictionaryValue&)> callback) override {
     base::DictionaryValue value;
     callback.Run(value);
   }
@@ -220,8 +216,8 @@ class SyncNetworkChannelTest
     network_channel_.RemoveObserver(this);
   }
 
-  virtual void OnNetworkChannelStateChanged(
-      InvalidatorState invalidator_state) OVERRIDE {
+  void OnNetworkChannelStateChanged(
+      InvalidatorState invalidator_state) override {
     last_invalidator_state_ = invalidator_state;
   }
 

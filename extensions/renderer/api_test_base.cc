@@ -30,8 +30,8 @@ class TestNatives : public gin::Wrappable<TestNatives> {
     return gin::CreateHandle(isolate, new TestNatives(quit_closure));
   }
 
-  virtual gin::ObjectTemplateBuilder GetObjectTemplateBuilder(
-      v8::Isolate* isolate) OVERRIDE {
+  gin::ObjectTemplateBuilder GetObjectTemplateBuilder(
+      v8::Isolate* isolate) override {
     return Wrappable<TestNatives>::GetObjectTemplateBuilder(isolate)
         .SetMethod("Log", &TestNatives::Log)
         .SetMethod("NotifyPass", &TestNatives::NotifyPass)

@@ -24,7 +24,6 @@
 namespace blink {
 class WebNode;
 class WebView;
-struct WebAutocompleteParams;
 }
 
 namespace autofill {
@@ -57,23 +56,22 @@ class AutofillAgent : public content::RenderViewObserver,
 
  private:
   // content::RenderViewObserver:
-  virtual bool OnMessageReceived(const IPC::Message& message) OVERRIDE;
-  virtual void DidFinishDocumentLoad(blink::WebLocalFrame* frame) OVERRIDE;
-  virtual void DidCommitProvisionalLoad(blink::WebLocalFrame* frame,
-                                        bool is_new_navigation) OVERRIDE;
-  virtual void FrameDetached(blink::WebFrame* frame) OVERRIDE;
-  virtual void FrameWillClose(blink::WebFrame* frame) OVERRIDE;
-  virtual void WillSubmitForm(blink::WebLocalFrame* frame,
-                              const blink::WebFormElement& form) OVERRIDE;
-  virtual void DidChangeScrollOffset(blink::WebLocalFrame* frame) OVERRIDE;
-  virtual void FocusedNodeChanged(const blink::WebNode& node) OVERRIDE;
-  virtual void OrientationChangeEvent() OVERRIDE;
-  virtual void Resized() OVERRIDE;
+  bool OnMessageReceived(const IPC::Message& message) override;
+  void DidFinishDocumentLoad(blink::WebLocalFrame* frame) override;
+  void DidCommitProvisionalLoad(blink::WebLocalFrame* frame,
+                                bool is_new_navigation) override;
+  void FrameDetached(blink::WebFrame* frame) override;
+  void FrameWillClose(blink::WebFrame* frame) override;
+  void WillSubmitForm(blink::WebLocalFrame* frame,
+                      const blink::WebFormElement& form) override;
+  void DidChangeScrollOffset(blink::WebLocalFrame* frame) override;
+  void FocusedNodeChanged(const blink::WebNode& node) override;
+  void OrientationChangeEvent() override;
+  void Resized() override;
 
   // PageClickListener:
-  virtual void FormControlElementClicked(
-      const blink::WebFormControlElement& element,
-      bool was_focused) OVERRIDE;
+  void FormControlElementClicked(const blink::WebFormControlElement& element,
+                                 bool was_focused) override;
 
   // blink::WebAutofillClient:
   virtual void textFieldDidEndEditing(

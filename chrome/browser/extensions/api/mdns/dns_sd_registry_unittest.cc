@@ -13,15 +13,15 @@ namespace extensions {
 class MockDnsSdDeviceLister : public DnsSdDeviceLister {
  public:
   MockDnsSdDeviceLister() : DnsSdDeviceLister(NULL, NULL, "") {}
-  virtual ~MockDnsSdDeviceLister() {}
+  ~MockDnsSdDeviceLister() override {}
 
-  virtual void Discover(bool force_update) OVERRIDE {}
+  void Discover(bool force_update) override {}
 };
 
 class TestDnsSdRegistry : public DnsSdRegistry {
  public:
   TestDnsSdRegistry() : DnsSdRegistry(NULL), delegate_(NULL) {}
-  virtual ~TestDnsSdRegistry() {}
+  ~TestDnsSdRegistry() override {}
 
   MockDnsSdDeviceLister* GetListerForService(const std::string& service_type) {
     return listers_[service_type];
@@ -39,11 +39,11 @@ class TestDnsSdRegistry : public DnsSdRegistry {
   }
 
  protected:
-  virtual DnsSdDeviceLister* CreateDnsSdDeviceLister(
+  DnsSdDeviceLister* CreateDnsSdDeviceLister(
       DnsSdDelegate* delegate,
       const std::string& service_type,
       local_discovery::ServiceDiscoverySharedClient* discovery_client)
-          OVERRIDE {
+      override {
     delegate_ = delegate;
     MockDnsSdDeviceLister* lister = new MockDnsSdDeviceLister();
     listers_[service_type] = lister;
@@ -67,7 +67,7 @@ class DnsSdRegistryTest : public testing::Test {
   DnsSdRegistryTest() {}
   virtual ~DnsSdRegistryTest() {}
 
-  virtual void SetUp() OVERRIDE {
+  virtual void SetUp() override {
     registry_.reset(new TestDnsSdRegistry());
     registry_->AddObserver(&observer_);
   }

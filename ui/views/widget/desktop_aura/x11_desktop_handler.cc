@@ -58,8 +58,14 @@ X11DesktopHandler::X11DesktopHandler()
                attr.your_event_mask | PropertyChangeMask |
                StructureNotifyMask | SubstructureNotifyMask);
 
-  wm_supports_active_window_ =
-      ui::WmSupportsHint(atom_cache_.GetAtom("_NET_ACTIVE_WINDOW"));
+  if (ui::GuessWindowManager() == ui::WM_WMII) {
+    // wmii says that it supports _NET_ACTIVE_WINDOW but does not.
+    // https://code.google.com/p/wmii/issues/detail?id=266
+    wm_supports_active_window_ = false;
+  } else {
+    wm_supports_active_window_ =
+        ui::WmSupportsHint(atom_cache_.GetAtom("_NET_ACTIVE_WINDOW"));
+  }
 }
 
 X11DesktopHandler::~X11DesktopHandler() {
@@ -132,13 +138,11 @@ bool X11DesktopHandler::IsActiveWindow(::Window window) const {
 void X11DesktopHandler::ProcessXEvent(XEvent* event) {
   switch (event->type) {
     case FocusIn:
-      if (!wm_supports_active_window_ &&
-          current_window_ != event->xfocus.window)
+      if (current_window_ != event->xfocus.window)
         OnActiveWindowChanged(event->xfocus.window, ACTIVE);
       break;
     case FocusOut:
-      if (!wm_supports_active_window_ &&
-          current_window_ == event->xfocus.window)
+      if (current_window_ == event->xfocus.window)
         OnActiveWindowChanged(None, NOT_ACTIVE);
       break;
     default:

@@ -34,19 +34,19 @@ class GestureEventQueueTest : public testing::Test,
   virtual ~GestureEventQueueTest() {}
 
   // testing::Test
-  virtual void SetUp() OVERRIDE {
+  virtual void SetUp() override {
     queue_.reset(new GestureEventQueue(this, this, DefaultConfig()));
   }
 
-  virtual void TearDown() OVERRIDE {
+  virtual void TearDown() override {
     // Process all pending tasks to avoid leaks.
     RunUntilIdle();
     queue_.reset();
   }
 
   // GestureEventQueueClient
-  virtual void SendGestureEventImmediately(
-      const GestureEventWithLatencyInfo& event) OVERRIDE {
+  void SendGestureEventImmediately(
+      const GestureEventWithLatencyInfo& event) override {
     ++sent_gesture_event_count_;
     if (sync_ack_result_) {
       scoped_ptr<InputEventAckState> ack_result = sync_ack_result_.Pass();
@@ -54,19 +54,19 @@ class GestureEventQueueTest : public testing::Test,
     }
   }
 
-  virtual void OnGestureEventAck(
-      const GestureEventWithLatencyInfo& event,
-      InputEventAckState ack_result) OVERRIDE {
+  void OnGestureEventAck(const GestureEventWithLatencyInfo& event,
+                         InputEventAckState ack_result) override {
     ++acked_gesture_event_count_;
     last_acked_event_ = event.event;
-    if (sync_followup_event_)
-      SimulateGestureEvent(*sync_followup_event_.Pass());
+    if (sync_followup_event_) {
+      auto sync_followup_event = sync_followup_event_.Pass();
+      SimulateGestureEvent(*sync_followup_event);
+    }
   }
 
   // TouchpadTapSuppressionControllerClient
-  virtual void SendMouseEventImmediately(
-      const MouseEventWithLatencyInfo& event) OVERRIDE {
-  }
+  void SendMouseEventImmediately(
+      const MouseEventWithLatencyInfo& event) override {}
 
  protected:
   static GestureEventQueue::Config DefaultConfig() {

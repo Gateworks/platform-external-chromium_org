@@ -6,9 +6,9 @@
 
 #include "base/bind.h"
 #include "cc/surfaces/surface_id_allocator.h"
-#include "mojo/services/public/cpp/geometry/geometry_type_converters.h"
-#include "mojo/services/public/cpp/surfaces/surfaces_type_converters.h"
-#include "mojo/services/public/cpp/surfaces/surfaces_utils.h"
+#include "mojo/converters/geometry/geometry_type_converters.h"
+#include "mojo/converters/surfaces/surfaces_type_converters.h"
+#include "mojo/converters/surfaces/surfaces_utils.h"
 #include "ui/gfx/transform.h"
 
 namespace mojo {
@@ -65,7 +65,7 @@ void ViewportSurface::OnSurfaceConnectionCreated(SurfacePtr surface,
 void ViewportSurface::BindSurfaceToNativeViewport() {
   CommandBufferPtr cb;
   gpu_service_->CreateOnscreenGLES2Context(
-      widget_id_, Size::From(size_), Get(&cb));
+      widget_id_, Size::From(size_), GetProxy(&cb));
 
   id_ = id_allocator_->GenerateId();
   surface_->CreateGLES2BoundSurface(

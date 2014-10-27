@@ -26,11 +26,11 @@ class AccessibilityControllerBindings
  private:
   explicit AccessibilityControllerBindings(
       base::WeakPtr<AccessibilityController> controller);
-  virtual ~AccessibilityControllerBindings();
+  ~AccessibilityControllerBindings() override;
 
   // gin::Wrappable:
-  virtual gin::ObjectTemplateBuilder GetObjectTemplateBuilder(
-      v8::Isolate* isolate) OVERRIDE;
+  gin::ObjectTemplateBuilder GetObjectTemplateBuilder(
+      v8::Isolate* isolate) override;
 
   void LogAccessibilityEvents();
   void SetNotificationListener(v8::Handle<v8::Function> callback);

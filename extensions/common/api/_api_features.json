@@ -36,15 +36,29 @@
       "12E618C3C6E97495AAECF2AC12DEB082353241C6"   // QO component extension
     ]
   }],
-  "app.window": {
+  "app.window": [{
     "channel": "stable",
     "contexts": ["blessed_extension"],
     "extension_types": ["platform_app"],
     "noparent": true
-  },
-  "app.window.canSetVisibleOnAllWorkspaces": {
+  }, {
+    "channel": "stable",
+    "contexts": ["blessed_extension"],
+    "extension_types": ["extension"],
+    "noparent": true,
+    "component_extensions_auto_granted": false,
+    "whitelist": [
+      "06BE211D5F014BAB34BC22D9DDA09C63A81D828E",  // Official xkb extension
+      "F94EE6AB36D6C6588670B2B01EB65212D9C64E33"   // Open source xkb extension
+    ]
+  }],
+  // This does not need to be a complex feature if we could set "noparent" here.
+  // But set "noparent" makes this feature available on stable channel. The
+  // issue is tracked in crbug.com/415750.
+  "app.window.canSetVisibleOnAllWorkspaces": [{
+    "contexts": ["blessed_extension"],
     "channel": "dev"
-  },
+  }],
   "app.currentWindowInternal": {
     "noparent": true,
     "internal": true,
@@ -53,6 +67,43 @@
   },
   "app.currentWindowInternal.setShape": {
     "dependencies": ["permission:app.window.shape"],
+    "contexts": ["blessed_extension"]
+  },
+  // The API for the *embedder* of appview. Appview has both an embedder and
+  // guest API, which are different.
+  "appViewEmbedderInternal": {
+    "internal": true,
+    "contexts": ["blessed_extension"],
+    "dependencies": ["permission:appview"]
+  },
+  "appViewGuestInternal": {
+    "internal": true,
+    "channel": "dev",
+    "contexts": ["blessed_extension"]
+  },
+  "bluetooth": {
+    "dependencies": ["manifest:bluetooth"],
+    "contexts": ["blessed_extension"]
+  },
+  "bluetoothLowEnergy": {
+    "dependencies": ["manifest:bluetooth"],
+    "contexts": ["blessed_extension"]
+  },
+  "bluetoothPrivate": {
+    "dependencies": ["permission:bluetoothPrivate"],
+    "contexts": ["blessed_extension"]
+  },
+  "bluetoothSocket": {
+    "dependencies": ["manifest:bluetooth"],
+    "contexts": ["blessed_extension"]
+  },
+  "declarativeWebRequest": {
+    "dependencies": ["permission:declarativeWebRequest"],
+    "contexts": ["blessed_extension"]
+  },
+  "copresenceSocket": {
+    "channel" : "dev",
+    "dependencies": ["permission:copresence"],
     "contexts": ["blessed_extension"]
   },
   "dns": {
@@ -66,6 +117,13 @@
     "channel": "stable",
     "extension_types": ["extension", "legacy_packaged_app", "platform_app"],
     "contexts": ["blessed_extension"]
+  },
+  "events": {
+    "internal": true,
+    "channel": "stable",
+    "extension_types": ["platform_app", "extension"],
+    "contexts": "all",
+    "matches": ["<all_urls>"]
   },
   "guestViewInternal": [
     {
@@ -215,18 +273,36 @@
     "contexts": ["blessed_extension"]
   },
   "types.private": {
-    "channel": "dev",
-    "extension_types": ["extension"],
-    "location": "component"
+    // preferencesPrivate is the only API that uses types.private.
+    // If any other APIs need it then they'll need to be added in
+    // separate rules.
+    "dependencies": ["permission:preferencesPrivate"],
+    "contexts": ["blessed_extension"]
   },
   "usb": {
     "dependencies": ["permission:usb"],
     "contexts": ["blessed_extension"]
   },
-  "usbPrivate": {
+  "usb.getUserSelectedDevices": {
     "channel": "dev",
-    "contexts": ["webui"]
+    "dependencies": ["permission:usb"],
+    "contexts": ["blessed_extension"]
   },
+  "webRequest": {
+    "dependencies": ["permission:webRequest"],
+    "contexts": ["blessed_extension"]
+  },
+  "webRequestInternal": [{
+    "internal": true,
+    "channel": "stable",
+    "contexts": ["blessed_extension"]
+  }, {
+    // webview uses webRequestInternal API.
+    "channel": "stable",
+    "internal": true,
+    "contexts": ["webui"],
+    "matches": ["chrome://chrome-signin/*"]
+  }],
   "webViewExperimentalInternal": [{
     "internal": true,
     "channel": "dev",
@@ -252,6 +328,14 @@
   }, {
     "internal": true,
     "channel": "dev",
+    "contexts": ["webui"],
+    "matches": ["chrome://chrome-signin/*"]
+  }],
+  "webViewRequest": [{
+    "dependencies": ["permission:webview"],
+    "contexts": ["blessed_extension"]
+  }, {
+    "channel": "stable",
     "contexts": ["webui"],
     "matches": ["chrome://chrome-signin/*"]
   }]

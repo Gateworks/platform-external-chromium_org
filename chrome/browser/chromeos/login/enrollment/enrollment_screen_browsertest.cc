@@ -42,7 +42,7 @@ IN_PROC_BROWSER_TEST_F(EnrollmentScreenTest, TestCancel) {
 
   base::RunLoop run_loop;
   MockScreenObserver mock_screen_observer;
-  static_cast<WizardScreen*>(enrollment_screen)->screen_observer_ =
+  static_cast<BaseScreen*>(enrollment_screen)->screen_observer_ =
       &mock_screen_observer;
 
   ASSERT_EQ(WizardController::default_controller()->current_screen(),
@@ -55,7 +55,7 @@ IN_PROC_BROWSER_TEST_F(EnrollmentScreenTest, TestCancel) {
   content::RunThisRunLoop(&run_loop);
   Mock::VerifyAndClearExpectations(&mock_screen_observer);
 
-  static_cast<WizardScreen*>(enrollment_screen)->screen_observer_ =
+  static_cast<BaseScreen*>(enrollment_screen)->screen_observer_ =
       WizardController::default_controller();
 }
 
@@ -70,7 +70,7 @@ IN_PROC_BROWSER_TEST_F(EnrollmentScreenTest, DISABLED_TestSuccess) {
 
   base::RunLoop run_loop;
   MockScreenObserver mock_screen_observer;
-  static_cast<WizardScreen*>(enrollment_screen)->screen_observer_ =
+  static_cast<BaseScreen*>(enrollment_screen)->screen_observer_ =
       &mock_screen_observer;
 
   ASSERT_EQ(WizardController::default_controller()->current_screen(),
@@ -81,7 +81,7 @@ IN_PROC_BROWSER_TEST_F(EnrollmentScreenTest, DISABLED_TestSuccess) {
   run_loop.RunUntilIdle();
   EXPECT_TRUE(StartupUtils::IsOobeCompleted());
 
-  static_cast<WizardScreen*>(enrollment_screen)->screen_observer_ =
+  static_cast<BaseScreen*>(enrollment_screen)->screen_observer_ =
       WizardController::default_controller();
 }
 
@@ -91,7 +91,7 @@ class ProvisionedEnrollmentScreenTest : public EnrollmentScreenTest {
 
  private:
   // Overridden from InProcessBrowserTest:
-  virtual void SetUpCommandLine(CommandLine* command_line) OVERRIDE {
+  virtual void SetUpCommandLine(CommandLine* command_line) override {
     base::FilePath test_data_dir;
     ASSERT_TRUE(chromeos::test_utils::GetTestDataPath(
                     "app_mode", "kiosk_manifest", &test_data_dir));
@@ -112,7 +112,7 @@ IN_PROC_BROWSER_TEST_F(ProvisionedEnrollmentScreenTest, TestBackButton) {
 
   base::RunLoop run_loop;
   MockScreenObserver mock_screen_observer;
-  static_cast<WizardScreen*>(enrollment_screen)->screen_observer_ =
+  static_cast<BaseScreen*>(enrollment_screen)->screen_observer_ =
       &mock_screen_observer;
 
   ASSERT_EQ(WizardController::default_controller()->current_screen(),
@@ -125,7 +125,7 @@ IN_PROC_BROWSER_TEST_F(ProvisionedEnrollmentScreenTest, TestBackButton) {
   content::RunThisRunLoop(&run_loop);
   Mock::VerifyAndClearExpectations(&mock_screen_observer);
 
-  static_cast<WizardScreen*>(enrollment_screen)->screen_observer_ =
+  static_cast<BaseScreen*>(enrollment_screen)->screen_observer_ =
       WizardController::default_controller();
 }
 

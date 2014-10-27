@@ -121,20 +121,15 @@ class NET_EXPORT_PRIVATE QuicConnectionDebugVisitor
     : public QuicPacketGenerator::DebugDelegate,
       public QuicSentPacketManager::DebugDelegate {
  public:
-  virtual ~QuicConnectionDebugVisitor() {}
+  ~QuicConnectionDebugVisitor() override {}
 
   // Called when a packet has been sent.
-  virtual void OnPacketSent(QuicPacketSequenceNumber sequence_number,
+  virtual void OnPacketSent(const SerializedPacket& serialized_packet,
+                            QuicPacketSequenceNumber original_sequence_number,
                             EncryptionLevel level,
                             TransmissionType transmission_type,
                             const QuicEncryptedPacket& packet,
-                            WriteResult result) {}
-
-  // Called when the contents of a packet have been retransmitted as
-  // a new packet.
-  virtual void OnPacketRetransmitted(
-      QuicPacketSequenceNumber old_sequence_number,
-      QuicPacketSequenceNumber new_sequence_number) {}
+                            QuicTime sent_time) {}
 
   // Called when a packet has been received, but before it is
   // validated or parsed.
@@ -257,7 +252,7 @@ class NET_EXPORT_PRIVATE QuicConnection
                  bool owns_writer,
                  bool is_server,
                  const QuicVersionVector& supported_versions);
-  virtual ~QuicConnection();
+  ~QuicConnection() override;
 
   // Sets connection parameters from the supplied |config|.
   void SetFromConfig(const QuicConfig& config);
@@ -304,7 +299,7 @@ class NET_EXPORT_PRIVATE QuicConnection
   virtual void SendConnectionCloseWithDetails(QuicErrorCode error,
                                               const std::string& details);
   // Notifies the visitor of the close and marks the connection as disconnected.
-  virtual void CloseConnection(QuicErrorCode error, bool from_peer) OVERRIDE;
+  void CloseConnection(QuicErrorCode error, bool from_peer) override;
   virtual void SendGoAway(QuicErrorCode error,
                           QuicStreamId last_good_stream_id,
                           const std::string& reason);
@@ -322,7 +317,7 @@ class NET_EXPORT_PRIVATE QuicConnection
   // QuicBlockedWriterInterface
   // Called when the underlying connection becomes writable to allow queued
   // writes to happen.
-  virtual void OnCanWrite() OVERRIDE;
+  void OnCanWrite() override;
 
   // Called when an error occurs while attempting to write a packet to the
   // network.
@@ -340,47 +335,44 @@ class NET_EXPORT_PRIVATE QuicConnection
   }
 
   // From QuicFramerVisitorInterface
-  virtual void OnError(QuicFramer* framer) OVERRIDE;
-  virtual bool OnProtocolVersionMismatch(QuicVersion received_version) OVERRIDE;
-  virtual void OnPacket() OVERRIDE;
-  virtual void OnPublicResetPacket(
-      const QuicPublicResetPacket& packet) OVERRIDE;
-  virtual void OnVersionNegotiationPacket(
-      const QuicVersionNegotiationPacket& packet) OVERRIDE;
-  virtual void OnRevivedPacket() OVERRIDE;
-  virtual bool OnUnauthenticatedPublicHeader(
-      const QuicPacketPublicHeader& header) OVERRIDE;
-  virtual bool OnUnauthenticatedHeader(const QuicPacketHeader& header) OVERRIDE;
-  virtual void OnDecryptedPacket(EncryptionLevel level) OVERRIDE;
-  virtual bool OnPacketHeader(const QuicPacketHeader& header) OVERRIDE;
-  virtual void OnFecProtectedPayload(base::StringPiece payload) OVERRIDE;
-  virtual bool OnStreamFrame(const QuicStreamFrame& frame) OVERRIDE;
-  virtual bool OnAckFrame(const QuicAckFrame& frame) OVERRIDE;
-  virtual bool OnCongestionFeedbackFrame(
-      const QuicCongestionFeedbackFrame& frame) OVERRIDE;
-  virtual bool OnStopWaitingFrame(const QuicStopWaitingFrame& frame) OVERRIDE;
-  virtual bool OnPingFrame(const QuicPingFrame& frame) OVERRIDE;
-  virtual bool OnRstStreamFrame(const QuicRstStreamFrame& frame) OVERRIDE;
-  virtual bool OnConnectionCloseFrame(
-      const QuicConnectionCloseFrame& frame) OVERRIDE;
-  virtual bool OnGoAwayFrame(const QuicGoAwayFrame& frame) OVERRIDE;
-  virtual bool OnWindowUpdateFrame(const QuicWindowUpdateFrame& frame) OVERRIDE;
-  virtual bool OnBlockedFrame(const QuicBlockedFrame& frame) OVERRIDE;
-  virtual void OnFecData(const QuicFecData& fec) OVERRIDE;
-  virtual void OnPacketComplete() OVERRIDE;
+  void OnError(QuicFramer* framer) override;
+  bool OnProtocolVersionMismatch(QuicVersion received_version) override;
+  void OnPacket() override;
+  void OnPublicResetPacket(const QuicPublicResetPacket& packet) override;
+  void OnVersionNegotiationPacket(
+      const QuicVersionNegotiationPacket& packet) override;
+  void OnRevivedPacket() override;
+  bool OnUnauthenticatedPublicHeader(
+      const QuicPacketPublicHeader& header) override;
+  bool OnUnauthenticatedHeader(const QuicPacketHeader& header) override;
+  void OnDecryptedPacket(EncryptionLevel level) override;
+  bool OnPacketHeader(const QuicPacketHeader& header) override;
+  void OnFecProtectedPayload(base::StringPiece payload) override;
+  bool OnStreamFrame(const QuicStreamFrame& frame) override;
+  bool OnAckFrame(const QuicAckFrame& frame) override;
+  bool OnCongestionFeedbackFrame(
+      const QuicCongestionFeedbackFrame& frame) override;
+  bool OnStopWaitingFrame(const QuicStopWaitingFrame& frame) override;
+  bool OnPingFrame(const QuicPingFrame& frame) override;
+  bool OnRstStreamFrame(const QuicRstStreamFrame& frame) override;
+  bool OnConnectionCloseFrame(const QuicConnectionCloseFrame& frame) override;
+  bool OnGoAwayFrame(const QuicGoAwayFrame& frame) override;
+  bool OnWindowUpdateFrame(const QuicWindowUpdateFrame& frame) override;
+  bool OnBlockedFrame(const QuicBlockedFrame& frame) override;
+  void OnFecData(const QuicFecData& fec) override;
+  void OnPacketComplete() override;
 
   // QuicPacketGenerator::DelegateInterface
-  virtual bool ShouldGeneratePacket(TransmissionType transmission_type,
-                                    HasRetransmittableData retransmittable,
-                                    IsHandshake handshake) OVERRIDE;
-  virtual QuicAckFrame* CreateAckFrame() OVERRIDE;
-  virtual QuicCongestionFeedbackFrame* CreateFeedbackFrame() OVERRIDE;
-  virtual QuicStopWaitingFrame* CreateStopWaitingFrame() OVERRIDE;
-  virtual void OnSerializedPacket(const SerializedPacket& packet) OVERRIDE;
+  bool ShouldGeneratePacket(TransmissionType transmission_type,
+                            HasRetransmittableData retransmittable,
+                            IsHandshake handshake) override;
+  QuicAckFrame* CreateAckFrame() override;
+  QuicCongestionFeedbackFrame* CreateFeedbackFrame() override;
+  QuicStopWaitingFrame* CreateStopWaitingFrame() override;
+  void OnSerializedPacket(const SerializedPacket& packet) override;
 
   // QuicSentPacketManager::NetworkChangeVisitor
-  virtual void OnCongestionWindowChange(
-      QuicByteCount congestion_window) OVERRIDE;
+  void OnCongestionWindowChange(QuicByteCount congestion_window) override;
 
   // Called by the crypto stream when the handshake completes. In the server's
   // case this is when the SHLO has been ACKed. Clients call this on receipt of
@@ -430,6 +422,7 @@ class NET_EXPORT_PRIVATE QuicConnection
   // Returns true if the connection has queued packets or frames.
   bool HasQueuedData() const;
 
+  // TODO(ianswett): Remove when quic_unified_timeouts is removed.
   // Sets (or resets) the idle state connection timeout. Also, checks and times
   // out the connection if network timer has expired for |timeout|.
   void SetIdleNetworkTimeout(QuicTime::Delta timeout);
@@ -439,9 +432,15 @@ class NET_EXPORT_PRIVATE QuicConnection
   // handshake finishes.
   void SetOverallConnectionTimeout(QuicTime::Delta timeout);
 
-  // If the connection has timed out, this will close the connection and return
-  // true.  Otherwise, it will return false and will reset the timeout alarm.
-  bool CheckForTimeout();
+  // Sets the overall and idle state connection timeouts.
+  // Times out the connection if the timeout has been reached and
+  // the quic_timeouts_only_from_alarms flag is false.
+  void SetNetworkTimeouts(QuicTime::Delta overall_timeout,
+                          QuicTime::Delta idle_timeout);
+
+  // If the connection has timed out, this will close the connection.
+  // Otherwise, it will reschedule the timeout alarm.
+  void CheckForTimeout();
 
   // Sends a ping, and resets the ping alarm.
   void SendPing();
@@ -576,7 +575,7 @@ class NET_EXPORT_PRIVATE QuicConnection
   // encryption_level. Returns true on successful write, and false if the writer
   // was blocked and the write needs to be tried again. Notifies the
   // SentPacketManager when the write is successful and sets
-  // retransmittable frames to NULL.
+  // retransmittable frames to nullptr.
   // Saves the connection close packet for later transmission, even if the
   // writer is write blocked.
   bool WritePacket(QueuedPacket* packet);
@@ -644,12 +643,15 @@ class NET_EXPORT_PRIVATE QuicConnection
   // to be sent if there are no outstanding packets.
   QuicPacketSequenceNumber GetLeastUnacked() const;
 
-  // Get the FEC group associate with the last processed packet or NULL, if the
-  // group has already been deleted.
+  // Get the FEC group associate with the last processed packet or nullptr, if
+  // the group has already been deleted.
   QuicFecGroup* GetFecGroup();
 
   // Closes any FEC groups protecting packets before |sequence_number|.
   void CloseFecGroupsBefore(QuicPacketSequenceNumber sequence_number);
+
+  // Sets the timeout alarm to the appropriate value, if any.
+  void SetTimeoutAlarm();
 
   // Sets the ping alarm to the appropriate value, if any.
   void SetPingAlarm();
@@ -678,6 +680,9 @@ class NET_EXPORT_PRIVATE QuicConnection
   // Used to store latest peer port to possibly migrate to later.
   int migrating_peer_port_;
 
+  // True if the last packet has gotten far enough in the framer to be
+  // decrypted.
+  bool last_packet_decrypted_;
   bool last_packet_revived_;  // True if the last packet was revived from FEC.
   size_t last_size_;  // Size of the last received packet.
   EncryptionLevel last_decrypted_packet_level_;
@@ -707,6 +712,9 @@ class NET_EXPORT_PRIVATE QuicConnection
   // the assumption that they could not be processed because they were
   // sent with the INITIAL encryption and the CHLO message was lost.
   std::deque<QuicEncryptedPacket*> undecryptable_packets_;
+
+  // Maximum number of undecryptable packets the connection will store.
+  size_t max_undecryptable_packets_;
 
   // When the version negotiation packet could not be sent because the socket
   // was not writable, this is set to true.

@@ -343,6 +343,7 @@
       'system/chromeos/session/tray_session_length_limit.h',
       'system/chromeos/settings/tray_settings.cc',
       'system/chromeos/settings/tray_settings.h',
+      'system/chromeos/supervised/custodian_info_tray_observer.h',
       'system/chromeos/supervised/tray_supervised_user.cc',
       'system/chromeos/supervised/tray_supervised_user.h',
       'system/chromeos/system_clock_observer.cc',
@@ -427,6 +428,8 @@
       'system/tray/tray_notification_view.h',
       'system/tray/tray_popup_header_button.cc',
       'system/tray/tray_popup_header_button.h',
+      'system/tray/tray_popup_item_container.cc',
+      'system/tray/tray_popup_item_container.h',
       'system/tray/tray_popup_label_button.cc',
       'system/tray/tray_popup_label_button.h',
       'system/tray/tray_popup_label_button_border.cc',
@@ -616,6 +619,8 @@
       'wm/toplevel_window_event_handler.h',
       'wm/video_detector.cc',
       'wm/video_detector.h',
+      "wm/virtual_keyboard_container_layout_manager.cc",
+      "wm/virtual_keyboard_container_layout_manager.h",
       'wm/window_animations.cc',
       'wm/window_animations.h',
       'wm/window_positioner.cc',
@@ -1273,5 +1278,24 @@
         }],
       ],
     },
+  ],
+  'conditions': [
+    ['test_isolation_mode != "noop"', {
+      'targets': [
+        {
+          'target_name': 'ash_unittests_run',
+          'type': 'none',
+          'dependencies': [
+            'ash_unittests',
+          ],
+          'includes': [
+            '../build/isolate.gypi',
+          ],
+          'sources': [
+            'ash_unittests.isolate',
+          ],
+        },
+      ],
+    }],
   ],
 }

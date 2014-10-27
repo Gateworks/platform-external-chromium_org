@@ -48,18 +48,10 @@ class ThrottleController : public base::SupportsUserData::Data,
   }
 
   // ResourceController implementation:
-  virtual void Resume() OVERRIDE {
-    request_->Start();
-  }
-  virtual void Cancel() OVERRIDE {
-    NOTREACHED();
-  }
-  virtual void CancelAndIgnore() OVERRIDE {
-    NOTREACHED();
-  }
-  virtual void CancelWithError(int error_code) OVERRIDE {
-    NOTREACHED();
-  }
+  void Resume() override { request_->Start(); }
+  void Cancel() override { NOTREACHED(); }
+  void CancelAndIgnore() override { NOTREACHED(); }
+  void CancelWithError(int error_code) override { NOTREACHED(); }
 
  private:
   net::URLRequest* request_;
@@ -78,7 +70,7 @@ class SimpleTestJob : public net::URLRequestTestJob {
                                kTestData,
                                true) {}
  private:
-  virtual ~SimpleTestJob() {}
+  ~SimpleTestJob() override {}
 };
 
 // Yoinked from extension_manifest_unittest.cc.
@@ -109,12 +101,12 @@ class SimpleTestJobURLRequestInterceptor
     : public net::URLRequestInterceptor {
  public:
   SimpleTestJobURLRequestInterceptor() {}
-  virtual ~SimpleTestJobURLRequestInterceptor() {}
+  ~SimpleTestJobURLRequestInterceptor() override {}
 
   // net::URLRequestJobFactory::ProtocolHandler
-  virtual net::URLRequestJob* MaybeInterceptRequest(
+  net::URLRequestJob* MaybeInterceptRequest(
       net::URLRequest* request,
-      net::NetworkDelegate* network_delegate) const OVERRIDE {
+      net::NetworkDelegate* network_delegate) const override {
     return new SimpleTestJob(request, network_delegate);
   }
 
@@ -144,7 +136,7 @@ class UserScriptListenerTest : public ExtensionServiceTestBase {
                                                                 "example.com");
   }
 
-  virtual void SetUp() OVERRIDE {
+  virtual void SetUp() override {
     ExtensionServiceTestBase::SetUp();
 
     InitializeEmptyExtensionService();
@@ -154,7 +146,7 @@ class UserScriptListenerTest : public ExtensionServiceTestBase {
     listener_ = new UserScriptListener();
   }
 
-  virtual void TearDown() OVERRIDE {
+  virtual void TearDown() override {
     listener_ = NULL;
     base::MessageLoop::current()->RunUntilIdle();
     ExtensionServiceTestBase::TearDown();

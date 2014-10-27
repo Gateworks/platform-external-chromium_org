@@ -21,8 +21,11 @@ struct GPU_EXPORT Capabilities {
   bool texture_storage;
   bool discard_framebuffer;
   bool sync_query;
-  bool map_image;
+  bool image;
   bool future_sync_points;
+  bool blend_minmax;
+  bool blend_equation_advanced;
+  bool blend_equation_advanced_coherent;
 
   Capabilities();
 };

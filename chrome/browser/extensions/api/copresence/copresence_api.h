@@ -17,6 +17,8 @@
 #include "components/copresence/public/copresence_delegate.h"
 #include "extensions/browser/browser_context_keyed_api_factory.h"
 
+class ChromeWhispernetClient;
+
 namespace copresence {
 class CopresenceManager;
 class WhispernetClient;
@@ -28,10 +30,10 @@ class CopresenceService : public BrowserContextKeyedAPI,
                           public copresence::CopresenceDelegate {
  public:
   explicit CopresenceService(content::BrowserContext* context);
-  virtual ~CopresenceService();
+  ~CopresenceService() override;
 
   // BrowserContextKeyedAPI implementation.
-  virtual void Shutdown() OVERRIDE;
+  void Shutdown() override;
 
   // These accessors will always return an object (except during shutdown).
   // If the object doesn't exist, they will create one first.
@@ -56,14 +58,13 @@ class CopresenceService : public BrowserContextKeyedAPI,
   friend class BrowserContextKeyedAPIFactory<CopresenceService>;
 
   // CopresenceDelegate implementation
-  virtual void HandleMessages(
-      const std::string& app_id,
-      const std::string& subscription_id,
-      const std::vector<copresence::Message>& message) OVERRIDE;
-  virtual net::URLRequestContextGetter* GetRequestContext() const OVERRIDE;
-  virtual const std::string GetPlatformVersionString() const OVERRIDE;
-  virtual const std::string GetAPIKey() const OVERRIDE;
-  virtual copresence::WhispernetClient* GetWhispernetClient() OVERRIDE;
+  void HandleMessages(const std::string& app_id,
+                      const std::string& subscription_id,
+                      const std::vector<copresence::Message>& message) override;
+  net::URLRequestContextGetter* GetRequestContext() const override;
+  const std::string GetPlatformVersionString() const override;
+  const std::string GetAPIKey() const override;
+  copresence::WhispernetClient* GetWhispernetClient() override;
 
   // BrowserContextKeyedAPI implementation.
   static const char* service_name() { return "CopresenceService"; }
@@ -75,7 +76,7 @@ class CopresenceService : public BrowserContextKeyedAPI,
   std::string api_key_;
 
   scoped_ptr<copresence::CopresenceManager> manager_;
-  scoped_ptr<copresence::WhispernetClient> whispernet_client_;
+  scoped_ptr<ChromeWhispernetClient> whispernet_client_;
 
   DISALLOW_COPY_AND_ASSIGN(CopresenceService);
 };
@@ -89,8 +90,8 @@ class CopresenceExecuteFunction : public ChromeUIThreadExtensionFunction {
   DECLARE_EXTENSION_FUNCTION("copresence.execute", COPRESENCE_EXECUTE);
 
  protected:
-  virtual ~CopresenceExecuteFunction() {}
-  virtual ExtensionFunction::ResponseAction Run() OVERRIDE;
+  ~CopresenceExecuteFunction() override {}
+  ExtensionFunction::ResponseAction Run() override;
 
  private:
   void SendResult(copresence::CopresenceStatus status);
@@ -101,8 +102,8 @@ class CopresenceSetApiKeyFunction : public ChromeUIThreadExtensionFunction {
   DECLARE_EXTENSION_FUNCTION("copresence.setApiKey", COPRESENCE_SETAPIKEY);
 
  protected:
-  virtual ~CopresenceSetApiKeyFunction() {}
-  virtual ExtensionFunction::ResponseAction Run() OVERRIDE;
+  ~CopresenceSetApiKeyFunction() override {}
+  ExtensionFunction::ResponseAction Run() override;
 };
 
 }  // namespace extensions

@@ -17,15 +17,15 @@ class TestRequestTrackerClientImpl : public TestRequestTrackerClient {
       TestRequestTrackerPtr tracker,
       const std::string& service_name,
       const mojo::Callback<void()>& tracking_connected_callback);
-  virtual ~TestRequestTrackerClientImpl();
+  ~TestRequestTrackerClientImpl() override;
 
   // Call whenever an event happens that you want to be recorded.
   void RecordNewRequest();
 
   // TestRequestTrackerClient impl.
-  virtual void SetIdAndReturnName(
+  void SetIdAndReturnName(
       uint64_t id,
-      const mojo::Callback<void(mojo::String)>& callback) MOJO_OVERRIDE;
+      const mojo::Callback<void(mojo::String)>& callback) override;
 
  private:
   void SendStats();

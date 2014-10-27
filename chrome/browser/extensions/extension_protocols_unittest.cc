@@ -101,7 +101,7 @@ class ExtensionProtocolTest : public testing::Test {
         old_factory_(NULL),
         resource_context_(&test_url_request_context_) {}
 
-  virtual void SetUp() OVERRIDE {
+  virtual void SetUp() override {
     testing::Test::SetUp();
     extension_info_map_ = new InfoMap();
     net::URLRequestContext* request_context =
@@ -172,7 +172,7 @@ TEST_F(ExtensionProtocolTest, IncognitoRequest) {
     {"split enabled", true, true, true, true},
   };
 
-  for (size_t i = 0; i < ARRAYSIZE_UNSAFE(cases); ++i) {
+  for (size_t i = 0; i < arraysize(cases); ++i) {
     scoped_refptr<Extension> extension =
         CreateTestExtension(cases[i].name, cases[i].incognito_split_mode);
     extension_info_map_->AddExtension(

@@ -5,12 +5,11 @@
 #ifndef MOJO_SERVICES_SURFACES_SURFACES_IMPL_H_
 #define MOJO_SERVICES_SURFACES_SURFACES_IMPL_H_
 
-#include "base/compiler_specific.h"
 #include "cc/surfaces/display_client.h"
 #include "cc/surfaces/surface_factory.h"
 #include "cc/surfaces/surface_factory_client.h"
 #include "mojo/public/cpp/application/application_connection.h"
-#include "mojo/services/gles2/command_buffer.mojom.h"
+#include "mojo/services/public/interfaces/gpu/command_buffer.mojom.h"
 #include "mojo/services/public/interfaces/surfaces/surfaces.mojom.h"
 
 namespace cc {
@@ -35,27 +34,27 @@ class SurfacesImpl : public InterfaceImpl<Surface>,
   SurfacesImpl(cc::SurfaceManager* manager,
                uint32_t id_namespace,
                Client* client);
-  virtual ~SurfacesImpl();
+  ~SurfacesImpl() override;
 
   // Surface implementation.
-  virtual void CreateSurface(SurfaceIdPtr id, mojo::SizePtr size) OVERRIDE;
-  virtual void SubmitFrame(SurfaceIdPtr id, FramePtr frame) OVERRIDE;
-  virtual void DestroySurface(SurfaceIdPtr id) OVERRIDE;
-  virtual void CreateGLES2BoundSurface(CommandBufferPtr gles2_client,
-                                       SurfaceIdPtr id,
-                                       mojo::SizePtr size) OVERRIDE;
+  void CreateSurface(SurfaceIdPtr id, mojo::SizePtr size) override;
+  void SubmitFrame(SurfaceIdPtr id, FramePtr frame) override;
+  void DestroySurface(SurfaceIdPtr id) override;
+  void CreateGLES2BoundSurface(CommandBufferPtr gles2_client,
+                               SurfaceIdPtr id,
+                               mojo::SizePtr size) override;
 
   // SurfaceFactoryClient implementation.
-  virtual void ReturnResources(
-      const cc::ReturnedResourceArray& resources) OVERRIDE;
+  void ReturnResources(const cc::ReturnedResourceArray& resources) override;
 
   // DisplayClient implementation.
-  virtual scoped_ptr<cc::OutputSurface> CreateOutputSurface() OVERRIDE;
-  virtual void DisplayDamaged() OVERRIDE;
-  virtual void DidSwapBuffers() OVERRIDE;
-  virtual void DidSwapBuffersComplete() OVERRIDE;
-  virtual void CommitVSyncParameters(base::TimeTicks timebase,
-                                     base::TimeDelta interval) OVERRIDE;
+  void DisplayDamaged() override;
+  void DidSwapBuffers() override;
+  void DidSwapBuffersComplete() override;
+  void CommitVSyncParameters(base::TimeTicks timebase,
+                             base::TimeDelta interval) override;
+  void OutputSurfaceLost() override;
+  void SetMemoryPolicy(const cc::ManagedMemoryPolicy& policy) override;
 
   cc::SurfaceFactory* factory() { return &factory_; }
 

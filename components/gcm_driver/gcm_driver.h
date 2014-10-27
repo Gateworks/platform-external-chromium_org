@@ -72,9 +72,9 @@ class GCMDriver {
   // been called, no other GCMDriver methods may be used.
   virtual void Shutdown();
 
-  // Call this method when the user signs in to a GAIA account.
-  // TODO(jianli): To be removed when sign-in enforcement is dropped.
+  // Called when the user signs in to or out of a GAIA account.
   virtual void OnSignedIn() = 0;
+  virtual void OnSignedOut() = 0;
 
   // Removes all the cached and persisted GCM data. If the GCM service is
   // restarted after the purge, a new Android ID will be obtained.
@@ -117,6 +117,14 @@ class GCMDriver {
   // Enables/disables GCM activity recording, and then returns the stats.
   virtual void SetGCMRecording(const GetGCMStatisticsCallback& callback,
                                bool recording) = 0;
+
+  // sets a list of signed in accounts with OAuth2 access tokens, when GCMDriver
+  // works in context of a signed in entity (e.g. browser profile where user is
+  // signed into sync).
+  // |account_tokens|: list of email addresses, account IDs and OAuth2 access
+  //                   tokens.
+  virtual void SetAccountTokens(
+      const std::vector<GCMClient::AccountTokenInfo>& account_tokens) = 0;
 
   // Updates the |account_mapping| information in persistent store.
   virtual void UpdateAccountMapping(const AccountMapping& account_mapping) = 0;

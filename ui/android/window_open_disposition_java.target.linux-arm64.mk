@@ -7,6 +7,7 @@ LOCAL_MODULE := ui_android_window_open_disposition_java_gyp
 LOCAL_MODULE_STEM := window_open_disposition_java
 LOCAL_MODULE_SUFFIX := .stamp
 LOCAL_MODULE_TARGET_ARCH := $(TARGET_$(GYP_VAR_PREFIX)ARCH)
+LOCAL_SDK_VERSION := 21
 gyp_intermediate_dir := $(call local-intermediates-dir,,$(GYP_VAR_PREFIX))
 gyp_shared_intermediate_dir := $(call intermediates-dir-for,GYP,shared,,,$(GYP_VAR_PREFIX))
 
@@ -32,6 +33,10 @@ GYP_GENERATED_OUTPUTS := \
 LOCAL_ADDITIONAL_DEPENDENCIES := $(GYP_TARGET_DEPENDENCIES) $(GYP_GENERATED_OUTPUTS)
 
 ### Rules for final target.
+### Set directly by aosp_build_settings.
+LOCAL_CLANG := false
+LOCAL_NDK_STL_VARIANT := stlport_static
+
 # Add target alias to "gyp_all_modules" target.
 .PHONY: gyp_all_modules
 gyp_all_modules: ui_android_window_open_disposition_java_gyp

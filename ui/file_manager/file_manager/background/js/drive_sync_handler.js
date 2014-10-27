@@ -2,13 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-'use strict';
-
 /**
  * Handler of the background page for the drive sync events.
  * @param {ProgressCenter} progressCenter Progress center to submit the
  *     progressing items.
  * @constructor
+ * @extends {cr.EventTarget}
  */
 function DriveSyncHandler(progressCenter) {
   /**
@@ -153,7 +152,7 @@ DriveSyncHandler.prototype.removeItem_ = function(status) {
  */
 DriveSyncHandler.prototype.requestCancel_ = function(entry) {
   // Cancel all jobs.
-  chrome.fileManagerPrivate.cancelFileTransfers(function() {});
+  chrome.fileManagerPrivate.cancelFileTransfers();
 };
 
 /**

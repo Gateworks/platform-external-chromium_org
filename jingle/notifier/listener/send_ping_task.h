@@ -29,12 +29,12 @@ class SendPingTask : public buzz::XmppTask {
   };
 
   SendPingTask(buzz::XmppTaskParentInterface* parent, Delegate* delegate);
-  virtual ~SendPingTask();
+  ~SendPingTask() override;
 
   // Overridden from buzz::XmppTask.
-  virtual int ProcessStart() OVERRIDE;
-  virtual int ProcessResponse() OVERRIDE;
-  virtual bool HandleStanza(const buzz::XmlElement* stanza) OVERRIDE;
+  int ProcessStart() override;
+  int ProcessResponse() override;
+  bool HandleStanza(const buzz::XmlElement* stanza) override;
 
  private:
   static buzz::XmlElement* MakePingStanza(const std::string& task_id);

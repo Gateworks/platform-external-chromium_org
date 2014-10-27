@@ -55,12 +55,12 @@ class MockPasswordManagerClient : public StubPasswordManagerClient {
 
   // Workaround for scoped_ptr<> lacking a copy constructor.
   virtual bool PromptUserToSavePassword(
-      scoped_ptr<PasswordFormManager> manager) OVERRIDE {
+      scoped_ptr<PasswordFormManager> manager) override {
     PromptUserToSavePasswordPtr(manager.release());
     return false;
   }
   virtual void AutomaticPasswordSave(
-      scoped_ptr<PasswordFormManager> manager) OVERRIDE {
+      scoped_ptr<PasswordFormManager> manager) override {
     AutomaticPasswordSavePtr(manager.release());
   }
 };
@@ -81,7 +81,7 @@ class TestPasswordManager : public PasswordManager {
  public:
   explicit TestPasswordManager(PasswordManagerClient* client)
       : PasswordManager(client) {}
-  virtual ~TestPasswordManager() {}
+  ~TestPasswordManager() override {}
 
  private:
   DISALLOW_COPY_AND_ASSIGN(TestPasswordManager);
@@ -96,8 +96,8 @@ class PasswordManagerTest : public testing::Test {
                                            true);
 
     store_ = new MockPasswordStore;
-    EXPECT_CALL(*store_.get(), ReportMetrics(_)).Times(AnyNumber());
-    CHECK(store_->Init(syncer::SyncableService::StartSyncFlare(), ""));
+    EXPECT_CALL(*store_.get(), ReportMetrics(_, _)).Times(AnyNumber());
+    CHECK(store_->Init(syncer::SyncableService::StartSyncFlare()));
 
     EXPECT_CALL(client_, IsPasswordManagerEnabledForCurrentPage())
         .WillRepeatedly(Return(true));

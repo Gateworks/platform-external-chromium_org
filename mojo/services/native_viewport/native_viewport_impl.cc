@@ -4,18 +4,19 @@
 
 #include "mojo/services/native_viewport/native_viewport_impl.h"
 
+#include "base/auto_reset.h"
 #include "base/bind.h"
 #include "base/macros.h"
 #include "base/message_loop/message_loop.h"
 #include "base/time/time.h"
+#include "mojo/converters/geometry/geometry_type_converters.h"
+#include "mojo/converters/input_events/input_events_type_converters.h"
+#include "mojo/converters/surfaces/surfaces_type_converters.h"
 #include "mojo/public/cpp/application/application_delegate.h"
 #include "mojo/public/cpp/application/application_impl.h"
 #include "mojo/public/cpp/application/interface_factory.h"
 #include "mojo/services/native_viewport/platform_viewport_headless.h"
 #include "mojo/services/native_viewport/viewport_surface.h"
-#include "mojo/services/public/cpp/geometry/geometry_type_converters.h"
-#include "mojo/services/public/cpp/input_events/input_events_type_converters.h"
-#include "mojo/services/public/cpp/surfaces/surfaces_type_converters.h"
 #include "ui/events/event.h"
 
 namespace mojo {
@@ -34,9 +35,9 @@ NativeViewportImpl::NativeViewportImpl(ApplicationImpl* app, bool is_headless)
       widget_id_(0u),
       waiting_for_event_ack_(false),
       weak_factory_(this) {
-  app->ConnectToService("mojo:mojo_surfaces_service", &surfaces_service_);
+  app->ConnectToService("mojo:surfaces_service", &surfaces_service_);
   // TODO(jamesr): Should be mojo_gpu_service
-  app->ConnectToService("mojo:mojo_native_viewport_service", &gpu_service_);
+  app->ConnectToService("mojo:native_viewport_service", &gpu_service_);
 }
 
 NativeViewportImpl::~NativeViewportImpl() {
@@ -45,14 +46,15 @@ NativeViewportImpl::~NativeViewportImpl() {
   platform_viewport_.reset();
 }
 
-void NativeViewportImpl::Create(SizePtr bounds) {
+void NativeViewportImpl::Create(SizePtr size,
+                                const Callback<void(uint64_t)>& callback) {
+  create_callback_ = callback;
+  size_ = size.To<gfx::Size>();
   if (is_headless_)
     platform_viewport_ = PlatformViewportHeadless::Create(this);
   else
     platform_viewport_ = PlatformViewport::Create(this);
-  gfx::Rect rect = gfx::Rect(bounds.To<gfx::Size>());
-  platform_viewport_->Init(rect);
-  OnBoundsChanged(rect);
+  platform_viewport_->Init(gfx::Rect(size.To<gfx::Size>()));
 }
 
 void NativeViewportImpl::Show() {
@@ -68,8 +70,8 @@ void NativeViewportImpl::Close() {
   platform_viewport_->Close();
 }
 
-void NativeViewportImpl::SetBounds(SizePtr bounds) {
-  platform_viewport_->SetBounds(gfx::Rect(bounds.To<gfx::Size>()));
+void NativeViewportImpl::SetSize(SizePtr size) {
+  platform_viewport_->SetBounds(gfx::Rect(size.To<gfx::Size>()));
 }
 
 void NativeViewportImpl::SubmittedFrame(SurfaceIdPtr child_surface_id) {
@@ -81,7 +83,7 @@ void NativeViewportImpl::SubmittedFrame(SurfaceIdPtr child_surface_id) {
     viewport_surface_.reset(
         new ViewportSurface(surfaces_service_.get(),
                             gpu_service_.get(),
-                            bounds_.size(),
+                            size_,
                             child_surface_id.To<cc::SurfaceId>()));
     if (widget_id_)
       viewport_surface_->SetWidgetId(widget_id_);
@@ -92,17 +94,25 @@ void NativeViewportImpl::SubmittedFrame(SurfaceIdPtr child_surface_id) {
 }
 
 void NativeViewportImpl::OnBoundsChanged(const gfx::Rect& bounds) {
-  bounds_ = bounds;
-  client()->OnBoundsChanged(Size::From(bounds.size()));
-  if (viewport_surface_)
-    viewport_surface_->SetSize(bounds.size());
+  if (size_ == bounds.size())
+    return;
+
+  size_ = bounds.size();
+
+  // Wait for the accelerated widget before telling the client of the bounds.
+  if (create_callback_.is_null())
+    ProcessOnBoundsChanged();
 }
 
 void NativeViewportImpl::OnAcceleratedWidgetAvailable(
     gfx::AcceleratedWidget widget) {
   widget_id_ = static_cast<uint64_t>(bit_cast<uintptr_t>(widget));
   // TODO(jamesr): Remove once everything is converted to surfaces.
-  client()->OnCreated(widget_id_);
+  create_callback_.Run(widget_id_);
+  create_callback_.reset();
+  // Immediately tell the client of the size. The size may be wrong, if so we'll
+  // get the right one in the next OnBoundsChanged() call.
+  ProcessOnBoundsChanged();
   if (viewport_surface_)
     viewport_surface_->SetWidgetId(widget_id_);
 }
@@ -138,6 +148,12 @@ void NativeViewportImpl::OnDestroyed() {
 
 void NativeViewportImpl::AckEvent() {
   waiting_for_event_ack_ = false;
+}
+
+void NativeViewportImpl::ProcessOnBoundsChanged() {
+  client()->OnSizeChanged(Size::From(size_));
+  if (viewport_surface_)
+    viewport_surface_->SetSize(size_);
 }
 
 }  // namespace mojo

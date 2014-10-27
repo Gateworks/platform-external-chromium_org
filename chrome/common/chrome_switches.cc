@@ -187,10 +187,6 @@ const char kCrashOnHangThreads[]            = "crash-on-hang-threads";
 const char kCreateBrowserOnStartupForTests[] =
     "create-browser-on-startup-for-tests";
 
-// Specifies the chrome-extension:// URL for the contents of an additional page
-// added to the experimental app launcher.
-const char kCustomLauncherPage[]            = "custom-launcher-page";
-
 // Enables a frame context menu item that toggles the frame in and out of glass
 // mode (Windows Vista and up only).
 const char kDebugEnableFrameToggle[]        = "debug-enable-frame-toggle";
@@ -334,11 +330,6 @@ const char kDisableQuicPacing[]             = "disable-quic-pacing";
 // This only has an effect if QUIC protocol is enabled.
 const char kDisableQuicPortSelection[]      = "disable-quic-port-selection";
 
-// Disable use of time-base loss detection for QUIC connections.
-// This only has an effect if QUIC protocol is enabled.
-const char kDisableQuicTimeBasedLossDetection[] =
-    "disable-quic-time-based-loss-detection";
-
 // Prevents the save password bubble from being enabled.
 const char kDisableSavePasswordBubble[] = "disable-save-password-bubble";
 
@@ -354,6 +345,10 @@ const char kDisableSpdy31[]                 = "disable-spdy31";
 
 // Disables the suggestions service.
 const char kDisableSuggestionsService[]     = "disable-suggestions-service";
+
+// Disables the supervised user host blacklist.
+const char kDisableSupervisedUserBlacklist[] =
+    "disable-supervised-user-blacklist";
 
 // Disables syncing browser data to a Google Account.
 const char kDisableSync[]                   = "disable-sync";
@@ -441,6 +436,9 @@ const char kEnableDomainReliability[]          = "enable-domain-reliability";
 
 // Enable Enhanced Bookmarks.
 const char kEnhancedBookmarksExperiment[] = "enhanced-bookmarks-experiment";
+
+// Enable Enhanced Bookmarks sync.
+const char kEnableEnhancedBookmarksSync[] = "enable-enhanced-bookmarks-sync";
 
 // Enables experimentation with ephemeral apps, which are launched without
 // installing in Chrome.
@@ -544,11 +542,6 @@ const char kEnableQuicPacing[]              = "enable-quic-pacing";
 // This only has an effect if QUIC protocol is enabled.
 const char kEnableQuicPortSelection[]       = "enable-quic-port-selection";
 
-// Enables use of time-base loss detection for QUIC connections.
-// This only has an effect if QUIC protocol is enabled.
-const char kEnableQuicTimeBasedLossDetection[] =
-    "enable-quic-time-based-loss-detection";
-
 // Enables context-sensitive reader mode button in the toolbar.
 const char kEnableReaderModeToolbarIcon[] =
     "enable-reader-mode-toolbar-icon";
@@ -600,6 +593,11 @@ const char kEnableSpellingFeedbackFieldTrial[] =
 // Enables a feature that holds back some SSLConnectJobs in order to
 // minimize the number of full SSL handshakes completed.
 const char kEnableSSLConnectJobWaiting[] = "enable-ssl-connect-job-waiting";
+
+// Enables implementation of the Cache-Control: stale-while-revalidate directive
+// which permits servers to allow the use of stale resources while revalidation
+// proceeds in the background.
+const char kEnableStaleWhileRevalidate[]    = "enable-stale-while-revalidate";
 
 // Enables an experimental hosted app experience.
 const char kEnableStreamlinedHostedApps[]   = "enable-streamlined-hosted-apps";
@@ -756,7 +754,9 @@ const char kInstallChromeApp[]              = "install-chrome-app";
 
 // Causes Chrome to attempt to get metadata from the webstore for the
 // app/extension ID given, and then prompt the user to download and install it.
-const char kInstallFromWebstore[]           = "install-from-webstore";
+// This is allowed *only* for ephemeral apps. All other ids will be ignored.
+const char kInstallEphemeralAppFromWebstore[] =
+    "install-ephemeral-app-from-webstore";
 
 // Marks a renderer as an Instant process.
 const char kInstantProcess[]                = "instant-process";
@@ -780,10 +780,6 @@ const char kKioskMode[]                     = "kiosk";
 // Print automatically in kiosk mode. |kKioskMode| must be set as well.
 // See http://crbug.com/31395.
 const char kKioskModePrinting[]             = "kiosk-printing";
-
-// Causes Chrome to attempt to get metadata from the webstore for the
-// given item, and then prompt the user to download and install it.
-const char kLimitedInstallFromWebstore[]    = "limited-install-from-webstore";
 
 // Comma-separated list of directories with component extensions to load.
 const char kLoadComponentExtension[]        = "load-component-extension";
@@ -1125,6 +1121,10 @@ const char kSSLVersionMax[]                 = "ssl-version-max";
 // "tls1.2").
 const char kSSLVersionMin[]                 = "ssl-version-min";
 
+// Specifies the minimum SSL/TLS version ("ssl3", "tls1", "tls1.1", or
+// "tls1.2") that TLS fallback will accept.
+const char kSSLVersionFallbackMin[]         = "ssl-version-fallback-min";
+
 // Starts the browser maximized, regardless of any previous settings.
 const char kStartMaximized[]                = "start-maximized";
 
@@ -1291,10 +1291,6 @@ const char kAppsKeepChromeAliveInTests[]    = "apps-keep-chrome-alive-in-tests";
 // older, SnowLeopard-style fullscreen.
 const char kDisableSystemFullscreenForTesting[] =
     "disable-system-fullscreen-for-testing";
-
-// Makes the browser window's contentView take up the full size of the
-// window in OSX Yosemite.
-const char kEnableFullSizeContentView[]     = "enable-full-size-content-view";
 
 // A process type (switches::kProcessType) that relaunches the browser. See
 // chrome/browser/mac/relauncher.h.

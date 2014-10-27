@@ -26,7 +26,7 @@ class ScreenObserver;
 // doesn't actually drive a dedicated screen.
 class AutoEnrollmentCheckScreen
     : public AutoEnrollmentCheckScreenActor::Delegate,
-      public WizardScreen,
+      public BaseScreen,
       public NetworkPortalDetector::Observer {
  public:
   AutoEnrollmentCheckScreen(
@@ -45,20 +45,20 @@ class AutoEnrollmentCheckScreen
     auto_enrollment_controller_ = auto_enrollment_controller;
   }
 
-  // WizardScreen implementation:
-  virtual void PrepareToShow() OVERRIDE;
-  virtual void Show() OVERRIDE;
-  virtual void Hide() OVERRIDE;
-  virtual std::string GetName() const OVERRIDE;
+  // BaseScreen implementation:
+  virtual void PrepareToShow() override;
+  virtual void Show() override;
+  virtual void Hide() override;
+  virtual std::string GetName() const override;
 
   // AutoEnrollmentCheckScreenActor::Delegate implementation:
-  virtual void OnExit() OVERRIDE;
-  virtual void OnActorDestroyed(AutoEnrollmentCheckScreenActor* actor) OVERRIDE;
+  virtual void OnExit() override;
+  virtual void OnActorDestroyed(AutoEnrollmentCheckScreenActor* actor) override;
 
   // NetworkPortalDetector::Observer implementation:
   virtual void OnPortalDetectionCompleted(
       const NetworkState* network,
-      const NetworkPortalDetector::CaptivePortalState& state) OVERRIDE;
+      const NetworkPortalDetector::CaptivePortalState& state) override;
 
  private:
   // Handles update notifications regarding the auto-enrollment check.

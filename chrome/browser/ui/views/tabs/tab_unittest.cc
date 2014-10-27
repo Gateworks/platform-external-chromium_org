@@ -6,6 +6,7 @@
 
 #include "base/i18n/rtl.h"
 #include "base/strings/utf_string_conversions.h"
+#include "chrome/browser/ui/tabs/tab_utils.h"
 #include "chrome/browser/ui/views/tabs/media_indicator_button.h"
 #include "chrome/browser/ui/views/tabs/tab_controller.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -26,45 +27,45 @@ class FakeTabController : public TabController {
   void set_immersive_style(bool value) { immersive_style_ = value; }
   void set_active_tab(bool value) { active_tab_ = value; }
 
-  virtual const ui::ListSelectionModel& GetSelectionModel() OVERRIDE {
+  virtual const ui::ListSelectionModel& GetSelectionModel() override {
     return selection_model_;
   }
-  virtual bool SupportsMultipleSelection() OVERRIDE { return false; }
-  virtual void SelectTab(Tab* tab) OVERRIDE {}
-  virtual void ExtendSelectionTo(Tab* tab) OVERRIDE {}
-  virtual void ToggleSelected(Tab* tab) OVERRIDE {}
-  virtual void AddSelectionFromAnchorTo(Tab* tab) OVERRIDE {}
-  virtual void CloseTab(Tab* tab, CloseTabSource source) OVERRIDE {}
-  virtual void ToggleTabAudioMute(Tab* tab) OVERRIDE {}
+  virtual bool SupportsMultipleSelection() override { return false; }
+  virtual void SelectTab(Tab* tab) override {}
+  virtual void ExtendSelectionTo(Tab* tab) override {}
+  virtual void ToggleSelected(Tab* tab) override {}
+  virtual void AddSelectionFromAnchorTo(Tab* tab) override {}
+  virtual void CloseTab(Tab* tab, CloseTabSource source) override {}
+  virtual void ToggleTabAudioMute(Tab* tab) override {}
   virtual void ShowContextMenuForTab(Tab* tab,
                                      const gfx::Point& p,
-                                     ui::MenuSourceType source_type) OVERRIDE {}
-  virtual bool IsActiveTab(const Tab* tab) const OVERRIDE {
+                                     ui::MenuSourceType source_type) override {}
+  virtual bool IsActiveTab(const Tab* tab) const override {
     return active_tab_;
   }
-  virtual bool IsTabSelected(const Tab* tab) const OVERRIDE {
+  virtual bool IsTabSelected(const Tab* tab) const override {
     return false;
   }
-  virtual bool IsTabPinned(const Tab* tab) const OVERRIDE { return false; }
+  virtual bool IsTabPinned(const Tab* tab) const override { return false; }
   virtual void MaybeStartDrag(
       Tab* tab,
       const ui::LocatedEvent& event,
-      const ui::ListSelectionModel& original_selection) OVERRIDE {}
+      const ui::ListSelectionModel& original_selection) override {}
   virtual void ContinueDrag(views::View* view,
-                            const ui::LocatedEvent& event) OVERRIDE {}
-  virtual bool EndDrag(EndDragReason reason) OVERRIDE { return false; }
+                            const ui::LocatedEvent& event) override {}
+  virtual bool EndDrag(EndDragReason reason) override { return false; }
   virtual Tab* GetTabAt(Tab* tab,
-                        const gfx::Point& tab_in_tab_coordinates) OVERRIDE {
+                        const gfx::Point& tab_in_tab_coordinates) override {
     return NULL;
   }
   virtual void OnMouseEventInTab(views::View* source,
-                                 const ui::MouseEvent& event) OVERRIDE {}
-  virtual bool ShouldPaintTab(const Tab* tab, gfx::Rect* clip) OVERRIDE {
+                                 const ui::MouseEvent& event) override {}
+  virtual bool ShouldPaintTab(const Tab* tab, gfx::Rect* clip) override {
     return true;
   }
-  virtual bool IsImmersiveStyle() const OVERRIDE { return immersive_style_; }
+  virtual bool IsImmersiveStyle() const override { return immersive_style_; }
   virtual void UpdateTabAccessibilityState(const Tab* tab,
-                                           ui::AXViewState* state) OVERRIDE{};
+                                           ui::AXViewState* state) override{};
 
  private:
   ui::ListSelectionModel selection_model_;
@@ -82,7 +83,7 @@ class TabTest : public views::ViewsTestBase,
 
   bool testing_for_rtl_locale() const { return GetParam(); }
 
-  virtual void SetUp() OVERRIDE {
+  virtual void SetUp() override {
     if (testing_for_rtl_locale()) {
       original_locale_ = base::i18n::GetConfiguredLocale();
       base::i18n::SetICUDefaultLocale("he");
@@ -90,7 +91,7 @@ class TabTest : public views::ViewsTestBase,
     views::ViewsTestBase::SetUp();
   }
 
-  virtual void TearDown() OVERRIDE {
+  virtual void TearDown() override {
     views::ViewsTestBase::TearDown();
     if (testing_for_rtl_locale())
       base::i18n::SetICUDefaultLocale(original_locale_);
@@ -307,6 +308,61 @@ TEST_P(TabTest, LayoutAndVisibilityOfElements) {
           bounds.set_width(bounds.width() - 1);
         }
       }
+    }
+  }
+}
+
+// Regression test for http://crbug.com/420313: Confirms that any child Views of
+// Tab do not attempt to provide their own tooltip behavior/text. It also tests
+// that Tab provides the expected tooltip text (according to tab_utils).
+TEST_P(TabTest, TooltipProvidedByTab) {
+  if (testing_for_rtl_locale() && !base::i18n::IsRTL()) {
+    LOG(WARNING) << "Testing of RTL locale not supported on current platform.";
+    return;
+  }
+
+  FakeTabController controller;
+  Tab tab(&controller);
+  tab.SetBoundsRect(gfx::Rect(Tab::GetStandardSize()));
+
+  SkBitmap bitmap;
+  bitmap.allocN32Pixels(16, 16);
+  TabRendererData data;
+  data.favicon = gfx::ImageSkia::CreateFrom1xBitmap(bitmap);
+
+  data.title = base::UTF8ToUTF16(
+      "This is a really long tab title that would case views::Label to provide "
+      "its own tooltip; but Tab should disable that feature so it can provide "
+      "the tooltip instead.");
+
+  // Test both with and without an indicator showing since the tab tooltip text
+  // should include a description of the media state when the indicator is
+  // present.
+  for (int i = 0; i < 2; ++i) {
+    data.media_state =
+        (i == 0 ? TAB_MEDIA_STATE_NONE : TAB_MEDIA_STATE_AUDIO_PLAYING);
+    SCOPED_TRACE(::testing::Message()
+                 << "Tab with media indicator state " << data.media_state);
+    tab.SetData(data);
+
+    for (int j = 0; j < tab.child_count(); ++j) {
+      views::View& child = *tab.child_at(j);
+      if (!strcmp(child.GetClassName(), "TabCloseButton"))
+        continue;  // Close button is excepted.
+      if (!child.visible())
+        continue;
+      SCOPED_TRACE(::testing::Message() << "child_at(" << j << "): "
+                   << child.GetClassName());
+
+      const gfx::Point midpoint(child.width() / 2, child.height() / 2);
+      EXPECT_FALSE(child.GetTooltipHandlerForPoint(midpoint));
+      const gfx::Point mouse_hover_point =
+          midpoint + child.GetMirroredPosition().OffsetFromOrigin();
+      base::string16 tooltip;
+      EXPECT_TRUE(static_cast<views::View&>(tab).GetTooltipText(
+          mouse_hover_point, &tooltip));
+      EXPECT_EQ(chrome::AssembleTabTooltipText(data.title, data.media_state),
+                tooltip);
     }
   }
 }

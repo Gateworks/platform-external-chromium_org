@@ -17,7 +17,10 @@
 #include "base/observer_list.h"
 #include "base/threading/thread_checker.h"
 #include "base/values.h"
+#include "chrome/browser/chromeos/file_system_provider/observed_entry.h"
 #include "chrome/browser/chromeos/file_system_provider/observer.h"
+#include "chrome/browser/chromeos/file_system_provider/provided_file_system_interface.h"
+#include "chrome/browser/chromeos/file_system_provider/provided_file_system_observer.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/common/extensions/api/file_system_provider.h"
 #include "components/keyed_service/core/keyed_service.h"
@@ -36,15 +39,12 @@ class PrefRegistrySyncable;
 namespace chromeos {
 namespace file_system_provider {
 
-// Key names for preferences.
-extern const char kPrefKeyFileSystemId[];
-extern const char kPrefKeyDisplayName[];
-extern const char kPrefKeyWritable[];
-
 class ProvidedFileSystemFactoryInterface;
 class ProvidedFileSystemInfo;
 class ProvidedFileSystemInterface;
+class RegistryInterface;
 class ServiceFactory;
+struct MountOptions;
 
 // Registers preferences to remember registered file systems between reboots.
 void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry);
@@ -52,7 +52,8 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry);
 // Manages and registers the file system provider service. Maintains provided
 // file systems.
 class Service : public KeyedService,
-                public extensions::ExtensionRegistryObserver {
+                public extensions::ExtensionRegistryObserver,
+                public ProvidedFileSystemObserver {
  public:
   typedef base::Callback<ProvidedFileSystemInterface*(
       Profile* profile,
@@ -72,14 +73,17 @@ class Service : public KeyedService,
   void SetFileSystemFactoryForTesting(
       const FileSystemFactoryCallback& factory_callback);
 
+  // Sets a custom Registry implementation. Used by unit tests.
+  void SetRegistryForTesting(scoped_ptr<RegistryInterface> registry);
+
   // Mounts a file system provided by an extension with the |extension_id|. If
   // |writable| is set to true, then the file system is mounted in a R/W mode.
-  // Otherwise, only read-only operations are supported. For success, returns
+  // Otherwise, only read-only operations are supported. If change notification
+  // tags are supported, then |supports_notify_tag| must be true. Note, that
+  // it is required in order to enable the internal cache. For success, returns
   // true, otherwise false.
   bool MountFileSystem(const std::string& extension_id,
-                       const std::string& file_system_id,
-                       const std::string& display_name,
-                       bool writable);
+                       const MountOptions& options);
 
   // Unmounts a file system with the specified |file_system_id| for the
   // |extension_id|. For success returns true, otherwise false.
@@ -119,12 +123,28 @@ class Service : public KeyedService,
   virtual void OnExtensionUnloaded(
       content::BrowserContext* browser_context,
       const extensions::Extension* extension,
-      extensions::UnloadedExtensionInfo::Reason reason) OVERRIDE;
+      extensions::UnloadedExtensionInfo::Reason reason) override;
   virtual void OnExtensionLoaded(
       content::BrowserContext* browser_context,
-      const extensions::Extension* extension) OVERRIDE;
+      const extensions::Extension* extension) override;
+
+  // ProvidedFileSystemInterface::Observer overrides.
+  virtual void OnObservedEntryChanged(
+      const ProvidedFileSystemInfo& file_system_info,
+      const ObservedEntry& observed_entry,
+      ProvidedFileSystemObserver::ChangeType change_type,
+      const ProvidedFileSystemObserver::ChildChanges& child_changes,
+      const base::Closure& callback) override;
+  virtual void OnObservedEntryTagUpdated(
+      const ProvidedFileSystemInfo& file_system_info,
+      const ObservedEntry& observed_entry) override;
+  virtual void OnObservedEntryListChanged(
+      const ProvidedFileSystemInfo& file_system_info,
+      const ObservedEntries& observed_entries) override;
 
  private:
+  FRIEND_TEST_ALL_PREFIXES(FileSystemProviderServiceTest, RememberFileSystem);
+
   // Key is a pair of an extension id and file system id, which makes it
   // unique among the entire service instance.
   typedef std::pair<std::string, std::string> FileSystemKey;
@@ -140,7 +160,8 @@ class Service : public KeyedService,
 
   // Remembers the file system in preferences, in order to remount after a
   // reboot.
-  void RememberFileSystem(const ProvidedFileSystemInfo& file_system_info);
+  void RememberFileSystem(const ProvidedFileSystemInfo& file_system_info,
+                          const ObservedEntries& observed_entries);
 
   // Removes the file system from preferences, so it is not remounmted anymore
   // after a reboot.
@@ -157,9 +178,10 @@ class Service : public KeyedService,
   ObserverList<Observer> observers_;
   ProvidedFileSystemMap file_system_map_;  // Owns pointers.
   MountPointNameToKeyMap mount_point_name_to_key_map_;
+  scoped_ptr<RegistryInterface> registry_;
   base::ThreadChecker thread_checker_;
-  base::WeakPtrFactory<Service> weak_ptr_factory_;
 
+  base::WeakPtrFactory<Service> weak_ptr_factory_;
   DISALLOW_COPY_AND_ASSIGN(Service);
 };
 

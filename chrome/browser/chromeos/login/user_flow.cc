@@ -24,6 +24,9 @@ UserFlow::~UserFlow() {}
 
 DefaultUserFlow::~DefaultUserFlow() {}
 
+void DefaultUserFlow::AppendAdditionalCommandLineSwitches() {
+}
+
 bool DefaultUserFlow::CanLockScreen() {
   return true;
 }
@@ -38,6 +41,10 @@ bool DefaultUserFlow::ShouldLaunchBrowser() {
 
 bool DefaultUserFlow::ShouldSkipPostLoginScreens() {
   return false;
+}
+
+bool DefaultUserFlow::SupportsEarlyRestartToApplyFlags() {
+  return true;
 }
 
 bool DefaultUserFlow::HandleLoginFailure(const AuthFailure& failure) {
@@ -64,8 +71,15 @@ ExtendedUserFlow::ExtendedUserFlow(const std::string& user_id)
 ExtendedUserFlow::~ExtendedUserFlow() {
 }
 
+void ExtendedUserFlow::AppendAdditionalCommandLineSwitches() {
+}
+
 bool ExtendedUserFlow::ShouldShowSettings() {
   return true;
+}
+
+void ExtendedUserFlow::HandleOAuthTokenStatusChange(
+    user_manager::User::OAuthTokenStatus status) {
 }
 
 void ExtendedUserFlow::UnregisterFlowSoon() {

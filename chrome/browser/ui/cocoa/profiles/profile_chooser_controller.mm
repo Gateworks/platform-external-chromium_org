@@ -50,6 +50,7 @@
 #include "components/signin/core/browser/signin_manager.h"
 #include "components/signin/core/common/profile_management_switches.h"
 #include "content/public/browser/notification_service.h"
+#include "content/public/browser/render_widget_host_view.h"
 #include "content/public/browser/web_contents.h"
 #include "google_apis/gaia/oauth2_token_service.h"
 #include "grit/theme_resources.h"
@@ -263,9 +264,7 @@ class ActiveProfileObserverBridge : public AvatarMenuObserver,
       AddTokenServiceObserver();
   }
 
-  virtual ~ActiveProfileObserverBridge() {
-    RemoveTokenServiceObserver();
-  }
+  ~ActiveProfileObserverBridge() override { RemoveTokenServiceObserver(); }
 
  private:
   void AddTokenServiceObserver() {
@@ -288,7 +287,7 @@ class ActiveProfileObserverBridge : public AvatarMenuObserver,
   }
 
   // OAuth2TokenService::Observer:
-  virtual void OnRefreshTokenAvailable(const std::string& account_id) OVERRIDE {
+  void OnRefreshTokenAvailable(const std::string& account_id) override {
     // Tokens can only be added by adding an account through the inline flow,
     // which is started from the account management view. Refresh it to show the
     // update.
@@ -303,7 +302,7 @@ class ActiveProfileObserverBridge : public AvatarMenuObserver,
     }
   }
 
-  virtual void OnRefreshTokenRevoked(const std::string& account_id) OVERRIDE {
+  void OnRefreshTokenRevoked(const std::string& account_id) override {
     // Tokens can only be removed from the account management view. Refresh it
     // to show the update.
     if ([controller_ viewMode] == profiles::BUBBLE_VIEW_MODE_ACCOUNT_MANAGEMENT)
@@ -312,7 +311,7 @@ class ActiveProfileObserverBridge : public AvatarMenuObserver,
   }
 
   // AvatarMenuObserver:
-  virtual void OnAvatarMenuChanged(AvatarMenu* avatar_menu) OVERRIDE {
+  void OnAvatarMenuChanged(AvatarMenu* avatar_menu) override {
     profiles::BubbleViewMode viewMode = [controller_ viewMode];
     if (viewMode == profiles::BUBBLE_VIEW_MODE_PROFILE_CHOOSER ||
         viewMode == profiles::BUBBLE_VIEW_MODE_ACCOUNT_MANAGEMENT) {
@@ -321,10 +320,9 @@ class ActiveProfileObserverBridge : public AvatarMenuObserver,
   }
 
   // content::NotificationObserver:
-  virtual void Observe(
-      int type,
-      const content::NotificationSource& source,
-      const content::NotificationDetails& details) OVERRIDE {
+  void Observe(int type,
+               const content::NotificationSource& source,
+               const content::NotificationDetails& details) override {
     DCHECK_EQ(chrome::NOTIFICATION_BROWSER_CLOSING, type);
     if (browser_ == content::Source<Browser>(source).ptr()) {
       RemoveTokenServiceObserver();
@@ -449,15 +447,7 @@ class ActiveProfileObserverBridge : public AvatarMenuObserver,
   // Display everything as a circle that spans the entire control.
   NSBezierPath* path = [NSBezierPath bezierPathWithOvalInRect:frame];
   [path addClip];
-
   [super drawImage:[self image] withFrame:frame inView:controlView];
-
-  // Focus ring.
-  if ([self showsFirstResponder]) {
-    [[[NSColor keyboardFocusIndicatorColor] colorWithAlphaComponent:1] set];
-    [path setLineWidth:kFocusRingLineWidth];
-    [path stroke];
-  }
 }
 @end
 
@@ -554,6 +544,10 @@ class ActiveProfileObserverBridge : public AvatarMenuObserver,
   [changePhotoImage_ setHidden:([self hoverState] == kHoverStateNone)];
 }
 
+- (BOOL)canBecomeKeyView {
+  return false;
+}
+
 - (BOOL)accessibilityIsIgnored {
   return NO;
 }
@@ -645,19 +639,26 @@ class ActiveProfileObserverBridge : public AvatarMenuObserver,
       [[profileNameTextField_ cell] setWraps:NO];
       [[profileNameTextField_ cell] setLineBreakMode:
           NSLineBreakByTruncatingTail];
+      [[profileNameTextField_ cell] setUsesSingleLineMode:YES];
       [self addSubview:profileNameTextField_];
       [profileNameTextField_ setTarget:self];
       [profileNameTextField_ setAction:@selector(saveProfileName:)];
 
       // Hide the textfield until the user clicks on the button.
       [profileNameTextField_ setHidden:YES];
+
+      [[self cell] accessibilitySetOverrideValue:l10n_util::GetNSStringF(
+          IDS_PROFILES_NEW_AVATAR_MENU_EDIT_NAME_ACCESSIBLE_NAME,
+          base::SysNSStringToUTF16(profileName))
+                                    forAttribute:NSAccessibilityTitleAttribute];
     }
 
     [[self cell] accessibilitySetOverrideValue:NSAccessibilityButtonRole
-                           forAttribute:NSAccessibilityRoleAttribute];
-    [[self cell] accessibilitySetOverrideValue:
-        NSAccessibilityRoleDescription(NSAccessibilityButtonRole, nil)
-          forAttribute:NSAccessibilityRoleDescriptionAttribute];
+                                  forAttribute:NSAccessibilityRoleAttribute];
+    [[self cell]
+        accessibilitySetOverrideValue:NSAccessibilityRoleDescription(
+                                          NSAccessibilityButtonRole, nil)
+                         forAttribute:NSAccessibilityRoleDescriptionAttribute];
 
     [self setBordered:NO];
     [self setFont:[NSFont labelFontOfSize:kTitleFontSize]];
@@ -689,6 +690,10 @@ class ActiveProfileObserverBridge : public AvatarMenuObserver,
 - (void)showEditableView:(id)sender {
   [profileNameTextField_ setHidden:NO];
   [[self window] makeFirstResponder:profileNameTextField_];
+}
+
+- (BOOL)canBecomeKeyView {
+  return false;
 }
 
 @end
@@ -738,6 +743,10 @@ class ActiveProfileObserverBridge : public AvatarMenuObserver,
   [[self cell] setBackgroundColor:backgroundColor];
 }
 
+- (BOOL)canBecomeKeyView {
+  return YES;
+}
+
 @end
 
 // A custom view with the given background color.
@@ -773,11 +782,11 @@ class ActiveProfileObserverBridge : public AvatarMenuObserver,
 }
 
 - (id)accessibilityAttributeValue:(NSString*)attribute {
-  return @[];
+  return nil;
 }
 
 - (BOOL)canBecomeKeyView {
-  return false;
+  return NO;
 }
 
 @end
@@ -1152,7 +1161,7 @@ class ActiveProfileObserverBridge : public AvatarMenuObserver,
   // Add a dummy, empty element so that we don't initially display any
   // focus rings.
   NSButton* dummyFocusButton =
-      [[[DummyWindowFocusButton alloc] initWithFrame:NSZeroRect] autorelease];
+     [[[DummyWindowFocusButton alloc] initWithFrame:NSZeroRect] autorelease];
   [dummyFocusButton setNextKeyView:subView];
   [[self window] makeFirstResponder:dummyFocusButton];
 
@@ -1193,7 +1202,8 @@ class ActiveProfileObserverBridge : public AvatarMenuObserver,
         }
       }
       currentProfileView = [self createCurrentProfileView:item];
-      displayLock = switches::IsNewProfileManagement() && item.signed_in;
+      displayLock = item.signed_in &&
+          profiles::IsLockAvailable(browser_->profile());
     } else {
       [otherProfiles addObject:[self createOtherProfileView:i]];
     }
@@ -1902,6 +1912,9 @@ class ActiveProfileObserverBridge : public AvatarMenuObserver,
   NSView* webview = webContents_->GetNativeView();
   [webview setFrameSize:NSMakeSize(kFixedGaiaViewWidth, kFixedGaiaViewHeight)];
   [container addSubview:webview];
+  content::RenderWidgetHostView* rwhv = webContents_->GetRenderWidgetHostView();
+  if (rwhv)
+    rwhv->SetBackgroundColor(profiles::kAvatarBubbleGaiaBackgroundColor);
   yOffset = NSMaxY([webview frame]);
 
   // Adds the title card.

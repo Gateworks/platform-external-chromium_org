@@ -72,12 +72,24 @@ float TuxelToPixelSize(float val, float num_tuxels, float num_pixels) {
 
 namespace ui {
 
+TouchEventConverterEvdev::InProgressEvents::InProgressEvents()
+    : x_(0),
+      y_(0),
+      id_(-1),
+      finger_(-1),
+      type_(ET_UNKNOWN),
+      radius_x_(0),
+      radius_y_(0),
+      pressure_(0) {
+}
+
 TouchEventConverterEvdev::TouchEventConverterEvdev(
     int fd,
     base::FilePath path,
+    int id,
     const EventDeviceInfo& info,
     const EventDispatchCallback& callback)
-    : EventConverterEvdev(fd, path),
+    : EventConverterEvdev(fd, path, id),
       callback_(callback),
       syn_dropped_(false),
       is_type_a_(false),
@@ -91,22 +103,19 @@ TouchEventConverterEvdev::~TouchEventConverterEvdev() {
 }
 
 void TouchEventConverterEvdev::Init(const EventDeviceInfo& info) {
-  gfx::Screen *screen = gfx::Screen::GetScreenByType(gfx::SCREEN_TYPE_NATIVE);
+  gfx::Screen* screen = gfx::Screen::GetScreenByType(gfx::SCREEN_TYPE_NATIVE);
   if (!screen)
     return;  // No scaling.
   gfx::Display display = screen->GetPrimaryDisplay();
   gfx::Size size = display.GetSizeInPixel();
 
-  pressure_min_ = info.GetAbsMinimum(ABS_MT_PRESSURE),
-  pressure_max_ = info.GetAbsMaximum(ABS_MT_PRESSURE),
-  x_min_tuxels_ = info.GetAbsMinimum(ABS_MT_POSITION_X),
-  x_num_tuxels_ = info.GetAbsMaximum(ABS_MT_POSITION_X) - x_min_tuxels_ + 1,
-  y_min_tuxels_ = info.GetAbsMinimum(ABS_MT_POSITION_Y),
-  y_num_tuxels_ = info.GetAbsMaximum(ABS_MT_POSITION_Y) - y_min_tuxels_ + 1,
-  x_min_pixels_ = x_min_tuxels_,
-  x_num_pixels_ = x_num_tuxels_,
-  y_min_pixels_ = y_min_tuxels_,
-  y_num_pixels_ = y_num_tuxels_,
+  pressure_min_ = info.GetAbsMinimum(ABS_MT_PRESSURE);
+  pressure_max_ = info.GetAbsMaximum(ABS_MT_PRESSURE);
+  x_min_tuxels_ = info.GetAbsMinimum(ABS_MT_POSITION_X);
+  x_num_tuxels_ = info.GetAbsMaximum(ABS_MT_POSITION_X) - x_min_tuxels_ + 1;
+  y_min_tuxels_ = info.GetAbsMinimum(ABS_MT_POSITION_Y);
+  y_num_tuxels_ = info.GetAbsMaximum(ABS_MT_POSITION_Y) - y_min_tuxels_ + 1;
+  native_size_ = gfx::Size(x_num_tuxels_, y_num_tuxels_);
 
   // Map coordinates onto screen.
   x_min_pixels_ = 0;
@@ -131,6 +140,19 @@ void TouchEventConverterEvdev::Init(const EventDeviceInfo& info) {
                                 cal.bezel_right,
                                 cal.bezel_top,
                                 cal.bezel_bottom);
+
+  for (int i = 0;
+       i < std::min<int>(info.GetAbsMaximum(ABS_MT_SLOT) + 1, MAX_FINGERS);
+       ++i) {
+    events_[i].finger_ = info.GetSlotValue(ABS_MT_TRACKING_ID, i);
+    events_[i].type_ =
+        events_[i].finger_ < 0 ? ET_TOUCH_RELEASED : ET_TOUCH_PRESSED;
+    events_[i].x_ = info.GetSlotValue(ABS_MT_POSITION_X, i);
+    events_[i].y_ = info.GetSlotValue(ABS_MT_POSITION_Y, i);
+    events_[i].radius_x_ = info.GetSlotValue(ABS_MT_TOUCH_MAJOR, i);
+    events_[i].radius_y_ = info.GetSlotValue(ABS_MT_TOUCH_MINOR, i);
+    events_[i].pressure_ = info.GetSlotValue(ABS_MT_PRESSURE, i);
+  }
 }
 
 bool TouchEventConverterEvdev::Reinitialize() {
@@ -140,6 +162,14 @@ bool TouchEventConverterEvdev::Reinitialize() {
     return true;
   }
   return false;
+}
+
+bool TouchEventConverterEvdev::HasTouchscreen() const {
+  return true;
+}
+
+gfx::Size TouchEventConverterEvdev::GetTouchscreenSize() const {
+  return native_size_;
 }
 
 void TouchEventConverterEvdev::OnFileCanReadWithoutBlocking(int fd) {
@@ -274,16 +304,16 @@ void TouchEventConverterEvdev::ReportEvents(base::TimeDelta delta) {
   for (int i = 0; i < MAX_FINGERS; i++) {
     if (altered_slots_[i]) {
       // TODO(rikroege): Support elliptical finger regions.
-      TouchEvent evt(events_[i].type_,
-                     gfx::PointF(events_[i].x_, events_[i].y_),
-                     /* flags */ 0,
-                     /* touch_id */ i,
-                     delta,
-                     /* radius_x */ events_[i].radius_x_,
-                     /* radius_y */ events_[i].radius_y_,
-                     /* angle */ 0.,
-                     events_[i].pressure_);
-      callback_.Run(&evt);
+      callback_.Run(make_scoped_ptr(
+          new TouchEvent(events_[i].type_,
+                         gfx::PointF(events_[i].x_, events_[i].y_),
+                         /* flags */ 0,
+                         /* touch_id */ i,
+                         delta,
+                         /* radius_x */ events_[i].radius_x_,
+                         /* radius_y */ events_[i].radius_y_,
+                         /* angle */ 0.,
+                         events_[i].pressure_)));
 
       // Subsequent events for this finger will be touch-move until it
       // is released.

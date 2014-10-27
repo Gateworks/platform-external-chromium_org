@@ -48,7 +48,7 @@ class GLInProcessContextImpl
  public:
   explicit GLInProcessContextImpl(
       const GLInProcessContextSharedMemoryLimits& mem_limits);
-  virtual ~GLInProcessContextImpl();
+  ~GLInProcessContextImpl() override;
 
   bool Initialize(
       scoped_refptr<gfx::GLSurface> surface,
@@ -62,13 +62,13 @@ class GLInProcessContextImpl
       const scoped_refptr<InProcessCommandBuffer::Service>& service);
 
   // GLInProcessContext implementation:
-  virtual void SetContextLostCallback(const base::Closure& callback) OVERRIDE;
-  virtual gles2::GLES2Implementation* GetImplementation() OVERRIDE;
-  virtual size_t GetMappedMemoryLimit() OVERRIDE;
+  void SetContextLostCallback(const base::Closure& callback) override;
+  gles2::GLES2Implementation* GetImplementation() override;
+  size_t GetMappedMemoryLimit() override;
 
 #if defined(OS_ANDROID)
   virtual scoped_refptr<gfx::SurfaceTexture> GetSurfaceTexture(
-      uint32 stream_id) OVERRIDE;
+      uint32 stream_id) override;
 #endif
 
  private:

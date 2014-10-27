@@ -6,6 +6,7 @@
 
 #include "base/bind.h"
 #include "base/logging.h"
+#include "base/metrics/field_trial.h"
 #include "base/prefs/pref_service.h"
 #include "base/prefs/scoped_user_pref_update.h"
 #include "base/values.h"
@@ -102,12 +103,14 @@ void EasyUnlockServiceRegular::SetRemoteDevices(
   DictionaryPrefUpdate pairing_update(profile()->GetPrefs(),
                                       prefs::kEasyUnlockPairing);
   pairing_update->SetWithoutPathExpansion(kKeyDevices, devices.DeepCopy());
+  CheckCryptohomeKeysAndMaybeHardlock();
 }
 
 void EasyUnlockServiceRegular::ClearRemoteDevices() {
   DictionaryPrefUpdate pairing_update(profile()->GetPrefs(),
                                       prefs::kEasyUnlockPairing);
   pairing_update->RemoveWithoutPathExpansion(kKeyDevices, NULL);
+  CheckCryptohomeKeysAndMaybeHardlock();
 }
 
 void EasyUnlockServiceRegular::RunTurnOffFlow() {
@@ -160,6 +163,17 @@ std::string EasyUnlockServiceRegular::GetWrappedSecret() const {
   return std::string();
 }
 
+void EasyUnlockServiceRegular::RecordEasySignInOutcome(
+    const std::string& user_id,
+    bool success) const {
+  NOTREACHED();
+}
+
+void EasyUnlockServiceRegular::RecordPasswordLoginEvent(
+    const std::string& user_id) const {
+  NOTREACHED();
+}
+
 void EasyUnlockServiceRegular::InitializeInternal() {
   registrar_.Init(profile()->GetPrefs());
   registrar_.Add(
@@ -182,6 +196,15 @@ bool EasyUnlockServiceRegular::IsAllowedInternal() {
 
   if (!chromeos::ProfileHelper::IsPrimaryProfile(profile()))
     return false;
+
+  if (!profile()->GetPrefs()->GetBoolean(prefs::kEasyUnlockAllowed))
+    return false;
+
+  // Respect existing policy and skip finch test.
+  if (!profile()->GetPrefs()->IsManagedPreference(prefs::kEasyUnlockAllowed)) {
+    // It is enabled when the trial exists and is in "Enable" group.
+    return base::FieldTrialList::FindFullName("EasyUnlock") == "Enable";
+  }
 
   return true;
 #else

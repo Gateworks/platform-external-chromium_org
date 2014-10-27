@@ -14,10 +14,6 @@ SkBitmap* ContentRendererClient::GetSadWebViewBitmap() {
   return NULL;
 }
 
-std::string ContentRendererClient::GetDefaultEncoding() {
-  return std::string();
-}
-
 bool ContentRendererClient::OverrideCreatePlugin(
     RenderFrame* render_frame,
     blink::WebLocalFrame* frame,
@@ -159,7 +155,7 @@ bool ContentRendererClient::AllowPepperMediaStreamAPI(const GURL& url) {
 }
 
 void ContentRendererClient::AddKeySystems(
-    std::vector<KeySystemInfo>* key_systems) {
+    std::vector<media::KeySystemInfo>* key_systems) {
 }
 
 bool ContentRendererClient::ShouldReportDetailedMessageForSource(
@@ -194,6 +190,10 @@ BrowserPluginDelegate* ContentRendererClient::CreateBrowserPluginDelegate(
     RenderFrame* render_frame,
     const std::string& mime_type) {
   return NULL;
+}
+
+std::string ContentRendererClient::GetUserAgentOverrideForURL(const GURL& url) {
+  return std::string();
 }
 
 }  // namespace content

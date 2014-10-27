@@ -40,12 +40,12 @@
 #include "chrome/common/chrome_switches.h"
 #include "chrome/common/chrome_version_info.h"
 #include "chrome/common/pref_names.h"
-#include "components/data_reduction_proxy/browser/data_reduction_proxy_auth_request_handler.h"
-#include "components/data_reduction_proxy/browser/data_reduction_proxy_delegate.h"
-#include "components/data_reduction_proxy/browser/data_reduction_proxy_params.h"
-#include "components/data_reduction_proxy/browser/data_reduction_proxy_prefs.h"
-#include "components/data_reduction_proxy/browser/data_reduction_proxy_protocol.h"
-#include "components/data_reduction_proxy/browser/data_reduction_proxy_settings.h"
+#include "components/data_reduction_proxy/core/browser/data_reduction_proxy_auth_request_handler.h"
+#include "components/data_reduction_proxy/core/browser/data_reduction_proxy_delegate.h"
+#include "components/data_reduction_proxy/core/browser/data_reduction_proxy_params.h"
+#include "components/data_reduction_proxy/core/browser/data_reduction_proxy_prefs.h"
+#include "components/data_reduction_proxy/core/browser/data_reduction_proxy_protocol.h"
+#include "components/data_reduction_proxy/core/browser/data_reduction_proxy_settings.h"
 #include "components/policy/core/common/policy_service.h"
 #include "components/variations/variations_associated_data.h"
 #include "content/public/browser/browser_thread.h"
@@ -122,8 +122,6 @@ const char kQuicFieldTrialEnabledGroupName[] = "Enabled";
 const char kQuicFieldTrialHttpsEnabledGroupName[] = "HttpsEnabled";
 const char kQuicFieldTrialPacketLengthSuffix[] = "BytePackets";
 const char kQuicFieldTrialPacingSuffix[] = "WithPacing";
-const char kQuicFieldTrialTimeBasedLossDetectionSuffix[] =
-    "WithTimeBasedLossDetection";
 
 // The SPDY trial composes two different trial plus control groups:
 //  * A "holdback" group with SPDY disabled, and corresponding control
@@ -137,6 +135,9 @@ const char kSpdyFieldTrialHoldbackGroupName[] = "SpdyDisabled";
 const char kSpdyFieldTrialHoldbackControlGroupName[] = "Control";
 const char kSpdyFieldTrialSpdy4GroupName[] = "Spdy4Enabled";
 const char kSpdyFieldTrialSpdy4ControlGroupName[] = "Spdy4Control";
+
+// Field trial for Cache-Control: stale-while-revalidate directive.
+const char kStaleWhileRevalidateFieldTrialName[] = "StaleWhileRevalidate";
 
 #if defined(OS_MACOSX) && !defined(OS_IOS)
 void ObserveKeychainEvents() {
@@ -155,7 +156,7 @@ class SystemURLRequestContext : public net::URLRequestContext {
   }
 
  private:
-  virtual ~SystemURLRequestContext() {
+  ~SystemURLRequestContext() override {
     AssertNoURLRequests();
 #if defined(USE_NSS) || defined(OS_IOS)
     net::SetURLRequestContextForNSSHttpIO(NULL);
@@ -219,13 +220,13 @@ scoped_ptr<net::HostResolver> CreateGlobalHostResolver(net::NetLog* net_log) {
   // rules on top of the real host resolver. This allows forwarding all requests
   // through a designated test server.
   if (!command_line.HasSwitch(switches::kHostResolverRules))
-    return global_host_resolver.PassAs<net::HostResolver>();
+    return global_host_resolver.Pass();
 
   scoped_ptr<net::MappedHostResolver> remapped_resolver(
       new net::MappedHostResolver(global_host_resolver.Pass()));
   remapped_resolver->SetRulesFromString(
       command_line.GetSwitchValueASCII(switches::kHostResolverRules));
-  return remapped_resolver.PassAs<net::HostResolver>();
+  return remapped_resolver.Pass();
 }
 
 // TODO(willchan): Remove proxy script fetcher context since it's not necessary
@@ -325,22 +326,22 @@ class IOThread::LoggingNetworkChangeObserver
     net::NetworkChangeNotifier::AddNetworkChangeObserver(this);
   }
 
-  virtual ~LoggingNetworkChangeObserver() {
+  ~LoggingNetworkChangeObserver() override {
     net::NetworkChangeNotifier::RemoveIPAddressObserver(this);
     net::NetworkChangeNotifier::RemoveConnectionTypeObserver(this);
     net::NetworkChangeNotifier::RemoveNetworkChangeObserver(this);
   }
 
   // NetworkChangeNotifier::IPAddressObserver implementation.
-  virtual void OnIPAddressChanged() OVERRIDE {
+  void OnIPAddressChanged() override {
     VLOG(1) << "Observed a change to the network IP addresses";
 
     net_log_->AddGlobalEntry(net::NetLog::TYPE_NETWORK_IP_ADDRESSES_CHANGED);
   }
 
   // NetworkChangeNotifier::ConnectionTypeObserver implementation.
-  virtual void OnConnectionTypeChanged(
-      net::NetworkChangeNotifier::ConnectionType type) OVERRIDE {
+  void OnConnectionTypeChanged(
+      net::NetworkChangeNotifier::ConnectionType type) override {
     std::string type_as_string =
         net::NetworkChangeNotifier::ConnectionTypeToString(type);
 
@@ -353,8 +354,8 @@ class IOThread::LoggingNetworkChangeObserver
   }
 
   // NetworkChangeNotifier::NetworkChangeObserver implementation.
-  virtual void OnNetworkChanged(
-      net::NetworkChangeNotifier::ConnectionType type) OVERRIDE {
+  void OnNetworkChanged(
+      net::NetworkChangeNotifier::ConnectionType type) override {
     std::string type_as_string =
         net::NetworkChangeNotifier::ConnectionTypeToString(type);
 
@@ -375,12 +376,12 @@ class SystemURLRequestContextGetter : public net::URLRequestContextGetter {
   explicit SystemURLRequestContextGetter(IOThread* io_thread);
 
   // Implementation for net::UrlRequestContextGetter.
-  virtual net::URLRequestContext* GetURLRequestContext() OVERRIDE;
-  virtual scoped_refptr<base::SingleThreadTaskRunner>
-      GetNetworkTaskRunner() const OVERRIDE;
+  net::URLRequestContext* GetURLRequestContext() override;
+  scoped_refptr<base::SingleThreadTaskRunner> GetNetworkTaskRunner()
+      const override;
 
  protected:
-  virtual ~SystemURLRequestContextGetter();
+  ~SystemURLRequestContextGetter() override;
 
  private:
   IOThread* const io_thread_;  // Weak pointer, owned by BrowserProcess.
@@ -427,6 +428,7 @@ IOThread::Globals::Globals()
     : system_request_context_leak_checker(this),
       enable_ssl_connect_job_waiting(false),
       ignore_certificate_errors(false),
+      use_stale_while_revalidate(false),
       testing_fixed_http_port(0),
       testing_fixed_https_port(0),
       enable_user_alternate_protocol_ports(false) {
@@ -658,6 +660,11 @@ void IOThread::InitAsync() {
     globals_->enable_ssl_connect_job_waiting = true;
   if (command_line.HasSwitch(switches::kIgnoreCertificateErrors))
     globals_->ignore_certificate_errors = true;
+  if (command_line.HasSwitch(switches::kEnableStaleWhileRevalidate))
+    globals_->use_stale_while_revalidate = true;
+  if (base::FieldTrialList::FindFullName(kStaleWhileRevalidateFieldTrialName) ==
+      "Enabled")
+    globals_->use_stale_while_revalidate = true;
   if (command_line.HasSwitch(switches::kTestingFixedHttpPort)) {
     globals_->testing_fixed_http_port =
         GetSwitchValueAsInt(command_line, switches::kTestingFixedHttpPort);
@@ -703,8 +710,7 @@ void IOThread::InitAsync() {
       new net::FtpProtocolHandler(
           globals_->proxy_script_fetcher_ftp_transaction_factory.get()));
 #endif
-  globals_->proxy_script_fetcher_url_request_job_factory =
-      job_factory.PassAs<net::URLRequestJobFactory>();
+  globals_->proxy_script_fetcher_url_request_job_factory = job_factory.Pass();
 
   globals_->throttler_manager.reset(new net::URLRequestThrottlerManager());
   globals_->throttler_manager->set_net_log(net_log_);
@@ -987,6 +993,7 @@ void IOThread::InitializeNetworkSessionParamsFromGlobals(
   params->enable_ssl_connect_job_waiting =
       globals.enable_ssl_connect_job_waiting;
   params->ignore_certificate_errors = globals.ignore_certificate_errors;
+  params->use_stale_while_revalidate = globals.use_stale_while_revalidate;
   params->testing_fixed_http_port = globals.testing_fixed_http_port;
   params->testing_fixed_https_port = globals.testing_fixed_https_port;
   globals.enable_tcp_fast_open_for_ssl.CopyToIfSet(
@@ -1015,8 +1022,6 @@ void IOThread::InitializeNetworkSessionParamsFromGlobals(
       &params->enable_websocket_over_spdy);
 
   globals.enable_quic.CopyToIfSet(&params->enable_quic);
-  globals.enable_quic_time_based_loss_detection.CopyToIfSet(
-      &params->enable_quic_time_based_loss_detection);
   globals.quic_always_require_handshake_confirmation.CopyToIfSet(
       &params->quic_always_require_handshake_confirmation);
   globals.quic_disable_connection_pooling.CopyToIfSet(
@@ -1169,9 +1174,6 @@ void IOThread::ConfigureQuicGlobals(
   bool enable_quic = ShouldEnableQuic(command_line, quic_trial_group);
   globals->enable_quic.set(enable_quic);
   if (enable_quic) {
-    globals->enable_quic_time_based_loss_detection.set(
-        ShouldEnableQuicTimeBasedLossDetection(command_line, quic_trial_group,
-                                               quic_trial_params));
     globals->quic_always_require_handshake_confirmation.set(
         ShouldQuicAlwaysRequireHandshakeConfirmation(quic_trial_params));
     globals->quic_disable_connection_pooling.set(
@@ -1331,26 +1333,6 @@ double IOThread::GetAlternateProtocolProbabilityThreshold(
     return value;
   }
   return -1;
-}
-
-// static
-bool IOThread::ShouldEnableQuicTimeBasedLossDetection(
-    const CommandLine& command_line,
-    base::StringPiece quic_trial_group,
-    const VariationParameters& quic_trial_params) {
-  if (command_line.HasSwitch(switches::kEnableQuicTimeBasedLossDetection))
-    return true;
-
-  if (command_line.HasSwitch(switches::kDisableQuicTimeBasedLossDetection))
-    return false;
-
-  if (LowerCaseEqualsASCII(
-      GetVariationParam(quic_trial_params, "enable_time_based_loss_detection"),
-      "true"))
-    return true;
-
-  return quic_trial_group.ends_with(
-      kQuicFieldTrialTimeBasedLossDetectionSuffix);
 }
 
 // static

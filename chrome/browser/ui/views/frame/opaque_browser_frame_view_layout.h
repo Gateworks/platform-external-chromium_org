@@ -9,10 +9,13 @@
 #include "ui/views/layout/layout_manager.h"
 #include "ui/views/window/frame_buttons.h"
 
-class AvatarLabel;
 class AvatarMenuButton;
 class NewAvatarButton;
 class OpaqueBrowserFrameViewLayoutDelegate;
+
+#if defined(ENABLE_MANAGED_USERS)
+class SupervisedUserAvatarLabel;
+#endif
 
 namespace views {
 class ImageButton;
@@ -139,10 +142,10 @@ class OpaqueBrowserFrameViewLayout : public views::LayoutManager {
   void SetView(int id, views::View* view);
 
   // Overriden from views::LayoutManager:
-  virtual void Layout(views::View* host) OVERRIDE;
-  virtual gfx::Size GetPreferredSize(const views::View* host) const OVERRIDE;
-  virtual void ViewAdded(views::View* host, views::View* view) OVERRIDE;
-  virtual void ViewRemoved(views::View* host, views::View* view) OVERRIDE;
+  virtual void Layout(views::View* host) override;
+  virtual gfx::Size GetPreferredSize(const views::View* host) const override;
+  virtual void ViewAdded(views::View* host, views::View* view) override;
+  virtual void ViewRemoved(views::View* host, views::View* view) override;
 
   OpaqueBrowserFrameViewLayoutDelegate* delegate_;
 
@@ -185,7 +188,9 @@ class OpaqueBrowserFrameViewLayout : public views::LayoutManager {
   views::View* window_icon_;
   views::Label* window_title_;
 
-  AvatarLabel* avatar_label_;
+#if defined(ENABLE_MANAGED_USERS)
+  SupervisedUserAvatarLabel* supervised_user_avatar_label_;
+#endif
   AvatarMenuButton* avatar_button_;
   views::View* new_avatar_button_;
 

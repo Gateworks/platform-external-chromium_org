@@ -49,7 +49,7 @@ class AiaResponseHandler : public net::URLRequestInterceptor {
   // net::URLRequestInterceptor implementation:
   virtual net::URLRequestJob* MaybeInterceptRequest(
       net::URLRequest* request,
-      net::NetworkDelegate* network_delegate) const OVERRIDE {
+      net::NetworkDelegate* network_delegate) const override {
     ++const_cast<AiaResponseHandler*>(this)->request_count_;
 
     return new net::URLRequestTestJob(
@@ -91,9 +91,7 @@ class NssHttpTest : public ::testing::Test {
     handler_ = handler.get();
 
     URLRequestFilter::GetInstance()->AddHostnameInterceptor(
-        "http",
-        kAiaHost,
-        handler.PassAs<URLRequestInterceptor>());
+        "http", kAiaHost, handler.Pass());
 
     SetURLRequestContextForNSSHttpIO(&context_);
     EnsureNSSHttpIOInit();

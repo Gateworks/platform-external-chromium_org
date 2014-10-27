@@ -38,8 +38,8 @@ class ShortcutsBackendTest : public testing::Test,
   virtual void SetUp();
   virtual void TearDown();
 
-  virtual void OnShortcutsLoaded() OVERRIDE;
-  virtual void OnShortcutsChanged() OVERRIDE;
+  void OnShortcutsLoaded() override;
+  void OnShortcutsChanged() override;
 
   const ShortcutsBackend::ShortcutMap& shortcuts_map() const {
     return backend_->shortcuts_map();
@@ -203,7 +203,7 @@ TEST_F(ShortcutsBackendTest, SanitizeMatchCore) {
       "",        "",         AutocompleteMatchType::SEARCH_HISTORY },
   };
 
-  for (size_t i = 0; i < ARRAYSIZE_UNSAFE(cases); ++i) {
+  for (size_t i = 0; i < arraysize(cases); ++i) {
     history::ShortcutsDatabase::Shortcut::MatchCore match_core(
         MatchCoreForTesting(std::string(), cases[i].input_contents_class,
                             cases[i].input_description_class,

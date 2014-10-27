@@ -21,12 +21,11 @@ static base::TimeTicks TicksFromSecondsF(double seconds) {
 scoped_ptr<Animation> CreateAnimation(double iterations,
                                       double duration,
                                       double playback_rate) {
-  scoped_ptr<Animation> to_return(Animation::Create(
-      make_scoped_ptr(
-          new FakeFloatAnimationCurve(duration)).PassAs<AnimationCurve>(),
-      0,
-      1,
-      Animation::Opacity));
+  scoped_ptr<Animation> to_return(
+      Animation::Create(make_scoped_ptr(new FakeFloatAnimationCurve(duration)),
+                        0,
+                        1,
+                        Animation::Opacity));
   to_return->set_iterations(iterations);
   to_return->set_playback_rate(playback_rate);
   return to_return.Pass();
@@ -620,6 +619,7 @@ TEST(AnimationTest,
 TEST(AnimationTest, TrimTimeIterationStart) {
   scoped_ptr<Animation> anim(CreateAnimation(2, 1, 1));
   anim->set_iteration_start(0.5);
+  EXPECT_EQ(0.5, anim->TrimTimeToCurrentIteration(TicksFromSecondsF(-1.0)));
   EXPECT_EQ(0.5, anim->TrimTimeToCurrentIteration(TicksFromSecondsF(0.0)));
   EXPECT_EQ(0.0, anim->TrimTimeToCurrentIteration(TicksFromSecondsF(0.5)));
   EXPECT_EQ(0.5, anim->TrimTimeToCurrentIteration(TicksFromSecondsF(1.0)));
@@ -632,6 +632,7 @@ TEST(AnimationTest, TrimTimeIterationStartAlternate) {
   scoped_ptr<Animation> anim(CreateAnimation(2, 1, 1));
   anim->set_direction(Animation::Alternate);
   anim->set_iteration_start(0.3);
+  EXPECT_EQ(0.3, anim->TrimTimeToCurrentIteration(TicksFromSecondsF(-1.0)));
   EXPECT_EQ(0.3, anim->TrimTimeToCurrentIteration(TicksFromSecondsF(0.0)));
   EXPECT_EQ(0.8, anim->TrimTimeToCurrentIteration(TicksFromSecondsF(0.5)));
   EXPECT_EQ(1.0, anim->TrimTimeToCurrentIteration(TicksFromSecondsF(0.7)));
@@ -644,6 +645,7 @@ TEST(AnimationTest, TrimTimeIterationStartAlternateThreeIterations) {
   scoped_ptr<Animation> anim(CreateAnimation(3, 1, 1));
   anim->set_direction(Animation::Alternate);
   anim->set_iteration_start(1);
+  EXPECT_EQ(1.0, anim->TrimTimeToCurrentIteration(TicksFromSecondsF(-1.0)));
   EXPECT_EQ(1.0, anim->TrimTimeToCurrentIteration(TicksFromSecondsF(0.0)));
   EXPECT_EQ(0.5, anim->TrimTimeToCurrentIteration(TicksFromSecondsF(0.5)));
   EXPECT_EQ(0.0, anim->TrimTimeToCurrentIteration(TicksFromSecondsF(1.0)));

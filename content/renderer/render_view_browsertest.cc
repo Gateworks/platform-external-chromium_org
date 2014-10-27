@@ -31,7 +31,6 @@
 #include "content/public/test/test_utils.h"
 #include "content/renderer/accessibility/renderer_accessibility.h"
 #include "content/renderer/accessibility/renderer_accessibility_complete.h"
-#include "content/renderer/accessibility/renderer_accessibility_focus_only.h"
 #include "content/renderer/history_controller.h"
 #include "content/renderer/history_serialization.h"
 #include "content/renderer/render_process.h"
@@ -104,7 +103,7 @@ int ConvertMockKeyboardModifier(MockKeyboard::Modifiers modifiers) {
     { MockKeyboard::RIGHT_ALT, ui::EF_ALT_DOWN },
   };
   int flags = 0;
-  for (size_t i = 0; i < ARRAYSIZE_UNSAFE(kModifierMap); ++i) {
+  for (size_t i = 0; i < arraysize(kModifierMap); ++i) {
     if (kModifierMap[i].src & modifiers) {
       flags |= kModifierMap[i].dst;
     }
@@ -115,20 +114,20 @@ int ConvertMockKeyboardModifier(MockKeyboard::Modifiers modifiers) {
 
 class WebUITestWebUIControllerFactory : public WebUIControllerFactory {
  public:
-  virtual WebUIController* CreateWebUIControllerForURL(
-      WebUI* web_ui, const GURL& url) const OVERRIDE {
+  WebUIController* CreateWebUIControllerForURL(WebUI* web_ui,
+                                               const GURL& url) const override {
     return NULL;
   }
-  virtual WebUI::TypeID GetWebUIType(BrowserContext* browser_context,
-                                     const GURL& url) const OVERRIDE {
+  WebUI::TypeID GetWebUIType(BrowserContext* browser_context,
+                             const GURL& url) const override {
     return WebUI::kNoWebUI;
   }
-  virtual bool UseWebUIForURL(BrowserContext* browser_context,
-                              const GURL& url) const OVERRIDE {
+  bool UseWebUIForURL(BrowserContext* browser_context,
+                      const GURL& url) const override {
     return HasWebUIScheme(url);
   }
-  virtual bool UseWebUIBindingsForURL(BrowserContext* browser_context,
-                                      const GURL& url) const OVERRIDE {
+  bool UseWebUIBindingsForURL(BrowserContext* browser_context,
+                              const GURL& url) const override {
     return HasWebUIScheme(url);
   }
 };
@@ -144,7 +143,7 @@ class RenderViewImplTest : public RenderViewTest {
 
   virtual ~RenderViewImplTest() {}
 
-  virtual void SetUp() OVERRIDE {
+  virtual void SetUp() override {
     RenderViewTest::SetUp();
     // Enable Blink's experimental and test only features so that test code
     // does not have to bother enabling each feature.
@@ -363,19 +362,20 @@ TEST_F(RenderViewImplTest, OnNavigationHttpPost) {
   FrameMsg_Navigate_Params nav_params;
 
   // An http url will trigger a resource load so cannot be used here.
-  nav_params.url = GURL("data:text/html,<div>Page</div>");
-  nav_params.navigation_type = FrameMsg_Navigate_Type::NORMAL;
-  nav_params.transition = ui::PAGE_TRANSITION_TYPED;
+  nav_params.common_params.url = GURL("data:text/html,<div>Page</div>");
+  nav_params.common_params.navigation_type = FrameMsg_Navigate_Type::NORMAL;
+  nav_params.common_params.transition = ui::PAGE_TRANSITION_TYPED;
   nav_params.page_id = -1;
-  nav_params.is_post = true;
-  nav_params.browser_navigation_start = base::TimeTicks::FromInternalValue(1);
+  nav_params.request_params.is_post = true;
+  nav_params.commit_params.browser_navigation_start =
+      base::TimeTicks::FromInternalValue(1);
 
   // Set up post data.
   const unsigned char* raw_data = reinterpret_cast<const unsigned char*>(
       "post \0\ndata");
   const unsigned int length = 11;
   const std::vector<unsigned char> post_data(raw_data, raw_data + length);
-  nav_params.browser_initiated_post_data = post_data;
+  nav_params.request_params.browser_initiated_post_data = post_data;
 
   frame()->OnNavigate(nav_params);
   ProcessPendingMessages();
@@ -568,14 +568,15 @@ TEST_F(RenderViewImplTest, SendSwapOutACK) {
   // If we navigate back to this RenderView, ensure we don't send a state
   // update for the swapped out URL.  (http://crbug.com/72235)
   FrameMsg_Navigate_Params nav_params;
-  nav_params.url = GURL("data:text/html,<div>Page B</div>");
-  nav_params.navigation_type = FrameMsg_Navigate_Type::NORMAL;
-  nav_params.transition = ui::PAGE_TRANSITION_TYPED;
+  nav_params.common_params.url = GURL("data:text/html,<div>Page B</div>");
+  nav_params.common_params.navigation_type = FrameMsg_Navigate_Type::NORMAL;
+  nav_params.common_params.transition = ui::PAGE_TRANSITION_TYPED;
   nav_params.current_history_list_length = 1;
   nav_params.current_history_list_offset = 0;
   nav_params.pending_history_list_offset = 1;
   nav_params.page_id = -1;
-  nav_params.browser_navigation_start = base::TimeTicks::FromInternalValue(1);
+  nav_params.commit_params.browser_navigation_start =
+      base::TimeTicks::FromInternalValue(1);
   frame()->OnNavigate(nav_params);
   ProcessPendingMessages();
   const IPC::Message* msg3 = render_thread_->sink().GetUniqueMessageMatching(
@@ -606,14 +607,15 @@ TEST_F(RenderViewImplTest, ReloadWhileSwappedOut) {
 
   // Back to page A (page_id 1) and commit.
   FrameMsg_Navigate_Params params_A;
-  params_A.navigation_type = FrameMsg_Navigate_Type::NORMAL;
-  params_A.transition = ui::PAGE_TRANSITION_FORWARD_BACK;
+  params_A.common_params.navigation_type = FrameMsg_Navigate_Type::NORMAL;
+  params_A.common_params.transition = ui::PAGE_TRANSITION_FORWARD_BACK;
   params_A.current_history_list_length = 2;
   params_A.current_history_list_offset = 1;
   params_A.pending_history_list_offset = 0;
   params_A.page_id = 1;
-  params_A.page_state = state_A;
-  params_A.browser_navigation_start = base::TimeTicks::FromInternalValue(1);
+  params_A.commit_params.page_state = state_A;
+  params_A.commit_params.browser_navigation_start =
+      base::TimeTicks::FromInternalValue(1);
   frame()->OnNavigate(params_A);
   ProcessPendingMessages();
 
@@ -631,15 +633,16 @@ TEST_F(RenderViewImplTest, ReloadWhileSwappedOut) {
   // provisional load in the renderer process, after we unload the old page).
   // Ensure the old page gets reloaded, not swappedout://.
   FrameMsg_Navigate_Params nav_params;
-  nav_params.url = GURL("data:text/html,<div>Page A</div>");
-  nav_params.navigation_type = FrameMsg_Navigate_Type::RELOAD;
-  nav_params.transition = ui::PAGE_TRANSITION_RELOAD;
+  nav_params.common_params.url = GURL("data:text/html,<div>Page A</div>");
+  nav_params.common_params.navigation_type = FrameMsg_Navigate_Type::RELOAD;
+  nav_params.common_params.transition = ui::PAGE_TRANSITION_RELOAD;
   nav_params.current_history_list_length = 2;
   nav_params.current_history_list_offset = 0;
   nav_params.pending_history_list_offset = 0;
   nav_params.page_id = 1;
-  nav_params.page_state = state_A;
-  nav_params.browser_navigation_start = base::TimeTicks::FromInternalValue(1);
+  nav_params.commit_params.page_state = state_A;
+  nav_params.commit_params.browser_navigation_start =
+      base::TimeTicks::FromInternalValue(1);
   frame()->OnNavigate(nav_params);
   ProcessPendingMessages();
 
@@ -711,14 +714,15 @@ TEST_F(RenderViewImplTest,  DISABLED_LastCommittedUpdateState) {
 
   // Go back to C and commit, preparing for our real test.
   FrameMsg_Navigate_Params params_C;
-  params_C.navigation_type = FrameMsg_Navigate_Type::NORMAL;
-  params_C.transition = ui::PAGE_TRANSITION_FORWARD_BACK;
+  params_C.common_params.navigation_type = FrameMsg_Navigate_Type::NORMAL;
+  params_C.common_params.transition = ui::PAGE_TRANSITION_FORWARD_BACK;
   params_C.current_history_list_length = 4;
   params_C.current_history_list_offset = 3;
   params_C.pending_history_list_offset = 2;
   params_C.page_id = 3;
-  params_C.page_state = state_C;
-  params_C.browser_navigation_start = base::TimeTicks::FromInternalValue(1);
+  params_C.commit_params.page_state = state_C;
+  params_C.commit_params.browser_navigation_start =
+      base::TimeTicks::FromInternalValue(1);
   frame()->OnNavigate(params_C);
   ProcessPendingMessages();
   render_thread_->sink().ClearMessages();
@@ -729,26 +733,28 @@ TEST_F(RenderViewImplTest,  DISABLED_LastCommittedUpdateState) {
 
   // Back to page B (page_id 2), without committing.
   FrameMsg_Navigate_Params params_B;
-  params_B.navigation_type = FrameMsg_Navigate_Type::NORMAL;
-  params_B.transition = ui::PAGE_TRANSITION_FORWARD_BACK;
+  params_B.common_params.navigation_type = FrameMsg_Navigate_Type::NORMAL;
+  params_B.common_params.transition = ui::PAGE_TRANSITION_FORWARD_BACK;
   params_B.current_history_list_length = 4;
   params_B.current_history_list_offset = 2;
   params_B.pending_history_list_offset = 1;
   params_B.page_id = 2;
-  params_B.page_state = state_B;
-  params_B.browser_navigation_start = base::TimeTicks::FromInternalValue(1);
+  params_B.commit_params.page_state = state_B;
+  params_B.commit_params.browser_navigation_start =
+      base::TimeTicks::FromInternalValue(1);
   frame()->OnNavigate(params_B);
 
   // Back to page A (page_id 1) and commit.
   FrameMsg_Navigate_Params params;
-  params.navigation_type = FrameMsg_Navigate_Type::NORMAL;
-  params.transition = ui::PAGE_TRANSITION_FORWARD_BACK;
+  params.common_params.navigation_type = FrameMsg_Navigate_Type::NORMAL;
+  params.common_params.transition = ui::PAGE_TRANSITION_FORWARD_BACK;
   params_B.current_history_list_length = 4;
   params_B.current_history_list_offset = 2;
   params_B.pending_history_list_offset = 0;
   params.page_id = 1;
-  params.page_state = state_A;
-  params.browser_navigation_start = base::TimeTicks::FromInternalValue(1);
+  params.commit_params.page_state = state_A;
+  params.commit_params.browser_navigation_start =
+      base::TimeTicks::FromInternalValue(1);
   frame()->OnNavigate(params);
   ProcessPendingMessages();
 
@@ -796,14 +802,15 @@ TEST_F(RenderViewImplTest, StaleNavigationsIgnored) {
 
   // Back to page A (page_id 1) and commit.
   FrameMsg_Navigate_Params params_A;
-  params_A.navigation_type = FrameMsg_Navigate_Type::NORMAL;
-  params_A.transition = ui::PAGE_TRANSITION_FORWARD_BACK;
+  params_A.common_params.navigation_type = FrameMsg_Navigate_Type::NORMAL;
+  params_A.common_params.transition = ui::PAGE_TRANSITION_FORWARD_BACK;
   params_A.current_history_list_length = 2;
   params_A.current_history_list_offset = 1;
   params_A.pending_history_list_offset = 0;
   params_A.page_id = 1;
-  params_A.page_state = state_A;
-  params_A.browser_navigation_start = base::TimeTicks::FromInternalValue(1);
+  params_A.commit_params.page_state = state_A;
+  params_A.commit_params.browser_navigation_start =
+      base::TimeTicks::FromInternalValue(1);
   frame()->OnNavigate(params_A);
   ProcessPendingMessages();
 
@@ -815,14 +822,16 @@ TEST_F(RenderViewImplTest, StaleNavigationsIgnored) {
 
   // The browser then sends a stale navigation to B, which should be ignored.
   FrameMsg_Navigate_Params params_B;
-  params_B.navigation_type = FrameMsg_Navigate_Type::NORMAL;
-  params_B.transition = ui::PAGE_TRANSITION_FORWARD_BACK;
+  params_B.common_params.navigation_type = FrameMsg_Navigate_Type::NORMAL;
+  params_B.common_params.transition = ui::PAGE_TRANSITION_FORWARD_BACK;
   params_B.current_history_list_length = 2;
   params_B.current_history_list_offset = 0;
   params_B.pending_history_list_offset = 1;
   params_B.page_id = 2;
-  params_B.page_state = state_A;  // Doesn't matter, just has to be present.
-  params_B.browser_navigation_start = base::TimeTicks::FromInternalValue(1);
+  params_B.commit_params.page_state =
+      state_A;  // Doesn't matter, just has to be present.
+  params_B.commit_params.browser_navigation_start =
+      base::TimeTicks::FromInternalValue(1);
   frame()->OnNavigate(params_B);
 
   // State should be unchanged.
@@ -883,14 +892,15 @@ TEST_F(RenderViewImplTest, DontIgnoreBackAfterNavEntryLimit) {
   // It has now dropped the first entry, but the renderer isn't notified.
   // Ensure that going back to page B (page_id 2) at offset 0 is successful.
   FrameMsg_Navigate_Params params_B;
-  params_B.navigation_type = FrameMsg_Navigate_Type::NORMAL;
-  params_B.transition = ui::PAGE_TRANSITION_FORWARD_BACK;
+  params_B.common_params.navigation_type = FrameMsg_Navigate_Type::NORMAL;
+  params_B.common_params.transition = ui::PAGE_TRANSITION_FORWARD_BACK;
   params_B.current_history_list_length = 2;
   params_B.current_history_list_offset = 1;
   params_B.pending_history_list_offset = 0;
   params_B.page_id = 2;
-  params_B.page_state = state_B;
-  params_B.browser_navigation_start = base::TimeTicks::FromInternalValue(1);
+  params_B.commit_params.page_state = state_B;
+  params_B.commit_params.browser_navigation_start =
+      base::TimeTicks::FromInternalValue(1);
   frame()->OnNavigate(params_B);
   ProcessPendingMessages();
 
@@ -963,16 +973,17 @@ TEST_F(RenderViewImplTest, OnImeTypeChanged) {
 
     // Update the IME status and verify if our IME backend sends an IPC message
     // to activate IMEs.
-    view()->UpdateTextInputState(
-        RenderWidget::NO_SHOW_IME, RenderWidget::FROM_NON_IME);
+    view()->UpdateTextInputType();
     const IPC::Message* msg = render_thread_->sink().GetMessageAt(0);
     EXPECT_TRUE(msg != NULL);
-    EXPECT_EQ(ViewHostMsg_TextInputStateChanged::ID, msg->type());
-    ViewHostMsg_TextInputStateChanged::Param params;
-    ViewHostMsg_TextInputStateChanged::Read(msg, &params);
-    ViewHostMsg_TextInputState_Params p = params.a;
-    EXPECT_EQ(ui::TEXT_INPUT_TYPE_TEXT, p.type);
-    EXPECT_EQ(true, p.can_compose_inline);
+    EXPECT_EQ(ViewHostMsg_TextInputTypeChanged::ID, msg->type());
+    ViewHostMsg_TextInputTypeChanged::Param params;
+    ViewHostMsg_TextInputTypeChanged::Read(msg, &params);
+    ui::TextInputType type = params.a;
+    ui::TextInputMode input_mode = params.b;
+    bool can_compose_inline = params.c;
+    EXPECT_EQ(ui::TEXT_INPUT_TYPE_TEXT, type);
+    EXPECT_EQ(true, can_compose_inline);
 
     // Move the input focus to the second <input> element, where we should
     // de-activate IMEs.
@@ -982,34 +993,36 @@ TEST_F(RenderViewImplTest, OnImeTypeChanged) {
 
     // Update the IME status and verify if our IME backend sends an IPC message
     // to de-activate IMEs.
-    view()->UpdateTextInputState(
-        RenderWidget::NO_SHOW_IME, RenderWidget::FROM_NON_IME);
+    view()->UpdateTextInputType();
     msg = render_thread_->sink().GetMessageAt(0);
     EXPECT_TRUE(msg != NULL);
-    EXPECT_EQ(ViewHostMsg_TextInputStateChanged::ID, msg->type());
-    ViewHostMsg_TextInputStateChanged::Read(msg, &params);
-    EXPECT_EQ(ui::TEXT_INPUT_TYPE_PASSWORD, params.a.type);
+    EXPECT_EQ(ViewHostMsg_TextInputTypeChanged::ID, msg->type());
+    ViewHostMsg_TextInputTypeChanged::Read(msg, & params);
+    type = params.a;
+    input_mode = params.b;
+    EXPECT_EQ(ui::TEXT_INPUT_TYPE_PASSWORD, type);
 
-    for (size_t j = 0; j < ARRAYSIZE_UNSAFE(kInputModeTestCases); j++) {
-      const InputModeTestCase* test_case = &kInputModeTestCases[j];
+    for (size_t i = 0; i < arraysize(kInputModeTestCases); i++) {
+      const InputModeTestCase* test_case = &kInputModeTestCases[i];
       std::string javascript =
           base::StringPrintf("document.getElementById('%s').focus();",
                              test_case->input_id);
       // Move the input focus to the target <input> element, where we should
       // activate IMEs.
-      ExecuteJavaScript(javascript.c_str());
+      ExecuteJavaScriptAndReturnIntValue(base::ASCIIToUTF16(javascript), NULL);
       ProcessPendingMessages();
       render_thread_->sink().ClearMessages();
 
       // Update the IME status and verify if our IME backend sends an IPC
       // message to activate IMEs.
-      view()->UpdateTextInputState(
-        RenderWidget::NO_SHOW_IME, RenderWidget::FROM_NON_IME);
-      msg = render_thread_->sink().GetMessageAt(0);
+      view()->UpdateTextInputType();
+      const IPC::Message* msg = render_thread_->sink().GetMessageAt(0);
       EXPECT_TRUE(msg != NULL);
-      EXPECT_EQ(ViewHostMsg_TextInputStateChanged::ID, msg->type());
-      ViewHostMsg_TextInputStateChanged::Read(msg, &params);
-      EXPECT_EQ(test_case->expected_mode, params.a.mode);
+      EXPECT_EQ(ViewHostMsg_TextInputTypeChanged::ID, msg->type());
+      ViewHostMsg_TextInputTypeChanged::Read(msg, & params);
+      type = params.a;
+      input_mode = params.b;
+      EXPECT_EQ(test_case->expected_mode, input_mode);
     }
   }
 }
@@ -1084,7 +1097,7 @@ TEST_F(RenderViewImplTest, ImeComposition) {
     {IME_CONFIRMCOMPOSITION, false, -1, -1, L"", L"\xC548\xB155"},
   };
 
-  for (size_t i = 0; i < ARRAYSIZE_UNSAFE(kImeMessages); i++) {
+  for (size_t i = 0; i < arraysize(kImeMessages); i++) {
     const ImeMessage* ime_message = &kImeMessages[i];
     switch (ime_message->command) {
       case IME_INITIALIZE:
@@ -1138,8 +1151,7 @@ TEST_F(RenderViewImplTest, ImeComposition) {
 
     // Update the status of our IME back-end.
     // TODO(hbono): we should verify messages to be sent from the back-end.
-    view()->UpdateTextInputState(
-        RenderWidget::NO_SHOW_IME, RenderWidget::FROM_NON_IME);
+    view()->UpdateTextInputType();
     ProcessPendingMessages();
     render_thread_->sink().ClearMessages();
 
@@ -1179,7 +1191,7 @@ TEST_F(RenderViewImplTest, OnSetTextDirection) {
     { blink::WebTextDirectionRightToLeft, L"\x000A" L"rtl,rtl" },
     { blink::WebTextDirectionLeftToRight, L"\x000A" L"ltr,ltr" },
   };
-  for (size_t i = 0; i < ARRAYSIZE_UNSAFE(kTextDirection); ++i) {
+  for (size_t i = 0; i < arraysize(kTextDirection); ++i) {
     // Set the text direction of the <textarea> element.
     ExecuteJavaScript("document.getElementById('test').focus();");
     view()->OnSetTextDirection(kTextDirection[i].direction);
@@ -1267,7 +1279,7 @@ TEST_F(RenderViewImplTest, MAYBE_OnHandleKeyboardEvent) {
     MockKeyboard::LAYOUT_UNITED_STATES,
   };
 
-  for (size_t i = 0; i < ARRAYSIZE_UNSAFE(kLayouts); ++i) {
+  for (size_t i = 0; i < arraysize(kLayouts); ++i) {
     // For each key code, we send three keyboard events.
     //  * we press only the key;
     //  * we press the key and a left-shift key, and;
@@ -1286,7 +1298,7 @@ TEST_F(RenderViewImplTest, MAYBE_OnHandleKeyboardEvent) {
     };
 
     MockKeyboard::Layout layout = kLayouts[i];
-    for (size_t j = 0; j < ARRAYSIZE_UNSAFE(kModifierData); ++j) {
+    for (size_t j = 0; j < arraysize(kModifierData); ++j) {
       // Virtual key codes used for this test.
       static const int kKeyCodes[] = {
         '0', '1', '2', '3', '4', '5', '6', '7',
@@ -1312,7 +1324,7 @@ TEST_F(RenderViewImplTest, MAYBE_OnHandleKeyboardEvent) {
       };
 
       MockKeyboard::Modifiers modifiers = kModifierData[j].modifiers;
-      for (size_t k = 0; k < ARRAYSIZE_UNSAFE(kKeyCodes); ++k) {
+      for (size_t k = 0; k < arraysize(kKeyCodes); ++k) {
         // Send a keyboard event to the RenderView object.
         // We should test a keyboard event only when the given keyboard-layout
         // driver is installed in a PC and the driver can assign a Unicode
@@ -1502,7 +1514,7 @@ TEST_F(RenderViewImplTest, MAYBE_InsertCharacters) {
     },
   };
 
-  for (size_t i = 0; i < ARRAYSIZE_UNSAFE(kLayouts); ++i) {
+  for (size_t i = 0; i < arraysize(kLayouts); ++i) {
     // Load an HTML page consisting of one <div> element.
     // This <div> element is used by the EditorClientImpl class to insert
     // characters received through the RenderWidget::OnHandleInputEvent()
@@ -1533,7 +1545,7 @@ TEST_F(RenderViewImplTest, MAYBE_InsertCharacters) {
     };
 
     MockKeyboard::Layout layout = kLayouts[i].layout;
-    for (size_t j = 0; j < ARRAYSIZE_UNSAFE(kModifiers); ++j) {
+    for (size_t j = 0; j < arraysize(kModifiers); ++j) {
       // Virtual key codes used for this test.
       static const int kKeyCodes[] = {
         '0', '1', '2', '3', '4', '5', '6', '7',
@@ -1559,7 +1571,7 @@ TEST_F(RenderViewImplTest, MAYBE_InsertCharacters) {
       };
 
       MockKeyboard::Modifiers modifiers = kModifiers[j];
-      for (size_t k = 0; k < ARRAYSIZE_UNSAFE(kKeyCodes); ++k) {
+      for (size_t k = 0; k < arraysize(kKeyCodes); ++k) {
         // Send a keyboard event to the RenderView object.
         // We should test a keyboard event only when the given keyboard-layout
         // driver is installed in a PC and the driver can assign a Unicode
@@ -1596,9 +1608,10 @@ TEST_F(RenderViewImplTest, DISABLED_DidFailProvisionalLoadWithErrorForError) {
   // but won't complete synchronously.
   FrameMsg_Navigate_Params params;
   params.page_id = -1;
-  params.navigation_type = FrameMsg_Navigate_Type::NORMAL;
-  params.url = GURL("data:text/html,test data");
-  params.browser_navigation_start = base::TimeTicks::FromInternalValue(1);
+  params.common_params.navigation_type = FrameMsg_Navigate_Type::NORMAL;
+  params.common_params.url = GURL("data:text/html,test data");
+  params.commit_params.browser_navigation_start =
+      base::TimeTicks::FromInternalValue(1);
   frame()->OnNavigate(params);
 
   // An error occurred.
@@ -1619,9 +1632,10 @@ TEST_F(RenderViewImplTest, DidFailProvisionalLoadWithErrorForCancellation) {
   // but won't complete synchronously.
   FrameMsg_Navigate_Params params;
   params.page_id = -1;
-  params.navigation_type = FrameMsg_Navigate_Type::NORMAL;
-  params.url = GURL("data:text/html,test data");
-  params.browser_navigation_start = base::TimeTicks::FromInternalValue(1);
+  params.common_params.navigation_type = FrameMsg_Navigate_Type::NORMAL;
+  params.common_params.url = GURL("data:text/html,test data");
+  params.commit_params.browser_navigation_start =
+      base::TimeTicks::FromInternalValue(1);
   frame()->OnNavigate(params);
 
   // A cancellation occurred.
@@ -2001,14 +2015,15 @@ TEST_F(RenderViewImplTest, ZoomLimit) {
 
   FrameMsg_Navigate_Params params;
   params.page_id = -1;
-  params.navigation_type = FrameMsg_Navigate_Type::NORMAL;
-  params.browser_navigation_start = base::TimeTicks::FromInternalValue(1);
+  params.common_params.navigation_type = FrameMsg_Navigate_Type::NORMAL;
+  params.commit_params.browser_navigation_start =
+      base::TimeTicks::FromInternalValue(1);
 
   // Verifies navigation to a URL with preset zoom level indeed sets the level.
   // Regression test for http://crbug.com/139559, where the level was not
   // properly set when it is out of the default zoom limits of WebView.
-  params.url = GURL("data:text/html,min_zoomlimit_test");
-  view()->OnSetZoomLevelForLoadingURL(params.url, kMinZoomLevel);
+  params.common_params.url = GURL("data:text/html,min_zoomlimit_test");
+  view()->OnSetZoomLevelForLoadingURL(params.common_params.url, kMinZoomLevel);
   frame()->OnNavigate(params);
   ProcessPendingMessages();
   EXPECT_DOUBLE_EQ(kMinZoomLevel, view()->GetWebView()->zoomLevel());
@@ -2016,8 +2031,8 @@ TEST_F(RenderViewImplTest, ZoomLimit) {
   // It should work even when the zoom limit is temporarily changed in the page.
   view()->GetWebView()->zoomLimitsChanged(ZoomFactorToZoomLevel(1.0),
                                           ZoomFactorToZoomLevel(1.0));
-  params.url = GURL("data:text/html,max_zoomlimit_test");
-  view()->OnSetZoomLevelForLoadingURL(params.url, kMaxZoomLevel);
+  params.common_params.url = GURL("data:text/html,max_zoomlimit_test");
+  view()->OnSetZoomLevelForLoadingURL(params.common_params.url, kMaxZoomLevel);
   frame()->OnNavigate(params);
   ProcessPendingMessages();
   EXPECT_DOUBLE_EQ(kMaxZoomLevel, view()->GetWebView()->zoomLevel());
@@ -2079,15 +2094,16 @@ TEST_F(RenderViewImplTest, NavigateFrame) {
 
   // Navigate the frame only.
   FrameMsg_Navigate_Params nav_params;
-  nav_params.url = GURL("data:text/html,world");
-  nav_params.navigation_type = FrameMsg_Navigate_Type::NORMAL;
-  nav_params.transition = ui::PAGE_TRANSITION_TYPED;
+  nav_params.common_params.url = GURL("data:text/html,world");
+  nav_params.common_params.navigation_type = FrameMsg_Navigate_Type::NORMAL;
+  nav_params.common_params.transition = ui::PAGE_TRANSITION_TYPED;
   nav_params.current_history_list_length = 1;
   nav_params.current_history_list_offset = 0;
   nav_params.pending_history_list_offset = 1;
   nav_params.page_id = -1;
   nav_params.frame_to_navigate = "frame";
-  nav_params.browser_navigation_start = base::TimeTicks::FromInternalValue(1);
+  nav_params.commit_params.browser_navigation_start =
+      base::TimeTicks::FromInternalValue(1);
   frame()->OnNavigate(nav_params);
   FrameLoadWaiter(
       RenderFrame::FromWebFrame(frame()->GetWebFrame()->firstChild())).Wait();
@@ -2136,7 +2152,7 @@ TEST_F(RenderViewImplTest, MessageOrderInDidChangeSelection) {
 
   for (size_t i = 0; i < render_thread_->sink().message_count(); ++i) {
     const uint32 type = render_thread_->sink().GetMessageAt(i)->type();
-    if (type == ViewHostMsg_TextInputStateChanged::ID) {
+    if (type == ViewHostMsg_TextInputTypeChanged::ID) {
       is_input_type_called = true;
       last_input_type = i;
     } else if (type == ViewHostMsg_SelectionChanged::ID) {
@@ -2154,7 +2170,7 @@ TEST_F(RenderViewImplTest, MessageOrderInDidChangeSelection) {
 
 class SuppressErrorPageTest : public RenderViewTest {
  public:
-  virtual ContentRendererClient* CreateContentRendererClient() OVERRIDE {
+  ContentRendererClient* CreateContentRendererClient() override {
     return new TestContentRendererClient;
   }
 
@@ -2169,18 +2185,17 @@ class SuppressErrorPageTest : public RenderViewTest {
  private:
   class TestContentRendererClient : public ContentRendererClient {
    public:
-    virtual bool ShouldSuppressErrorPage(RenderFrame* render_frame,
-                                         const GURL& url) OVERRIDE {
+    bool ShouldSuppressErrorPage(RenderFrame* render_frame,
+                                 const GURL& url) override {
       return url == GURL("http://example.com/suppress");
     }
 
-    virtual void GetNavigationErrorStrings(
-        content::RenderView* render_view,
-        blink::WebFrame* frame,
-        const blink::WebURLRequest& failed_request,
-        const blink::WebURLError& error,
-        std::string* error_html,
-        base::string16* error_description) OVERRIDE {
+    void GetNavigationErrorStrings(content::RenderView* render_view,
+                                   blink::WebFrame* frame,
+                                   const blink::WebURLRequest& failed_request,
+                                   const blink::WebURLError& error,
+                                   std::string* error_html,
+                                   base::string16* error_description) override {
       if (error_html)
         *error_html = "A suffusion of yellow.";
     }
@@ -2205,9 +2220,10 @@ TEST_F(SuppressErrorPageTest, MAYBE_Suppresses) {
   // but won't complete synchronously.
   FrameMsg_Navigate_Params params;
   params.page_id = -1;
-  params.navigation_type = FrameMsg_Navigate_Type::NORMAL;
-  params.url = GURL("data:text/html,test data");
-  params.browser_navigation_start = base::TimeTicks::FromInternalValue(1);
+  params.common_params.navigation_type = FrameMsg_Navigate_Type::NORMAL;
+  params.common_params.url = GURL("data:text/html,test data");
+  params.commit_params.browser_navigation_start =
+      base::TimeTicks::FromInternalValue(1);
   frame()->OnNavigate(params);
 
   // An error occurred.
@@ -2235,9 +2251,10 @@ TEST_F(SuppressErrorPageTest, MAYBE_DoesNotSuppress) {
   // but won't complete synchronously.
   FrameMsg_Navigate_Params params;
   params.page_id = -1;
-  params.navigation_type = FrameMsg_Navigate_Type::NORMAL;
-  params.url = GURL("data:text/html,test data");
-  params.browser_navigation_start = base::TimeTicks::FromInternalValue(1);
+  params.common_params.navigation_type = FrameMsg_Navigate_Type::NORMAL;
+  params.common_params.url = GURL("data:text/html,test data");
+  params.commit_params.browser_navigation_start =
+      base::TimeTicks::FromInternalValue(1);
   frame()->OnNavigate(params);
 
   // An error occurred.
@@ -2401,12 +2418,6 @@ TEST_F(RenderViewImplTest, OnSetAccessibilityMode) {
   ASSERT_NE((RendererAccessibility*) NULL, frame()->renderer_accessibility());
   ASSERT_EQ(RendererAccessibilityTypeComplete,
             frame()->renderer_accessibility()->GetType());
-
-  frame()->OnSetAccessibilityMode(AccessibilityModeEditableTextOnly);
-  ASSERT_EQ(AccessibilityModeEditableTextOnly, frame()->accessibility_mode());
-  ASSERT_NE((RendererAccessibility*) NULL, frame()->renderer_accessibility());
-  ASSERT_EQ(RendererAccessibilityTypeFocusOnly,
-            frame()->renderer_accessibility()->GetType());
 }
 
 TEST_F(RenderViewImplTest, ScreenMetricsEmulation) {
@@ -2448,12 +2459,13 @@ TEST_F(RenderViewImplTest, NavigationStartOverride) {
   // OnNavigate() is called.
   base::Time before_navigation = base::Time::Now();
   FrameMsg_Navigate_Params early_nav_params;
-  early_nav_params.url = GURL("data:text/html,<div>Page</div>");
-  early_nav_params.navigation_type = FrameMsg_Navigate_Type::NORMAL;
-  early_nav_params.transition = ui::PAGE_TRANSITION_TYPED;
+  early_nav_params.common_params.url = GURL("data:text/html,<div>Page</div>");
+  early_nav_params.common_params.navigation_type =
+      FrameMsg_Navigate_Type::NORMAL;
+  early_nav_params.common_params.transition = ui::PAGE_TRANSITION_TYPED;
   early_nav_params.page_id = -1;
-  early_nav_params.is_post = true;
-  early_nav_params.browser_navigation_start =
+  early_nav_params.request_params.is_post = true;
+  early_nav_params.commit_params.browser_navigation_start =
       base::TimeTicks::FromInternalValue(1);
 
   frame()->OnNavigate(early_nav_params);
@@ -2467,12 +2479,14 @@ TEST_F(RenderViewImplTest, NavigationStartOverride) {
   // days from now is *not* reported as one that starts in the future; as we
   // sanitize the override allowing a maximum of ::Now().
   FrameMsg_Navigate_Params late_nav_params;
-  late_nav_params.url = GURL("data:text/html,<div>Another page</div>");
-  late_nav_params.navigation_type = FrameMsg_Navigate_Type::NORMAL;
-  late_nav_params.transition = ui::PAGE_TRANSITION_TYPED;
+  late_nav_params.common_params.url =
+      GURL("data:text/html,<div>Another page</div>");
+  late_nav_params.common_params.navigation_type =
+      FrameMsg_Navigate_Type::NORMAL;
+  late_nav_params.common_params.transition = ui::PAGE_TRANSITION_TYPED;
   late_nav_params.page_id = -1;
-  late_nav_params.is_post = true;
-  late_nav_params.browser_navigation_start =
+  late_nav_params.request_params.is_post = true;
+  late_nav_params.commit_params.browser_navigation_start =
       base::TimeTicks::Now() + base::TimeDelta::FromDays(42);
 
   frame()->OnNavigate(late_nav_params);

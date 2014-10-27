@@ -46,12 +46,12 @@ class DataSinkReceiver : public base::RefCounted<DataSinkReceiver>,
   class PendingFlush;
   friend class base::RefCounted<DataSinkReceiver>;
 
-  virtual ~DataSinkReceiver();
+  ~DataSinkReceiver() override;
 
   // mojo::InterfaceImpl<serial::DataSink> overrides.
-  virtual void Init(mojo::ScopedDataPipeConsumerHandle handle) OVERRIDE;
-  virtual void Cancel(int32_t error) OVERRIDE;
-  virtual void OnConnectionError() OVERRIDE;
+  void Init(mojo::ScopedDataPipeConsumerHandle handle) override;
+  void Cancel(int32_t error) override;
+  void OnConnectionError() override;
 
   // Starts waiting for |handle_| to be ready for reads.
   void StartWaiting();

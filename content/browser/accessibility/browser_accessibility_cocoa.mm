@@ -575,9 +575,16 @@ NSDictionary* attributeToMethodNameMap = nil;
   }
 
   switch([self internalRole]) {
+  case ui::AX_ROLE_BANNER:
+    return base::SysUTF16ToNSString(content_client->GetLocalizedString(
+        IDS_AX_ROLE_BANNER));
+    break;
   case ui::AX_ROLE_FOOTER:
     return base::SysUTF16ToNSString(content_client->GetLocalizedString(
         IDS_AX_ROLE_FOOTER));
+  case ui::AX_ROLE_REGION:
+    return base::SysUTF16ToNSString(content_client->GetLocalizedString(
+        IDS_AX_ROLE_REGION));
   case ui::AX_ROLE_SPIN_BUTTON:
     // This control is similar to what VoiceOver calls a "stepper".
     return base::SysUTF16ToNSString(content_client->GetLocalizedString(
@@ -700,16 +707,11 @@ NSDictionary* attributeToMethodNameMap = nil;
     return @"AXSecureTextField";
   }
 
-  NSString* htmlTag = NSStringForStringAttribute(
-      browserAccessibility_, ui::AX_ATTR_HTML_TAG);
+  if (browserAccessibilityRole == ui::AX_ROLE_DESCRIPTION_LIST)
+    return @"AXDescriptionList";
 
-  if (browserAccessibilityRole == ui::AX_ROLE_LIST) {
-    if ([htmlTag isEqualToString:@"dl"]) {
-      return @"AXDescriptionList";
-    } else {
-      return @"AXContentList";
-    }
-  }
+  if (browserAccessibilityRole == ui::AX_ROLE_LIST)
+    return @"AXContentList";
 
   return [AXPlatformNodeCocoa nativeSubroleFromAXRole:browserAccessibilityRole];
 }

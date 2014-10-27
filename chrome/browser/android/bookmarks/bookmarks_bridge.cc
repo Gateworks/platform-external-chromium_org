@@ -126,14 +126,6 @@ static jlong Init(JNIEnv* env, jobject obj, jobject j_profile) {
   return reinterpret_cast<intptr_t>(delegate);
 }
 
-static jlong GetNativeBookmarkModel(JNIEnv* env,
-                                    jclass caller,
-                                    jobject j_profile) {
-  Profile* profile = ProfileAndroid::FromProfileAndroid(j_profile);
-  BookmarkModel *bookmark_model_ = BookmarkModelFactory::GetForProfile(profile);
-  return reinterpret_cast<jlong>(bookmark_model_);
-}
-
 static jboolean IsEnhancedBookmarksFeatureEnabled(JNIEnv* env,
                                                   jclass clazz,
                                                   jobject j_profile) {
@@ -428,8 +420,22 @@ void BookmarksBridge::GetChildIDs(JNIEnv* env,
         env,
         j_result_obj,
         partner_bookmarks_shim_->GetPartnerBookmarksRoot()->id(),
-        BookmarkType::PARTNER);
+        BookmarkType::BOOKMARK_TYPE_PARTNER);
   }
+}
+
+ScopedJavaLocalRef<jobject> BookmarksBridge::GetChildAt(JNIEnv* env,
+                                                        jobject obj,
+                                                        jlong id,
+                                                        jint type,
+                                                        jint index) {
+  DCHECK(IsLoaded());
+
+  const BookmarkNode* parent = GetNodeByID(id, type);
+  DCHECK(parent);
+  const BookmarkNode* child = parent->GetChild(index);
+  return Java_BookmarksBridge_createBookmarkId(
+      env, child->id(), GetBookmarkType(child));
 }
 
 void BookmarksBridge::GetAllBookmarkIDsOrderedByCreationDate(
@@ -732,7 +738,7 @@ void BookmarksBridge::ExtractBookmarkNodeInformation(const BookmarkNode* node,
 
 const BookmarkNode* BookmarksBridge::GetNodeByID(long node_id, int type) {
   const BookmarkNode* node;
-  if (type == BookmarkType::PARTNER) {
+  if (type == BookmarkType::BOOKMARK_TYPE_PARTNER) {
     node = partner_bookmarks_shim_->GetNodeByID(
         static_cast<int64>(node_id));
   } else {
@@ -782,9 +788,9 @@ const BookmarkNode* BookmarksBridge::GetParentNode(const BookmarkNode* node) {
 
 int BookmarksBridge::GetBookmarkType(const BookmarkNode* node) {
   if (partner_bookmarks_shim_->IsPartnerBookmark(node))
-    return BookmarkType::PARTNER;
+    return BookmarkType::BOOKMARK_TYPE_PARTNER;
   else
-    return BookmarkType::NORMAL;
+    return BookmarkType::BOOKMARK_TYPE_NORMAL;
 }
 
 base::string16 BookmarksBridge::GetTitle(const BookmarkNode* node) const {

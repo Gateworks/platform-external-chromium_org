@@ -75,7 +75,8 @@ public class ChromeShellApplication extends ChromiumApplication {
         mObservers.remove(observer);
     }
 
-    public static void initCommandLine() {
+    @Override
+    public void initCommandLine() {
         if (!CommandLine.isInitialized()) {
             CommandLine.initFromFile(COMMAND_LINE_FILE);
         }
@@ -91,6 +92,10 @@ public class ChromeShellApplication extends ChromiumApplication {
 
     @Override
     protected void showAutofillSettings() {
+    }
+
+    @Override
+    protected void showPasswordSettings() {
     }
 
     @Override

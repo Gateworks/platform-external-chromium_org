@@ -47,16 +47,16 @@ class SimpleTestBackgroundModeManager : public BackgroundModeManager {
     ResumeBackgroundMode();
   }
 
-  virtual void EnableLaunchOnStartup(bool launch) OVERRIDE {
+  void EnableLaunchOnStartup(bool launch) override {
     launch_on_startup_ = launch;
   }
 
-  virtual void DisplayAppInstalledNotification(
-      const extensions::Extension* extension) OVERRIDE {
+  void DisplayAppInstalledNotification(
+      const extensions::Extension* extension) override {
     has_shown_balloon_ = true;
   }
-  virtual void CreateStatusTrayIcon() OVERRIDE { have_status_tray_ = true; }
-  virtual void RemoveStatusTrayIcon() OVERRIDE { have_status_tray_ = false; }
+  void CreateStatusTrayIcon() override { have_status_tray_ = true; }
+  void RemoveStatusTrayIcon() override { have_status_tray_ = false; }
 
   bool HaveStatusTray() const { return have_status_tray_; }
   bool IsLaunchOnStartup() const { return launch_on_startup_; }
@@ -75,13 +75,12 @@ class SimpleTestBackgroundModeManager : public BackgroundModeManager {
 class TestStatusIcon : public StatusIcon {
  public:
   TestStatusIcon() {}
-  virtual void SetImage(const gfx::ImageSkia& image) OVERRIDE {}
-  virtual void SetToolTip(const base::string16& tool_tip) OVERRIDE {}
-  virtual void DisplayBalloon(const gfx::ImageSkia& icon,
-                              const base::string16& title,
-                              const base::string16& contents) OVERRIDE {}
-  virtual void UpdatePlatformContextMenu(
-      StatusIconMenuModel* menu) OVERRIDE {}
+  void SetImage(const gfx::ImageSkia& image) override {}
+  void SetToolTip(const base::string16& tool_tip) override {}
+  void DisplayBalloon(const gfx::ImageSkia& icon,
+                      const base::string16& title,
+                      const base::string16& contents) override {}
+  void UpdatePlatformContextMenu(StatusIconMenuModel* menu) override {}
 
  private:
   DISALLOW_COPY_AND_ASSIGN(TestStatusIcon);
@@ -103,9 +102,8 @@ class TestBackgroundModeManager : public SimpleTestBackgroundModeManager {
     ResumeBackgroundMode();
   }
 
-  virtual int GetBackgroundAppCount() const OVERRIDE { return app_count_; }
-  virtual int GetBackgroundAppCountForProfile(
-      Profile* const profile) const OVERRIDE {
+  int GetBackgroundAppCount() const override { return app_count_; }
+  int GetBackgroundAppCountForProfile(Profile* const profile) const override {
     return profile_app_count_;
   }
   void SetBackgroundAppCount(int count) { app_count_ = count; }
@@ -116,7 +114,7 @@ class TestBackgroundModeManager : public SimpleTestBackgroundModeManager {
     enabled_ = enabled;
     OnBackgroundModeEnabledPrefChanged();
   }
-  virtual bool IsBackgroundModePrefEnabled() const OVERRIDE { return enabled_; }
+  bool IsBackgroundModePrefEnabled() const override { return enabled_; }
 
  private:
   bool enabled_;
@@ -155,7 +153,7 @@ class BackgroundModeManagerTest : public testing::Test {
  public:
   BackgroundModeManagerTest() {}
   virtual ~BackgroundModeManagerTest() {}
-  virtual void SetUp() OVERRIDE {
+  virtual void SetUp() override {
     command_line_.reset(new CommandLine(CommandLine::NO_PROGRAM));
     profile_manager_ = CreateTestingProfileManager();
     profile_ = profile_manager_->CreateTestingProfile("p1");
@@ -204,7 +202,7 @@ class BackgroundModeManagerWithExtensionsTest
  public:
   BackgroundModeManagerWithExtensionsTest() {}
   virtual ~BackgroundModeManagerWithExtensionsTest() {}
-  virtual void SetUp() OVERRIDE {
+  virtual void SetUp() override {
     BackgroundModeManagerTest::SetUp();
     // Aura clears notifications from the message center at shutdown.
     message_center::MessageCenter::Initialize();

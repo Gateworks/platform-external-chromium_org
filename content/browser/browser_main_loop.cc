@@ -76,8 +76,10 @@
 #if defined(OS_ANDROID)
 #include "base/android/jni_android.h"
 #include "content/browser/android/browser_startup_controller.h"
-#include "content/browser/android/surface_texture_peer_browser_impl.h"
+#include "content/browser/android/browser_surface_texture_manager.h"
 #include "content/browser/android/tracing_controller_android.h"
+#include "content/browser/screen_orientation/screen_orientation_delegate_android.h"
+#include "content/public/browser/screen_orientation_provider.h"
 #include "ui/gl/gl_surface.h"
 #endif
 
@@ -314,12 +316,11 @@ void ImmediateShutdownAndExitProcess() {
 class BrowserMainLoop::MemoryObserver : public base::MessageLoop::TaskObserver {
  public:
   MemoryObserver() {}
-  virtual ~MemoryObserver() {}
+  ~MemoryObserver() override {}
 
-  virtual void WillProcessTask(const base::PendingTask& pending_task) OVERRIDE {
-  }
+  void WillProcessTask(const base::PendingTask& pending_task) override {}
 
-  virtual void DidProcessTask(const base::PendingTask& pending_task) OVERRIDE {
+  void DidProcessTask(const base::PendingTask& pending_task) override {
 #if !defined(OS_IOS)  // No ProcessMetrics on IOS.
     scoped_ptr<base::ProcessMetrics> process_metrics(
         base::ProcessMetrics::CreateProcessMetrics(
@@ -537,8 +538,16 @@ void BrowserMainLoop::MainMessageLoopStart() {
 
 #if defined(OS_ANDROID)
   {
-    TRACE_EVENT0("startup", "BrowserMainLoop::Subsystem:SurfaceTexturePeer");
-    SurfaceTexturePeer::InitInstance(new SurfaceTexturePeerBrowserImpl());
+    TRACE_EVENT0("startup", "BrowserMainLoop::Subsystem:SurfaceTextureManager");
+    SurfaceTextureManager::InitInstance(new BrowserSurfaceTextureManager);
+  }
+
+  {
+    TRACE_EVENT0("startup",
+                 "BrowserMainLoop::Subsystem:ScreenOrientationProvider");
+    screen_orientation_delegate_.reset(
+        new ScreenOrientationDelegateAndroid());
+    ScreenOrientationProvider::SetDelegate(screen_orientation_delegate_.get());
   }
 #endif
 

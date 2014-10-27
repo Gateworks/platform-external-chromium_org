@@ -341,7 +341,6 @@ void DataTypeManagerImpl::ProcessReconfigure() {
 
 void DataTypeManagerImpl::OnDownloadRetry() {
   DCHECK(state_ == DOWNLOAD_PENDING || state_ == CONFIGURING);
-  observer_->OnConfigureRetry();
 }
 
 void DataTypeManagerImpl::DownloadReady(
@@ -386,6 +385,7 @@ void DataTypeManagerImpl::DownloadReady(
 
   // Pop and associate download-ready types.
   syncer::ModelTypeSet ready_types = types_to_download;
+  CHECK(!download_types_queue_.empty());
   download_types_queue_.pop();
   syncer::ModelTypeSet new_types_to_download;
   if (!download_types_queue_.empty())
@@ -504,6 +504,7 @@ void DataTypeManagerImpl::OnModelAssociationDone(
 
   DCHECK(result.status == OK);
 
+  CHECK(!association_types_queue_.empty());
   association_types_queue_.pop();
   if (!association_types_queue_.empty()) {
     StartNextAssociation();

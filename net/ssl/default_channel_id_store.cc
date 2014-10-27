@@ -7,6 +7,7 @@
 #include "base/bind.h"
 #include "base/message_loop/message_loop.h"
 #include "base/metrics/histogram.h"
+#include "base/profiler/scoped_profile.h"
 #include "net/base/net_errors.h"
 
 namespace net {
@@ -41,8 +42,8 @@ class DefaultChannelIDStore::GetChannelIDTask
  public:
   GetChannelIDTask(const std::string& server_identifier,
                    const GetChannelIDCallback& callback);
-  virtual ~GetChannelIDTask();
-  virtual void Run(DefaultChannelIDStore* store) OVERRIDE;
+  ~GetChannelIDTask() override;
+  void Run(DefaultChannelIDStore* store) override;
 
  private:
   std::string server_identifier_;
@@ -61,6 +62,11 @@ DefaultChannelIDStore::GetChannelIDTask::~GetChannelIDTask() {
 
 void DefaultChannelIDStore::GetChannelIDTask::Run(
     DefaultChannelIDStore* store) {
+  // TODO(vadimt): Remove ScopedProfile below once crbug.com/425814 is fixed.
+  tracked_objects::ScopedProfile tracking_profile(
+      FROM_HERE_WITH_EXPLICIT_FUNCTION(
+          "425814 DefaultChannelIDStore::GetChannelIDTask::Run"));
+
   base::Time expiration_time;
   std::string private_key_result;
   std::string cert_result;
@@ -83,8 +89,8 @@ class DefaultChannelIDStore::SetChannelIDTask
                    base::Time expiration_time,
                    const std::string& private_key,
                    const std::string& cert);
-  virtual ~SetChannelIDTask();
-  virtual void Run(DefaultChannelIDStore* store) OVERRIDE;
+  ~SetChannelIDTask() override;
+  void Run(DefaultChannelIDStore* store) override;
 
  private:
   std::string server_identifier_;
@@ -112,6 +118,11 @@ DefaultChannelIDStore::SetChannelIDTask::~SetChannelIDTask() {
 
 void DefaultChannelIDStore::SetChannelIDTask::Run(
     DefaultChannelIDStore* store) {
+  // TODO(vadimt): Remove ScopedProfile below once crbug.com/425814 is fixed.
+  tracked_objects::ScopedProfile tracking_profile(
+      FROM_HERE_WITH_EXPLICIT_FUNCTION(
+          "425814 DefaultChannelIDStore::SetChannelIDTask::Run"));
+
   store->SyncSetChannelID(server_identifier_, creation_time_,
                           expiration_time_, private_key_, cert_);
 }
@@ -123,8 +134,8 @@ class DefaultChannelIDStore::DeleteChannelIDTask
  public:
   DeleteChannelIDTask(const std::string& server_identifier,
                       const base::Closure& callback);
-  virtual ~DeleteChannelIDTask();
-  virtual void Run(DefaultChannelIDStore* store) OVERRIDE;
+  ~DeleteChannelIDTask() override;
+  void Run(DefaultChannelIDStore* store) override;
 
  private:
   std::string server_identifier_;
@@ -145,6 +156,11 @@ DefaultChannelIDStore::DeleteChannelIDTask::
 
 void DefaultChannelIDStore::DeleteChannelIDTask::Run(
     DefaultChannelIDStore* store) {
+  // TODO(vadimt): Remove ScopedProfile below once crbug.com/425814 is fixed.
+  tracked_objects::ScopedProfile tracking_profile(
+      FROM_HERE_WITH_EXPLICIT_FUNCTION(
+          "425814 DefaultChannelIDStore::DeleteChannelIDTask::Run"));
+
   store->SyncDeleteChannelID(server_identifier_);
 
   InvokeCallback(callback_);
@@ -158,8 +174,8 @@ class DefaultChannelIDStore::DeleteAllCreatedBetweenTask
   DeleteAllCreatedBetweenTask(base::Time delete_begin,
                               base::Time delete_end,
                               const base::Closure& callback);
-  virtual ~DeleteAllCreatedBetweenTask();
-  virtual void Run(DefaultChannelIDStore* store) OVERRIDE;
+  ~DeleteAllCreatedBetweenTask() override;
+  void Run(DefaultChannelIDStore* store) override;
 
  private:
   base::Time delete_begin_;
@@ -183,6 +199,11 @@ DefaultChannelIDStore::DeleteAllCreatedBetweenTask::
 
 void DefaultChannelIDStore::DeleteAllCreatedBetweenTask::Run(
     DefaultChannelIDStore* store) {
+  // TODO(vadimt): Remove ScopedProfile below once crbug.com/425814 is fixed.
+  tracked_objects::ScopedProfile tracking_profile(
+      FROM_HERE_WITH_EXPLICIT_FUNCTION(
+          "425814 DefaultChannelIDStore::DeleteAllCreatedBetweenTask::Run"));
+
   store->SyncDeleteAllCreatedBetween(delete_begin_, delete_end_);
 
   InvokeCallback(callback_);
@@ -194,8 +215,8 @@ class DefaultChannelIDStore::GetAllChannelIDsTask
     : public DefaultChannelIDStore::Task {
  public:
   explicit GetAllChannelIDsTask(const GetChannelIDListCallback& callback);
-  virtual ~GetAllChannelIDsTask();
-  virtual void Run(DefaultChannelIDStore* store) OVERRIDE;
+  ~GetAllChannelIDsTask() override;
+  void Run(DefaultChannelIDStore* store) override;
 
  private:
   std::string server_identifier_;
@@ -213,6 +234,11 @@ DefaultChannelIDStore::GetAllChannelIDsTask::
 
 void DefaultChannelIDStore::GetAllChannelIDsTask::Run(
     DefaultChannelIDStore* store) {
+  // TODO(vadimt): Remove ScopedProfile below once crbug.com/425814 is fixed.
+  tracked_objects::ScopedProfile tracking_profile(
+      FROM_HERE_WITH_EXPLICIT_FUNCTION(
+          "425814 DefaultChannelIDStore::GetAllChannelIDsTask::Run"));
+
   ChannelIDList cert_list;
   store->SyncGetAllChannelIDs(&cert_list);
 

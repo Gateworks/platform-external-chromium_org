@@ -12,6 +12,7 @@
 #include "base/memory/scoped_ptr.h"
 #include "base/observer_list.h"
 #include "base/scoped_observer.h"
+#include "chrome/browser/browsing_data/cookies_tree_model.h"
 #include "chrome/browser/content_settings/content_settings_usages_state.h"
 #include "chrome/browser/content_settings/local_shared_objects_container.h"
 #include "chrome/browser/media/media_stream_devices_controller.h"
@@ -24,7 +25,6 @@
 #include "content/public/common/media_stream_request.h"
 #include "net/cookies/canonical_cookie.h"
 
-class CookiesTreeModel;
 class HostContentSettingsMap;
 class Profile;
 
@@ -81,7 +81,7 @@ class TabSpecificContentSettings
     DISALLOW_COPY_AND_ASSIGN(SiteDataObserver);
   };
 
-  virtual ~TabSpecificContentSettings();
+  ~TabSpecificContentSettings() override;
 
   // Returns the object given a render view's id.
   static TabSpecificContentSettings* Get(int render_process_id,
@@ -271,17 +271,25 @@ class TabSpecificContentSettings
     return pending_protocol_handler_setting_;
   }
 
-
-  // Returns a pointer to the |LocalSharedObjectsContainer| that contains all
-  // allowed local shared objects like cookies, local storage, ... .
-  const LocalSharedObjectsContainer& allowed_local_shared_objects() const {
+  // Returns the |LocalSharedObjectsCounter| instances corresponding to all
+  // allowed, and blocked, respectively, local shared objects like cookies,
+  // local storage, ... .
+  const LocalSharedObjectsCounter& allowed_local_shared_objects() const {
     return allowed_local_shared_objects_;
   }
 
-  // Returns a pointer to the |LocalSharedObjectsContainer| that contains all
-  // blocked local shared objects like cookies, local storage, ... .
-  const LocalSharedObjectsContainer& blocked_local_shared_objects() const {
+  const LocalSharedObjectsCounter& blocked_local_shared_objects() const {
     return blocked_local_shared_objects_;
+  }
+
+  // Creates a new copy of a CookiesTreeModel for all allowed, and blocked,
+  // respectively, local shared objects.
+  scoped_ptr<CookiesTreeModel> CreateAllowedCookiesTreeModel() const {
+    return allowed_local_shared_objects_.CreateCookiesTreeModel();
+  }
+
+  scoped_ptr<CookiesTreeModel> CreateBlockedCookiesTreeModel() const {
+    return blocked_local_shared_objects_.CreateCookiesTreeModel();
   }
 
   bool load_plugins_link_enabled() { return load_plugins_link_enabled_; }
@@ -294,21 +302,20 @@ class TabSpecificContentSettings
   void SetPepperBrokerAllowed(bool allowed);
 
   // content::WebContentsObserver overrides.
-  virtual void RenderFrameForInterstitialPageCreated(
-      content::RenderFrameHost* render_frame_host) OVERRIDE;
-  virtual bool OnMessageReceived(
-      const IPC::Message& message,
-      content::RenderFrameHost* render_frame_host) OVERRIDE;
-  virtual void DidNavigateMainFrame(
+  void RenderFrameForInterstitialPageCreated(
+      content::RenderFrameHost* render_frame_host) override;
+  bool OnMessageReceived(const IPC::Message& message,
+                         content::RenderFrameHost* render_frame_host) override;
+  void DidNavigateMainFrame(
       const content::LoadCommittedDetails& details,
-      const content::FrameNavigateParams& params) OVERRIDE;
-  virtual void DidStartProvisionalLoadForFrame(
+      const content::FrameNavigateParams& params) override;
+  void DidStartProvisionalLoadForFrame(
       content::RenderFrameHost* render_frame_host,
       const GURL& validated_url,
       bool is_error_page,
-      bool is_iframe_srcdoc) OVERRIDE;
-  virtual void AppCacheAccessed(const GURL& manifest_url,
-                                bool blocked_by_policy) OVERRIDE;
+      bool is_iframe_srcdoc) override;
+  void AppCacheAccessed(const GURL& manifest_url,
+                        bool blocked_by_policy) override;
 
   // Message handlers. Public for testing.
   void OnContentBlocked(ContentSettingsType type);
@@ -368,11 +375,10 @@ class TabSpecificContentSettings
   friend class content::WebContentsUserData<TabSpecificContentSettings>;
 
   // content_settings::Observer implementation.
-  virtual void OnContentSettingChanged(
-      const ContentSettingsPattern& primary_pattern,
-      const ContentSettingsPattern& secondary_pattern,
-      ContentSettingsType content_type,
-      std::string resource_identifier) OVERRIDE;
+  void OnContentSettingChanged(const ContentSettingsPattern& primary_pattern,
+                               const ContentSettingsPattern& secondary_pattern,
+                               ContentSettingsType content_type,
+                               std::string resource_identifier) override;
 
   // Notifies all registered |SiteDataObserver|s.
   void NotifySiteDataObservers();

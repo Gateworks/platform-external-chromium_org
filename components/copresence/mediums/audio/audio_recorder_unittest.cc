@@ -7,6 +7,7 @@
 #include "base/bind.h"
 #include "base/memory/aligned_memory.h"
 #include "base/run_loop.h"
+#include "components/copresence/mediums/audio/audio_recorder_impl.h"
 #include "components/copresence/public/copresence_constants.h"
 #include "components/copresence/test/audio_test_support.h"
 #include "content/public/test/test_browser_thread_bundle.h"
@@ -29,10 +30,10 @@ class TestAudioInputStream : public media::AudioInputStream {
     buffer_->set_frames(samples);
   }
 
-  virtual ~TestAudioInputStream() {}
+  ~TestAudioInputStream() override {}
 
-  virtual bool Open() OVERRIDE { return true; }
-  virtual void Start(AudioInputCallback* callback) OVERRIDE {
+  bool Open() override { return true; }
+  void Start(AudioInputCallback* callback) override {
     DCHECK(callback);
     callback_ = callback;
     media::AudioManager::Get()->GetTaskRunner()->PostTask(
@@ -40,13 +41,14 @@ class TestAudioInputStream : public media::AudioInputStream {
         base::Bind(&TestAudioInputStream::SimulateRecording,
                    base::Unretained(this)));
   }
-  virtual void Stop() OVERRIDE {}
-  virtual void Close() OVERRIDE {}
-  virtual double GetMaxVolume() OVERRIDE { return 1.0; }
-  virtual void SetVolume(double volume) OVERRIDE {}
-  virtual double GetVolume() OVERRIDE { return 1.0; }
-  virtual void SetAutomaticGainControl(bool enabled) OVERRIDE {}
-  virtual bool GetAutomaticGainControl() OVERRIDE { return true; }
+  void Stop() override {}
+  void Close() override {}
+  double GetMaxVolume() override { return 1.0; }
+  void SetVolume(double volume) override {}
+  double GetVolume() override { return 1.0; }
+  void SetAutomaticGainControl(bool enabled) override {}
+  bool GetAutomaticGainControl() override { return true; }
+  bool IsMuted() override { return false; }
 
  private:
   void SimulateRecording() {
@@ -84,9 +86,9 @@ class AudioRecorderTest : public testing::Test {
 
   void CreateSimpleRecorder() {
     DeleteRecorder();
-    recorder_ = new AudioRecorder(
+    recorder_ = new AudioRecorderImpl();
+    recorder_->Initialize(
         base::Bind(&AudioRecorderTest::DecodeSamples, base::Unretained(this)));
-    recorder_->Initialize();
   }
 
   void CreateRecorder(size_t channels,
@@ -107,12 +109,12 @@ class AudioRecorderTest : public testing::Test {
 
     total_samples_ = samples;
 
-    recorder_ = new AudioRecorder(
-        base::Bind(&AudioRecorderTest::DecodeSamples, base::Unretained(this)));
+    recorder_ = new AudioRecorderImpl();
     recorder_->set_input_stream_for_testing(
         new TestAudioInputStream(params_, channel_data_, samples));
     recorder_->set_params_for_testing(new media::AudioParameters(params_));
-    recorder_->Initialize();
+    recorder_->Initialize(
+        base::Bind(&AudioRecorderTest::DecodeSamples, base::Unretained(this)));
   }
 
   void DeleteRecorder() {
@@ -180,7 +182,8 @@ class AudioRecorderTest : public testing::Test {
   media::AudioParameters params_;
   size_t total_samples_;
 
-  AudioRecorder* recorder_;
+  // Deleted by calling Finalize() on the object.
+  AudioRecorderImpl* recorder_;
 
   std::string received_samples_;
 

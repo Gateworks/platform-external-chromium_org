@@ -567,6 +567,7 @@ PDFiumEngine::PDFiumEngine(PDFEngine::Client* client)
       last_page_to_search_(-1),
       last_character_index_to_search_(-1),
       current_find_index_(-1),
+      resume_find_index_(-1),
       permissions_(0),
       fpdf_availability_(NULL),
       next_timer_id_(0),
@@ -1683,6 +1684,12 @@ void PDFiumEngine::StartFind(const char* text, bool case_sensitive) {
   if (end_of_search) {
     // Send the final notification.
     client_->NotifyNumberOfFindResultsChanged(find_results_.size(), true);
+
+    // When searching is complete, resume finding at a particular index.
+    if (resume_find_index_ != -1) {
+      current_find_index_ = resume_find_index_;
+      resume_find_index_ = -1;
+    }
   } else {
     pp::CompletionCallback callback =
         find_factory_.NewCallback(&PDFiumEngine::ContinueFind);
@@ -1778,7 +1785,7 @@ void PDFiumEngine::AddFindResult(const PDFiumRange& result) {
   find_results_.insert(find_results_.begin() + i, result);
   UpdateTickMarks();
 
-  if (current_find_index_ == -1) {
+  if (current_find_index_ == -1 && resume_find_index_ == -1) {
     // Select the first match.
     SelectFindResult(true);
   } else if (static_cast<int>(i) <= current_find_index_) {
@@ -1886,21 +1893,36 @@ void PDFiumEngine::ZoomUpdated(double new_zoom_level) {
 
 void PDFiumEngine::RotateClockwise() {
   current_rotation_ = (current_rotation_ + 1) % 4;
+
+  // Store the current find index so that we can resume finding at that
+  // particular index after we have recomputed the find results.
+  std::string current_find_text = current_find_text_;
+  resume_find_index_ = current_find_index_;
+
   InvalidateAllPages();
+
+  if (!current_find_text.empty())
+    StartFind(current_find_text.c_str(), false);
 }
 
 void PDFiumEngine::RotateCounterclockwise() {
   current_rotation_ = (current_rotation_ - 1) % 4;
+
+  // Store the current find index so that we can resume finding at that
+  // particular index after we have recomputed the find results.
+  std::string current_find_text = current_find_text_;
+  resume_find_index_ = current_find_index_;
+
   InvalidateAllPages();
+
+  if (!current_find_text.empty())
+    StartFind(current_find_text.c_str(), false);
 }
 
 void PDFiumEngine::InvalidateAllPages() {
-  selection_.clear();
-  find_results_.clear();
-
   CancelPaints();
+  StopFind();
   LoadPageInfo(true);
-  UpdateTickMarks();
   client_->Invalidate(pp::Rect(plugin_size_));
 }
 
@@ -2046,8 +2068,6 @@ std::string PDFiumEngine::GetPageAsJSON(int index) {
   if (index < 0 || static_cast<size_t>(index) > pages_.size() - 1)
     return "{}";
 
-  // TODO(thestig) Remove after debugging http://crbug.com/402035
-  CHECK(pages_[index]);
   scoped_ptr<base::Value> node(
       pages_[index]->GetAccessibleContentAsValue(current_rotation_));
   std::string page_json;
@@ -2105,8 +2125,6 @@ void PDFiumEngine::AppendBlankPages(int num_pages) {
         page_rect.height() * kPointsPerInch / kPixelsPerInch;
     FPDFPage_New(doc_, i, width_in_points, height_in_points);
     pages_.push_back(new PDFiumPage(this, i, page_rect, true));
-    // TODO(thestig) Remove after debugging http://crbug.com/402035
-    CHECK(pages_.back());
   }
 
   CalculateVisiblePages();
@@ -2274,8 +2292,6 @@ void PDFiumEngine::LoadPageInfo(bool reload) {
       pages_[i]->set_rect(page_rect);
     } else {
       pages_.push_back(new PDFiumPage(this, i, page_rect, doc_complete));
-      // TODO(thestig) Remove after debugging http://crbug.com/402035
-      CHECK(pages_.back());
     }
   }
 
@@ -2721,10 +2737,12 @@ PDFiumEngine::SelectionChangeInvalidator::~SelectionChangeInvalidator() {
   GetVisibleSelectionsScreenRects(&new_selections);
   for (size_t i = 0; i < new_selections.size(); ++i) {
     for (size_t j = 0; j < old_selections_.size(); ++j) {
-      if (new_selections[i] == old_selections_[j]) {
+      if (!old_selections_[j].IsEmpty() &&
+          new_selections[i] == old_selections_[j]) {
         // Rectangle was selected before and after, so no need to invalidate it.
         // Mark the rectangles by setting them to empty.
         new_selections[i] = old_selections_[j] = pp::Rect();
+        break;
       }
     }
   }
@@ -3400,8 +3418,8 @@ bool PDFiumEngineExports::RenderPDFPageToDC(const void* pdf_buffer,
   base::string16 creator;
   size_t buffer_bytes = FPDF_GetMetaText(doc, "Creator", NULL, 0);
   if (buffer_bytes > 1) {
-    FPDF_GetMetaText(doc, "Creator", WriteInto(&creator, buffer_bytes),
-                     buffer_bytes);
+    FPDF_GetMetaText(
+        doc, "Creator", WriteInto(&creator, buffer_bytes + 1), buffer_bytes);
   }
   bool use_bitmap = false;
   if (StartsWith(creator, L"cairo", false))

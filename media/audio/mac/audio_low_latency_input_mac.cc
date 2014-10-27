@@ -286,6 +286,7 @@ void AUAudioInputStream::Stop() {
   DCHECK_EQ(result, noErr);
   started_ = false;
   sink_ = NULL;
+  fifo_.Clear();
 
   OSSTATUS_DLOG_IF(ERROR, result != noErr, result)
       << "Failed to stop acquiring data";
@@ -448,6 +449,29 @@ double AUAudioInputStream::GetVolume() {
 
   DLOG(WARNING) << "Failed to get volume";
   return 0.0;
+}
+
+bool AUAudioInputStream::IsMuted() {
+  // Verify that we have a valid device.
+  DCHECK_NE(input_device_id_, kAudioObjectUnknown) << "Device ID is unknown";
+
+  AudioObjectPropertyAddress property_address = {
+    kAudioDevicePropertyMute,
+    kAudioDevicePropertyScopeInput,
+    kAudioObjectPropertyElementMaster
+  };
+
+  if (!AudioObjectHasProperty(input_device_id_, &property_address)) {
+    DLOG(ERROR) << "Device does not support checking master mute state";
+    return false;
+  }
+
+  UInt32 muted = 0;
+  UInt32 size = sizeof(muted);
+  OSStatus result = AudioObjectGetPropertyData(
+      input_device_id_, &property_address, 0, NULL, &size, &muted);
+  DLOG_IF(WARNING, result != noErr) << "Failed to get mute state";
+  return result == noErr && muted != 0;
 }
 
 // AUHAL AudioDeviceOutput unit callback

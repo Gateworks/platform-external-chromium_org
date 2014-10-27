@@ -21,13 +21,13 @@ class DefaultVolumnControlDelegate : public VolumeControlDelegate {
   DefaultVolumnControlDelegate() {}
   virtual ~DefaultVolumnControlDelegate() {}
 
-  virtual bool HandleVolumeMute(const ui::Accelerator& accelerator) OVERRIDE {
+  virtual bool HandleVolumeMute(const ui::Accelerator& accelerator) override {
     return true;
   }
-  virtual bool HandleVolumeDown(const ui::Accelerator& accelerator) OVERRIDE {
+  virtual bool HandleVolumeDown(const ui::Accelerator& accelerator) override {
     return true;
   }
-  virtual bool HandleVolumeUp(const ui::Accelerator& accelerator) OVERRIDE {
+  virtual bool HandleVolumeUp(const ui::Accelerator& accelerator) override {
     return true;
   }
 
@@ -72,7 +72,9 @@ const base::string16 DefaultSystemTrayDelegate::GetEnterpriseMessage() const {
 
 const std::string
 DefaultSystemTrayDelegate::GetSupervisedUserManager() const {
-  return std::string();
+  if (!IsUserSupervised())
+    return std::string();
+  return "manager@chrome.com";
 }
 
 const base::string16
@@ -87,11 +89,14 @@ const base::string16 DefaultSystemTrayDelegate::GetSupervisedUserMessage()
 }
 
 bool DefaultSystemTrayDelegate::IsUserSupervised() const {
-  return false;
+  return GetUserLoginStatus() == ash::user::LOGGED_IN_SUPERVISED;
 }
 
-bool DefaultSystemTrayDelegate::SystemShouldUpgrade() const {
-  return true;
+void DefaultSystemTrayDelegate::GetSystemUpdateInfo(UpdateInfo* info) const {
+  DCHECK(info);
+  info->severity = UpdateInfo::UPDATE_NORMAL;
+  info->update_required = true;
+  info->factory_reset_required = false;
 }
 
 base::HourClockType DefaultSystemTrayDelegate::GetHourClockType() const {
@@ -286,6 +291,14 @@ bool DefaultSystemTrayDelegate::IsSearchKeyMappedToCapsLock() {
 tray::UserAccountsDelegate* DefaultSystemTrayDelegate::GetUserAccountsDelegate(
     const std::string& user_id) {
   return NULL;
+}
+
+void DefaultSystemTrayDelegate::AddCustodianInfoTrayObserver(
+    CustodianInfoTrayObserver* observer) {
+}
+
+void DefaultSystemTrayDelegate::RemoveCustodianInfoTrayObserver(
+    CustodianInfoTrayObserver* observer) {
 }
 
 }  // namespace ash

@@ -28,12 +28,11 @@ class ChromeRenderViewTest : public content::RenderViewTest {
 
  protected:
   // testing::Test
-  virtual void SetUp() OVERRIDE;
-  virtual void TearDown() OVERRIDE;
-  virtual content::ContentClient* CreateContentClient() OVERRIDE;
-  virtual content::ContentBrowserClient* CreateContentBrowserClient() OVERRIDE;
-  virtual content::ContentRendererClient*
-      CreateContentRendererClient() OVERRIDE;
+  virtual void SetUp() override;
+  virtual void TearDown() override;
+  content::ContentClient* CreateContentClient() override;
+  content::ContentBrowserClient* CreateContentBrowserClient() override;
+  content::ContentRendererClient* CreateContentRendererClient() override;
 
 #if defined(ENABLE_EXTENSIONS)
   scoped_ptr<extensions::DispatcherDelegate> extension_dispatcher_delegate_;

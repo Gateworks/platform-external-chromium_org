@@ -16,19 +16,19 @@ using namespace pairing_chromeos;
 HostPairingScreen::HostPairingScreen(
     ScreenObserver* observer,
     HostPairingScreenActor* actor,
-    pairing_chromeos::HostPairingController* controller)
-    : WizardScreen(observer),
+    pairing_chromeos::HostPairingController* remora_controller)
+    : BaseScreen(observer),
       actor_(actor),
-      controller_(controller),
+      remora_controller_(remora_controller),
       current_stage_(HostPairingController::STAGE_NONE) {
   actor_->SetDelegate(this);
-  controller_->AddObserver(this);
+  remora_controller_->AddObserver(this);
 }
 
 HostPairingScreen::~HostPairingScreen() {
   if (actor_)
     actor_->SetDelegate(NULL);
-  controller_->RemoveObserver(this);
+  remora_controller_->RemoveObserver(this);
 }
 
 void HostPairingScreen::CommitContextChanges() {
@@ -46,7 +46,7 @@ void HostPairingScreen::PrepareToShow() {
 void HostPairingScreen::Show() {
   if (actor_)
     actor_->Show();
-  PairingStageChanged(controller_->GetCurrentStage());
+  PairingStageChanged(remora_controller_->GetCurrentStage());
 }
 
 void HostPairingScreen::Hide() {
@@ -61,10 +61,6 @@ std::string HostPairingScreen::GetName() const {
 void HostPairingScreen::PairingStageChanged(Stage new_stage) {
   std::string desired_page;
   switch (new_stage) {
-    case HostPairingController::STAGE_NONE:
-    case HostPairingController::STAGE_INITIALIZATION_ERROR: {
-      break;
-    }
     case HostPairingController::STAGE_WAITING_FOR_CONTROLLER:
     case HostPairingController::STAGE_WAITING_FOR_CONTROLLER_AFTER_UPDATE: {
       desired_page = kPageWelcome;
@@ -73,39 +69,15 @@ void HostPairingScreen::PairingStageChanged(Stage new_stage) {
     case HostPairingController::STAGE_WAITING_FOR_CODE_CONFIRMATION: {
       desired_page = kPageCodeConfirmation;
       context_.SetString(kContextKeyConfirmationCode,
-                         controller_->GetConfirmationCode());
+                         remora_controller_->GetConfirmationCode());
       break;
     }
-    case HostPairingController::STAGE_UPDATING: {
-      desired_page = kPageUpdate;
-      context_.SetDouble(kContextKeyUpdateProgress, 0.0);
+    default:
       break;
-    }
-    case HostPairingController::STAGE_WAITING_FOR_CREDENTIALS: {
-      desired_page = kPageEnrollmentIntroduction;
-      break;
-    }
-    case HostPairingController::STAGE_ENROLLING: {
-      desired_page = kPageEnrollment;
-      context_.SetString(kContextKeyEnrollmentDomain,
-                         controller_->GetEnrollmentDomain());
-      break;
-    }
-    case HostPairingController::STAGE_ENROLLMENT_ERROR: {
-      desired_page = kPageEnrollmentError;
-      break;
-    }
-    case HostPairingController::STAGE_PAIRING_DONE: {
-      desired_page = kPagePairingDone;
-      break;
-    }
-    case HostPairingController::STAGE_FINISHED: {
-      // This page is closed in EnrollHost.
-      break;
-    }
   }
   current_stage_ = new_stage;
-  context_.SetString(kContextKeyDeviceName, controller_->GetDeviceName());
+  context_.SetString(kContextKeyDeviceName,
+                     remora_controller_->GetDeviceName());
   context_.SetString(kContextKeyPage, desired_page);
   CommitContextChanges();
 }
@@ -115,14 +87,18 @@ void HostPairingScreen::ConfigureHost(bool accepted_eula,
                                       const std::string& timezone,
                                       bool send_reports,
                                       const std::string& keyboard_layout) {
-  // TODO(zork): Get configuration from UI and send to Host.
-  // (http://crbug.com/405744)
+  VLOG(1) << "ConfigureHostMessage language=" << lang
+          << ", timezone=" << timezone
+          << ", keyboard_layout=" << keyboard_layout;
+
+  remora_controller_->RemoveObserver(this);
+  get_screen_observer()->ConfigureHost(accepted_eula, lang, timezone,
+                                       send_reports, keyboard_layout);
+  get_screen_observer()->OnExit(WizardController::HOST_PAIRING_FINISHED);
 }
 
 void HostPairingScreen::EnrollHost(const std::string& auth_token) {
-  controller_->RemoveObserver(this);
-  WizardController::default_controller()->OnEnrollmentAuthTokenReceived(
-      auth_token);
+  NOTREACHED();
 }
 
 void HostPairingScreen::OnActorDestroyed(HostPairingScreenActor* actor) {

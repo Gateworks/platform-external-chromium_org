@@ -193,8 +193,6 @@ BrowserOptionsHandler::~BrowserOptionsHandler() {
 void BrowserOptionsHandler::GetLocalizedValues(base::DictionaryValue* values) {
   DCHECK(values);
 
-  const bool using_new_profiles_ui = switches::IsNewAvatarMenu();
-
 #if defined(OS_CHROMEOS)
   const int device_type_resource_id = chromeos::GetChromeDeviceTypeResourceId();
 #else
@@ -295,15 +293,9 @@ void BrowserOptionsHandler::GetLocalizedValues(base::DictionaryValue* values) {
       IDS_OPTIONS_PRIVACY_CONTENT_SETTINGS_BUTTON },
     { "profileAddPersonEnable", IDS_PROFILE_ADD_PERSON_ENABLE },
     { "profileBrowserGuestEnable", IDS_PROFILE_BROWSER_GUEST_ENABLE },
-    { "profilesCreate", using_new_profiles_ui ?
-          IDS_NEW_PROFILES_CREATE_BUTTON_LABEL :
-          IDS_PROFILES_CREATE_BUTTON_LABEL },
-    { "profilesDelete", using_new_profiles_ui ?
-          IDS_NEW_PROFILES_DELETE_BUTTON_LABEL :
-          IDS_PROFILES_DELETE_BUTTON_LABEL },
-    { "profilesDeleteSingle", using_new_profiles_ui ?
-          IDS_NEW_PROFILES_DELETE_SINGLE_BUTTON_LABEL :
-          IDS_PROFILES_DELETE_SINGLE_BUTTON_LABEL },
+    { "profilesCreate", IDS_PROFILES_CREATE_BUTTON_LABEL },
+    { "profilesDelete", IDS_PROFILES_DELETE_BUTTON_LABEL },
+    { "profilesDeleteSingle", IDS_PROFILES_DELETE_SINGLE_BUTTON_LABEL },
     { "profilesListItemCurrent", IDS_PROFILES_LIST_ITEM_CURRENT },
     { "profilesManage", IDS_PROFILES_MANAGE_BUTTON_LABEL },
     { "profilesSupervisedDashboardTip",
@@ -325,9 +317,7 @@ void BrowserOptionsHandler::GetLocalizedValues(base::DictionaryValue* values) {
       IDS_OPTIONS_SAFEBROWSING_ENABLE_EXTENDED_REPORTING },
     { "sectionTitleAppearance", IDS_APPEARANCE_GROUP_NAME },
     { "sectionTitleDefaultBrowser", IDS_OPTIONS_DEFAULTBROWSER_GROUP_NAME },
-    { "sectionTitleUsers", using_new_profiles_ui ?
-          IDS_NEW_PROFILES_OPTIONS_GROUP_NAME :
-          IDS_PROFILES_OPTIONS_GROUP_NAME },
+    { "sectionTitleUsers", IDS_PROFILES_OPTIONS_GROUP_NAME },
     { "sectionTitleProxy", IDS_OPTIONS_PROXY_GROUP_NAME },
     { "sectionTitleSearch", IDS_OPTIONS_DEFAULTSEARCH_GROUP_NAME },
     { "sectionTitleStartup", IDS_OPTIONS_STARTUP_GROUP_NAME },
@@ -647,7 +637,7 @@ void BrowserOptionsHandler::GetLocalizedValues(base::DictionaryValue* values) {
                      CommandLine::ForCurrentProcess()->HasSwitch(
                          switches::kEnableWebsiteSettingsManager));
 
-  values->SetBoolean("usingNewProfilesUI", using_new_profiles_ui);
+  values->SetBoolean("usingNewProfilesUI", switches::IsNewAvatarMenu());
 }
 
 #if defined(ENABLE_FULL_PRINTING)
@@ -808,6 +798,18 @@ void BrowserOptionsHandler::PageLoadStarted() {
 void BrowserOptionsHandler::InitializeHandler() {
   Profile* profile = Profile::FromWebUI(web_ui());
   PrefService* prefs = profile->GetPrefs();
+  chrome::ChromeZoomLevelPrefs* zoom_level_prefs = profile->GetZoomLevelPrefs();
+  // Only regular profiles are able to edit default zoom level, or delete per-
+  // host zoom levels, via the settings menu. We only require a zoom_level_prefs
+  // if the profile is able to change these preference types.
+  DCHECK(zoom_level_prefs ||
+         profile->GetProfileType() != Profile::REGULAR_PROFILE);
+  if (zoom_level_prefs) {
+    default_zoom_level_subscription_ =
+        zoom_level_prefs->RegisterDefaultZoomLevelCallback(
+            base::Bind(&BrowserOptionsHandler::SetupPageZoomSelector,
+                       base::Unretained(this)));
+  }
 
   ProfileSyncService* sync_service(
       ProfileSyncServiceFactory::GetInstance()->GetForProfile(profile));
@@ -863,10 +865,6 @@ void BrowserOptionsHandler::InitializeHandler() {
   auto_open_files_.Init(
       prefs::kDownloadExtensionsToOpen, prefs,
       base::Bind(&BrowserOptionsHandler::SetupAutoOpenFileTypes,
-                 base::Unretained(this)));
-  default_zoom_level_.Init(
-      prefs::kDefaultZoomLevel, prefs,
-      base::Bind(&BrowserOptionsHandler::SetupPageZoomSelector,
                  base::Unretained(this)));
   profile_pref_registrar_.Init(prefs);
   profile_pref_registrar_.Add(
@@ -1041,8 +1039,6 @@ bool BrowserOptionsHandler::ShouldShowMultiProfilesUserList() {
   // On Chrome OS we use different UI for multi-profiles.
   return false;
 #else
-  if (helper::GetDesktopType(web_ui()) != chrome::HOST_DESKTOP_TYPE_NATIVE)
-    return false;
   Profile* profile = Profile::FromWebUI(web_ui());
   if (profile->IsGuestSession())
     return false;
@@ -1535,7 +1531,8 @@ void BrowserOptionsHandler::HandleDefaultZoomFactor(
     const base::ListValue* args) {
   double zoom_factor;
   if (ExtractDoubleValue(args, &zoom_factor)) {
-    default_zoom_level_.SetValue(content::ZoomFactorToZoomLevel(zoom_factor));
+    Profile::FromWebUI(web_ui())->GetZoomLevelPrefs()->SetDefaultZoomLevelPref(
+        content::ZoomFactorToZoomLevel(zoom_factor));
   }
 }
 
@@ -1792,8 +1789,9 @@ void BrowserOptionsHandler::SetupFontSizeSelector() {
 }
 
 void BrowserOptionsHandler::SetupPageZoomSelector() {
-  PrefService* pref_service = Profile::FromWebUI(web_ui())->GetPrefs();
-  double default_zoom_level = pref_service->GetDouble(prefs::kDefaultZoomLevel);
+  double default_zoom_level =
+      content::HostZoomMap::GetDefaultForBrowserContext(
+          Profile::FromWebUI(web_ui()))->GetDefaultZoomLevel();
   double default_zoom_factor =
       content::ZoomLevelToZoomFactor(default_zoom_level);
 

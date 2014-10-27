@@ -9,16 +9,18 @@
 #include "athena/content/public/app_registry.h"
 #include "athena/content/public/content_activity_factory_creator.h"
 #include "athena/env/public/athena_env.h"
+#include "athena/extensions/public/apps_search_controller_factory.h"
 #include "athena/extensions/public/extension_app_model_builder.h"
 #include "athena/extensions/public/extensions_delegate.h"
 #include "athena/home/public/home_card.h"
+#include "athena/home/public/search_controller_factory.h"
 #include "athena/input/public/input_manager.h"
 #include "athena/main/athena_views_delegate.h"
 #include "athena/main/placeholder.h"
 #include "athena/main/placeholder.h"
-#include "athena/main/url_search_provider.h"
 #include "athena/resource_manager/public/resource_manager.h"
 #include "athena/screen/public/screen_manager.h"
+#include "athena/screen_lock/public/screen_lock_manager.h"
 #include "athena/system/public/system_ui.h"
 #include "athena/virtual_keyboard/public/virtual_keyboard_manager.h"
 #include "athena/wm/public/window_manager.h"
@@ -61,7 +63,7 @@ struct AthenaEnvState {
 
 DEFINE_OWNED_WINDOW_PROPERTY_KEY(athena::AthenaEnvState,
                                  kAthenaEnvStateKey,
-                                 NULL);
+                                 nullptr);
 
 // This class observes the change of the virtual keyboard and distribute the
 // change to appropriate modules of athena.
@@ -72,12 +74,12 @@ class VirtualKeyboardObserver : public keyboard::KeyboardControllerObserver {
     keyboard::KeyboardController::GetInstance()->AddObserver(this);
   }
 
-  virtual ~VirtualKeyboardObserver() {
+  ~VirtualKeyboardObserver() override {
     keyboard::KeyboardController::GetInstance()->RemoveObserver(this);
   }
 
  private:
-  virtual void OnKeyboardBoundsChanging(const gfx::Rect& new_bounds) OVERRIDE {
+  virtual void OnKeyboardBoundsChanging(const gfx::Rect& new_bounds) override {
     HomeCard::Get()->UpdateVirtualKeyboardBounds(new_bounds);
   }
 
@@ -113,8 +115,8 @@ void StartAthenaEnv(scoped_refptr<base::TaskRunner> blocking_task_runner) {
 
   athena::InputManager::Create()->OnRootWindowCreated(root_window);
   athena::ScreenManager::Create(root_window);
-  athena::SystemUI::Create(blocking_task_runner);
   athena::WindowManager::Create();
+  athena::SystemUI::Create(blocking_task_runner);
   athena::AppRegistry::Create();
   SetupBackgroundImage();
 
@@ -127,10 +129,12 @@ void CreateVirtualKeyboardWithContext(content::BrowserContext* context) {
 }
 
 void StartAthenaSessionWithContext(content::BrowserContext* context) {
-  StartAthenaSession(athena::CreateContentActivityFactory(),
-                     new athena::ExtensionAppModelBuilder(context));
-  athena::HomeCard::Get()->RegisterSearchProvider(
-      new athena::UrlSearchProvider(context));
+  athena::ScreenLockManager::Create();
+  athena::ExtensionsDelegate::CreateExtensionsDelegate(context);
+  StartAthenaSession(
+      athena::CreateContentActivityFactory(),
+      make_scoped_ptr(new athena::ExtensionAppModelBuilder(context)),
+      athena::CreateSearchControllerFactory(context));
   AthenaEnvState* env_state =
       athena::ScreenManager::Get()->GetContext()->GetProperty(
           kAthenaEnvStateKey);
@@ -139,11 +143,13 @@ void StartAthenaSessionWithContext(content::BrowserContext* context) {
   CreateTestPages(context);
 }
 
-void StartAthenaSession(athena::ActivityFactory* activity_factory,
-                        athena::AppModelBuilder* app_model_builder) {
+void StartAthenaSession(
+    athena::ActivityFactory* activity_factory,
+    scoped_ptr<athena::AppModelBuilder> app_model_builder,
+    scoped_ptr<athena::SearchControllerFactory> search_factory) {
   DCHECK(!session_started);
   session_started = true;
-  athena::HomeCard::Create(app_model_builder);
+  athena::HomeCard::Create(app_model_builder.Pass(), search_factory.Pass());
   athena::ActivityManager::Create();
   athena::ResourceManager::Create();
   athena::ActivityFactory::RegisterActivityFactory(activity_factory);
@@ -155,14 +161,15 @@ void ShutdownAthena() {
     athena::ResourceManager::Shutdown();
     athena::ActivityManager::Shutdown();
     athena::HomeCard::Shutdown();
+    athena::ExtensionsDelegate::Shutdown();
+    athena::ScreenLockManager::Shutdown();
     session_started = false;
   }
   athena::AppRegistry::ShutDown();
-  athena::WindowManager::Shutdown();
   athena::SystemUI::Shutdown();
+  athena::WindowManager::Shutdown();
   athena::ScreenManager::Shutdown();
   athena::InputManager::Shutdown();
-  athena::ExtensionsDelegate::Shutdown();
   athena::AthenaEnv::Shutdown();
 
   ShutdownAthenaViewsDelegate();

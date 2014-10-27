@@ -55,7 +55,7 @@ content::BrowserContext* SessionStateDelegateChromeos::GetBrowserContextByIndex(
   DCHECK_LT(index, NumberOfLoggedInUsers());
   user_manager::User* user =
       user_manager::UserManager::Get()->GetLRULoggedInUsers()[index];
-  DCHECK(user);
+  CHECK(user);
   return chromeos::ProfileHelper::Get()->GetProfileByUserUnsafe(user);
 }
 
@@ -86,7 +86,7 @@ int SessionStateDelegateChromeos::NumberOfLoggedInUsers() const {
 bool SessionStateDelegateChromeos::CanAddUserToMultiProfile(
     AddUserError* error) const {
   if (user_manager::UserManager::Get()
-          ->GetUsersAdmittedForMultiProfile()
+          ->GetUsersAllowedForMultiProfile()
           .size() == 0) {
     if (error)
       *error = ADD_USER_ERROR_OUT_OF_USERS;

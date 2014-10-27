@@ -35,36 +35,38 @@ class NET_EXPORT_PRIVATE TcpCubicSender : public SendAlgorithmInterface {
                  bool reno,
                  QuicTcpCongestionWindow max_tcp_congestion_window,
                  QuicConnectionStats* stats);
-  virtual ~TcpCubicSender();
+  ~TcpCubicSender() override;
 
   // Start implementation of SendAlgorithmInterface.
-  virtual void SetFromConfig(const QuicConfig& config, bool is_server) OVERRIDE;
-  virtual void OnIncomingQuicCongestionFeedbackFrame(
+  void SetFromConfig(const QuicConfig& config, bool is_server) override;
+  void SetNumEmulatedConnections(int num_connections) override;
+  void OnIncomingQuicCongestionFeedbackFrame(
       const QuicCongestionFeedbackFrame& feedback,
-      QuicTime feedback_receive_time) OVERRIDE;
-  virtual void OnCongestionEvent(bool rtt_updated,
-                                 QuicByteCount bytes_in_flight,
-                                 const CongestionVector& acked_packets,
-                                 const CongestionVector& lost_packets) OVERRIDE;
-  virtual bool OnPacketSent(QuicTime sent_time,
-                            QuicByteCount bytes_in_flight,
-                            QuicPacketSequenceNumber sequence_number,
-                            QuicByteCount bytes,
-                            HasRetransmittableData is_retransmittable) OVERRIDE;
-  virtual void OnRetransmissionTimeout(bool packets_retransmitted) OVERRIDE;
-  virtual void RevertRetransmissionTimeout() OVERRIDE;
-  virtual QuicTime::Delta TimeUntilSend(
+      QuicTime feedback_receive_time) override;
+  void OnCongestionEvent(bool rtt_updated,
+                         QuicByteCount bytes_in_flight,
+                         const CongestionVector& acked_packets,
+                         const CongestionVector& lost_packets) override;
+  bool OnPacketSent(QuicTime sent_time,
+                    QuicByteCount bytes_in_flight,
+                    QuicPacketSequenceNumber sequence_number,
+                    QuicByteCount bytes,
+                    HasRetransmittableData is_retransmittable) override;
+  void OnRetransmissionTimeout(bool packets_retransmitted) override;
+  void RevertRetransmissionTimeout() override;
+  QuicTime::Delta TimeUntilSend(
       QuicTime now,
       QuicByteCount bytes_in_flight,
-      HasRetransmittableData has_retransmittable_data) const OVERRIDE;
-  virtual QuicBandwidth BandwidthEstimate() const OVERRIDE;
-  virtual bool HasReliableBandwidthEstimate() const OVERRIDE;
-  virtual QuicTime::Delta RetransmissionDelay() const OVERRIDE;
-  virtual QuicByteCount GetCongestionWindow() const OVERRIDE;
-  virtual bool InSlowStart() const OVERRIDE;
-  virtual bool InRecovery() const OVERRIDE;
-  virtual QuicByteCount GetSlowStartThreshold() const OVERRIDE;
-  virtual CongestionControlType GetCongestionControlType() const OVERRIDE;
+      HasRetransmittableData has_retransmittable_data) const override;
+  QuicBandwidth PacingRate() const override;
+  QuicBandwidth BandwidthEstimate() const override;
+  bool HasReliableBandwidthEstimate() const override;
+  QuicTime::Delta RetransmissionDelay() const override;
+  QuicByteCount GetCongestionWindow() const override;
+  bool InSlowStart() const override;
+  bool InRecovery() const override;
+  QuicByteCount GetSlowStartThreshold() const override;
+  CongestionControlType GetCongestionControlType() const override;
   // End implementation of SendAlgorithmInterface.
 
  private:
@@ -92,8 +94,11 @@ class NET_EXPORT_PRIVATE TcpCubicSender : public SendAlgorithmInterface {
   const RttStats* rtt_stats_;
   QuicConnectionStats* stats_;
 
-  // Reno provided for testing.
+  // If true, Reno congestion control is used instead of Cubic.
   const bool reno_;
+
+  // Number of connections to simulate.
+  int num_connections_;
 
   // ACK counter for the Reno implementation.
   int64 congestion_window_count_;

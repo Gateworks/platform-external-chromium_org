@@ -45,14 +45,13 @@ class SyncNotificationDelegate : public NotificationDelegate {
                            Profile* profile);
 
   // NotificationDelegate:
-  virtual void Display() OVERRIDE;
-  virtual void Error() OVERRIDE;
-  virtual void Close(bool by_user) OVERRIDE;
-  virtual bool HasClickedListener() OVERRIDE;
-  virtual void Click() OVERRIDE;
-  virtual void ButtonClick(int button_index) OVERRIDE;
-  virtual std::string id() const OVERRIDE;
-  virtual content::WebContents* GetWebContents() const OVERRIDE;
+  virtual void Display() override;
+  virtual void Error() override;
+  virtual void Close(bool by_user) override;
+  virtual bool HasClickedListener() override;
+  virtual void Click() override;
+  virtual void ButtonClick(int button_index) override;
+  virtual std::string id() const override;
 
  protected:
   virtual ~SyncNotificationDelegate();
@@ -103,10 +102,6 @@ std::string SyncNotificationDelegate::id() const {
   return id_;
 }
 
-content::WebContents* SyncNotificationDelegate::GetWebContents() const {
-  return NULL;
-}
-
 void SyncNotificationDelegate::ShowSyncSetup() {
   LoginUIService* login_ui = LoginUIServiceFactory::GetForProfile(profile_);
   if (login_ui->current_login_ui()) {
@@ -151,7 +146,8 @@ void SyncErrorNotifier::OnErrorChanged() {
     return;
 
   if (!error_controller_->HasError()) {
-    g_browser_process->notification_ui_manager()->CancelById(notification_id_);
+    g_browser_process->notification_ui_manager()->CancelById(
+        notification_id_, NotificationUIManager::GetProfileID(profile_));
     return;
   }
 
@@ -169,7 +165,8 @@ void SyncErrorNotifier::OnErrorChanged() {
 #endif
 
   // Keep the existing notification if there is one.
-  if (notification_ui_manager->FindById(notification_id_))
+  if (notification_ui_manager->FindById(
+          notification_id_, NotificationUIManager::GetProfileID(profile_)))
     return;
 
   // Add an accept button to launch the sync setup settings subpage.

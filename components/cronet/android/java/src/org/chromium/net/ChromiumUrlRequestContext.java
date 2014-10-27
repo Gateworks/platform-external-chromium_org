@@ -5,7 +5,8 @@
 package org.chromium.net;
 
 import android.content.Context;
-import android.os.ConditionVariable;
+import android.os.Handler;
+import android.os.Looper;
 import android.os.Process;
 import android.util.Log;
 
@@ -27,21 +28,27 @@ public class ChromiumUrlRequestContext {
      */
     private long mChromiumUrlRequestContextAdapter;
 
-    private final ConditionVariable mStarted = new ConditionVariable();
-
     /**
      * Constructor.
-     *
      */
     protected ChromiumUrlRequestContext(Context context, String userAgent,
             String config) {
         mChromiumUrlRequestContextAdapter = nativeCreateRequestContextAdapter(
                 context, userAgent, getLoggingLevel(), config);
-        if (mChromiumUrlRequestContextAdapter == 0)
+        if (mChromiumUrlRequestContextAdapter == 0) {
             throw new NullPointerException("Context Adapter creation failed");
-
-        // TODO(mef): Revisit the need of block here.
-        mStarted.block(2000);
+        }
+        // Post a task to UI thread to init native Chromium URLRequestContext.
+        // TODO(xunjieli): This constructor is not supposed to be invoked on
+        // the main thread. Consider making the following code into a blocking
+        // API to handle the case where we are already on main thread.
+        Runnable task = new Runnable() {
+            public void run() {
+                nativeInitRequestContextOnMainThread(
+                        mChromiumUrlRequestContextAdapter);
+            }
+        };
+        new Handler(Looper.getMainLooper()).post(task);
     }
 
     /**
@@ -90,7 +97,6 @@ public class ChromiumUrlRequestContext {
     private void initNetworkThread() {
         Thread.currentThread().setName("ChromiumNet");
         Process.setThreadPriority(Process.THREAD_PRIORITY_BACKGROUND);
-        mStarted.open();
     }
 
     @Override
@@ -135,4 +141,7 @@ public class ChromiumUrlRequestContext {
             long chromiumUrlRequestContextAdapter, String fileName);
 
     private native void nativeStopNetLog(long chromiumUrlRequestContextAdapter);
+
+    private native void nativeInitRequestContextOnMainThread(
+            long chromiumUrlRequestContextAdapter);
 }

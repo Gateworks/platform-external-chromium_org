@@ -6,11 +6,12 @@
 #define CHROME_BROWSER_CHROMEOS_LOGIN_SCREENS_NETWORK_SCREEN_H_
 
 #include "base/compiler_specific.h"
+#include "base/gtest_prod_util.h"
 #include "base/memory/ref_counted.h"
 #include "base/strings/string16.h"
 #include "base/timer/timer.h"
+#include "chrome/browser/chromeos/login/screens/base_screen.h"
 #include "chrome/browser/chromeos/login/screens/network_screen_actor.h"
-#include "chrome/browser/chromeos/login/screens/wizard_screen.h"
 #include "chromeos/network/network_state_handler_observer.h"
 
 namespace chromeos {
@@ -21,7 +22,7 @@ namespace login {
 class NetworkStateHelper;
 }  // namespace login
 
-class NetworkScreen : public WizardScreen,
+class NetworkScreen : public BaseScreen,
                       public NetworkStateHandlerObserver,
                       public NetworkScreenActor::Delegate {
  public:
@@ -30,20 +31,20 @@ class NetworkScreen : public WizardScreen,
 
   static NetworkScreen* Get(ScreenManager* manager);
 
-  // WizardScreen implementation:
-  virtual void PrepareToShow() OVERRIDE;
-  virtual void Show() OVERRIDE;
-  virtual void Hide() OVERRIDE;
-  virtual std::string GetName() const OVERRIDE;
+  // BaseScreen implementation:
+  virtual void PrepareToShow() override;
+  virtual void Show() override;
+  virtual void Hide() override;
+  virtual std::string GetName() const override;
 
   // NetworkStateHandlerObserver implementation:
   virtual void NetworkConnectionStateChanged(
-      const NetworkState* network) OVERRIDE;
-  virtual void DefaultNetworkChanged(const NetworkState* network) OVERRIDE;
+      const NetworkState* network) override;
+  virtual void DefaultNetworkChanged(const NetworkState* network) override;
 
   // NetworkScreenActor::Delegate implementation:
-  virtual void OnActorDestroyed(NetworkScreenActor* actor) OVERRIDE;
-  virtual void OnContinuePressed() OVERRIDE;
+  virtual void OnActorDestroyed(NetworkScreenActor* actor) override;
+  virtual void OnContinuePressed() override;
 
   NetworkScreenActor* actor() const { return actor_; }
 

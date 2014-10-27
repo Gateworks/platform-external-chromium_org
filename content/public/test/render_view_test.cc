@@ -19,8 +19,8 @@
 #include "content/renderer/history_serialization.h"
 #include "content/renderer/render_thread_impl.h"
 #include "content/renderer/render_view_impl.h"
+#include "content/renderer/renderer_blink_platform_impl.h"
 #include "content/renderer/renderer_main_platform_delegate.h"
-#include "content/renderer/renderer_webkitplatformsupport_impl.h"
 #include "content/test/mock_render_process.h"
 #include "content/test/test_content_client.h"
 #include "third_party/WebKit/public/platform/WebScreenInfo.h"
@@ -57,27 +57,25 @@ const int32 kSurfaceId = 42;
 
 namespace content {
 
-class RendererWebKitPlatformSupportImplNoSandboxImpl
-    : public RendererWebKitPlatformSupportImpl {
+class RendererBlinkPlatformImplNoSandboxImpl
+    : public RendererBlinkPlatformImpl {
  public:
   virtual blink::WebSandboxSupport* sandboxSupport() {
     return NULL;
   }
 };
 
-RenderViewTest::RendererWebKitPlatformSupportImplNoSandbox::
-    RendererWebKitPlatformSupportImplNoSandbox() {
-  webkit_platform_support_.reset(
-      new RendererWebKitPlatformSupportImplNoSandboxImpl());
+RenderViewTest::RendererBlinkPlatformImplNoSandbox::
+    RendererBlinkPlatformImplNoSandbox() {
+  blink_platform_impl_.reset(new RendererBlinkPlatformImplNoSandboxImpl());
 }
 
-RenderViewTest::RendererWebKitPlatformSupportImplNoSandbox::
-    ~RendererWebKitPlatformSupportImplNoSandbox() {
+RenderViewTest::RendererBlinkPlatformImplNoSandbox::
+    ~RendererBlinkPlatformImplNoSandbox() {
 }
 
-blink::Platform*
-    RenderViewTest::RendererWebKitPlatformSupportImplNoSandbox::Get() {
-  return webkit_platform_support_.get();
+blink::Platform* RenderViewTest::RendererBlinkPlatformImplNoSandbox::Get() {
+  return blink_platform_impl_.get();
 }
 
 RenderViewTest::RenderViewTest()
@@ -167,7 +165,7 @@ void RenderViewTest::SetUp() {
   // hacky, but this is the world we live in...
   std::string flags("--expose-gc");
   v8::V8::SetFlagsFromString(flags.c_str(), static_cast<int>(flags.size()));
-  blink::initialize(webkit_platform_support_.Get());
+  blink::initialize(blink_platform_impl_.Get());
 
   // Ensure that we register any necessary schemes when initializing WebKit,
   // since we are using a MockRenderThread.
@@ -338,8 +336,8 @@ void RenderViewTest::ClearHistory() {
 
 void RenderViewTest::Reload(const GURL& url) {
   FrameMsg_Navigate_Params params;
-  params.url = url;
-  params.navigation_type = FrameMsg_Navigate_Type::RELOAD;
+  params.common_params.url = url;
+  params.common_params.navigation_type = FrameMsg_Navigate_Type::RELOAD;
   RenderViewImpl* impl = static_cast<RenderViewImpl*>(view_);
   impl->GetMainRenderFrame()->OnNavigate(params);
   FrameLoadWaiter(impl->GetMainRenderFrame()).Wait();
@@ -411,13 +409,14 @@ void RenderViewTest::GoToOffset(int offset, const PageState& state) {
   int pending_offset = offset + impl->history_list_offset();
 
   FrameMsg_Navigate_Params navigate_params;
-  navigate_params.navigation_type = FrameMsg_Navigate_Type::NORMAL;
-  navigate_params.transition = ui::PAGE_TRANSITION_FORWARD_BACK;
+  navigate_params.common_params.navigation_type =
+      FrameMsg_Navigate_Type::NORMAL;
+  navigate_params.common_params.transition = ui::PAGE_TRANSITION_FORWARD_BACK;
   navigate_params.current_history_list_length = history_list_length;
   navigate_params.current_history_list_offset = impl->history_list_offset();
   navigate_params.pending_history_list_offset = pending_offset;
   navigate_params.page_id = impl->page_id_ + offset;
-  navigate_params.page_state = state;
+  navigate_params.commit_params.page_state = state;
   navigate_params.request_time = base::Time::Now();
 
   FrameMsg_Navigate navigate_message(impl->GetMainRenderFrame()->GetRoutingID(),

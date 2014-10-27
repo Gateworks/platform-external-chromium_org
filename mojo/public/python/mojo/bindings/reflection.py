@@ -95,11 +95,12 @@ class MojoStructType(type):
 
     fields = list(
         itertools.chain.from_iterable([group.descriptors for group in groups]))
+    fields.sort(key=lambda f: f.index)
     for field in fields:
       dictionary[field.name] = _BuildProperty(field)
 
     # Add init
-    dictionary['__init__'] = _StructInit
+    dictionary['__init__'] = _StructInit(fields)
 
     # Add serialization method
     serialization_object = serialization.Serialization(groups)
@@ -115,6 +116,9 @@ class MojoStructType(type):
       return result
     dictionary['Deserialize'] = classmethod(Deserialize)
 
+    dictionary['__eq__'] = _StructEq(fields)
+    dictionary['__ne__'] = _StructNe
+
     return type.__new__(mcs, name, bases, dictionary)
 
   # Prevent adding new attributes, or mutating constants.
@@ -126,10 +130,24 @@ class MojoStructType(type):
     raise AttributeError, 'can\'t delete attribute'
 
 
-def _StructInit(self, **kwargs):
-  self._fields = {}
-  for name in kwargs:
-    self.__setattr__(name, kwargs[name])
+def _StructInit(fields):
+  def _Init(self, *args, **kwargs):
+    if len(args) + len(kwargs) > len(fields):
+      raise TypeError('__init__() takes %d argument (%d given)' %
+                      (len(fields), len(args) + len(kwargs)))
+    self._fields = {}
+    for f, a in zip(fields, args):
+      self.__setattr__(f.name, a)
+    remaining_fields = set(x.name for x in fields[len(args):])
+    for name in kwargs:
+      if not name in remaining_fields:
+        if name in (x.name for x in fields[:len(args)]):
+          raise TypeError(
+              '__init__() got multiple values for keyword argument %r' % name)
+        raise TypeError('__init__() got an unexpected keyword argument %r' %
+                        name)
+      self.__setattr__(name, kwargs[name])
+  return _Init
 
 
 def _BuildProperty(field):
@@ -146,3 +164,16 @@ def _BuildProperty(field):
     self._fields[field.name] = field.field_type.Convert(value)
 
   return property(Get, Set)
+
+def _StructEq(fields):
+  def _Eq(self, other):
+    if type(self) is not type(other):
+      return False
+    for field in fields:
+      if getattr(self, field.name) != getattr(other, field.name):
+        return False
+    return True
+  return _Eq
+
+def _StructNe(self, other):
+  return not self.__eq__(other)

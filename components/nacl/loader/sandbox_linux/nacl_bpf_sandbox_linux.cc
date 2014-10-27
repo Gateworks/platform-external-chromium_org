@@ -19,6 +19,7 @@
 
 #include "content/public/common/sandbox_init.h"
 #include "sandbox/linux/bpf_dsl/bpf_dsl.h"
+#include "sandbox/linux/bpf_dsl/policy.h"
 #include "sandbox/linux/services/linux_syscalls.h"
 
 #endif  // defined(USE_SECCOMP_BPF)
@@ -33,19 +34,19 @@ using sandbox::bpf_dsl::Allow;
 using sandbox::bpf_dsl::Error;
 using sandbox::bpf_dsl::ResultExpr;
 
-class NaClBPFSandboxPolicy : public sandbox::bpf_dsl::SandboxBPFDSLPolicy {
+class NaClBPFSandboxPolicy : public sandbox::bpf_dsl::Policy {
  public:
   NaClBPFSandboxPolicy()
       : baseline_policy_(content::GetBPFSandboxBaselinePolicy()) {}
   virtual ~NaClBPFSandboxPolicy() {}
 
-  virtual ResultExpr EvaluateSyscall(int system_call_number) const OVERRIDE;
-  virtual ResultExpr InvalidSyscall() const OVERRIDE {
+  virtual ResultExpr EvaluateSyscall(int system_call_number) const override;
+  virtual ResultExpr InvalidSyscall() const override {
     return baseline_policy_->InvalidSyscall();
   }
 
  private:
-  scoped_ptr<sandbox::bpf_dsl::SandboxBPFDSLPolicy> baseline_policy_;
+  scoped_ptr<sandbox::bpf_dsl::Policy> baseline_policy_;
 
   DISALLOW_COPY_AND_ASSIGN(NaClBPFSandboxPolicy);
 };
@@ -130,8 +131,7 @@ void RunSandboxSanityChecks() {
 bool InitializeBPFSandbox() {
 #if defined(USE_SECCOMP_BPF)
   bool sandbox_is_initialized = content::InitializeSandbox(
-      scoped_ptr<sandbox::bpf_dsl::SandboxBPFDSLPolicy>(
-          new NaClBPFSandboxPolicy));
+      scoped_ptr<sandbox::bpf_dsl::Policy>(new NaClBPFSandboxPolicy));
   if (sandbox_is_initialized) {
     RunSandboxSanityChecks();
     return true;

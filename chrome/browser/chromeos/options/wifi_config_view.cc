@@ -52,7 +52,7 @@ class ComboboxWithWidth : public views::Combobox {
         width_(width) {
   }
   virtual ~ComboboxWithWidth() {}
-  virtual gfx::Size GetPreferredSize() const OVERRIDE {
+  virtual gfx::Size GetPreferredSize() const override {
     gfx::Size size = Combobox::GetPreferredSize();
     size.set_width(width_);
     return size;
@@ -105,8 +105,8 @@ class SecurityComboboxModel : public ui::ComboboxModel {
   virtual ~SecurityComboboxModel();
 
   // Overridden from ui::ComboboxModel:
-  virtual int GetItemCount() const OVERRIDE;
-  virtual base::string16 GetItemAt(int index) OVERRIDE;
+  virtual int GetItemCount() const override;
+  virtual base::string16 GetItemAt(int index) override;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(SecurityComboboxModel);
@@ -118,8 +118,8 @@ class EAPMethodComboboxModel : public ui::ComboboxModel {
   virtual ~EAPMethodComboboxModel();
 
   // Overridden from ui::ComboboxModel:
-  virtual int GetItemCount() const OVERRIDE;
-  virtual base::string16 GetItemAt(int index) OVERRIDE;
+  virtual int GetItemCount() const override;
+  virtual base::string16 GetItemAt(int index) override;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(EAPMethodComboboxModel);
@@ -131,8 +131,8 @@ class Phase2AuthComboboxModel : public ui::ComboboxModel {
   virtual ~Phase2AuthComboboxModel();
 
   // Overridden from ui::ComboboxModel:
-  virtual int GetItemCount() const OVERRIDE;
-  virtual base::string16 GetItemAt(int index) OVERRIDE;
+  virtual int GetItemCount() const override;
+  virtual base::string16 GetItemAt(int index) override;
 
  private:
   views::Combobox* eap_method_combobox_;
@@ -146,8 +146,8 @@ class ServerCACertComboboxModel : public ui::ComboboxModel {
   virtual ~ServerCACertComboboxModel();
 
   // Overridden from ui::ComboboxModel:
-  virtual int GetItemCount() const OVERRIDE;
-  virtual base::string16 GetItemAt(int index) OVERRIDE;
+  virtual int GetItemCount() const override;
+  virtual base::string16 GetItemAt(int index) override;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(ServerCACertComboboxModel);
@@ -159,8 +159,8 @@ class UserCertComboboxModel : public ui::ComboboxModel {
   virtual ~UserCertComboboxModel();
 
   // Overridden from ui::ComboboxModel:
-  virtual int GetItemCount() const OVERRIDE;
-  virtual base::string16 GetItemAt(int index) OVERRIDE;
+  virtual int GetItemCount() const override;
+  virtual base::string16 GetItemAt(int index) override;
 
  private:
   WifiConfigView* owner_;
@@ -699,7 +699,7 @@ bool WifiConfigView::Login() {
       }
     } else {
       security = shill::kSecurity8021x;
-      SetEapProperties(&properties);
+      SetEapProperties(&properties, false /* not configured */);
     }
     properties.SetStringWithoutPathExpansion(
         shill::kSecurityProperty, security);
@@ -715,7 +715,7 @@ bool WifiConfigView::Login() {
       return true;  // Close dialog
     }
     if (eap_method_combobox_) {
-      SetEapProperties(&properties);
+      SetEapProperties(&properties, true /* configured */);
       properties.SetBooleanWithoutPathExpansion(
           shill::kSaveCredentialsProperty, GetSaveCredentials());
     } else {
@@ -862,7 +862,8 @@ std::string WifiConfigView::GetEapAnonymousIdentity() const {
   return base::UTF16ToUTF8(identity_anonymous_textfield_->text());
 }
 
-void WifiConfigView::SetEapProperties(base::DictionaryValue* properties) {
+void WifiConfigView::SetEapProperties(base::DictionaryValue* properties,
+                                      bool configured) {
   properties->SetStringWithoutPathExpansion(
       shill::kEapIdentityProperty, GetEapIdentity());
   properties->SetStringWithoutPathExpansion(
@@ -878,9 +879,10 @@ void WifiConfigView::SetEapProperties(base::DictionaryValue* properties) {
 
   properties->SetBooleanWithoutPathExpansion(
       shill::kEapUseSystemCasProperty, GetEapUseSystemCas());
-  properties->SetStringWithoutPathExpansion(
-      shill::kEapPasswordProperty, GetPassphrase());
-
+  if (!configured || passphrase_textfield_->changed()) {
+    properties->SetStringWithoutPathExpansion(
+        shill::kEapPasswordProperty, GetPassphrase());
+  }
   base::ListValue* pem_list = new base::ListValue;
   std::string ca_cert_pem = GetEapServerCaCertPEM();
   if (!ca_cert_pem.empty())

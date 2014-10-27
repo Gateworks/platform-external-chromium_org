@@ -12,7 +12,6 @@
 #include "chrome/browser/extensions/extension_browsertest.h"
 #include "chrome/browser/extensions/extension_management.h"
 #include "chrome/browser/extensions/extension_service.h"
-#include "chrome/browser/extensions/updater/extension_downloader.h"
 #include "chrome/browser/extensions/updater/extension_updater.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
@@ -31,6 +30,7 @@
 #include "extensions/browser/extension_registry.h"
 #include "extensions/browser/extension_system.h"
 #include "extensions/browser/notification_types.h"
+#include "extensions/browser/updater/extension_downloader.h"
 #include "extensions/test/extension_test_message_listener.h"
 #include "net/url_request/test_url_request_interceptor.h"
 #include "net/url_request/url_fetcher.h"
@@ -56,7 +56,7 @@ std::string BuildForceInstallPolicyValue(const char* extension_id,
 
 class ExtensionManagementTest : public ExtensionBrowserTest {
  public:
-  virtual void SetUpInProcessBrowserTestFixture() OVERRIDE {
+  void SetUpInProcessBrowserTestFixture() override {
     EXPECT_CALL(policy_provider_, IsInitializationComplete(_))
         .WillRepeatedly(Return(true));
     policy::BrowserPolicyConnector::SetPolicyProviderForTesting(
@@ -216,7 +216,7 @@ class NotificationListener : public content::NotificationObserver {
           this, types[i], content::NotificationService::AllSources());
     }
   }
-  virtual ~NotificationListener() {}
+  ~NotificationListener() override {}
 
   bool started() { return started_; }
 
@@ -231,9 +231,9 @@ class NotificationListener : public content::NotificationObserver {
   }
 
   // Implements content::NotificationObserver interface.
-  virtual void Observe(int type,
-                       const content::NotificationSource& source,
-                       const content::NotificationDetails& details) OVERRIDE {
+  void Observe(int type,
+               const content::NotificationSource& source,
+               const content::NotificationDetails& details) override {
     switch (type) {
       case extensions::NOTIFICATION_EXTENSION_UPDATING_STARTED: {
         EXPECT_FALSE(started_);

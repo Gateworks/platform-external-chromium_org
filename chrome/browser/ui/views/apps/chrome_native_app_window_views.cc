@@ -52,6 +52,10 @@
 #include "ui/aura/window_observer.h"
 #endif
 
+#if defined(OS_CHROMEOS)
+#include "ash/shell_window_ids.h"
+#endif
+
 using extensions::AppWindow;
 
 namespace {
@@ -146,7 +150,7 @@ class NativeAppWindowStateDelegate : public ash::wm::WindowStateDelegate,
 
  private:
   // Overridden from ash::wm::WindowStateDelegate.
-  virtual bool ToggleFullscreen(ash::wm::WindowState* window_state) OVERRIDE {
+  virtual bool ToggleFullscreen(ash::wm::WindowState* window_state) override {
     // Windows which cannot be maximized should not be fullscreened.
     DCHECK(window_state->IsFullscreen() || window_state->CanMaximize());
     if (window_state->IsFullscreen())
@@ -159,7 +163,7 @@ class NativeAppWindowStateDelegate : public ash::wm::WindowStateDelegate,
   // Overridden from ash::wm::WindowStateObserver:
   virtual void OnPostWindowStateTypeChange(
       ash::wm::WindowState* window_state,
-      ash::wm::WindowStateType old_type) OVERRIDE {
+      ash::wm::WindowStateType old_type) override {
     // Since the window state might get set by a window manager, it is possible
     // to come here before the application set its |BaseWindow|.
     if (!window_state->IsFullscreen() && !window_state->IsMinimized() &&
@@ -175,7 +179,7 @@ class NativeAppWindowStateDelegate : public ash::wm::WindowStateDelegate,
   }
 
   // Overridden from aura::WindowObserver:
-  virtual void OnWindowDestroying(aura::Window* window) OVERRIDE {
+  virtual void OnWindowDestroying(aura::Window* window) override {
     window_state_->RemoveObserver(this);
     window_state_->window()->RemoveObserver(this);
     window_state_ = NULL;
@@ -229,6 +233,14 @@ void ChromeNativeAppWindowViews::InitializeDefaultWindow(
 #endif
 
   OnBeforeWidgetInit(&init_params, widget());
+#if defined(OS_CHROMEOS)
+  if (create_params.is_ime_window) {
+    // Puts ime windows into ime window container.
+    init_params.parent =
+        ash::Shell::GetContainer(ash::Shell::GetPrimaryRootWindow(),
+                                 ash::kShellWindowId_ImeWindowParentContainer);
+  }
+#endif
   widget()->Init(init_params);
 
   // The frame insets are required to resolve the bounds specifications
@@ -256,6 +268,11 @@ void ChromeNativeAppWindowViews::InitializeDefaultWindow(
     // but does not have, a new attribute has to be added.
     wm::SetShadowType(widget()->GetNativeWindow(), wm::SHADOW_TYPE_NONE);
   }
+
+#if defined(OS_CHROMEOS)
+  if (create_params.is_ime_window)
+    return;
+#endif
 
   // Register accelarators supported by app windows.
   // TODO(jeremya/stevenjb): should these be registered for panels too?
@@ -507,17 +524,15 @@ views::NonClientFrameView* ChromeNativeAppWindowViews::CreateNonClientFrameView(
         scoped_ptr<ash::wm::WindowStateDelegate>(
             new NativeAppWindowStateDelegate(app_window(), this)).Pass());
 
+    if (IsFrameless())
+      return CreateNonStandardAppFrame();
+
     if (app_window()->window_type_is_panel()) {
-      ash::PanelFrameView::FrameType frame_type = IsFrameless() ?
-          ash::PanelFrameView::FRAME_NONE : ash::PanelFrameView::FRAME_ASH;
       views::NonClientFrameView* frame_view =
-          new ash::PanelFrameView(widget, frame_type);
+          new ash::PanelFrameView(widget, ash::PanelFrameView::FRAME_ASH);
       frame_view->set_context_menu_controller(this);
       return frame_view;
     }
-
-    if (IsFrameless())
-      return CreateNonStandardAppFrame();
 
     ash::CustomFrameViewAsh* custom_frame_view =
         new ash::CustomFrameViewAsh(widget);
@@ -527,6 +542,12 @@ views::NonClientFrameView* ChromeNativeAppWindowViews::CreateNonClientFrameView(
     custom_frame_view->InitImmersiveFullscreenControllerForView(
         immersive_fullscreen_controller_.get());
     custom_frame_view->GetHeaderView()->set_context_menu_controller(this);
+
+    if (has_frame_color_) {
+      custom_frame_view->SetFrameColors(active_frame_color_,
+                                        inactive_frame_color_);
+    }
+
     return custom_frame_view;
   }
 #endif

@@ -67,21 +67,20 @@ class GpuCommandBufferMemoryTracker : public gpu::gles2::MemoryTracker {
           CreateTrackingGroup(channel->renderer_pid(), this)) {
   }
 
-  virtual void TrackMemoryAllocatedChange(
+  void TrackMemoryAllocatedChange(
       size_t old_size,
       size_t new_size,
-      gpu::gles2::MemoryTracker::Pool pool) OVERRIDE {
+      gpu::gles2::MemoryTracker::Pool pool) override {
     tracking_group_->TrackMemoryAllocatedChange(
         old_size, new_size, pool);
   }
 
-  virtual bool EnsureGPUMemoryAvailable(size_t size_needed) OVERRIDE {
+  bool EnsureGPUMemoryAvailable(size_t size_needed) override {
     return tracking_group_->EnsureGPUMemoryAvailable(size_needed);
   };
 
  private:
-  virtual ~GpuCommandBufferMemoryTracker() {
-  }
+  ~GpuCommandBufferMemoryTracker() override {}
   scoped_ptr<GpuMemoryTrackingGroup> tracking_group_;
 
   DISALLOW_COPY_AND_ASSIGN(GpuCommandBufferMemoryTracker);
@@ -91,7 +90,7 @@ class GpuCommandBufferMemoryTracker : public gpu::gles2::MemoryTracker {
 // url_hash matches.
 void FastSetActiveURL(const GURL& url, size_t url_hash) {
   // Leave the previously set URL in the empty case -- empty URLs are given by
-  // WebKitPlatformSupportImpl::createOffscreenGraphicsContext3D. Hopefully the
+  // BlinkPlatformImpl::createOffscreenGraphicsContext3D. Hopefully the
   // onscreen context URL was set previously and will show up even when a crash
   // occurs during offscreen command processing.
   if (url.is_empty())
@@ -117,7 +116,7 @@ class DevToolsChannelData : public base::debug::ConvertableToTraceFormat {
   static scoped_refptr<base::debug::ConvertableToTraceFormat> CreateForChannel(
       GpuChannel* channel);
 
-  virtual void AppendAsTraceFormat(std::string* out) const OVERRIDE {
+  void AppendAsTraceFormat(std::string* out) const override {
     std::string tmp;
     base::JSONWriter::Write(value_.get(), &tmp);
     *out += tmp;
@@ -125,7 +124,7 @@ class DevToolsChannelData : public base::debug::ConvertableToTraceFormat {
 
  private:
   explicit DevToolsChannelData(base::Value* value) : value_(value) {}
-  virtual ~DevToolsChannelData() {}
+  ~DevToolsChannelData() override {}
   scoped_ptr<base::Value> value_;
   DISALLOW_COPY_AND_ASSIGN(DevToolsChannelData);
 };
@@ -225,11 +224,12 @@ bool GpuCommandBufferStub::OnMessageReceived(const IPC::Message& message) {
   // Ensure the appropriate GL context is current before handling any IPC
   // messages directed at the command buffer. This ensures that the message
   // handler can assume that the context is current (not necessary for
-  // Echo, RetireSyncPoint, or WaitSyncPoint).
-  if (decoder_.get() && message.type() != GpuCommandBufferMsg_Echo::ID &&
+  // RetireSyncPoint or WaitSyncPoint).
+  if (decoder_.get() &&
       message.type() != GpuCommandBufferMsg_WaitForTokenInRange::ID &&
       message.type() != GpuCommandBufferMsg_WaitForGetOffsetInRange::ID &&
-      message.type() != GpuCommandBufferMsg_RetireSyncPoint::ID) {
+      message.type() != GpuCommandBufferMsg_RetireSyncPoint::ID &&
+      message.type() != GpuCommandBufferMsg_SignalSyncPoint::ID) {
     if (!MakeCurrent())
       return false;
     have_context = true;
@@ -245,7 +245,6 @@ bool GpuCommandBufferStub::OnMessageReceived(const IPC::Message& message) {
                                     OnSetGetBuffer);
     IPC_MESSAGE_HANDLER(GpuCommandBufferMsg_ProduceFrontBuffer,
                         OnProduceFrontBuffer);
-    IPC_MESSAGE_HANDLER(GpuCommandBufferMsg_Echo, OnEcho);
     IPC_MESSAGE_HANDLER_DELAY_REPLY(GpuCommandBufferMsg_WaitForTokenInRange,
                                     OnWaitForTokenInRange);
     IPC_MESSAGE_HANDLER_DELAY_REPLY(GpuCommandBufferMsg_WaitForGetOffsetInRange,
@@ -271,10 +270,8 @@ bool GpuCommandBufferStub::OnMessageReceived(const IPC::Message& message) {
     IPC_MESSAGE_HANDLER(
         GpuCommandBufferMsg_SetClientHasMemoryAllocationChangedCallback,
         OnSetClientHasMemoryAllocationChangedCallback)
-    IPC_MESSAGE_HANDLER(GpuCommandBufferMsg_RegisterGpuMemoryBuffer,
-                        OnRegisterGpuMemoryBuffer);
-    IPC_MESSAGE_HANDLER(GpuCommandBufferMsg_UnregisterGpuMemoryBuffer,
-                        OnUnregisterGpuMemoryBuffer);
+    IPC_MESSAGE_HANDLER(GpuCommandBufferMsg_CreateImage, OnCreateImage);
+    IPC_MESSAGE_HANDLER(GpuCommandBufferMsg_DestroyImage, OnDestroyImage);
     IPC_MESSAGE_HANDLER(GpuCommandBufferMsg_CreateStreamTexture,
                         OnCreateStreamTexture)
     IPC_MESSAGE_UNHANDLED(handled = false)
@@ -382,11 +379,6 @@ void GpuCommandBufferStub::ScheduleDelayedWork(int64 delay) {
       FROM_HERE,
       base::Bind(&GpuCommandBufferStub::PollWork, AsWeakPtr()),
       base::TimeDelta::FromMilliseconds(delay));
-}
-
-void GpuCommandBufferStub::OnEcho(const IPC::Message& message) {
-  TRACE_EVENT0("gpu", "GpuCommandBufferStub::OnEcho");
-  Send(new IPC::Message(message));
 }
 
 bool GpuCommandBufferStub::MakeCurrent() {
@@ -865,8 +857,6 @@ void GpuCommandBufferStub::AddSyncPoint(uint32 sync_point) {
 void GpuCommandBufferStub::OnRetireSyncPoint(uint32 sync_point) {
   DCHECK(!sync_points_.empty() && sync_points_.front() == sync_point);
   sync_points_.pop_front();
-  if (context_group_->mailbox_manager()->UsesSync() && MakeCurrent())
-    context_group_->mailbox_manager()->PushTextureUpdates();
   GpuChannelManager* manager = channel_->gpu_channel_manager();
   manager->sync_point_manager()->RetireSyncPoint(sync_point);
 }
@@ -948,21 +938,12 @@ void GpuCommandBufferStub::OnSetClientHasMemoryAllocationChangedCallback(
   }
 }
 
-void GpuCommandBufferStub::OnRegisterGpuMemoryBuffer(
-    int32 id,
-    gfx::GpuMemoryBufferHandle handle,
-    uint32 width,
-    uint32 height,
-    uint32 internalformat) {
-  TRACE_EVENT0("gpu", "GpuCommandBufferStub::OnRegisterGpuMemoryBuffer");
-#if defined(OS_ANDROID)
-  // Verify that renderer is not trying to use a surface texture it doesn't own.
-  if (handle.type == gfx::SURFACE_TEXTURE_BUFFER &&
-      handle.surface_texture_id.secondary_id != channel()->client_id()) {
-    LOG(ERROR) << "Illegal surface texture ID for renderer.";
-    return;
-  }
-#endif
+void GpuCommandBufferStub::OnCreateImage(int32 id,
+                                         gfx::GpuMemoryBufferHandle handle,
+                                         gfx::Size size,
+                                         gfx::GpuMemoryBuffer::Format format,
+                                         uint32 internalformat) {
+  TRACE_EVENT0("gpu", "GpuCommandBufferStub::OnCreateImage");
 
   if (!decoder_)
     return;
@@ -977,22 +958,15 @@ void GpuCommandBufferStub::OnRegisterGpuMemoryBuffer(
   GpuChannelManager* manager = channel_->gpu_channel_manager();
   scoped_refptr<gfx::GLImage> image =
       manager->gpu_memory_buffer_factory()->CreateImageForGpuMemoryBuffer(
-          handle,
-          gfx::Size(width, height),
-          internalformat,
-          channel()->client_id());
+          handle, size, format, internalformat, channel()->client_id());
   if (!image.get())
     return;
-
-  // For Android specific workaround.
-  if (context_group_->feature_info()->workarounds().release_image_after_use)
-    image->SetReleaseAfterUse();
 
   image_manager->AddImage(image.get(), id);
 }
 
-void GpuCommandBufferStub::OnUnregisterGpuMemoryBuffer(int32 id) {
-  TRACE_EVENT0("gpu", "GpuCommandBufferStub::OnUnregisterGpuMemoryBuffer");
+void GpuCommandBufferStub::OnDestroyImage(int32 id) {
+  TRACE_EVENT0("gpu", "GpuCommandBufferStub::OnDestroyImage");
 
   if (!decoder_)
     return;
@@ -1103,6 +1077,11 @@ void GpuCommandBufferStub::MarkContextLost() {
 
 uint64 GpuCommandBufferStub::GetMemoryUsage() const {
   return GetMemoryManager()->GetClientMemoryUsage(this);
+}
+
+void GpuCommandBufferStub::SwapBuffersCompleted(
+    const std::vector<ui::LatencyInfo>& latency_info) {
+  Send(new GpuCommandBufferMsg_SwapBuffersCompleted(route_id_, latency_info));
 }
 
 }  // namespace content

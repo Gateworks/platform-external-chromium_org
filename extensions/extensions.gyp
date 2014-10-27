@@ -8,14 +8,41 @@
   },
   'targets': [
     {
+      # GN version: //extensions/common:mojo
+      'target_name': 'extensions_common_mojo',
+      # The type of this target must be none. This is so that resources can
+      # depend upon this target for generating the js bindings files. Any
+      # generated cpp files must be listed explicitly in extensions_common
+      'type': 'none',
+      'includes': [
+        '../mojo/public/tools/bindings/mojom_bindings_generator.gypi',
+      ],
+      'sources': [
+        'common/mojo/keep_alive.mojom',
+        'common/mojo/stash.mojom',
+      ],
+    },
+    {
+      # GN version: //extensions/common
+      'target_name': 'extensions_common_constants',
+      'type': 'static_library',
+      'include_dirs': [
+        '..',
+        '<(INTERMEDIATE_DIR)',
+      ],
+      'sources': [
+        # Note: sources list duplicated in GN build.
+        'common/constants.cc',
+        'common/constants.h',
+      ],
+      # Disable c4267 warnings until we fix size_t to int truncations.
+      'msvs_disabled_warnings': [ 4267, ],
+    },
+    {
       # GN version: //extensions/common
       'target_name': 'extensions_common',
       'type': 'static_library',
       'dependencies': [
-        # TODO(benwells): figure out what to do with the api target and
-        # api resources compiled into the chrome resource bundle.
-        # http://crbug.com/162530
-        '../chrome/chrome_resources.gyp:chrome_resources',
         '../components/components.gyp:crx_file',
         '../components/components.gyp:url_matcher',
         '../content/content.gyp:content_common',
@@ -28,7 +55,10 @@
         '../ui/gfx/ipc/gfx_ipc.gyp:gfx_ipc',
         '../url/url.gyp:url_lib',
         '../third_party/libxml/libxml.gyp:libxml',
+        'extensions_resources.gyp:extensions_resources',
         'extensions_strings.gyp:extensions_strings',
+        'extensions_common_constants',
+        'extensions_common_mojo',
       ],
       'include_dirs': [
         '..',
@@ -51,8 +81,6 @@
         'common/api/sockets/sockets_manifest_permission.h',
         'common/common_manifest_handlers.cc',
         'common/common_manifest_handlers.h',
-        'common/constants.cc',
-        'common/constants.h',
         'common/csp_validator.cc',
         'common/csp_validator.h',
         'common/dom_action_types.h',
@@ -70,7 +98,6 @@
         'common/extension.h',
         'common/extension_api.cc',
         'common/extension_api.h',
-        'common/extension_api_stub.cc',
         'common/extension_icon_set.cc',
         'common/extension_icon_set.h',
         'common/extension_l10n_util.cc',
@@ -142,6 +169,8 @@
         'common/manifest_handlers/kiosk_mode_info.h',
         'common/manifest_handlers/launcher_page_info.cc',
         'common/manifest_handlers/launcher_page_info.h',
+        'common/manifest_handlers/oauth2_manifest_handler.cc',
+        'common/manifest_handlers/oauth2_manifest_handler.h',
         'common/manifest_handlers/offline_enabled_info.cc',
         'common/manifest_handlers/offline_enabled_info.h',
         'common/manifest_handlers/options_page_info.cc',
@@ -158,6 +187,8 @@
         'common/manifest_handlers/web_accessible_resources_info.h',
         'common/manifest_handlers/webview_info.cc',
         'common/manifest_handlers/webview_info.h',
+        'common/manifest_url_handlers.cc',
+        'common/manifest_url_handlers.h',
         'common/message_bundle.cc',
         'common/message_bundle.h',
         'common/one_shot_event.cc',
@@ -219,6 +250,10 @@
         'common/value_counter.h',
         'common/view_type.cc',
         'common/view_type.h',
+        '<(SHARED_INTERMEDIATE_DIR)/extensions/common/mojo/keep_alive.mojom.cc',
+        '<(SHARED_INTERMEDIATE_DIR)/extensions/common/mojo/keep_alive.mojom.h',
+        '<(SHARED_INTERMEDIATE_DIR)/extensions/common/mojo/stash.mojom.cc',
+        '<(SHARED_INTERMEDIATE_DIR)/extensions/common/mojo/stash.mojom.h',
       ],
       # Disable c4267 warnings until we fix size_t to int truncations.
       'msvs_disabled_warnings': [ 4267, ],
@@ -230,9 +265,6 @@
             # For Mojo generated headers for generated_api.cc.
             '../device/serial/serial.gyp:device_serial_mojo',
             '../device/usb/usb.gyp:device_usb',
-          ],
-          'sources!': [
-            'common/extension_api_stub.cc',
           ],
         }, {  # enable_extensions == 0
           'sources!': [
@@ -273,16 +305,18 @@
       'dependencies': [
         '../base/base.gyp:base',
         '../base/base.gyp:base_prefs',
+        '../components/components.gyp:copresence_sockets',
         '../components/components.gyp:keyed_service_content',
         '../components/components.gyp:keyed_service_core',
         '../components/components.gyp:pref_registry',
-        '../components/components.gyp:sessions',
+        '../components/components.gyp:sessions_content',
         '../components/components.gyp:storage_monitor',
         '../components/components.gyp:web_cache_browser',
         '../components/components.gyp:web_modal',
         '../content/content.gyp:content_browser',
         '../device/bluetooth/bluetooth.gyp:device_bluetooth',
         '../device/serial/serial.gyp:device_serial',
+        '../google_apis/google_apis.gyp:google_apis',
         '../skia/skia.gyp:skia',
         '../third_party/leveldatabase/leveldatabase.gyp:leveldatabase',
         '../third_party/re2/re2.gyp:re2',
@@ -290,6 +324,7 @@
         'common/api/api.gyp:cast_channel_proto',
         'common/api/api.gyp:extensions_api',
         'extensions_common',
+        'extensions_resources.gyp:extensions_resources',
         'extensions_strings.gyp:extensions_strings',
       ],
       'include_dirs': [
@@ -297,8 +332,6 @@
         '<(INTERMEDIATE_DIR)',
         # Needed to access generated API headers.
         '<(SHARED_INTERMEDIATE_DIR)',
-        # Needed for grit.
-        '<(SHARED_INTERMEDIATE_DIR)/chrome',
       ],
       'sources': [
         # Note: sources list duplicated in GN build.
@@ -313,8 +346,8 @@
         'browser/api/app_current_window_internal/app_current_window_internal_api.h',
         'browser/api/app_runtime/app_runtime_api.cc',
         'browser/api/app_runtime/app_runtime_api.h',
-        'browser/api/app_view/app_view_internal_api.cc',
-        'browser/api/app_view/app_view_internal_api.h',
+        'browser/api/app_view/app_view_guest_internal_api.cc',
+        'browser/api/app_view/app_view_guest_internal_api.h',
         'browser/api/app_window/app_window_api.cc',
         'browser/api/app_window/app_window_api.h',
         'browser/api/guest_view/guest_view_internal_api.cc',
@@ -369,6 +402,8 @@
         'browser/api/cast_channel/logger.h',
         'browser/api/cast_channel/logger_util.cc',
         'browser/api/cast_channel/logger_util.h',
+        'browser/api/copresence_socket/copresence_socket_api.cc',
+        'browser/api/copresence_socket/copresence_socket_api.h',
         'browser/api/declarative/deduping_factory.h',
         'browser/api/declarative/declarative_api.cc',
         'browser/api/declarative/declarative_api.h',
@@ -394,6 +429,10 @@
         'browser/api/declarative_webrequest/webrequest_constants.h',
         'browser/api/declarative_webrequest/webrequest_rules_registry.cc',
         'browser/api/declarative_webrequest/webrequest_rules_registry.h',
+        'browser/api/device_permissions_manager.cc',
+        'browser/api/device_permissions_manager.h',
+        'browser/api/device_permissions_prompt.cc',
+        'browser/api/device_permissions_prompt.h',
         'browser/api/dns/dns_api.cc',
         'browser/api/dns/dns_api.h',
         'browser/api/dns/host_resolver_wrapper.cc',
@@ -408,6 +447,7 @@
         'browser/api/hid/hid_connection_resource.h',
         'browser/api/hid/hid_device_manager.cc',
         'browser/api/hid/hid_device_manager.h',
+        'browser/api/messaging/native_message_host.cc',
         'browser/api/power/power_api.cc',
         'browser/api/power/power_api.h',
         'browser/api/power/power_api_manager.cc',
@@ -493,8 +533,6 @@
         'browser/api/usb/usb_api.h',
         'browser/api/usb/usb_device_resource.cc',
         'browser/api/usb/usb_device_resource.h',
-        'browser/api/usb_private/usb_private_api.cc',
-        'browser/api/usb_private/usb_private_api.h',
         'browser/api/web_request/form_data_parser.cc',
         'browser/api/web_request/form_data_parser.h',
         'browser/api/web_request/upload_data_presenter.cc',
@@ -629,6 +667,7 @@
         'browser/guest_view/guest_view.h',
         'browser/guest_view/mime_handler_view/mime_handler_view_constants.cc',
         'browser/guest_view/mime_handler_view/mime_handler_view_constants.h',
+        'browser/guest_view/mime_handler_view/mime_handler_view_guest_delegate.cc',
         'browser/guest_view/mime_handler_view/mime_handler_view_guest_delegate.h',
         'browser/guest_view/mime_handler_view/mime_handler_view_guest.cc',
         'browser/guest_view/mime_handler_view/mime_handler_view_guest.h',
@@ -656,6 +695,9 @@
         'browser/image_util.h',
         'browser/info_map.cc',
         'browser/info_map.h',
+        'browser/install/crx_installer_error.h',
+        'browser/install/extension_install_ui.cc',
+        'browser/install/extension_install_ui.h',
         'browser/install_flag.h',
         'browser/file_highlighter.cc',
         'browser/file_highlighter.h',
@@ -665,6 +707,12 @@
         'browser/lazy_background_task_queue.h',
         'browser/management_policy.cc',
         'browser/management_policy.h',
+        'browser/mojo/keep_alive_impl.cc',
+        'browser/mojo/keep_alive_impl.h',
+        'browser/mojo/service_registration_manager.cc',
+        'browser/mojo/service_registration_manager.h',
+        'browser/mojo/stash_backend.cc',
+        'browser/mojo/stash_backend.h',
         'browser/notification_types.h',
         'browser/null_app_sorting.cc',
         'browser/null_app_sorting.h',
@@ -693,8 +741,17 @@
         'browser/suggest_permission_util.h',
         'browser/uninstall_reason.h',
         'browser/update_observer.h',
+        'browser/updater/extension_cache.h',
+        'browser/updater/extension_downloader.cc',
+        'browser/updater/extension_downloader.h',
+        'browser/updater/extension_downloader_delegate.cc',
+        'browser/updater/extension_downloader_delegate.h',
         'browser/updater/manifest_fetch_data.cc',
         'browser/updater/manifest_fetch_data.h',
+        'browser/updater/null_extension_cache.cc',
+        'browser/updater/null_extension_cache.h',
+        'browser/updater/request_queue.h',
+        'browser/updater/request_queue_impl.h',
         'browser/updater/safe_manifest_parser.cc',
         'browser/updater/safe_manifest_parser.h',
         'browser/url_request_util.cc',
@@ -767,10 +824,9 @@
       'type': 'static_library',
       'dependencies': [
         'extensions_resources.gyp:extensions_resources',
-        '../chrome/chrome_resources.gyp:chrome_resources',
         '../content/content.gyp:content_resources',
         '../gin/gin.gyp:gin',
-        '../mojo/mojo_base.gyp:mojo_js_bindings',
+        '../mojo/public/mojo_public.gyp:mojo_js_bindings',
         '../third_party/WebKit/public/blink.gyp:blink',
       ],
       'include_dirs': [
@@ -880,6 +936,9 @@
         'renderer/resources/uncaught_exception_handler.js',
         'renderer/resources/unload_event.js',
         'renderer/resources/utils.js',
+        'renderer/resources/extensions/web_view.js',
+        'renderer/resources/extensions/web_view_events.js',
+        'renderer/resources/extensions/web_view_experimental.js',
         'renderer/resources/web_request_custom_bindings.js',
         'renderer/resources/web_request_internal_custom_bindings.js',
         'renderer/runtime_custom_bindings.cc',
@@ -902,8 +961,8 @@
         'renderer/send_request_natives.h',
         'renderer/set_icon_natives.cc',
         'renderer/set_icon_natives.h',
-        'renderer/static_v8_external_ascii_string_resource.cc',
-        'renderer/static_v8_external_ascii_string_resource.h',
+        'renderer/static_v8_external_one_byte_string_resource.cc',
+        'renderer/static_v8_external_one_byte_string_resource.h',
         'renderer/test_features_native_handler.cc',
         'renderer/test_features_native_handler.h',
         'renderer/user_gestures_native_handler.cc',
@@ -931,6 +990,9 @@
       'dependencies': [
         '../base/base.gyp:base',
         '../components/components.gyp:user_prefs',
+        '../content/content.gyp:content_browser',
+        '../content/content.gyp:content_common',
+        '../content/content_shell_and_tests.gyp:test_support_content',
         '../net/net.gyp:net_test_support',
         '../testing/gtest.gyp:gtest',
         'browser/api/api_registration.gyp:extensions_api_registration',
@@ -951,12 +1013,14 @@
         'browser/api/storage/settings_test_util.h',
         'browser/api_test_utils.cc',
         'browser/api_test_utils.h',
+        'browser/api_unittest.cc',
+        'browser/api_unittest.h',
         'browser/extension_error_test_util.cc',
         'browser/extension_error_test_util.h',
         'browser/extensions_test.cc',
         'browser/extensions_test.h',
-        'browser/guest_view/web_view/test_guest_view_manager.cc',
-        'browser/guest_view/web_view/test_guest_view_manager.h',
+        'browser/guest_view/test_guest_view_manager.cc',
+        'browser/guest_view/test_guest_view_manager.h',
         'browser/mock_extension_system.cc',
         'browser/mock_extension_system.h',
         'browser/test_extensions_browser_client.cc',
@@ -995,9 +1059,6 @@
       'target_name': 'extensions_shell_and_test_pak',
       'type': 'none',
       'dependencies': [
-        # Need extension related resources in common_resources.pak and
-        # renderer_resources_100_percent.pak
-        '../chrome/chrome_resources.gyp:chrome_resources',
         # Need dev-tools related resources in shell_resources.pak and
         # devtools_resources.pak.
         '../content/browser/devtools/devtools_resources.gyp:devtools_resources',
@@ -1007,25 +1068,20 @@
         '../ui/strings/ui_strings.gyp:ui_strings',
         'extensions_resources.gyp:extensions_resources',
         'extensions_strings.gyp:extensions_strings',
+        'shell/app_shell_resources.gyp:app_shell_resources',
       ],
       'actions': [
         {
           'action_name': 'repack_extensions_shell_and_test_pak',
           'variables': {
             'pak_inputs': [
-              '<(SHARED_INTERMEDIATE_DIR)/chrome/common_resources.pak',
-              '<(SHARED_INTERMEDIATE_DIR)/chrome/extensions_api_resources.pak',
-              # TODO(jamescook): Extract the extension/app related resources
-              # from generated_resources_en-US.pak. http://crbug.com/397250
-              '<(SHARED_INTERMEDIATE_DIR)/chrome/generated_resources_en-US.pak',
-              '<(SHARED_INTERMEDIATE_DIR)/chrome/renderer_resources_100_percent.pak',
               '<(SHARED_INTERMEDIATE_DIR)/content/app/strings/content_strings_en-US.pak',
               '<(SHARED_INTERMEDIATE_DIR)/content/content_resources.pak',
               '<(SHARED_INTERMEDIATE_DIR)/content/shell_resources.pak',
               '<(SHARED_INTERMEDIATE_DIR)/extensions/extensions_browser_resources_100_percent.pak',
               '<(SHARED_INTERMEDIATE_DIR)/extensions/extensions_renderer_resources.pak',
               '<(SHARED_INTERMEDIATE_DIR)/extensions/extensions_resources.pak',
-              '<(SHARED_INTERMEDIATE_DIR)/extensions/extensions_resources.pak',
+              '<(SHARED_INTERMEDIATE_DIR)/extensions/shell/app_shell_resources.pak',
               '<(SHARED_INTERMEDIATE_DIR)/extensions/strings/extensions_strings_en-US.pak',
               '<(SHARED_INTERMEDIATE_DIR)/ui/resources/ui_resources_100_percent.pak',
               '<(SHARED_INTERMEDIATE_DIR)/ui/strings/app_locale_settings_en-US.pak',
@@ -1051,10 +1107,10 @@
         '../device/bluetooth/bluetooth.gyp:device_bluetooth_mocks',
         '../device/serial/serial.gyp:device_serial',
         '../device/serial/serial.gyp:device_serial_test_util',
+        '../mojo/edk/mojo_edk.gyp:mojo_system_impl',
         '../mojo/mojo_base.gyp:mojo_environment_chromium',
-        '../mojo/mojo_base.gyp:mojo_cpp_bindings',
         '../mojo/mojo_base.gyp:mojo_js_bindings_lib',
-        '../mojo/mojo_base.gyp:mojo_system_impl',
+        '../mojo/public/mojo_public.gyp:mojo_cpp_bindings',
         '../testing/gmock.gyp:gmock',
         '../testing/gtest.gyp:gtest',
         '../third_party/leveldatabase/leveldatabase.gyp:leveldatabase',
@@ -1096,8 +1152,6 @@
         'browser/content_hash_tree_unittest.cc',
         'browser/event_listener_map_unittest.cc',
         'browser/event_router_unittest.cc',
-        'browser/api_unittest.cc',
-        'browser/api_unittest.h',
         'browser/error_map_unittest.cc',
         'browser/extension_icon_image_unittest.cc',
         'browser/extension_pref_value_map_unittest.cc',
@@ -1110,6 +1164,8 @@
         'browser/info_map_unittest.cc',
         'browser/lazy_background_task_queue_unittest.cc',
         'browser/management_policy_unittest.cc',
+        'browser/mojo/keep_alive_impl_unittest.cc',
+        'browser/mojo/stash_backend_unittest.cc',
         'browser/process_manager_unittest.cc',
         'browser/process_map_unittest.cc',
         'browser/quota_service_unittest.cc',
@@ -1135,6 +1191,7 @@
         'common/manifest_handler_unittest.cc',
         'common/manifest_handlers/externally_connectable_unittest.cc',
         'common/manifest_handlers/file_handler_manifest_unittest.cc',
+        'common/manifest_handlers/oauth2_manifest_unittest.cc',
         'common/manifest_handlers/shared_module_manifest_unittest.cc',
         'common/message_bundle_unittest.cc',
         'common/one_shot_event_unittest.cc',

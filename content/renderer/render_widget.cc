@@ -49,7 +49,7 @@
 #include "content/renderer/render_frame_proxy.h"
 #include "content/renderer/render_process.h"
 #include "content/renderer/render_thread_impl.h"
-#include "content/renderer/renderer_webkitplatformsupport_impl.h"
+#include "content/renderer/renderer_blink_platform_impl.h"
 #include "content/renderer/resizing_mode_selector.h"
 #include "ipc/ipc_sync_message.h"
 #include "skia/ext/platform_canvas.h"
@@ -403,6 +403,7 @@ RenderWidget::RenderWidget(blink::WebPopupType popup_type,
       input_method_is_active_(false),
       text_input_type_(ui::TEXT_INPUT_TYPE_NONE),
       text_input_mode_(ui::TEXT_INPUT_MODE_DEFAULT),
+      text_input_flags_(0),
       can_compose_inline_(true),
       popup_type_(popup_type),
       pending_window_rect_count_(0),
@@ -608,6 +609,7 @@ bool RenderWidget::OnMessageReceived(const IPC::Message& message) {
     IPC_MESSAGE_HANDLER(ViewMsg_Close, OnClose)
     IPC_MESSAGE_HANDLER(ViewMsg_CreatingNew_ACK, OnCreatingNewAck)
     IPC_MESSAGE_HANDLER(ViewMsg_Resize, OnResize)
+    IPC_MESSAGE_HANDLER(ViewMsg_ColorProfile, OnColorProfile)
     IPC_MESSAGE_HANDLER(ViewMsg_ChangeResizeRect, OnChangeResizeRect)
     IPC_MESSAGE_HANDLER(ViewMsg_WasHidden, OnWasHidden)
     IPC_MESSAGE_HANDLER(ViewMsg_WasShown, OnWasShown)
@@ -679,6 +681,8 @@ void RenderWidget::Resize(const gfx::Size& new_size,
   if (fullscreen_change)
     WillToggleFullscreen();
   is_fullscreen_ = is_fullscreen;
+
+  webwidget_->setTopControlsLayoutHeight(top_controls_layout_height);
 
   if (size_ != new_size) {
     size_ = new_size;
@@ -779,6 +783,10 @@ void RenderWidget::OnResize(const ViewMsg_Resize_Params& params) {
 
   if (orientation_changed)
     OnOrientationChange();
+}
+
+void RenderWidget::OnColorProfile(const std::vector<char>& color_profile) {
+  SetDeviceColorProfile(color_profile);
 }
 
 void RenderWidget::OnChangeResizeRect(const gfx::Rect& resizer_rect) {
@@ -946,7 +954,8 @@ void RenderWidget::OnHandleInputEvent(const blink::WebInputEvent* input_event,
     const WebKeyboardEvent& key_event =
         *static_cast<const WebKeyboardEvent*>(input_event);
     // Some keys are special and it's essential that no events get blocked.
-    if (key_event.nativeKeyCode != AKEYCODE_TAB)
+    if (key_event.nativeKeyCode != AKEYCODE_TAB &&
+        key_event.nativeKeyCode != AKEYCODE_DPAD_CENTER)
       ime_event_guard_maybe.reset(new ImeEventGuard(this));
   }
 #endif
@@ -1070,13 +1079,9 @@ void RenderWidget::OnHandleInputEvent(const blink::WebInputEvent* input_event,
     }
   }
 
-  // Unconsumed touchmove acks should never be throttled as they're required to
-  // dispatch compositor-handled scroll gestures.
   bool event_type_can_be_rate_limited =
       input_event->type == WebInputEvent::MouseMove ||
-      input_event->type == WebInputEvent::MouseWheel ||
-      (input_event->type == WebInputEvent::TouchMove &&
-       ack_result == INPUT_EVENT_ACK_STATE_CONSUMED);
+      input_event->type == WebInputEvent::MouseWheel;
 
   bool frame_pending = compositor_ && compositor_->BeginMainFrameRequested();
 
@@ -1237,7 +1242,10 @@ void RenderWidget::willBeginCompositorFrame() {
   // The following two can result in further layout and possibly
   // enable GPU acceleration so they need to be called before any painting
   // is done.
+  UpdateTextInputType();
+#if defined(OS_ANDROID)
   UpdateTextInputState(NO_SHOW_IME, FROM_NON_IME);
+#endif
   UpdateSelectionBounds();
 }
 
@@ -1270,7 +1278,7 @@ scoped_ptr<cc::SwapPromise> RenderWidget::QueueMessageImpl(
       // don't have any now, no other thread will add any.
       frame_swap_message_queue->Empty()) {
     sync_message_filter->Send(msg);
-    return scoped_ptr<cc::SwapPromise>();
+    return nullptr;
   }
 
   bool first_message_for_frame = false;
@@ -1281,9 +1289,9 @@ scoped_ptr<cc::SwapPromise> RenderWidget::QueueMessageImpl(
   if (first_message_for_frame) {
     scoped_ptr<cc::SwapPromise> promise(new QueueMessageSwapPromise(
         sync_message_filter, frame_swap_message_queue, source_frame_number));
-    return promise.PassAs<cc::SwapPromise>();
+    return promise;
   }
-  return scoped_ptr<cc::SwapPromise>();
+  return nullptr;
 }
 
 void RenderWidget::QueueMessage(IPC::Message* msg,
@@ -1747,6 +1755,47 @@ void RenderWidget::FinishHandlingImeEvent() {
 #endif
 }
 
+void RenderWidget::UpdateTextInputType() {
+  // On Windows, not only an IME but also an on-screen keyboard relies on the
+  // latest TextInputType to optimize its layout and functionality. Thus
+  // |input_method_is_active_| is no longer an appropriate condition to suppress
+  // TextInputTypeChanged IPC on Windows.
+  // TODO(yukawa, yoichio): Consider to stop checking |input_method_is_active_|
+  // on other platforms as well as Windows if the overhead is acceptable.
+#if !defined(OS_WIN)
+  if (!input_method_is_active_)
+    return;
+#endif
+
+  ui::TextInputType new_type = GetTextInputType();
+  if (IsDateTimeInput(new_type))
+    return;  // Not considered as a text input field in WebKit/Chromium.
+
+  bool new_can_compose_inline = CanComposeInline();
+
+  blink::WebTextInputInfo new_info;
+  if (webwidget_)
+    new_info = webwidget_->textInputInfo();
+  const ui::TextInputMode new_mode = ConvertInputMode(new_info.inputMode);
+  int new_flags = new_info.flags;
+
+  if (text_input_type_ != new_type
+      || can_compose_inline_ != new_can_compose_inline
+      || text_input_mode_ != new_mode
+      || text_input_flags_ != new_flags) {
+    Send(new ViewHostMsg_TextInputTypeChanged(routing_id(),
+                                              new_type,
+                                              new_mode,
+                                              new_can_compose_inline,
+                                              new_flags));
+    text_input_type_ = new_type;
+    can_compose_inline_ = new_can_compose_inline;
+    text_input_mode_ = new_mode;
+    text_input_flags_ = new_flags;
+  }
+}
+
+#if defined(OS_ANDROID) || defined(USE_AURA)
 void RenderWidget::UpdateTextInputState(ShowIme show_ime,
                                         ChangeSource change_source) {
   if (handling_ime_event_)
@@ -1760,7 +1809,6 @@ void RenderWidget::UpdateTextInputState(ShowIme show_ime,
   blink::WebTextInputInfo new_info;
   if (webwidget_)
     new_info = webwidget_->textInputInfo();
-  const ui::TextInputMode new_mode = ConvertInputMode(new_info.inputMode);
 
   bool new_can_compose_inline = CanComposeInline();
 
@@ -1768,7 +1816,6 @@ void RenderWidget::UpdateTextInputState(ShowIme show_ime,
   // shown.
   if (show_ime == SHOW_IME_IF_NEEDED ||
       (text_input_type_ != new_type ||
-       text_input_mode_ != new_mode ||
        text_input_info_ != new_info ||
        can_compose_inline_ != new_can_compose_inline)
 #if defined(OS_ANDROID)
@@ -1778,7 +1825,6 @@ void RenderWidget::UpdateTextInputState(ShowIme show_ime,
     ViewHostMsg_TextInputState_Params p;
     p.type = new_type;
     p.flags = new_info.flags;
-    p.mode = new_mode;
     p.value = new_info.value.utf8();
     p.selection_start = new_info.selectionStart;
     p.selection_end = new_info.selectionEnd;
@@ -1796,14 +1842,22 @@ void RenderWidget::UpdateTextInputState(ShowIme show_ime,
       IncrementOutstandingImeEventAcks();
     text_field_is_dirty_ = false;
 #endif
+#if defined(USE_AURA)
+    Send(new ViewHostMsg_TextInputTypeChanged(routing_id(),
+                                              new_type,
+                                              text_input_mode_,
+                                              new_can_compose_inline,
+                                              new_info.flags));
+#endif
     Send(new ViewHostMsg_TextInputStateChanged(routing_id(), p));
 
     text_input_info_ = new_info;
     text_input_type_ = new_type;
-    text_input_mode_ = new_mode;
     can_compose_inline_ = new_can_compose_inline;
+    text_input_flags_ = new_info.flags;
   }
 }
+#endif
 
 void RenderWidget::GetSelectionBounds(gfx::Rect* focus, gfx::Rect* anchor) {
   WebRect focus_webrect;

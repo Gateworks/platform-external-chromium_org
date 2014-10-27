@@ -5,8 +5,8 @@
 #include "mojo/services/gles2/command_buffer_impl.h"
 
 #include "base/bind.h"
+#include "base/macros.h"
 #include "base/memory/shared_memory.h"
-
 #include "gpu/command_buffer/common/constants.h"
 #include "gpu/command_buffer/service/command_buffer_service.h"
 #include "gpu/command_buffer/service/context_group.h"
@@ -28,17 +28,15 @@ class MemoryTrackerStub : public gpu::gles2::MemoryTracker {
  public:
   MemoryTrackerStub() {}
 
-  virtual void TrackMemoryAllocatedChange(size_t old_size,
-                                          size_t new_size,
-                                          gpu::gles2::MemoryTracker::Pool pool)
-      OVERRIDE {}
+  void TrackMemoryAllocatedChange(
+      size_t old_size,
+      size_t new_size,
+      gpu::gles2::MemoryTracker::Pool pool) override {}
 
-  virtual bool EnsureGPUMemoryAvailable(size_t size_needed) OVERRIDE {
-    return true;
-  };
+  bool EnsureGPUMemoryAvailable(size_t size_needed) override { return true; };
 
  private:
-  virtual ~MemoryTrackerStub() {}
+  ~MemoryTrackerStub() override {}
 
   DISALLOW_COPY_AND_ASSIGN(MemoryTrackerStub);
 };

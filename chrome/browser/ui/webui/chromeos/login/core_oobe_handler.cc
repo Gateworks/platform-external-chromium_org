@@ -261,12 +261,14 @@ void CoreOobeHandler::HandleEnableVirtualKeyboard(bool enabled) {
 }
 
 void CoreOobeHandler::HandleEnableScreenMagnifier(bool enabled) {
+#if !defined(USE_ATHENA)
   // TODO(nkostylev): Add support for partial screen magnifier.
   DCHECK(MagnificationManager::Get());
   MagnificationManager::Get()->SetMagnifierEnabled(enabled);
+#endif
 }
 
-void CoreOobeHandler::HandleEnableSpokenFeedback() {
+void CoreOobeHandler::HandleEnableSpokenFeedback(bool /* enabled */) {
   // Checkbox is initialized on page init and updates when spoken feedback
   // setting is changed so just toggle spoken feedback here.
   AccessibilityManager::Get()->ToggleSpokenFeedback(
@@ -331,6 +333,10 @@ void CoreOobeHandler::UpdateA11yState() {
 }
 
 void CoreOobeHandler::UpdateOobeUIVisibility() {
+#if defined(USE_ATHENA)
+  // Athena builds have their own way to display version so hide ours.
+  bool should_show_version = false;
+#else
   // Don't show version label on the stable channel by default.
   bool should_show_version = true;
   chrome::VersionInfo::Channel channel = chrome::VersionInfo::GetChannel();
@@ -338,6 +344,7 @@ void CoreOobeHandler::UpdateOobeUIVisibility() {
       channel == chrome::VersionInfo::CHANNEL_BETA) {
     should_show_version = false;
   }
+#endif
   CallJS("showVersion", should_show_version);
   CallJS("showOobeUI", show_oobe_ui_);
   if (system::InputDeviceSettings::Get()->ForceKeyboardDrivenUINavigation())

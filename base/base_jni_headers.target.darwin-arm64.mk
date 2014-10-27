@@ -7,6 +7,7 @@ LOCAL_MODULE := base_base_jni_headers_gyp
 LOCAL_MODULE_STEM := base_jni_headers
 LOCAL_MODULE_SUFFIX := .stamp
 LOCAL_MODULE_TARGET_ARCH := $(TARGET_$(GYP_VAR_PREFIX)ARCH)
+LOCAL_SDK_VERSION := 21
 gyp_intermediate_dir := $(call local-intermediates-dir,,$(GYP_VAR_PREFIX))
 gyp_shared_intermediate_dir := $(call intermediates-dir-for,GYP,shared,,,$(GYP_VAR_PREFIX))
 
@@ -16,7 +17,7 @@ GYP_TARGET_DEPENDENCIES := \
 
 
 ### Generated for rule "base_base_gyp_base_jni_headers_target_generate_jni_headers":
-# "{'inputs': ['../base/android/jni_generator/jni_generator.py', '../android_webview/build/jarjar-rules.txt'], 'process_outputs_as_sources': '1', 'extension': 'java', 'outputs': ['$(gyp_shared_intermediate_dir)/base/jni/%(INPUT_ROOT)s_jni.h'], 'rule_name': 'generate_jni_headers', 'rule_sources': ['android/java/src/org/chromium/base/ApplicationStatus.java', 'android/java/src/org/chromium/base/BuildInfo.java', 'android/java/src/org/chromium/base/CommandLine.java', 'android/java/src/org/chromium/base/ContentUriUtils.java', 'android/java/src/org/chromium/base/CpuFeatures.java', 'android/java/src/org/chromium/base/EventLog.java', 'android/java/src/org/chromium/base/FieldTrialList.java', 'android/java/src/org/chromium/base/ImportantFileWriterAndroid.java', 'android/java/src/org/chromium/base/JNIUtils.java', 'android/java/src/org/chromium/base/library_loader/LibraryLoader.java', 'android/java/src/org/chromium/base/MemoryPressureListener.java', 'android/java/src/org/chromium/base/JavaHandlerThread.java', 'android/java/src/org/chromium/base/PathService.java', 'android/java/src/org/chromium/base/PathUtils.java', 'android/java/src/org/chromium/base/PowerMonitor.java', 'android/java/src/org/chromium/base/SystemMessageHandler.java', 'android/java/src/org/chromium/base/SysUtils.java', 'android/java/src/org/chromium/base/ThreadUtils.java', 'android/java/src/org/chromium/base/TraceEvent.java'], 'action': ['../base/android/jni_generator/jni_generator.py', '--input_file', '$(RULE_SOURCES)', '--output_dir', '$(gyp_shared_intermediate_dir)/base/jni', '--includes', 'base/android/jni_generator/jni_generator_helper.h', '--optimize_generation', '0', '--jarjar', '../android_webview/build/jarjar-rules.txt', '--ptr_type', 'long', '--native_exports'], 'message': 'Generating JNI bindings from $(RULE_SOURCES)'}":
+# "{'inputs': ['../base/android/jni_generator/jni_generator.py', '../android_webview/build/jarjar-rules.txt'], 'process_outputs_as_sources': '1', 'extension': 'java', 'outputs': ['$(gyp_shared_intermediate_dir)/base/jni/%(INPUT_ROOT)s_jni.h'], 'rule_name': 'generate_jni_headers', 'rule_sources': ['android/java/src/org/chromium/base/ApplicationStatus.java', 'android/java/src/org/chromium/base/BuildInfo.java', 'android/java/src/org/chromium/base/CommandLine.java', 'android/java/src/org/chromium/base/ContentUriUtils.java', 'android/java/src/org/chromium/base/CpuFeatures.java', 'android/java/src/org/chromium/base/EventLog.java', 'android/java/src/org/chromium/base/FieldTrialList.java', 'android/java/src/org/chromium/base/ImportantFileWriterAndroid.java', 'android/java/src/org/chromium/base/JNIUtils.java', 'android/java/src/org/chromium/base/library_loader/LibraryLoader.java', 'android/java/src/org/chromium/base/LocaleUtils.java', 'android/java/src/org/chromium/base/MemoryPressureListener.java', 'android/java/src/org/chromium/base/JavaHandlerThread.java', 'android/java/src/org/chromium/base/PathService.java', 'android/java/src/org/chromium/base/PathUtils.java', 'android/java/src/org/chromium/base/PowerMonitor.java', 'android/java/src/org/chromium/base/SystemMessageHandler.java', 'android/java/src/org/chromium/base/SysUtils.java', 'android/java/src/org/chromium/base/ThreadUtils.java', 'android/java/src/org/chromium/base/TraceEvent.java'], 'action': ['../base/android/jni_generator/jni_generator.py', '--input_file', '$(RULE_SOURCES)', '--output_dir', '$(gyp_shared_intermediate_dir)/base/jni', '--includes', 'base/android/jni_generator/jni_generator_helper.h', '--optimize_generation', '0', '--jarjar', '../android_webview/build/jarjar-rules.txt', '--ptr_type', 'long', '--native_exports'], 'message': 'Generating JNI bindings from $(RULE_SOURCES)'}":
 $(gyp_shared_intermediate_dir)/base/jni/ApplicationStatus_jni.h: gyp_local_path := $(LOCAL_PATH)
 $(gyp_shared_intermediate_dir)/base/jni/ApplicationStatus_jni.h: gyp_var_prefix := $(GYP_VAR_PREFIX)
 $(gyp_shared_intermediate_dir)/base/jni/ApplicationStatus_jni.h: gyp_intermediate_dir := $(abspath $(gyp_intermediate_dir))
@@ -105,6 +106,15 @@ $(gyp_shared_intermediate_dir)/base/jni/LibraryLoader_jni.h: gyp_shared_intermed
 $(gyp_shared_intermediate_dir)/base/jni/LibraryLoader_jni.h: export PATH := $(subst $(ANDROID_BUILD_PATHS),,$(PATH))
 $(gyp_shared_intermediate_dir)/base/jni/LibraryLoader_jni.h: $(LOCAL_PATH)/base/android/java/src/org/chromium/base/library_loader/LibraryLoader.java $(LOCAL_PATH)/base/android/jni_generator/jni_generator.py $(LOCAL_PATH)/android_webview/build/jarjar-rules.txt $(GYP_TARGET_DEPENDENCIES)
 	mkdir -p $(gyp_shared_intermediate_dir)/base/jni; cd $(gyp_local_path)/base; ../base/android/jni_generator/jni_generator.py --input_file android/java/src/org/chromium/base/library_loader/LibraryLoader.java --output_dir "$(gyp_shared_intermediate_dir)/base/jni" --includes base/android/jni_generator/jni_generator_helper.h --optimize_generation 0 --jarjar ../android_webview/build/jarjar-rules.txt --ptr_type long --native_exports
+
+
+$(gyp_shared_intermediate_dir)/base/jni/LocaleUtils_jni.h: gyp_local_path := $(LOCAL_PATH)
+$(gyp_shared_intermediate_dir)/base/jni/LocaleUtils_jni.h: gyp_var_prefix := $(GYP_VAR_PREFIX)
+$(gyp_shared_intermediate_dir)/base/jni/LocaleUtils_jni.h: gyp_intermediate_dir := $(abspath $(gyp_intermediate_dir))
+$(gyp_shared_intermediate_dir)/base/jni/LocaleUtils_jni.h: gyp_shared_intermediate_dir := $(abspath $(gyp_shared_intermediate_dir))
+$(gyp_shared_intermediate_dir)/base/jni/LocaleUtils_jni.h: export PATH := $(subst $(ANDROID_BUILD_PATHS),,$(PATH))
+$(gyp_shared_intermediate_dir)/base/jni/LocaleUtils_jni.h: $(LOCAL_PATH)/base/android/java/src/org/chromium/base/LocaleUtils.java $(LOCAL_PATH)/base/android/jni_generator/jni_generator.py $(LOCAL_PATH)/android_webview/build/jarjar-rules.txt $(GYP_TARGET_DEPENDENCIES)
+	mkdir -p $(gyp_shared_intermediate_dir)/base/jni; cd $(gyp_local_path)/base; ../base/android/jni_generator/jni_generator.py --input_file android/java/src/org/chromium/base/LocaleUtils.java --output_dir "$(gyp_shared_intermediate_dir)/base/jni" --includes base/android/jni_generator/jni_generator_helper.h --optimize_generation 0 --jarjar ../android_webview/build/jarjar-rules.txt --ptr_type long --native_exports
 
 
 $(gyp_shared_intermediate_dir)/base/jni/MemoryPressureListener_jni.h: gyp_local_path := $(LOCAL_PATH)
@@ -200,6 +210,7 @@ GYP_GENERATED_OUTPUTS := \
 	$(gyp_shared_intermediate_dir)/base/jni/ImportantFileWriterAndroid_jni.h \
 	$(gyp_shared_intermediate_dir)/base/jni/JNIUtils_jni.h \
 	$(gyp_shared_intermediate_dir)/base/jni/LibraryLoader_jni.h \
+	$(gyp_shared_intermediate_dir)/base/jni/LocaleUtils_jni.h \
 	$(gyp_shared_intermediate_dir)/base/jni/MemoryPressureListener_jni.h \
 	$(gyp_shared_intermediate_dir)/base/jni/JavaHandlerThread_jni.h \
 	$(gyp_shared_intermediate_dir)/base/jni/PathService_jni.h \
@@ -224,6 +235,7 @@ LOCAL_GENERATED_SOURCES := \
 	$(gyp_shared_intermediate_dir)/base/jni/ImportantFileWriterAndroid_jni.h \
 	$(gyp_shared_intermediate_dir)/base/jni/JNIUtils_jni.h \
 	$(gyp_shared_intermediate_dir)/base/jni/LibraryLoader_jni.h \
+	$(gyp_shared_intermediate_dir)/base/jni/LocaleUtils_jni.h \
 	$(gyp_shared_intermediate_dir)/base/jni/MemoryPressureListener_jni.h \
 	$(gyp_shared_intermediate_dir)/base/jni/JavaHandlerThread_jni.h \
 	$(gyp_shared_intermediate_dir)/base/jni/PathService_jni.h \
@@ -286,12 +298,6 @@ MY_DEFS_Debug := \
 	'-DCLD_VERSION=1' \
 	'-DENABLE_PRINTING=1' \
 	'-DENABLE_MANAGED_USERS=1' \
-	'-DDATA_REDUCTION_FALLBACK_HOST="http://compress.googlezip.net:80/"' \
-	'-DDATA_REDUCTION_DEV_HOST="https://proxy-dev.googlezip.net:443/"' \
-	'-DDATA_REDUCTION_DEV_FALLBACK_HOST="http://proxy-dev.googlezip.net:80/"' \
-	'-DSPDY_PROXY_AUTH_ORIGIN="https://proxy.googlezip.net:443/"' \
-	'-DDATA_REDUCTION_PROXY_PROBE_URL="http://check.googlezip.net/connect"' \
-	'-DDATA_REDUCTION_PROXY_WARMUP_URL="http://www.gstatic.com/generate_204"' \
 	'-DVIDEO_HOLE=1' \
 	'-DENABLE_LOAD_COMPLETION_HACKS=1' \
 	'-DUSE_OPENSSL=1' \
@@ -310,10 +316,7 @@ MY_DEFS_Debug := \
 
 # Include paths placed before CFLAGS/CPPFLAGS
 LOCAL_C_INCLUDES_Debug := \
-	$(gyp_shared_intermediate_dir) \
-	$(PWD)/frameworks/wilhelm/include \
-	$(PWD)/bionic \
-	$(PWD)/external/stlport/stlport
+	$(gyp_shared_intermediate_dir)
 
 
 # Flags passed to only C++ (and not C) files.
@@ -376,12 +379,6 @@ MY_DEFS_Release := \
 	'-DCLD_VERSION=1' \
 	'-DENABLE_PRINTING=1' \
 	'-DENABLE_MANAGED_USERS=1' \
-	'-DDATA_REDUCTION_FALLBACK_HOST="http://compress.googlezip.net:80/"' \
-	'-DDATA_REDUCTION_DEV_HOST="https://proxy-dev.googlezip.net:443/"' \
-	'-DDATA_REDUCTION_DEV_FALLBACK_HOST="http://proxy-dev.googlezip.net:80/"' \
-	'-DSPDY_PROXY_AUTH_ORIGIN="https://proxy.googlezip.net:443/"' \
-	'-DDATA_REDUCTION_PROXY_PROBE_URL="http://check.googlezip.net/connect"' \
-	'-DDATA_REDUCTION_PROXY_WARMUP_URL="http://www.gstatic.com/generate_204"' \
 	'-DVIDEO_HOLE=1' \
 	'-DENABLE_LOAD_COMPLETION_HACKS=1' \
 	'-DUSE_OPENSSL=1' \
@@ -401,10 +398,7 @@ MY_DEFS_Release := \
 
 # Include paths placed before CFLAGS/CPPFLAGS
 LOCAL_C_INCLUDES_Release := \
-	$(gyp_shared_intermediate_dir) \
-	$(PWD)/frameworks/wilhelm/include \
-	$(PWD)/bionic \
-	$(PWD)/external/stlport/stlport
+	$(gyp_shared_intermediate_dir)
 
 
 # Flags passed to only C++ (and not C) files.
@@ -426,6 +420,10 @@ LOCAL_C_INCLUDES := $(GYP_COPIED_SOURCE_ORIGIN_DIRS) $(LOCAL_C_INCLUDES_$(GYP_CO
 LOCAL_CPPFLAGS := $(LOCAL_CPPFLAGS_$(GYP_CONFIGURATION))
 LOCAL_ASFLAGS := $(LOCAL_CFLAGS)
 ### Rules for final target.
+### Set directly by aosp_build_settings.
+LOCAL_CLANG := false
+LOCAL_NDK_STL_VARIANT := stlport_static
+
 # Add target alias to "gyp_all_modules" target.
 .PHONY: gyp_all_modules
 gyp_all_modules: base_base_jni_headers_gyp

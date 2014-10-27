@@ -40,8 +40,8 @@ class ASH_EXPORT BaseDateTimeView : public ActionableView {
   virtual void UpdateTextInternal(const base::Time& now) = 0;
 
   // Overridden from views::View.
-  virtual void ChildPreferredSizeChanged(views::View* child) OVERRIDE;
-  virtual void OnLocaleChanged() OVERRIDE;
+  virtual void ChildPreferredSizeChanged(views::View* child) override;
+  virtual void OnLocaleChanged() override;
 
   // Invokes UpdateText() when the displayed time should change.
   base::OneShotTimer<BaseDateTimeView> timer_;
@@ -66,15 +66,19 @@ class ASH_EXPORT DateView : public BaseDateTimeView {
   base::HourClockType GetHourTypeForTesting() const;
 
  private:
+  // Sets active rendering state and updates the color of |date_label_|.
+  void SetActive(bool active);
+
   // Overridden from BaseDateTimeView.
-  virtual void UpdateTextInternal(const base::Time& now) OVERRIDE;
+  virtual void UpdateTextInternal(const base::Time& now) override;
 
   // Overridden from ActionableView.
-  virtual bool PerformAction(const ui::Event& event) OVERRIDE;
+  virtual bool PerformAction(const ui::Event& event) override;
 
   // Overridden from views::View.
-  virtual void OnMouseEntered(const ui::MouseEvent& event) OVERRIDE;
-  virtual void OnMouseExited(const ui::MouseEvent& event) OVERRIDE;
+  virtual void OnMouseEntered(const ui::MouseEvent& event) override;
+  virtual void OnMouseExited(const ui::MouseEvent& event) override;
+  virtual void OnGestureEvent(ui::GestureEvent* event) override;
 
   views::Label* date_label_;
 
@@ -105,13 +109,13 @@ class ASH_EXPORT TimeView : public BaseDateTimeView {
   friend class TimeViewTest;
 
   // Overridden from BaseDateTimeView.
-  virtual void UpdateTextInternal(const base::Time& now) OVERRIDE;
+  virtual void UpdateTextInternal(const base::Time& now) override;
 
   // Overridden from ActionableView.
-  virtual bool PerformAction(const ui::Event& event) OVERRIDE;
+  virtual bool PerformAction(const ui::Event& event) override;
 
   // Overridden from views::View.
-  virtual bool OnMousePressed(const ui::MouseEvent& event) OVERRIDE;
+  virtual bool OnMousePressed(const ui::MouseEvent& event) override;
 
   void SetBorderFromLayout(TrayDate::ClockLayout clock_layout);
   void SetupLabels();

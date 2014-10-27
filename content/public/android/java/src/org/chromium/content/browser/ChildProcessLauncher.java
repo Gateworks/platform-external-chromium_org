@@ -161,16 +161,16 @@ public class ChildProcessLauncher {
     private static ChildProcessConnection allocateConnection(Context context,
             boolean inSandbox, ChromiumLinkerParams chromiumLinkerParams) {
         ChildProcessConnection.DeathCallback deathCallback =
-            new ChildProcessConnection.DeathCallback() {
-                @Override
-                public void onChildProcessDied(ChildProcessConnection connection) {
-                    if (connection.getPid() != 0) {
-                        stop(connection.getPid());
-                    } else {
-                        freeConnection(connection);
+                new ChildProcessConnection.DeathCallback() {
+                    @Override
+                    public void onChildProcessDied(ChildProcessConnection connection) {
+                        if (connection.getPid() != 0) {
+                            stop(connection.getPid());
+                        } else {
+                            freeConnection(connection);
+                        }
                     }
-                }
-            };
+                };
         sConnectionAllocated = true;
         return getConnectionAllocator(inSandbox).allocate(context, deathCallback,
                 chromiumLinkerParams);
@@ -257,17 +257,44 @@ public class ChildProcessLauncher {
         sViewSurfaceMap.remove(surfaceId);
     }
 
-    @CalledByNative
-    private static void registerSurfaceTexture(
-            int surfaceTextureId, int childProcessId, SurfaceTexture surfaceTexture) {
-        Pair<Integer, Integer> key = new Pair<Integer, Integer>(surfaceTextureId, childProcessId);
-        sSurfaceTextureSurfaceMap.put(key, new Surface(surfaceTexture));
+    private static void registerSurfaceTextureSurface(
+            int surfaceTextureId, int clientId, Surface surface) {
+        Pair<Integer, Integer> key = new Pair<Integer, Integer>(surfaceTextureId, clientId);
+        sSurfaceTextureSurfaceMap.put(key, surface);
+    }
+
+    private static void unregisterSurfaceTextureSurface(int surfaceTextureId, int clientId) {
+        Pair<Integer, Integer> key = new Pair<Integer, Integer>(surfaceTextureId, clientId);
+        Surface surface = sSurfaceTextureSurfaceMap.remove(key);
+        if (surface == null) return;
+
+        assert surface.isValid();
+        surface.release();
     }
 
     @CalledByNative
-    private static void unregisterSurfaceTexture(int surfaceTextureId, int childProcessId) {
-        Pair<Integer, Integer> key = new Pair<Integer, Integer>(surfaceTextureId, childProcessId);
-        sSurfaceTextureSurfaceMap.remove(key);
+    private static void createSurfaceTextureSurface(
+            int surfaceTextureId, int clientId, SurfaceTexture surfaceTexture) {
+        registerSurfaceTextureSurface(surfaceTextureId, clientId, new Surface(surfaceTexture));
+    }
+
+    @CalledByNative
+    private static void destroySurfaceTextureSurface(int surfaceTextureId, int clientId) {
+        unregisterSurfaceTextureSurface(surfaceTextureId, clientId);
+    }
+
+    @CalledByNative
+    private static SurfaceWrapper getSurfaceTextureSurface(
+            int surfaceTextureId, int clientId) {
+        Pair<Integer, Integer> key = new Pair<Integer, Integer>(surfaceTextureId, clientId);
+
+        Surface surface = sSurfaceTextureSurfaceMap.get(key);
+        if (surface == null) {
+            Log.e(TAG, "Invalid Id for surface texture.");
+            return null;
+        }
+        assert surface.isValid();
+        return new SurfaceWrapper(surface);
     }
 
     /**
@@ -487,31 +514,46 @@ public class ChildProcessLauncher {
             }
 
             @Override
-            public SurfaceWrapper getSurfaceTextureSurface(int primaryId, int secondaryId) {
+            public void registerSurfaceTextureSurface(
+                    int surfaceTextureId, int clientId, Surface surface) {
+                if (callbackType != CALLBACK_FOR_GPU_PROCESS) {
+                    Log.e(TAG, "Illegal callback for non-GPU process.");
+                    return;
+                }
+
+                ChildProcessLauncher.registerSurfaceTextureSurface(surfaceTextureId, clientId,
+                        surface);
+            }
+
+            @Override
+            public void unregisterSurfaceTextureSurface(
+                    int surfaceTextureId, int clientId) {
+                if (callbackType != CALLBACK_FOR_GPU_PROCESS) {
+                    Log.e(TAG, "Illegal callback for non-GPU process.");
+                    return;
+                }
+
+                ChildProcessLauncher.unregisterSurfaceTextureSurface(surfaceTextureId, clientId);
+            }
+
+            @Override
+            public SurfaceWrapper getSurfaceTextureSurface(int surfaceTextureId, int clientId) {
                 if (callbackType != CALLBACK_FOR_RENDERER_PROCESS) {
                     Log.e(TAG, "Illegal callback for non-renderer process.");
                     return null;
                 }
 
-                if (secondaryId != childProcessId) {
+                if (clientId != childProcessId) {
                     Log.e(TAG, "Illegal secondaryId for renderer process.");
                     return null;
                 }
 
-                Pair<Integer, Integer> key = new Pair<Integer, Integer>(primaryId, secondaryId);
-                // Note: This removes the surface and passes the ownership to the caller.
-                Surface surface = sSurfaceTextureSurfaceMap.remove(key);
-                if (surface == null) {
-                    Log.e(TAG, "Invalid Id for surface texture.");
-                    return null;
-                }
-                assert surface.isValid();
-                return new SurfaceWrapper(surface);
+                return ChildProcessLauncher.getSurfaceTextureSurface(surfaceTextureId, clientId);
             }
         };
     }
 
-     static void logPidWarning(int pid, String message) {
+    static void logPidWarning(int pid, String message) {
         // This class is effectively a no-op in single process mode, so don't log warnings there.
         if (pid > 0 && !nativeIsSingleProcess()) {
             Log.w(TAG, message + ", pid=" + pid);

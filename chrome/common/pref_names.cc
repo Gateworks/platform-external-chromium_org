@@ -891,6 +891,10 @@ const char kAllowDeletingBrowserHistory[] = "history.deleting_enabled";
 // Boolean controlling whether SafeSearch is mandatory for Google Web Searches.
 const char kForceSafeSearch[] = "settings.force_safesearch";
 
+// Boolean controlling whether History is recorded and synced for
+// supervised users.
+const char kRecordHistory[] = "settings.history_recorded";
+
 #if defined(OS_LINUX) && !defined(OS_CHROMEOS)
 // Linux specific preference on whether we should match the system theme.
 const char kUsesSystemTheme[] = "extensions.theme.use_system";
@@ -987,28 +991,6 @@ const char kShowUpdatePromotionInfoBar[] =
 // true, we draw a custom chrome frame (thicker title bar and blue border).
 const char kUseCustomChromeFrame[] = "browser.custom_chrome_frame";
 
-// Dictionary of content settings applied to all hosts by default.
-const char kDefaultContentSettings[] = "profile.default_content_settings";
-
-// Dictionary of content settings that can globally disallow all hosts by
-// default. If a value is set, it means the setting is globally disallowed.
-// If a value is not set, it means the setting is allowed.
-const char kOverrideContentSettings[] = "profile.override_content_settings";
-
-// Boolean indicating whether the clear on exit pref was migrated to content
-// settings yet.
-const char kContentSettingsClearOnExitMigrated[] =
-    "profile.content_settings.clear_on_exit_migrated";
-
-// Version of the pattern format used to define content settings.
-const char kContentSettingsVersion[] = "profile.content_settings.pref_version";
-
-// Patterns for mapping origins to origin related settings. Default settings
-// will be applied to origins that don't match any of the patterns. The pattern
-// format used is defined by kContentSettingsVersion.
-const char kContentSettingsPatternPairs[] =
-    "profile.content_settings.pattern_pairs";
-
 #if !defined(OS_ANDROID)
 // Which plugins have been whitelisted manually by the user.
 const char kContentSettingsPluginWhitelist[] =
@@ -1024,11 +1006,16 @@ const char kBlockThirdPartyCookies[] = "profile.block_third_party_cookies";
 const char kClearSiteDataOnExit[] = "profile.clear_site_data_on_exit";
 
 // Double that indicates the default zoom level.
-const char kDefaultZoomLevel[] = "profile.default_zoom_level";
+const char kPartitionDefaultZoomLevel[] = "partition.default_zoom_level";
+// TODO(wjmaclean): Remove this once sufficient users have migrated to the
+// per-StoragePartition zoom levels. http://crbug.com/420643.
+const char kDefaultZoomLevelDeprecated[] = "profile.default_zoom_level";
 
 // Dictionary that maps hostnames to zoom levels.  Hosts not in this pref will
 // be displayed at the default zoom level.
-const char kPerHostZoomLevels[] = "profile.per_host_zoom_levels";
+const char kPartitionPerHostZoomLevels[] = "partition.per_host_zoom_levels";
+// TODO(wjmaclean): Remove this.
+const char kPerHostZoomLevelsDeprecated[] = "profile.per_host_zoom_levels";
 
 // A dictionary that tracks the default data model to use for each section of
 // the dialog.
@@ -1299,6 +1286,7 @@ const char kCertRevocationCheckingRequiredLocalAnchors[] =
     "ssl.rev_checking.required_for_local_anchors";
 const char kSSLVersionMin[] = "ssl.version_min";
 const char kSSLVersionMax[] = "ssl.version_max";
+const char kSSLVersionFallbackMin[] = "ssl.version_fallback_min";
 const char kCipherSuiteBlacklist[] = "ssl.cipher_suites.blacklist";
 const char kDisableSSLRecordSplitting[] = "ssl.ssl_record_splitting.disabled";
 
@@ -1510,11 +1498,6 @@ const char kSafeBrowsingWrappedKey[] = "safe_browsing.wrapped_key";
 // Integer that specifies the index of the tab the user was on when they
 // last visited the options window.
 const char kOptionsWindowLastTabIndex[] = "options_window.last_tab_index";
-
-// Integer that specifies the index of the tab the user was on when they
-// last visited the content settings window.
-const char kContentSettingsWindowLastTabIndex[] =
-    "content_settings_window.last_tab_index";
 
 // Integer that specifies the index of the tab the user was on when they
 // last visited the Certificate Manager window.
@@ -2035,56 +2018,6 @@ const char kCloudPrintSubmitEnabled[] = "cloud_print.submit_enabled";
 const char kProxy[] = "proxy";
 const char kMaxConnectionsPerProxy[] = "net.max_connections_per_proxy";
 
-// Preferences that are exclusively used to store managed values for default
-// content settings.
-const char kManagedDefaultCookiesSetting[] =
-    "profile.managed_default_content_settings.cookies";
-const char kManagedDefaultImagesSetting[] =
-    "profile.managed_default_content_settings.images";
-const char kManagedDefaultJavaScriptSetting[] =
-    "profile.managed_default_content_settings.javascript";
-const char kManagedDefaultPluginsSetting[] =
-    "profile.managed_default_content_settings.plugins";
-const char kManagedDefaultPopupsSetting[] =
-    "profile.managed_default_content_settings.popups";
-const char kManagedDefaultGeolocationSetting[] =
-    "profile.managed_default_content_settings.geolocation";
-const char kManagedDefaultNotificationsSetting[] =
-    "profile.managed_default_content_settings.notifications";
-const char kManagedDefaultMediaStreamSetting[] =
-    "profile.managed_default_content_settings.media_stream";
-
-// Preferences that are exclusively used to store managed
-// content settings patterns.
-const char kManagedCookiesAllowedForUrls[] =
-    "profile.managed_cookies_allowed_for_urls";
-const char kManagedCookiesBlockedForUrls[] =
-    "profile.managed_cookies_blocked_for_urls";
-const char kManagedCookiesSessionOnlyForUrls[] =
-    "profile.managed_cookies_sessiononly_for_urls";
-const char kManagedImagesAllowedForUrls[] =
-    "profile.managed_images_allowed_for_urls";
-const char kManagedImagesBlockedForUrls[] =
-    "profile.managed_images_blocked_for_urls";
-const char kManagedJavaScriptAllowedForUrls[] =
-    "profile.managed_javascript_allowed_for_urls";
-const char kManagedJavaScriptBlockedForUrls[] =
-    "profile.managed_javascript_blocked_for_urls";
-const char kManagedPluginsAllowedForUrls[] =
-    "profile.managed_plugins_allowed_for_urls";
-const char kManagedPluginsBlockedForUrls[] =
-    "profile.managed_plugins_blocked_for_urls";
-const char kManagedPopupsAllowedForUrls[] =
-    "profile.managed_popups_allowed_for_urls";
-const char kManagedPopupsBlockedForUrls[] =
-    "profile.managed_popups_blocked_for_urls";
-const char kManagedNotificationsAllowedForUrls[] =
-    "profile.managed_notifications_allowed_for_urls";
-const char kManagedNotificationsBlockedForUrls[] =
-    "profile.managed_notifications_blocked_for_urls";
-const char kManagedAutoSelectCertificateForUrls[] =
-    "profile.managed_auto_select_certificate_for_urls";
-
 #if defined(OS_MACOSX)
 // Set to true if the user removed our login item so we should not create a new
 // one when uninstalling background apps.
@@ -2200,14 +2133,12 @@ const char kShowLogoutButtonInTray[] = "show_logout_button_in_tray";
 // Tuning settings for gestures.
 const char kMaxSeparationForGestureTouchesInPixels[] =
     "gesture.max_separation_for_gesture_touches_in_pixels";
-const char kSemiLongPressTimeInSeconds[] =
-    "gesture.semi_long_press_time_in_seconds";
-const char kTabScrubActivationDelayInMS[] =
+const char kSemiLongPressTimeInMs[] = "gesture.semi_long_press_time_in_ms";
+const char kTabScrubActivationDelayInMs[] =
     "gesture.tab_scrub_activation_delay_in_ms";
 const char kFlingMaxCancelToDownTimeInMs[] =
     "gesture.fling_max_cancel_to_down_time_in_ms";
-const char kFlingMaxTapGapTimeInMs[] =
-    "gesture.fling_max_tap_gap_time_in_ms";
+const char kFlingMaxTapGapTimeInMs[] = "gesture.fling_max_tap_gap_time_in_ms";
 const char kOverscrollHorizontalThresholdComplete[] =
     "overscroll.horizontal_threshold_complete";
 const char kOverscrollVerticalThresholdComplete[] =
@@ -2283,6 +2214,10 @@ const char kShowAppLauncherPromo[] = "app_launcher.show_promo";
 // is unsynable and used to track local mappings only.
 const char kAppLauncherDriveAppMapping[] =
     "apps.app_launcher.drive_app_mapping";
+
+// A list of Drive app ids that tracks the uninstallable Drive apps.
+const char kAppLauncherUninstalledDriveApps[] =
+    "apps.app_launcher.uninstalled_drive_apps";
 #endif
 
 // If set, the user requested to launch the app with this extension id while
@@ -2333,5 +2268,8 @@ const char kBrowserGuestModeEnabled[] = "profile.browser_guest_enabled";
 
 // Whether Adding a new Person is enabled within the user manager.
 const char kBrowserAddPersonEnabled[] = "profile.add_person_enabled";
+
+// A dictionary that maps user id to hardlock state.
+const char kEasyUnlockHardlockState[] = "easy_unlock.hardlock_state";
 
 }  // namespace prefs

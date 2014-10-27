@@ -38,6 +38,7 @@
 #include "chrome/common/importer/imported_favicon_usage.h"
 #include "chrome/common/url_constants.h"
 #include "components/favicon_base/select_favicon_frames.h"
+#include "components/history/core/browser/history_backend_observer.h"
 #include "components/history/core/browser/history_client.h"
 #include "components/history/core/browser/keyword_search_term.h"
 #include "components/history/core/browser/page_usage_data.h"
@@ -709,7 +710,7 @@ void HistoryBackend::InitImpl(const std::string& languages) {
 void HistoryBackend::OnMemoryPressure(
     base::MemoryPressureListener::MemoryPressureLevel memory_pressure_level) {
   bool trim_aggressively = memory_pressure_level ==
-      base::MemoryPressureListener::MEMORY_PRESSURE_CRITICAL;
+      base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_CRITICAL;
   if (db_)
     db_->TrimMemory(trim_aggressively);
   if (thumbnail_db_)
@@ -806,21 +807,33 @@ std::pair<URLID, VisitID> HistoryBackend::AddPageVisit(
     if (typed_url_syncable_service_.get())
       typed_url_syncable_service_->OnUrlVisited(transition, &url_info);
 
-    scoped_ptr<URLVisitedDetails> details(new URLVisitedDetails);
-    details->transition = transition;
-    details->row = url_info;
-    details->visit_time = time;
+    RedirectList redirects;
     // TODO(meelapshah) Disabled due to potential PageCycler regression.
     // Re-enable this.
-    // QueryRedirectsTo(url, &details->redirects);
-    BroadcastNotifications(chrome::NOTIFICATION_HISTORY_URL_VISITED,
-                           details.PassAs<HistoryDetails>());
+    // QueryRedirectsTo(url, &redirects);
+    NotifyURLVisited(transition, url_info, redirects, time);
+
+    // TODO(sdefresne): turn HistoryBackend::Delegate from HistoryService into
+    // an HistoryBackendObserver and register it so that we can remove this
+    // method.
+    if (delegate_)
+      delegate_->NotifyURLVisited(transition, url_info, redirects, time);
   } else {
     VLOG(0) << "Failed to build visit insert statement:  "
             << "url_id = " << url_id;
   }
 
   return std::make_pair(url_id, visit_id);
+}
+
+void HistoryBackend::NotifyURLVisited(ui::PageTransition transition,
+                                      const URLRow& row,
+                                      const RedirectList& redirects,
+                                      base::Time visit_time) {
+  FOR_EACH_OBSERVER(
+      HistoryBackendObserver,
+      observers_,
+      OnURLVisited(this, transition, row, redirects, visit_time));
 }
 
 void HistoryBackend::AddPagesWithDetails(const URLRows& urls,
@@ -878,7 +891,7 @@ void HistoryBackend::AddPagesWithDetails(const URLRows& urls,
   // TODO(brettw) bug 1140015: Add an "add page" notification so the history
   // views can keep in sync.
   BroadcastNotifications(chrome::NOTIFICATION_HISTORY_URLS_MODIFIED,
-                         modified.PassAs<HistoryDetails>());
+                         modified.Pass());
 
   ScheduleCommit();
 }
@@ -928,7 +941,7 @@ void HistoryBackend::SetPageTitle(const GURL& url,
     if (typed_url_syncable_service_.get())
       typed_url_syncable_service_->OnUrlsModified(&details->changed_urls);
     BroadcastNotifications(chrome::NOTIFICATION_HISTORY_URLS_MODIFIED,
-                           details.PassAs<HistoryDetails>());
+                           details.Pass());
     ScheduleCommit();
   }
 }
@@ -1014,7 +1027,7 @@ size_t HistoryBackend::UpdateURLs(const history::URLRows& urls) {
     if (typed_url_syncable_service_)
       typed_url_syncable_service_->OnUrlsModified(&details->changed_urls);
     BroadcastNotifications(chrome::NOTIFICATION_HISTORY_URLS_MODIFIED,
-                           details.PassAs<HistoryDetails>());
+                           details.Pass());
     ScheduleCommit();
   }
   return num_updated_records;
@@ -1139,6 +1152,16 @@ void HistoryBackend::DeleteMatchingURLsForKeyword(KeywordID keyword_id,
     }
     DeleteURLs(items_to_delete);
   }
+}
+
+// Observers -------------------------------------------------------------------
+
+void HistoryBackend::AddObserver(HistoryBackendObserver* observer) {
+  observers_.AddObserver(observer);
+}
+
+void HistoryBackend::RemoveObserver(HistoryBackendObserver* observer) {
+  observers_.RemoveObserver(observer);
 }
 
 // Downloads -------------------------------------------------------------------
@@ -2588,7 +2611,7 @@ void HistoryBackend::DeleteAllHistory() {
   details->all_history = true;
   NotifySyncURLsDeleted(true, false, NULL);
   BroadcastNotifications(chrome::NOTIFICATION_HISTORY_URLS_DELETED,
-                         details.PassAs<HistoryDetails>());
+                         details.Pass());
 }
 
 bool HistoryBackend::ClearAllThumbnailHistory(const URLRows& kept_urls) {
@@ -2682,7 +2705,7 @@ void HistoryBackend::NotifyVisitObservers(const VisitRow& visit) {
   // If we don't have a delegate yet during setup or shutdown, we will drop
   // these notifications.
   if (delegate_)
-    delegate_->NotifyVisitDBObserversOnAddVisit(info);
+    delegate_->NotifyAddVisit(info);
 }
 
 #if defined(OS_ANDROID)

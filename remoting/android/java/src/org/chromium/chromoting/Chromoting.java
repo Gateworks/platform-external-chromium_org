@@ -45,8 +45,8 @@ public class Chromoting extends Activity implements JniInterface.ConnectionListe
     private static final String ACCOUNT_TYPE = "com.google";
 
     /** Scopes at which the authentication token we request will be valid. */
-    private static final String TOKEN_SCOPE = "oauth2:https://www.googleapis.com/auth/chromoting " +
-            "https://www.googleapis.com/auth/googletalk";
+    private static final String TOKEN_SCOPE = "oauth2:https://www.googleapis.com/auth/chromoting "
+            + "https://www.googleapis.com/auth/googletalk";
 
     /** Web page to be displayed in the Help screen when launched from this activity. */
     private static final String HELP_URL =
@@ -95,6 +95,13 @@ public class Chromoting extends Activity implements JniInterface.ConnectionListe
      * used to request the host list a second time.
      */
     boolean mTriedNewAuthToken;
+
+    /**
+     * Flag to track whether a call to AccountManager.getAuthToken() is currently pending.
+     * This avoids infinitely-nested calls in case onStart() gets triggered a second time
+     * while a token is being fetched.
+     */
+    private boolean mWaitingForAuthToken = false;
 
     /** Shows a warning explaining that a Google account is required, then closes the activity. */
     private void showNoAccountsDialog() {
@@ -276,15 +283,19 @@ public class Chromoting extends Activity implements JniInterface.ConnectionListe
 
     /** Called when the user taps on a host entry. */
     public void connectToHost(HostInfo host) {
-        mProgressIndicator = ProgressDialog.show(this,
-              host.name, getString(R.string.footer_connecting), true, true,
-              new DialogInterface.OnCancelListener() {
-                  @Override
-                  public void onCancel(DialogInterface dialog) {
-                      JniInterface.disconnectFromHost();
-                      mTokenFetcher = null;
-                  }
-              });
+        mProgressIndicator = ProgressDialog.show(
+                this,
+                host.name,
+                getString(R.string.footer_connecting),
+                true,
+                true,
+                new DialogInterface.OnCancelListener() {
+                    @Override
+                    public void onCancel(DialogInterface dialog) {
+                        JniInterface.disconnectFromHost();
+                        mTokenFetcher = null;
+                    }
+                });
         SessionConnector connector = new SessionConnector(this, this, mHostListLoader);
         assert mTokenFetcher == null;
         mTokenFetcher = createTokenFetcher(host);
@@ -292,16 +303,27 @@ public class Chromoting extends Activity implements JniInterface.ConnectionListe
     }
 
     private void refreshHostList() {
+        if (mWaitingForAuthToken) {
+            return;
+        }
+
         mTriedNewAuthToken = false;
         setHostListProgressVisible(true);
 
         // The refresh button simply makes use of the currently-chosen account.
+        requestAuthToken();
+    }
+
+    private void requestAuthToken() {
         AccountManager.get(this).getAuthToken(mAccount, TOKEN_SCOPE, null, this, this, null);
+        mWaitingForAuthToken = true;
     }
 
     @Override
     public void run(AccountManagerFuture<Bundle> future) {
         Log.i("auth", "User finished with auth dialogs");
+        mWaitingForAuthToken = false;
+
         Bundle result = null;
         String explanation = null;
         try {
@@ -316,6 +338,7 @@ public class Chromoting extends Activity implements JniInterface.ConnectionListe
         }
 
         if (result == null) {
+            setHostListProgressVisible(false);
             if (explanation != null) {
                 Toast.makeText(this, explanation, Toast.LENGTH_LONG).show();
             }
@@ -332,8 +355,8 @@ public class Chromoting extends Activity implements JniInterface.ConnectionListe
     public boolean onNavigationItemSelected(int itemPosition, long itemId) {
         mAccount = mAccounts[itemPosition];
 
-        getPreferences(MODE_PRIVATE).edit().putString("account_name", mAccount.name).
-                    putString("account_type", mAccount.type).apply();
+        getPreferences(MODE_PRIVATE).edit().putString("account_name", mAccount.name)
+                .putString("account_type", mAccount.type).apply();
 
         // The current host list is no longer valid for the new account, so clear the list.
         mHosts = new HostInfo[0];
@@ -387,7 +410,7 @@ public class Chromoting extends Activity implements JniInterface.ConnectionListe
             Log.w("auth", "Requesting renewal of rejected auth token");
             authenticator.invalidateAuthToken(mAccount.type, mToken);
             mToken = null;
-            authenticator.getAuthToken(mAccount, TOKEN_SCOPE, null, this, this, null);
+            requestAuthToken();
 
             // We're not in an error state *yet*.
             return;

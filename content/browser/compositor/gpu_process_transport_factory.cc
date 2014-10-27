@@ -24,6 +24,7 @@
 #include "content/browser/compositor/software_browser_compositor_output_surface.h"
 #include "content/browser/compositor/surface_display_output_surface.h"
 #include "content/browser/gpu/browser_gpu_channel_host_factory.h"
+#include "content/browser/gpu/browser_gpu_memory_buffer_manager.h"
 #include "content/browser/gpu/compositor_util.h"
 #include "content/browser/gpu/gpu_data_manager_impl.h"
 #include "content/browser/gpu/gpu_surface_tracker.h"
@@ -200,20 +201,13 @@ scoped_ptr<cc::OutputSurface> GpuProcessTransportFactory::CreateOutputSurface(
     scoped_ptr<OnscreenDisplayClient> display_client(new OnscreenDisplayClient(
         display_surface.Pass(), manager, compositor->task_runner()));
 
-    scoped_refptr<cc::ContextProvider> offscreen_context_provider;
-    if (context_provider.get()) {
-      offscreen_context_provider = ContextProviderCommandBuffer::Create(
-          GpuProcessTransportFactory::CreateOffscreenCommandBufferContext(),
-          "Offscreen-Compositor");
-    }
     scoped_ptr<SurfaceDisplayOutputSurface> output_surface(
-        new SurfaceDisplayOutputSurface(manager,
-          next_surface_id_namespace_++,
-          offscreen_context_provider));
+        new SurfaceDisplayOutputSurface(
+            manager, compositor->surface_id_allocator(), context_provider));
     display_client->set_surface_output_surface(output_surface.get());
-    output_surface->set_display(display_client->display());
+    output_surface->set_display_client(display_client.get());
     data->display_client = display_client.Pass();
-    return output_surface.PassAs<cc::OutputSurface>();
+    return output_surface.Pass();
   }
 
   if (!context_provider.get()) {
@@ -222,14 +216,12 @@ scoped_ptr<cc::OutputSurface> GpuProcessTransportFactory::CreateOutputSurface(
                  " compositing with browser threaded compositing. Aborting.";
     }
 
-    scoped_ptr<SoftwareBrowserCompositorOutputSurface> surface(
-        new SoftwareBrowserCompositorOutputSurface(
-            output_surface_proxy_,
-            CreateSoftwareOutputDevice(compositor),
-            per_compositor_data_[compositor]->surface_id,
-            &output_surface_map_,
-            compositor->vsync_manager()));
-    return surface.PassAs<cc::OutputSurface>();
+    return make_scoped_ptr(new SoftwareBrowserCompositorOutputSurface(
+        output_surface_proxy_,
+        CreateSoftwareOutputDevice(compositor),
+        per_compositor_data_[compositor]->surface_id,
+        &output_surface_map_,
+        compositor->vsync_manager()));
   }
 
   scoped_ptr<BrowserCompositorOutputSurface> surface;
@@ -241,7 +233,8 @@ scoped_ptr<cc::OutputSurface> GpuProcessTransportFactory::CreateOutputSurface(
         &output_surface_map_,
         compositor->vsync_manager(),
         CreateOverlayCandidateValidator(compositor->widget()),
-        GL_RGB8_OES));
+        GL_RGB,
+        compositor_thread_ != nullptr));
   }
 #endif
   if (!surface)
@@ -255,7 +248,7 @@ scoped_ptr<cc::OutputSurface> GpuProcessTransportFactory::CreateOutputSurface(
   if (data->reflector.get())
     data->reflector->ReattachToOutputSurfaceFromMainThread(surface.get());
 
-  return surface.PassAs<cc::OutputSurface>();
+  return surface.Pass();
 }
 
 scoped_refptr<ui::Reflector> GpuProcessTransportFactory::CreateReflector(
@@ -317,6 +310,11 @@ cc::SharedBitmapManager* GpuProcessTransportFactory::GetSharedBitmapManager() {
   return HostSharedBitmapManager::current();
 }
 
+cc::GpuMemoryBufferManager*
+GpuProcessTransportFactory::GetGpuMemoryBufferManager() {
+  return BrowserGpuMemoryBufferManager::current();
+}
+
 ui::ContextFactory* GpuProcessTransportFactory::GetContextFactory() {
   return this;
 }
@@ -329,7 +327,7 @@ base::MessageLoopProxy* GpuProcessTransportFactory::GetCompositorMessageLoop() {
 
 gfx::GLSurfaceHandle GpuProcessTransportFactory::GetSharedSurfaceHandle() {
   gfx::GLSurfaceHandle handle = gfx::GLSurfaceHandle(
-      gfx::kNullPluginWindow, gfx::TEXTURE_TRANSPORT);
+      gfx::kNullPluginWindow, gfx::NULL_TRANSPORT);
   handle.parent_client_id =
       BrowserGpuChannelHostFactory::instance()->GetGpuChannelId();
   return handle;

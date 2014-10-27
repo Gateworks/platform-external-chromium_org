@@ -29,8 +29,8 @@ class BuiltinProviderTest : public testing::Test {
   BuiltinProviderTest() : provider_(NULL) {}
   virtual ~BuiltinProviderTest() {}
 
-  virtual void SetUp() OVERRIDE { provider_ = new BuiltinProvider(); }
-  virtual void TearDown() OVERRIDE { provider_ = NULL; }
+  virtual void SetUp() override { provider_ = new BuiltinProvider(); }
+  virtual void TearDown() override { provider_ = NULL; }
 
   void RunTest(const TestData cases[], size_t num_cases) {
     ACMatches matches;
@@ -38,7 +38,7 @@ class BuiltinProviderTest : public testing::Test {
       SCOPED_TRACE(base::StringPrintf(
           "case %" PRIuS ": %s", i, base::UTF16ToUTF8(cases[i].input).c_str()));
       const AutocompleteInput input(cases[i].input, base::string16::npos,
-                                    base::string16(), GURL(),
+                                    std::string(), GURL(),
                                     metrics::OmniboxEventProto::INVALID_SPEC,
                                     true, false, true, true,
                                     ChromeAutocompleteSchemeClassifier(NULL));

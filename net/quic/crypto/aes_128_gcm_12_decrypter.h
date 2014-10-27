@@ -23,7 +23,7 @@ class NET_EXPORT_PRIVATE Aes128Gcm12Decrypter : public AeadBaseDecrypter {
   };
 
   Aes128Gcm12Decrypter();
-  virtual ~Aes128Gcm12Decrypter();
+  ~Aes128Gcm12Decrypter() override;
 
 #if !defined(USE_OPENSSL)
  protected:
@@ -31,7 +31,7 @@ class NET_EXPORT_PRIVATE Aes128Gcm12Decrypter : public AeadBaseDecrypter {
   virtual void FillAeadParams(base::StringPiece nonce,
                               base::StringPiece associated_data,
                               size_t auth_tag_size,
-                              AeadParams* aead_params) const OVERRIDE;
+                              AeadParams* aead_params) const override;
 #endif
 
  private:

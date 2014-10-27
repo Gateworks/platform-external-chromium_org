@@ -34,17 +34,17 @@ class LayerTreePixelTest : public LayerTreeTest {
   LayerTreePixelTest();
   virtual ~LayerTreePixelTest();
 
-  virtual scoped_ptr<OutputSurface> CreateOutputSurface(bool fallback) OVERRIDE;
-  virtual void CommitCompleteOnThread(LayerTreeHostImpl* impl) OVERRIDE;
+  scoped_ptr<OutputSurface> CreateOutputSurface(bool fallback) override;
+  void CommitCompleteOnThread(LayerTreeHostImpl* impl) override;
 
   virtual scoped_ptr<CopyOutputRequest> CreateCopyOutputRequest();
 
   void ReadbackResult(scoped_ptr<CopyOutputResult> result);
 
-  virtual void BeginTest() OVERRIDE;
-  virtual void SetupTree() OVERRIDE;
-  virtual void AfterTest() OVERRIDE;
-  virtual void EndTest() OVERRIDE;
+  void BeginTest() override;
+  void SetupTree() override;
+  void AfterTest() override;
+  void EndTest() override;
 
   void TryEndTest();
 
@@ -59,10 +59,8 @@ class LayerTreePixelTest : public LayerTreeTest {
                                                  const SkBitmap& bitmap);
 
   enum PixelTestType {
-    GL_WITH_DEFAULT,
-    GL_WITH_BITMAP,
-    SOFTWARE_WITH_DEFAULT,
-    SOFTWARE_WITH_BITMAP
+    PIXEL_TEST_GL,
+    PIXEL_TEST_SOFTWARE,
   };
 
   void RunPixelTest(PixelTestType type,
@@ -100,7 +98,7 @@ class LayerTreePixelTest : public LayerTreeTest {
   Layer* readback_target_;
   base::FilePath ref_file_;
   scoped_ptr<SkBitmap> result_bitmap_;
-  std::vector<scoped_refptr<TextureLayer> > texture_layers_;
+  std::vector<scoped_refptr<TextureLayer>> texture_layers_;
   int pending_texture_mailbox_callbacks_;
   bool impl_side_painting_;
 };

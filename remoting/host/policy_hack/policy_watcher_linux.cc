@@ -57,7 +57,7 @@ class PolicyWatcherLinux : public PolicyWatcher {
   virtual ~PolicyWatcherLinux() {}
 
  protected:
-  virtual void StartWatchingInternal() OVERRIDE {
+  virtual void StartWatchingInternal() override {
     DCHECK(OnPolicyWatcherThread());
     watcher_.reset(new base::FilePathWatcher());
 
@@ -77,7 +77,7 @@ class PolicyWatcherLinux : public PolicyWatcher {
     ScheduleFallbackReloadTask();
   }
 
-  virtual void StopWatchingInternal() OVERRIDE {
+  virtual void StopWatchingInternal() override {
     DCHECK(OnPolicyWatcherThread());
 
     // Stop watching for changes to files in the policies directory.
@@ -149,12 +149,12 @@ class PolicyWatcherLinux : public PolicyWatcher {
       if (!value.get()) {
         LOG(WARNING) << "Failed to read configuration file "
                      << config_file_iter->value() << ": " << error_msg;
-        return scoped_ptr<base::DictionaryValue>();
+        return nullptr;
       }
       if (!value->IsType(base::Value::TYPE_DICTIONARY)) {
         LOG(WARNING) << "Expected JSON dictionary in configuration file "
                      << config_file_iter->value();
-        return scoped_ptr<base::DictionaryValue>();
+        return nullptr;
       }
       policy->MergeDictionary(static_cast<base::DictionaryValue*>(value.get()));
     }
@@ -162,7 +162,7 @@ class PolicyWatcherLinux : public PolicyWatcher {
     return policy.Pass();
   }
 
-  virtual void Reload() OVERRIDE {
+  virtual void Reload() override {
     DCHECK(OnPolicyWatcherThread());
     // Check the directory time in order to see whether a reload is required.
     base::TimeDelta delay;

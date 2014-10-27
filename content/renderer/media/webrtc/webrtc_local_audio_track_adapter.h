@@ -42,7 +42,7 @@ class CONTENT_EXPORT WebRtcLocalAudioTrackAdapter
       const std::string& label,
       webrtc::AudioSourceInterface* track_source);
 
-  virtual ~WebRtcLocalAudioTrackAdapter();
+  ~WebRtcLocalAudioTrackAdapter() override;
 
   void Initialize(WebRtcLocalAudioTrack* owner);
 
@@ -61,22 +61,22 @@ class CONTENT_EXPORT WebRtcLocalAudioTrackAdapter
 
  private:
   // webrtc::MediaStreamTrack implementation.
-  virtual std::string kind() const OVERRIDE;
+  std::string kind() const override;
 
   // webrtc::AudioTrackInterface implementation.
-  virtual void AddSink(webrtc::AudioTrackSinkInterface* sink) OVERRIDE;
-  virtual void RemoveSink(webrtc::AudioTrackSinkInterface* sink) OVERRIDE;
-  virtual bool GetSignalLevel(int* level) OVERRIDE;
-  virtual rtc::scoped_refptr<webrtc::AudioProcessorInterface>
-      GetAudioProcessor() OVERRIDE;
+  void AddSink(webrtc::AudioTrackSinkInterface* sink) override;
+  void RemoveSink(webrtc::AudioTrackSinkInterface* sink) override;
+  bool GetSignalLevel(int* level) override;
+  rtc::scoped_refptr<webrtc::AudioProcessorInterface> GetAudioProcessor()
+      override;
 
   // cricket::AudioCapturer implementation.
-  virtual void AddChannel(int channel_id) OVERRIDE;
-  virtual void RemoveChannel(int channel_id) OVERRIDE;
+  void AddChannel(int channel_id) override;
+  void RemoveChannel(int channel_id) override;
 
   // webrtc::AudioTrackInterface implementation.
-  virtual webrtc::AudioSourceInterface* GetSource() const OVERRIDE;
-  virtual cricket::AudioRenderer* GetRenderer() OVERRIDE;
+  webrtc::AudioSourceInterface* GetSource() const override;
+  cricket::AudioRenderer* GetRenderer() override;
 
   // Weak reference.
   WebRtcLocalAudioTrack* owner_;

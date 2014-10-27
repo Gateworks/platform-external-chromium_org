@@ -21,9 +21,6 @@
 #include "chrome/browser/profiles/profile_manager.h"
 #include "chrome/browser/sessions/session_restore.h"
 #include "chrome/browser/signin/signin_promo.h"
-#include "chrome/browser/supervised_user/supervised_user_navigation_observer.h"
-#include "chrome/browser/supervised_user/supervised_user_service.h"
-#include "chrome/browser/supervised_user/supervised_user_service_factory.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/browser_finder.h"
@@ -63,6 +60,12 @@ using testing::_;
 using testing::Return;
 #endif  // defined(ENABLE_CONFIGURATION_POLICY) && !defined(OS_CHROMEOS)
 
+#if defined(ENABLE_MANAGED_USERS)
+#include "chrome/browser/supervised_user/supervised_user_navigation_observer.h"
+#include "chrome/browser/supervised_user/supervised_user_service.h"
+#include "chrome/browser/supervised_user/supervised_user_service_factory.h"
+#endif
+
 using extensions::Extension;
 
 namespace {
@@ -86,11 +89,11 @@ Browser* FindOneOtherBrowser(Browser* browser) {
 
 class StartupBrowserCreatorTest : public ExtensionBrowserTest {
  protected:
-  virtual bool SetUpUserDataDirectory() OVERRIDE {
+  bool SetUpUserDataDirectory() override {
     return ExtensionBrowserTest::SetUpUserDataDirectory();
   }
 
-  virtual void SetUpCommandLine(CommandLine* command_line) OVERRIDE {
+  void SetUpCommandLine(CommandLine* command_line) override {
     ExtensionBrowserTest::SetUpCommandLine(command_line);
     command_line->AppendSwitch(switches::kEnablePanels);
     command_line->AppendSwitchASCII(switches::kHomePage, url::kAboutBlankURL);
@@ -139,11 +142,9 @@ class OpenURLsPopupObserver : public chrome::BrowserListObserver {
  public:
   OpenURLsPopupObserver() : added_browser_(NULL) { }
 
-  virtual void OnBrowserAdded(Browser* browser) OVERRIDE {
-    added_browser_ = browser;
-  }
+  void OnBrowserAdded(Browser* browser) override { added_browser_ = browser; }
 
-  virtual void OnBrowserRemoved(Browser* browser) OVERRIDE { }
+  void OnBrowserRemoved(Browser* browser) override {}
 
   Browser* added_browser_;
 };
@@ -1000,7 +1001,7 @@ IN_PROC_BROWSER_TEST_F(StartupBrowserCreatorTest, ProfilesLaunchedAfterCrash) {
 
 class SupervisedUserBrowserCreatorTest : public InProcessBrowserTest {
  protected:
-  virtual void SetUpCommandLine(CommandLine* command_line) OVERRIDE {
+  void SetUpCommandLine(CommandLine* command_line) override {
     InProcessBrowserTest::SetUpCommandLine(command_line);
     command_line->AppendSwitchASCII(switches::kSupervisedUserId, "asdf");
   }
@@ -1042,8 +1043,8 @@ IN_PROC_BROWSER_TEST_F(SupervisedUserBrowserCreatorTest,
 
 class StartupBrowserCreatorFirstRunTest : public InProcessBrowserTest {
  protected:
-  virtual void SetUpCommandLine(CommandLine* command_line) OVERRIDE;
-  virtual void SetUpInProcessBrowserTestFixture() OVERRIDE;
+  void SetUpCommandLine(CommandLine* command_line) override;
+  void SetUpInProcessBrowserTestFixture() override;
 
 #if defined(ENABLE_CONFIGURATION_POLICY)
   policy::MockConfigurationPolicyProvider provider_;

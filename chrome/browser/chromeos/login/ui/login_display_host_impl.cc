@@ -99,6 +99,7 @@
 #if defined(USE_ATHENA)
 #include "athena/screen/public/screen_manager.h"
 #include "athena/util/container_priorities.h"
+#include "athena/util/fill_layout_manager.h"
 #endif
 
 namespace {
@@ -147,7 +148,7 @@ class AnimationObserver : public ui::ImplicitAnimationObserver {
 
  private:
   // ui::ImplicitAnimationObserver implementation:
-  virtual void OnImplicitAnimationsCompleted() OVERRIDE {
+  virtual void OnImplicitAnimationsCompleted() override {
     callback_.Run();
     delete this;
   }
@@ -221,19 +222,19 @@ class LoginWidgetDelegate : public views::WidgetDelegate {
   virtual ~LoginWidgetDelegate() {}
 
   // Overridden from WidgetDelegate:
-  virtual void DeleteDelegate() OVERRIDE {
+  virtual void DeleteDelegate() override {
     delete this;
   }
-  virtual views::Widget* GetWidget() OVERRIDE {
+  virtual views::Widget* GetWidget() override {
     return widget_;
   }
-  virtual const views::Widget* GetWidget() const OVERRIDE {
+  virtual const views::Widget* GetWidget() const override {
     return widget_;
   }
-  virtual bool CanActivate() const OVERRIDE {
+  virtual bool CanActivate() const override {
     return true;
   }
-  virtual bool ShouldAdvanceFocusToTopLevelWidget() const OVERRIDE {
+  virtual bool ShouldAdvanceFocusToTopLevelWidget() const override {
     return true;
   }
 
@@ -519,11 +520,11 @@ void LoginDisplayHostImpl::StartWizard(
 
   // Keep parameters to restore if renderer crashes.
   restore_path_ = RESTORE_WIZARD;
-  wizard_first_screen_name_ = first_screen_name;
+  first_screen_name_ = first_screen_name;
   if (screen_parameters.get())
-    wizard_screen_parameters_.reset(screen_parameters->DeepCopy());
+    screen_parameters_.reset(screen_parameters->DeepCopy());
   else
-    wizard_screen_parameters_.reset();
+    screen_parameters_.reset();
   is_showing_login_ = false;
 
   if (waiting_for_wallpaper_load_ && !initialize_webui_hidden_) {
@@ -584,7 +585,7 @@ void LoginDisplayHostImpl::StartUserAdding(
   SetOobeProgressBarVisible(oobe_progress_bar_visible_ = false);
   SetStatusAreaVisible(true);
   sign_in_controller_->Init(
-      user_manager::UserManager::Get()->GetUsersAdmittedForMultiProfile());
+      user_manager::UserManager::Get()->GetUsersAllowedForMultiProfile());
   CHECK(webui_login_display_);
   GetOobeUI()->ShowSigninScreen(LoginScreenContext(),
                                 webui_login_display_,
@@ -1024,8 +1025,7 @@ void LoginDisplayHostImpl::StartPostponedWebUI() {
 
   switch (restore_path_) {
     case RESTORE_WIZARD:
-      StartWizard(wizard_first_screen_name_,
-                  wizard_screen_parameters_.Pass());
+      StartWizard(first_screen_name_, screen_parameters_.Pass());
       break;
     case RESTORE_SIGN_IN:
       StartSignInScreen(LoginScreenContext());
@@ -1063,9 +1063,14 @@ void LoginDisplayHostImpl::InitLoginWindowAndView() {
   athena::ScreenManager::ContainerParams container_params(
       "LoginScreen", athena::CP_LOGIN_SCREEN);
   container_params.can_activate_children = true;
+  container_params.block_events = true;
+  container_params.modal_container_priority =
+      athena::CP_LOGIN_SCREEN_SYSTEM_MODAL;
   login_screen_container_.reset(
       athena::ScreenManager::Get()->CreateContainer(container_params));
   params.parent = login_screen_container_.get();
+  login_screen_container_->SetLayoutManager(
+      new athena::FillLayoutManager(login_screen_container_.get()));
 #else
   params.parent =
       ash::Shell::GetContainer(ash::Shell::GetPrimaryRootWindow(),

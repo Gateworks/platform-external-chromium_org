@@ -5,6 +5,8 @@
 #ifndef CONTENT_RENDERER_PEPPER_PEPPER_VIDEO_DESTINATION_HOST_H_
 #define CONTENT_RENDERER_PEPPER_PEPPER_VIDEO_DESTINATION_HOST_H_
 
+#include <string>
+
 #include "base/compiler_specific.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/memory/weak_ptr.h"
@@ -24,11 +26,11 @@ class CONTENT_EXPORT PepperVideoDestinationHost
                              PP_Instance instance,
                              PP_Resource resource);
 
-  virtual ~PepperVideoDestinationHost();
+  ~PepperVideoDestinationHost() override;
 
-  virtual int32_t OnResourceMessageReceived(
+  int32_t OnResourceMessageReceived(
       const IPC::Message& msg,
-      ppapi::host::HostMessageContext* context) OVERRIDE;
+      ppapi::host::HostMessageContext* context) override;
 
  private:
   int32_t OnHostMsgOpen(ppapi::host::HostMessageContext* context,
@@ -40,7 +42,7 @@ class CONTENT_EXPORT PepperVideoDestinationHost
 
   RendererPpapiHost* renderer_ppapi_host_;
 
-  scoped_ptr<FrameWriterInterface> frame_writer_;
+  VideoDestinationHandler::FrameWriterCallback frame_writer_;
 
   base::WeakPtrFactory<PepperVideoDestinationHost> weak_factory_;
 

@@ -28,8 +28,8 @@
 #include "cc/test/test_web_graphics_context_3d.h"
 #include "cc/trees/layer_tree_impl.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "ui/gfx/rect_conversions.h"
-#include "ui/gfx/size_conversions.h"
+#include "ui/gfx/geometry/rect_conversions.h"
+#include "ui/gfx/geometry/size_conversions.h"
 
 namespace cc {
 namespace {
@@ -38,7 +38,7 @@ class MockCanvas : public SkCanvas {
  public:
   explicit MockCanvas(int w, int h) : SkCanvas(w, h) {}
 
-  virtual void drawRect(const SkRect& rect, const SkPaint& paint) OVERRIDE {
+  void drawRect(const SkRect& rect, const SkPaint& paint) override {
     // Capture calls before SkCanvas quickReject() kicks in.
     rects_.push_back(rect);
   }
@@ -59,9 +59,9 @@ class PictureLayerImplTest : public testing::Test {
       : proxy_(base::MessageLoopProxy::current()),
         host_impl_(LowResTilingsSettings(), &proxy_, &shared_bitmap_manager_),
         id_(7),
-        pending_layer_(NULL),
-        old_pending_layer_(NULL),
-        active_layer_(NULL) {}
+        pending_layer_(nullptr),
+        old_pending_layer_(nullptr),
+        active_layer_(nullptr) {}
 
   explicit PictureLayerImplTest(const LayerTreeSettings& settings)
       : proxy_(base::MessageLoopProxy::current()),
@@ -71,13 +71,12 @@ class PictureLayerImplTest : public testing::Test {
   virtual ~PictureLayerImplTest() {
   }
 
-  virtual void SetUp() OVERRIDE {
+  virtual void SetUp() override {
     InitializeRenderer();
   }
 
   virtual void InitializeRenderer() {
-    host_impl_.InitializeRenderer(
-        FakeOutputSurface::Create3d().PassAs<OutputSurface>());
+    host_impl_.InitializeRenderer(FakeOutputSurface::Create3d());
   }
 
   void SetupDefaultTrees(const gfx::Size& layer_bounds) {
@@ -96,7 +95,7 @@ class PictureLayerImplTest : public testing::Test {
     CHECK(!host_impl_.pending_tree());
     CHECK(host_impl_.recycle_tree());
     old_pending_layer_ = pending_layer_;
-    pending_layer_ = NULL;
+    pending_layer_ = nullptr;
     active_layer_ = static_cast<FakePictureLayerImpl*>(
         host_impl_.active_tree()->LayerById(id_));
   }
@@ -145,7 +144,7 @@ class PictureLayerImplTest : public testing::Test {
     scoped_ptr<FakePictureLayerImpl> pending_layer =
         FakePictureLayerImpl::CreateWithPile(pending_tree, id_, pile);
     pending_layer->SetDrawsContent(true);
-    pending_tree->SetRootLayer(pending_layer.PassAs<LayerImpl>());
+    pending_tree->SetRootLayer(pending_layer.Pass());
 
     pending_layer_ = static_cast<FakePictureLayerImpl*>(
         host_impl_.pending_tree()->LayerById(id_));
@@ -165,7 +164,8 @@ class PictureLayerImplTest : public testing::Test {
         maximum_animation_contents_scale;
     layer->draw_properties().screen_space_transform_is_animating =
         animating_transform_to_screen;
-    layer->UpdateTiles(Occlusion());
+    bool resourceless_software_draw = false;
+    layer->UpdateTiles(Occlusion(), resourceless_software_draw);
   }
   static void VerifyAllTilesExistAndHavePile(
       const PictureLayerTiling* tiling,
@@ -258,14 +258,14 @@ class PictureLayerImplTest : public testing::Test {
     for (tile_iter = tiles.begin(); tile_iter < tiles.end(); tile_iter++) {
       MockCanvas mock_canvas(1000, 1000);
       active_pile->RasterDirect(
-          &mock_canvas, (*tile_iter)->content_rect(), 1.0f, NULL);
+          &mock_canvas, (*tile_iter)->content_rect(), 1.0f, nullptr);
 
       // This test verifies that when drawing the contents of a specific tile
       // at content scale 1.0, the playback canvas never receives content from
       // neighboring tiles which indicates that the tile grid embedded in
       // SkPicture is perfectly aligned with the compositor's tiles.
       EXPECT_EQ(1u, mock_canvas.rects_.size());
-      EXPECT_RECT_EQ(*rect_iter, mock_canvas.rects_[0]);
+      EXPECT_EQ(*rect_iter, mock_canvas.rects_[0]);
       rect_iter++;
     }
   }
@@ -353,18 +353,14 @@ TEST_F(PictureLayerImplTest, ExternalViewportRectForPrioritizingTiles) {
                                         viewport_rect_for_tile_priority,
                                         transform_for_tile_priority,
                                         resourceless_software_draw);
-  active_layer_->draw_properties().visible_content_rect = viewport;
-  active_layer_->draw_properties().screen_space_transform = transform;
-  active_layer_->UpdateTiles(Occlusion());
+  host_impl_.active_tree()->UpdateDrawProperties();
 
   gfx::Rect viewport_rect_for_tile_priority_in_view_space =
       viewport_rect_for_tile_priority;
 
-  // Verify the viewport rect for tile priority is used in picture layer impl.
-  EXPECT_EQ(active_layer_->viewport_rect_for_tile_priority(),
-            viewport_rect_for_tile_priority_in_view_space);
-
   // Verify the viewport rect for tile priority is used in picture layer tiling.
+  EXPECT_EQ(viewport_rect_for_tile_priority_in_view_space,
+            active_layer_->GetViewportForTilePriorityInContentSpace());
   PictureLayerTilingSet* tilings = active_layer_->tilings();
   for (size_t i = 0; i < tilings->num_tilings(); i++) {
     PictureLayerTiling* tiling = tilings->tiling_at(i);
@@ -391,9 +387,7 @@ TEST_F(PictureLayerImplTest, ExternalViewportRectForPrioritizingTiles) {
                                         viewport_rect_for_tile_priority,
                                         transform_for_tile_priority,
                                         resourceless_software_draw);
-  active_layer_->draw_properties().visible_content_rect = viewport;
-  active_layer_->draw_properties().screen_space_transform = transform;
-  active_layer_->UpdateTiles(Occlusion());
+  host_impl_.active_tree()->UpdateDrawProperties();
 
   gfx::Transform screen_to_view(gfx::Transform::kSkipInitialization);
   bool success = transform_for_tile_priority.GetInverse(&screen_to_view);
@@ -407,10 +401,8 @@ TEST_F(PictureLayerImplTest, ExternalViewportRectForPrioritizingTiles) {
       gfx::ToEnclosingRect(MathUtil::ProjectClippedRect(
           screen_to_view, viewport_rect_for_tile_priority));
 
-  // Verify the viewport rect for tile priority is used in PictureLayerImpl.
-  EXPECT_EQ(active_layer_->viewport_rect_for_tile_priority(),
-            viewport_rect_for_tile_priority_in_view_space);
-
+  EXPECT_EQ(viewport_rect_for_tile_priority_in_view_space,
+            active_layer_->GetViewportForTilePriorityInContentSpace());
   tilings = active_layer_->tilings();
   for (size_t i = 0; i < tilings->num_tilings(); i++) {
     PictureLayerTiling* tiling = tilings->tiling_at(i);
@@ -421,8 +413,7 @@ TEST_F(PictureLayerImplTest, ExternalViewportRectForPrioritizingTiles) {
   }
 }
 
-TEST_F(PictureLayerImplTest,
-       ResourcelessSoftwareDrawHasValidViewportForTilePriority) {
+TEST_F(PictureLayerImplTest, InvalidViewportForPrioritizingTiles) {
   base::TimeTicks time_ticks;
   time_ticks += base::TimeDelta::FromMilliseconds(1);
   host_impl_.SetCurrentBeginFrameArgs(
@@ -443,6 +434,8 @@ TEST_F(PictureLayerImplTest,
   SetupDrawPropertiesAndUpdateTiles(active_layer_, 1.f, 1.f, 1.f, 1.f, false);
 
   // UpdateTiles with valid viewport. Should update tile viewport.
+  // Note viewport is considered invalid if and only if in resourceless
+  // software draw.
   bool resourceless_software_draw = false;
   gfx::Rect viewport = gfx::Rect(layer_bounds);
   gfx::Transform transform;
@@ -454,20 +447,16 @@ TEST_F(PictureLayerImplTest,
                                         resourceless_software_draw);
   active_layer_->draw_properties().visible_content_rect = viewport;
   active_layer_->draw_properties().screen_space_transform = transform;
-  active_layer_->UpdateTiles(Occlusion());
+  active_layer_->UpdateTiles(Occlusion(), resourceless_software_draw);
 
   gfx::Rect visible_rect_for_tile_priority =
       active_layer_->visible_rect_for_tile_priority();
   EXPECT_FALSE(visible_rect_for_tile_priority.IsEmpty());
-  gfx::Rect viewport_rect_for_tile_priority =
-      active_layer_->viewport_rect_for_tile_priority();
-  EXPECT_FALSE(viewport_rect_for_tile_priority.IsEmpty());
   gfx::Transform screen_space_transform_for_tile_priority =
-      active_layer_->screen_space_transform_for_tile_priority();
+      active_layer_->screen_space_transform();
 
-  // PictureLayerImpl does not make a special case for
-  // resource_less_software_draw, so the tile viewport and matrix should be
-  // respected.
+  // Expand viewport and set it as invalid for prioritizing tiles.
+  // Should update viewport and transform, but not update visible rect.
   time_ticks += base::TimeDelta::FromMilliseconds(200);
   host_impl_.SetCurrentBeginFrameArgs(
       CreateBeginFrameArgsForTesting(time_ticks));
@@ -482,20 +471,31 @@ TEST_F(PictureLayerImplTest,
                                         viewport,
                                         transform,
                                         resourceless_software_draw);
-  active_layer_->UpdateTiles(Occlusion());
+  active_layer_->UpdateTiles(Occlusion(), resourceless_software_draw);
 
-  visible_rect_for_tile_priority =
-      gfx::ScaleToEnclosingRect(visible_rect_for_tile_priority, 2);
-  viewport_rect_for_tile_priority =
-      gfx::ScaleToEnclosingRect(viewport_rect_for_tile_priority, 2);
-  screen_space_transform_for_tile_priority = transform;
-  EXPECT_RECT_EQ(visible_rect_for_tile_priority,
-                 active_layer_->visible_rect_for_tile_priority());
-  EXPECT_RECT_EQ(viewport_rect_for_tile_priority,
-                 active_layer_->viewport_rect_for_tile_priority());
-  EXPECT_TRANSFORMATION_MATRIX_EQ(
-      screen_space_transform_for_tile_priority,
-      active_layer_->screen_space_transform_for_tile_priority());
+  // Transform for tile priority is updated.
+  EXPECT_TRANSFORMATION_MATRIX_EQ(transform,
+                                  active_layer_->screen_space_transform());
+  // Visible rect for tile priority retains old value.
+  EXPECT_EQ(visible_rect_for_tile_priority,
+            active_layer_->visible_rect_for_tile_priority());
+
+  // Keep expanded viewport but mark it valid. Should update tile viewport.
+  time_ticks += base::TimeDelta::FromMilliseconds(200);
+  host_impl_.SetCurrentBeginFrameArgs(
+      CreateBeginFrameArgsForTesting(time_ticks));
+  resourceless_software_draw = false;
+  host_impl_.SetExternalDrawConstraints(transform,
+                                        viewport,
+                                        viewport,
+                                        viewport,
+                                        transform,
+                                        resourceless_software_draw);
+  active_layer_->UpdateTiles(Occlusion(), resourceless_software_draw);
+
+  EXPECT_TRANSFORMATION_MATRIX_EQ(transform,
+                                  active_layer_->screen_space_transform());
+  EXPECT_EQ(viewport, active_layer_->visible_rect_for_tile_priority());
 }
 
 TEST_F(PictureLayerImplTest, ClonePartialInvalidation) {
@@ -1092,9 +1092,11 @@ TEST_F(PictureLayerImplTest, DontAddLowResDuringAnimation) {
   EXPECT_BOTH_EQ(LowResTiling()->contents_scale(), low_res_factor);
   EXPECT_BOTH_EQ(num_tilings(), 2u);
 
-  // Page scale animation, new high res, but not new low res because animating.
+  // Page scale animation, new high res, but no low res. We still have
+  // a tiling at the previous scale, it's just not marked as low res.
   contents_scale = 2.f;
   page_scale = 2.f;
+  maximum_animation_scale = 2.f;
   animating_transform = true;
   SetContentsScaleOnBothLayers(contents_scale,
                                device_scale,
@@ -1102,7 +1104,8 @@ TEST_F(PictureLayerImplTest, DontAddLowResDuringAnimation) {
                                maximum_animation_scale,
                                animating_transform);
   EXPECT_BOTH_EQ(HighResTiling()->contents_scale(), 2.f);
-  EXPECT_BOTH_EQ(LowResTiling()->contents_scale(), low_res_factor);
+  EXPECT_FALSE(active_layer_->LowResTiling());
+  EXPECT_FALSE(pending_layer_->LowResTiling());
   EXPECT_BOTH_EQ(num_tilings(), 3u);
 
   // Stop animating, new low res gets created for final page scale.
@@ -1199,7 +1202,11 @@ TEST_F(PictureLayerImplTest, HugeMasksDontGetTiles) {
   // Mask layers have a tiling with a single tile in it.
   EXPECT_EQ(1u, active_layer_->HighResTiling()->AllTilesForTesting().size());
   // The mask resource exists.
-  EXPECT_NE(0u, active_layer_->ContentsResourceId());
+  ResourceProvider::ResourceId mask_resource_id;
+  gfx::Size mask_texture_size;
+  active_layer_->GetContentsResourceId(&mask_resource_id, &mask_texture_size);
+  EXPECT_NE(0u, mask_resource_id);
+  EXPECT_EQ(mask_texture_size, active_layer_->bounds());
 
   // Resize larger than the max texture size.
   int max_texture_size = host_impl_.GetRendererCapabilities().max_texture_size;
@@ -1222,7 +1229,41 @@ TEST_F(PictureLayerImplTest, HugeMasksDontGetTiles) {
   // Mask layers have a tiling, but there should be no tiles in it.
   EXPECT_EQ(0u, active_layer_->HighResTiling()->AllTilesForTesting().size());
   // The mask resource is empty.
-  EXPECT_EQ(0u, active_layer_->ContentsResourceId());
+  active_layer_->GetContentsResourceId(&mask_resource_id, &mask_texture_size);
+  EXPECT_EQ(0u, mask_resource_id);
+}
+
+TEST_F(PictureLayerImplTest, ScaledMaskLayer) {
+  gfx::Size tile_size(100, 100);
+
+  scoped_refptr<FakePicturePileImpl> valid_pile =
+      FakePicturePileImpl::CreateFilledPile(tile_size, gfx::Size(1000, 1000));
+  valid_pile->set_is_mask(true);
+  SetupPendingTree(valid_pile);
+
+  float ideal_contents_scale = 1.3f;
+  SetupDrawPropertiesAndUpdateTiles(
+      pending_layer_, ideal_contents_scale, 1.f, 1.f, 1.f, false);
+  EXPECT_EQ(ideal_contents_scale,
+            pending_layer_->HighResTiling()->contents_scale());
+  EXPECT_EQ(1u, pending_layer_->num_tilings());
+
+  pending_layer_->HighResTiling()->CreateAllTilesForTesting();
+  host_impl_.tile_manager()->InitializeTilesWithResourcesForTesting(
+      pending_layer_->HighResTiling()->AllTilesForTesting());
+
+  ActivateTree();
+
+  // Mask layers have a tiling with a single tile in it.
+  EXPECT_EQ(1u, active_layer_->HighResTiling()->AllTilesForTesting().size());
+  // The mask resource exists.
+  ResourceProvider::ResourceId mask_resource_id;
+  gfx::Size mask_texture_size;
+  active_layer_->GetContentsResourceId(&mask_resource_id, &mask_texture_size);
+  EXPECT_NE(0u, mask_resource_id);
+  gfx::Size expected_mask_texture_size = gfx::ToCeiledSize(
+      gfx::ScaleSize(active_layer_->bounds(), ideal_contents_scale));
+  EXPECT_EQ(mask_texture_size, expected_mask_texture_size);
 }
 
 TEST_F(PictureLayerImplTest, ReleaseResources) {
@@ -1294,8 +1335,8 @@ TEST_F(PictureLayerImplTest, ClampTilesToToMaxTileSize) {
       TestWebGraphicsContext3D::Create();
   context->set_max_texture_size(140);
   host_impl_.DidLoseOutputSurface();
-  host_impl_.InitializeRenderer(FakeOutputSurface::Create3d(
-      context.Pass()).PassAs<OutputSurface>());
+  host_impl_.InitializeRenderer(
+      FakeOutputSurface::Create3d(context.Pass()).Pass());
 
   SetupDrawPropertiesAndUpdateTiles(pending_layer_, 1.f, 1.f, 1.f, 1.f, false);
   ASSERT_EQ(2u, pending_layer_->tilings()->num_tilings());
@@ -1341,8 +1382,8 @@ TEST_F(PictureLayerImplTest, ClampSingleTileToToMaxTileSize) {
       TestWebGraphicsContext3D::Create();
   context->set_max_texture_size(140);
   host_impl_.DidLoseOutputSurface();
-  host_impl_.InitializeRenderer(FakeOutputSurface::Create3d(
-      context.Pass()).PassAs<OutputSurface>());
+  host_impl_.InitializeRenderer(
+      FakeOutputSurface::Create3d(context.Pass()).Pass());
 
   SetupDrawPropertiesAndUpdateTiles(pending_layer_, 1.f, 1.f, 1.f, 1.f, false);
   ASSERT_LE(1u, pending_layer_->tilings()->num_tilings());
@@ -1361,7 +1402,6 @@ TEST_F(PictureLayerImplTest, ClampSingleTileToToMaxTileSize) {
 }
 
 TEST_F(PictureLayerImplTest, DisallowTileDrawQuads) {
-  MockOcclusionTracker<LayerImpl> occlusion_tracker;
   scoped_ptr<RenderPass> render_pass = RenderPass::Create();
 
   gfx::Size tile_size(400, 400);
@@ -1382,34 +1422,47 @@ TEST_F(PictureLayerImplTest, DisallowTileDrawQuads) {
   AddDefaultTilingsWithInvalidation(invalidation);
 
   AppendQuadsData data;
-  active_layer_->WillDraw(DRAW_MODE_RESOURCELESS_SOFTWARE, NULL);
-  active_layer_->AppendQuads(render_pass.get(), occlusion_tracker, &data);
-  active_layer_->DidDraw(NULL);
+  active_layer_->WillDraw(DRAW_MODE_RESOURCELESS_SOFTWARE, nullptr);
+  active_layer_->AppendQuads(render_pass.get(), Occlusion(), &data);
+  active_layer_->DidDraw(nullptr);
 
   ASSERT_EQ(1U, render_pass->quad_list.size());
   EXPECT_EQ(DrawQuad::PICTURE_CONTENT,
             render_pass->quad_list.front()->material);
 }
 
-TEST_F(PictureLayerImplTest, MarkRequiredNullTiles) {
-  gfx::Size tile_size(100, 100);
-  gfx::Size layer_bounds(1000, 1000);
+TEST_F(PictureLayerImplTest, SolidColorLayerHasVisibleFullCoverage) {
+  scoped_ptr<RenderPass> render_pass = RenderPass::Create();
+
+  gfx::Size tile_size(1000, 1000);
+  gfx::Size layer_bounds(1500, 1500);
+  gfx::Rect visible_rect(1000, 1000);
 
   scoped_refptr<FakePicturePileImpl> pending_pile =
       FakePicturePileImpl::CreateEmptyPile(tile_size, layer_bounds);
-  // Layers with entirely empty piles can't get tilings.
-  pending_pile->AddRecordingAt(0, 0);
+  scoped_refptr<FakePicturePileImpl> active_pile =
+      FakePicturePileImpl::CreateEmptyPile(tile_size, layer_bounds);
 
-  SetupPendingTree(pending_pile);
+  pending_pile->set_is_solid_color(true);
+  active_pile->set_is_solid_color(true);
 
-  ASSERT_TRUE(pending_layer_->CanHaveTilings());
-  pending_layer_->AddTiling(1.0f);
-  pending_layer_->AddTiling(2.0f);
+  SetupTrees(pending_pile, active_pile);
 
-  // It should be safe to call this (and MarkVisibleResourcesAsRequired)
-  // on a layer with no recordings.
-  host_impl_.pending_tree()->UpdateDrawProperties();
-  pending_layer_->MarkVisibleResourcesAsRequired();
+  active_layer_->draw_properties().visible_content_rect = visible_rect;
+
+  AppendQuadsData data;
+  active_layer_->WillDraw(DRAW_MODE_SOFTWARE, nullptr);
+  active_layer_->AppendQuads(render_pass.get(), Occlusion(), &data);
+  active_layer_->DidDraw(nullptr);
+
+  Region remaining = visible_rect;
+  for (auto& quad : render_pass->quad_list) {
+    EXPECT_TRUE(visible_rect.Contains(quad.rect));
+    EXPECT_TRUE(remaining.Contains(quad.rect));
+    remaining.Subtract(quad.rect);
+  }
+
+  EXPECT_TRUE(remaining.IsEmpty());
 }
 
 TEST_F(PictureLayerImplTest, MarkRequiredOffscreenTiles) {
@@ -1420,48 +1473,37 @@ TEST_F(PictureLayerImplTest, MarkRequiredOffscreenTiles) {
       FakePicturePileImpl::CreateFilledPile(tile_size, layer_bounds);
   SetupPendingTree(pending_pile);
 
+  gfx::Transform transform;
+  gfx::Transform transform_for_tile_priority;
+  bool resourceless_software_draw = false;
+  gfx::Rect viewport(0, 0, 100, 200);
+  host_impl_.SetExternalDrawConstraints(transform,
+                                        viewport,
+                                        viewport,
+                                        viewport,
+                                        transform,
+                                        resourceless_software_draw);
+
   pending_layer_->set_fixed_tile_size(tile_size);
   ASSERT_TRUE(pending_layer_->CanHaveTilings());
   PictureLayerTiling* tiling = pending_layer_->AddTiling(1.f);
   host_impl_.pending_tree()->UpdateDrawProperties();
-  EXPECT_EQ(tiling->resolution(), HIGH_RESOLUTION);
+  EXPECT_EQ(viewport, pending_layer_->visible_rect_for_tile_priority());
 
-  pending_layer_->draw_properties().visible_content_rect =
-      gfx::Rect(0, 0, 100, 200);
-
-  // Fake set priorities.
-  for (PictureLayerTiling::CoverageIterator iter(
-           tiling, pending_layer_->contents_scale_x(), gfx::Rect(layer_bounds));
-       iter;
-       ++iter) {
-    if (!*iter)
-      continue;
-    Tile* tile = *iter;
-    TilePriority priority;
-    priority.resolution = HIGH_RESOLUTION;
-    gfx::Rect tile_bounds = iter.geometry_rect();
-    if (pending_layer_->visible_content_rect().Intersects(tile_bounds)) {
-      priority.priority_bin = TilePriority::NOW;
-      priority.distance_to_visible = 0.f;
-    } else {
-      priority.priority_bin = TilePriority::SOON;
-      priority.distance_to_visible = 1.f;
-    }
-    tile->SetPriority(PENDING_TREE, priority);
-  }
-
-  pending_layer_->MarkVisibleResourcesAsRequired();
+  base::TimeTicks time_ticks;
+  time_ticks += base::TimeDelta::FromMilliseconds(1);
+  host_impl_.SetCurrentBeginFrameArgs(
+      CreateBeginFrameArgsForTesting(time_ticks));
+  pending_layer_->UpdateTiles(Occlusion(), resourceless_software_draw);
+  EXPECT_EQ(HIGH_RESOLUTION, tiling->resolution());
 
   int num_visible = 0;
   int num_offscreen = 0;
 
-  for (PictureLayerTiling::CoverageIterator iter(
-           tiling, pending_layer_->contents_scale_x(), gfx::Rect(layer_bounds));
-       iter;
+  for (PictureLayerTiling::TilingRasterTileIterator iter(tiling); iter;
        ++iter) {
-    if (!*iter)
-      continue;
     const Tile* tile = *iter;
+    DCHECK(tile);
     if (tile->priority(PENDING_TREE).distance_to_visible == 0.f) {
       EXPECT_TRUE(tile->required_for_activation());
       num_visible++;
@@ -1516,9 +1558,7 @@ TEST_F(PictureLayerImplTest, TileOutsideOfViewportForTilePriorityNotRequired) {
   time_ticks += base::TimeDelta::FromMilliseconds(200);
   host_impl_.SetCurrentBeginFrameArgs(
       CreateBeginFrameArgsForTesting(time_ticks));
-  pending_layer_->UpdateTiles(Occlusion());
-
-  pending_layer_->MarkVisibleResourcesAsRequired();
+  pending_layer_->UpdateTiles(Occlusion(), resourceless_software_draw);
 
   // Intersect the two rects. Any tile outside should not be required for
   // activation.
@@ -1538,10 +1578,8 @@ TEST_F(PictureLayerImplTest, TileOutsideOfViewportForTilePriorityNotRequired) {
     if (viewport_for_tile_priority.Intersects(iter.geometry_rect())) {
       num_inside++;
       // Mark everything in viewport for tile priority as ready to draw.
-      ManagedTileState::TileVersion& tile_version =
-          tile->GetTileVersionForTesting(
-              tile->DetermineRasterModeForTree(PENDING_TREE));
-      tile_version.SetSolidColorForTesting(SK_ColorRED);
+      ManagedTileState::DrawInfo& draw_info = tile->draw_info();
+      draw_info.SetSolidColorForTesting(SK_ColorRED);
     } else {
       num_outside++;
       EXPECT_FALSE(tile->required_for_activation());
@@ -1556,16 +1594,16 @@ TEST_F(PictureLayerImplTest, TileOutsideOfViewportForTilePriorityNotRequired) {
   host_impl_.active_tree()->UpdateDrawProperties();
   active_layer_->draw_properties().visible_content_rect = visible_content_rect;
 
-  MockOcclusionTracker<LayerImpl> occlusion_tracker;
   scoped_ptr<RenderPass> render_pass = RenderPass::Create();
   AppendQuadsData data;
-  active_layer_->WillDraw(DRAW_MODE_SOFTWARE, NULL);
-  active_layer_->AppendQuads(render_pass.get(), occlusion_tracker, &data);
-  active_layer_->DidDraw(NULL);
+  active_layer_->WillDraw(DRAW_MODE_SOFTWARE, nullptr);
+  active_layer_->AppendQuads(render_pass.get(), Occlusion(), &data);
+  active_layer_->DidDraw(nullptr);
 
   // All tiles in activation rect is ready to draw.
   EXPECT_EQ(0u, data.num_missing_tiles);
   EXPECT_EQ(0u, data.num_incomplete_tiles);
+  EXPECT_FALSE(active_layer_->only_used_low_res_last_append_quads());
 }
 
 TEST_F(PictureLayerImplTest, HighResTileIsComplete) {
@@ -1591,17 +1629,82 @@ TEST_F(PictureLayerImplTest, HighResTileIsComplete) {
       active_layer_->tilings()->tiling_at(0)->AllTilesForTesting();
   host_impl_.tile_manager()->InitializeTilesWithResourcesForTesting(tiles);
 
-  MockOcclusionTracker<LayerImpl> occlusion_tracker;
   scoped_ptr<RenderPass> render_pass = RenderPass::Create();
   AppendQuadsData data;
-  active_layer_->WillDraw(DRAW_MODE_SOFTWARE, NULL);
-  active_layer_->AppendQuads(render_pass.get(), occlusion_tracker, &data);
-  active_layer_->DidDraw(NULL);
+  active_layer_->WillDraw(DRAW_MODE_SOFTWARE, nullptr);
+  active_layer_->AppendQuads(render_pass.get(), Occlusion(), &data);
+  active_layer_->DidDraw(nullptr);
 
   // All high res tiles drew, nothing was incomplete.
   EXPECT_EQ(9u, render_pass->quad_list.size());
   EXPECT_EQ(0u, data.num_missing_tiles);
   EXPECT_EQ(0u, data.num_incomplete_tiles);
+  EXPECT_FALSE(active_layer_->only_used_low_res_last_append_quads());
+}
+
+TEST_F(PictureLayerImplTest, HighResTileIsIncomplete) {
+  base::TimeTicks time_ticks;
+  time_ticks += base::TimeDelta::FromMilliseconds(1);
+  host_impl_.SetCurrentBeginFrameArgs(
+      CreateBeginFrameArgsForTesting(time_ticks));
+
+  gfx::Size tile_size(100, 100);
+  gfx::Size layer_bounds(200, 200);
+
+  host_impl_.SetViewportSize(layer_bounds);
+
+  scoped_refptr<FakePicturePileImpl> pending_pile =
+      FakePicturePileImpl::CreateFilledPile(tile_size, layer_bounds);
+  SetupPendingTree(pending_pile);
+  ActivateTree();
+
+  active_layer_->set_fixed_tile_size(tile_size);
+  host_impl_.active_tree()->UpdateDrawProperties();
+
+  scoped_ptr<RenderPass> render_pass = RenderPass::Create();
+  AppendQuadsData data;
+  active_layer_->WillDraw(DRAW_MODE_SOFTWARE, nullptr);
+  active_layer_->AppendQuads(render_pass.get(), Occlusion(), &data);
+  active_layer_->DidDraw(nullptr);
+
+  EXPECT_EQ(1u, render_pass->quad_list.size());
+  EXPECT_EQ(1u, data.num_missing_tiles);
+  EXPECT_EQ(0u, data.num_incomplete_tiles);
+  EXPECT_TRUE(active_layer_->only_used_low_res_last_append_quads());
+}
+
+TEST_F(PictureLayerImplTest, HighResTileIsIncompleteLowResComplete) {
+  base::TimeTicks time_ticks;
+  time_ticks += base::TimeDelta::FromMilliseconds(1);
+  host_impl_.SetCurrentBeginFrameArgs(
+      CreateBeginFrameArgsForTesting(time_ticks));
+
+  gfx::Size tile_size(100, 100);
+  gfx::Size layer_bounds(200, 200);
+
+  host_impl_.SetViewportSize(layer_bounds);
+
+  scoped_refptr<FakePicturePileImpl> pending_pile =
+      FakePicturePileImpl::CreateFilledPile(tile_size, layer_bounds);
+  SetupPendingTree(pending_pile);
+  ActivateTree();
+
+  active_layer_->set_fixed_tile_size(tile_size);
+  host_impl_.active_tree()->UpdateDrawProperties();
+  std::vector<Tile*> low_tiles =
+      active_layer_->tilings()->tiling_at(1)->AllTilesForTesting();
+  host_impl_.tile_manager()->InitializeTilesWithResourcesForTesting(low_tiles);
+
+  scoped_ptr<RenderPass> render_pass = RenderPass::Create();
+  AppendQuadsData data;
+  active_layer_->WillDraw(DRAW_MODE_SOFTWARE, nullptr);
+  active_layer_->AppendQuads(render_pass.get(), Occlusion(), &data);
+  active_layer_->DidDraw(nullptr);
+
+  EXPECT_EQ(1u, render_pass->quad_list.size());
+  EXPECT_EQ(0u, data.num_missing_tiles);
+  EXPECT_EQ(1u, data.num_incomplete_tiles);
+  EXPECT_TRUE(active_layer_->only_used_low_res_last_append_quads());
 }
 
 TEST_F(PictureLayerImplTest, LowResTileIsIncomplete) {
@@ -1633,17 +1736,17 @@ TEST_F(PictureLayerImplTest, LowResTileIsIncomplete) {
       active_layer_->tilings()->tiling_at(1)->AllTilesForTesting();
   host_impl_.tile_manager()->InitializeTilesWithResourcesForTesting(low_tiles);
 
-  MockOcclusionTracker<LayerImpl> occlusion_tracker;
   scoped_ptr<RenderPass> render_pass = RenderPass::Create();
   AppendQuadsData data;
-  active_layer_->WillDraw(DRAW_MODE_SOFTWARE, NULL);
-  active_layer_->AppendQuads(render_pass.get(), occlusion_tracker, &data);
-  active_layer_->DidDraw(NULL);
+  active_layer_->WillDraw(DRAW_MODE_SOFTWARE, nullptr);
+  active_layer_->AppendQuads(render_pass.get(), Occlusion(), &data);
+  active_layer_->DidDraw(nullptr);
 
   // The missing high res tile was replaced by a low res tile.
   EXPECT_EQ(9u, render_pass->quad_list.size());
   EXPECT_EQ(0u, data.num_missing_tiles);
   EXPECT_EQ(1u, data.num_incomplete_tiles);
+  EXPECT_FALSE(active_layer_->only_used_low_res_last_append_quads());
 }
 
 TEST_F(PictureLayerImplTest,
@@ -1695,12 +1798,11 @@ TEST_F(PictureLayerImplTest,
       active_layer_->HighResTiling()->AllTilesForTesting();
   host_impl_.tile_manager()->InitializeTilesWithResourcesForTesting(high_tiles);
 
-  MockOcclusionTracker<LayerImpl> occlusion_tracker;
   scoped_ptr<RenderPass> render_pass = RenderPass::Create();
   AppendQuadsData data;
-  active_layer_->WillDraw(DRAW_MODE_SOFTWARE, NULL);
-  active_layer_->AppendQuads(render_pass.get(), occlusion_tracker, &data);
-  active_layer_->DidDraw(NULL);
+  active_layer_->WillDraw(DRAW_MODE_SOFTWARE, nullptr);
+  active_layer_->AppendQuads(render_pass.get(), Occlusion(), &data);
+  active_layer_->DidDraw(nullptr);
 
   // All high res tiles drew, and the one ideal res tile drew.
   ASSERT_GT(render_pass->quad_list.size(), 9u);
@@ -1714,6 +1816,7 @@ TEST_F(PictureLayerImplTest,
   // Neither the high res nor the ideal tiles were considered as incomplete.
   EXPECT_EQ(0u, data.num_missing_tiles);
   EXPECT_EQ(0u, data.num_incomplete_tiles);
+  EXPECT_FALSE(active_layer_->only_used_low_res_last_append_quads());
 }
 
 TEST_F(PictureLayerImplTest, HighResRequiredWhenUnsharedActiveAllReady) {
@@ -1730,7 +1833,9 @@ TEST_F(PictureLayerImplTest, HighResRequiredWhenUnsharedActiveAllReady) {
 
   // No shared tiles and all active tiles ready, so pending can only
   // activate with all high res tiles.
-  pending_layer_->MarkVisibleResourcesAsRequired();
+  pending_layer_->HighResTiling()->UpdateAllTilePrioritiesForTesting();
+  pending_layer_->LowResTiling()->UpdateAllTilePrioritiesForTesting();
+
   AssertAllTilesRequired(pending_layer_->HighResTiling());
   AssertNoTilesRequired(pending_layer_->LowResTiling());
 }
@@ -1750,13 +1855,16 @@ TEST_F(PictureLayerImplTest, HighResRequiredWhenMissingHighResFlagOn) {
 
   // When high res are required, even if the active tree is not ready,
   // the high res tiles must be ready.
-  host_impl_.active_tree()->SetRequiresHighResToDraw();
-  pending_layer_->MarkVisibleResourcesAsRequired();
+  host_impl_.SetRequiresHighResToDraw();
+
+  pending_layer_->HighResTiling()->UpdateAllTilePrioritiesForTesting();
+  pending_layer_->LowResTiling()->UpdateAllTilePrioritiesForTesting();
+
   AssertAllTilesRequired(pending_layer_->HighResTiling());
   AssertNoTilesRequired(pending_layer_->LowResTiling());
 }
 
-TEST_F(PictureLayerImplTest, NothingRequiredIfAllHighResTilesShared) {
+TEST_F(PictureLayerImplTest, AllHighResRequiredEvenIfShared) {
   gfx::Size layer_bounds(400, 400);
   gfx::Size tile_size(100, 100);
   SetupDefaultTreesWithFixedTileSize(layer_bounds, tile_size);
@@ -1768,8 +1876,32 @@ TEST_F(PictureLayerImplTest, NothingRequiredIfAllHighResTilesShared) {
   EXPECT_FALSE(some_active_tile->IsReadyToDraw());
 
   // All tiles shared (no invalidation), so even though the active tree's
-  // tiles aren't ready, there is nothing required.
-  pending_layer_->MarkVisibleResourcesAsRequired();
+  // tiles aren't ready, the high res tiles are required for activation.
+  pending_layer_->HighResTiling()->UpdateAllTilePrioritiesForTesting();
+  pending_layer_->LowResTiling()->UpdateAllTilePrioritiesForTesting();
+
+  AssertAllTilesRequired(pending_layer_->HighResTiling());
+  AssertNoTilesRequired(pending_layer_->LowResTiling());
+}
+
+TEST_F(PictureLayerImplTest, DisallowRequiredForActivation) {
+  gfx::Size layer_bounds(400, 400);
+  gfx::Size tile_size(100, 100);
+  SetupDefaultTreesWithFixedTileSize(layer_bounds, tile_size);
+
+  CreateHighLowResAndSetAllTilesVisible();
+
+  Tile* some_active_tile =
+      active_layer_->HighResTiling()->AllTilesForTesting()[0];
+  EXPECT_FALSE(some_active_tile->IsReadyToDraw());
+
+  pending_layer_->HighResTiling()->set_can_require_tiles_for_activation(false);
+  pending_layer_->LowResTiling()->set_can_require_tiles_for_activation(false);
+
+  // If we disallow required for activation, no tiles can be required.
+  pending_layer_->HighResTiling()->UpdateAllTilePrioritiesForTesting();
+  pending_layer_->LowResTiling()->UpdateAllTilePrioritiesForTesting();
+
   AssertNoTilesRequired(pending_layer_->HighResTiling());
   AssertNoTilesRequired(pending_layer_->LowResTiling());
 }
@@ -1799,7 +1931,9 @@ TEST_F(PictureLayerImplTest, NothingRequiredIfActiveMissingTiles) {
 
   // Since the active layer has no tiles at all, the pending layer doesn't
   // need content in order to activate.
-  pending_layer_->MarkVisibleResourcesAsRequired();
+  pending_layer_->HighResTiling()->UpdateAllTilePrioritiesForTesting();
+  pending_layer_->LowResTiling()->UpdateAllTilePrioritiesForTesting();
+
   AssertNoTilesRequired(pending_layer_->HighResTiling());
   AssertNoTilesRequired(pending_layer_->LowResTiling());
 }
@@ -1824,7 +1958,9 @@ TEST_F(PictureLayerImplTest, HighResRequiredIfActiveCantHaveTiles) {
   // to the case where there is no active layer, to avoid flashing content.
   // This can happen if a layer exists for a while and switches from
   // not being able to have content to having content.
-  pending_layer_->MarkVisibleResourcesAsRequired();
+  pending_layer_->HighResTiling()->UpdateAllTilePrioritiesForTesting();
+  pending_layer_->LowResTiling()->UpdateAllTilePrioritiesForTesting();
+
   AssertAllTilesRequired(pending_layer_->HighResTiling());
   AssertNoTilesRequired(pending_layer_->LowResTiling());
 }
@@ -1838,12 +1974,19 @@ TEST_F(PictureLayerImplTest, HighResRequiredWhenActiveHasDifferentBounds) {
   pending_layer_->SetBounds(pending_layer_bounds);
 
   CreateHighLowResAndSetAllTilesVisible();
+  // TODO(vmpstr): This is confusing. Rework the test to create different bounds
+  // on different trees instead of fudging tilings.
+  pending_layer_->HighResTiling()->ComputeTilePriorityRects(
+      PENDING_TREE, gfx::Rect(pending_layer_bounds), 1.f, 1.f, Occlusion());
 
+  pending_layer_->HighResTiling()->UpdateAllTilePrioritiesForTesting();
   active_layer_->SetAllTilesReady();
 
   // Since the active layer has different bounds, the pending layer needs all
   // high res tiles in order to activate.
-  pending_layer_->MarkVisibleResourcesAsRequired();
+  pending_layer_->HighResTiling()->UpdateAllTilePrioritiesForTesting();
+  pending_layer_->LowResTiling()->UpdateAllTilePrioritiesForTesting();
+
   AssertAllTilesRequired(pending_layer_->HighResTiling());
   AssertNoTilesRequired(pending_layer_->LowResTiling());
 }
@@ -1860,7 +2003,7 @@ TEST_F(PictureLayerImplTest, ActivateUninitializedLayer) {
   scoped_ptr<FakePictureLayerImpl> pending_layer =
       FakePictureLayerImpl::CreateWithPile(pending_tree, id_, pending_pile);
   pending_layer->SetDrawsContent(true);
-  pending_tree->SetRootLayer(pending_layer.PassAs<LayerImpl>());
+  pending_tree->SetRootLayer(pending_layer.Pass());
 
   pending_layer_ = static_cast<FakePictureLayerImpl*>(
       host_impl_.pending_tree()->LayerById(id_));
@@ -2085,15 +2228,19 @@ TEST_F(PictureLayerImplTest, HighResCreatedWhenBoundsShrink) {
 
   SetupDrawPropertiesAndUpdateTiles(
       active_layer_, 0.5f, 0.5f, 0.5f, 0.5f, false);
+  pending_layer_->tilings()->RemoveAllTilings();
   active_layer_->tilings()->RemoveAllTilings();
-  PictureLayerTiling* tiling = active_layer_->tilings()->AddTiling(0.5f);
-  active_layer_->tilings()->AddTiling(1.5f);
-  active_layer_->tilings()->AddTiling(0.25f);
+  PictureLayerTiling* tiling = active_layer_->AddTiling(0.5f);
+  active_layer_->AddTiling(1.5f);
+  active_layer_->AddTiling(0.25f);
   tiling->set_resolution(HIGH_RESOLUTION);
 
   // Sanity checks.
   ASSERT_EQ(3u, active_layer_->tilings()->num_tilings());
   ASSERT_EQ(tiling, active_layer_->tilings()->TilingAtScale(0.5f));
+
+  pending_layer_->tilings()->RemoveAllTilings();
+  ASSERT_EQ(0u, pending_layer_->tilings()->num_tilings());
 
   // Now, set the bounds to be 1x1 (so that minimum contents scale becomes
   // 1.0f). Note that we should also ensure that the pending layer needs post
@@ -2101,8 +2248,8 @@ TEST_F(PictureLayerImplTest, HighResCreatedWhenBoundsShrink) {
   // other words we want the pending layer to sync from the active layer.
   pending_layer_->SetBounds(gfx::Size(1, 1));
   pending_layer_->SetNeedsPostCommitInitialization();
-  pending_layer_->set_twin_layer(NULL);
-  active_layer_->set_twin_layer(NULL);
+  pending_layer_->set_twin_layer(nullptr);
+  active_layer_->set_twin_layer(nullptr);
   EXPECT_TRUE(pending_layer_->needs_post_commit_initialization());
 
   // Update the draw properties: sync from active tree should happen here.
@@ -2213,15 +2360,14 @@ TEST_F(PictureLayerImplTest, PinchingTooSmall) {
 
 class DeferredInitPictureLayerImplTest : public PictureLayerImplTest {
  public:
-  virtual void InitializeRenderer() OVERRIDE {
+  void InitializeRenderer() override {
     bool delegated_rendering = false;
-    host_impl_.InitializeRenderer(
-        FakeOutputSurface::CreateDeferredGL(
-            scoped_ptr<SoftwareOutputDevice>(new SoftwareOutputDevice),
-            delegated_rendering).PassAs<OutputSurface>());
+    host_impl_.InitializeRenderer(FakeOutputSurface::CreateDeferredGL(
+        scoped_ptr<SoftwareOutputDevice>(new SoftwareOutputDevice),
+        delegated_rendering));
   }
 
-  virtual void SetUp() OVERRIDE {
+  virtual void SetUp() override {
     PictureLayerImplTest::SetUp();
 
     // Create some default active and pending trees.
@@ -2313,7 +2459,7 @@ TEST_F(PictureLayerImplTest, HighResTilingDuringAnimationForCpuRasterization) {
   EXPECT_BOTH_EQ(HighResTiling()->contents_scale(), 4.f);
 
   // When animating with an unknown maximum animation scale factor, a new
-  // high-res tiling should be created at the animation's initial scale.
+  // high-res tiling should be created at a source scale of 1.
   animating_transform = true;
   contents_scale = 2.f;
   maximum_animation_scale = 0.f;
@@ -2323,7 +2469,7 @@ TEST_F(PictureLayerImplTest, HighResTilingDuringAnimationForCpuRasterization) {
                                page_scale,
                                maximum_animation_scale,
                                animating_transform);
-  EXPECT_BOTH_EQ(HighResTiling()->contents_scale(), 2.f);
+  EXPECT_BOTH_EQ(HighResTiling()->contents_scale(), page_scale * device_scale);
 
   // Further changes to scale during the animation should not cause a new
   // high-res tiling to get created.
@@ -2334,7 +2480,7 @@ TEST_F(PictureLayerImplTest, HighResTilingDuringAnimationForCpuRasterization) {
                                page_scale,
                                maximum_animation_scale,
                                animating_transform);
-  EXPECT_BOTH_EQ(HighResTiling()->contents_scale(), 2.f);
+  EXPECT_BOTH_EQ(HighResTiling()->contents_scale(), page_scale * device_scale);
 
   // Once we stop animating, a new high-res tiling should be created.
   animating_transform = false;
@@ -2349,8 +2495,8 @@ TEST_F(PictureLayerImplTest, HighResTilingDuringAnimationForCpuRasterization) {
 
   // When animating with a maxmium animation scale factor that is so large
   // that the layer grows larger than the viewport at this scale, a new
-  // high-res tiling should get created at the animation's initial scale, not
-  // at its maximum scale.
+  // high-res tiling should get created at a source scale of 1, not at its
+  // maximum scale.
   animating_transform = true;
   contents_scale = 2.f;
   maximum_animation_scale = 11.f;
@@ -2360,7 +2506,7 @@ TEST_F(PictureLayerImplTest, HighResTilingDuringAnimationForCpuRasterization) {
                                page_scale,
                                maximum_animation_scale,
                                animating_transform);
-  EXPECT_BOTH_EQ(HighResTiling()->contents_scale(), 2.f);
+  EXPECT_BOTH_EQ(HighResTiling()->contents_scale(), page_scale * device_scale);
 
   // Once we stop animating, a new high-res tiling should be created.
   animating_transform = false;
@@ -2379,6 +2525,31 @@ TEST_F(PictureLayerImplTest, HighResTilingDuringAnimationForCpuRasterization) {
   // at source scale 1.
   animating_transform = true;
   contents_scale = 0.1f;
+  maximum_animation_scale = 11.f;
+
+  SetContentsScaleOnBothLayers(contents_scale,
+                               device_scale,
+                               page_scale,
+                               maximum_animation_scale,
+                               animating_transform);
+  EXPECT_BOTH_EQ(HighResTiling()->contents_scale(), device_scale * page_scale);
+
+  // Once we stop animating, a new high-res tiling should be created.
+  animating_transform = false;
+  contents_scale = 12.f;
+
+  SetContentsScaleOnBothLayers(contents_scale,
+                               device_scale,
+                               page_scale,
+                               maximum_animation_scale,
+                               animating_transform);
+  EXPECT_BOTH_EQ(HighResTiling()->contents_scale(), 12.f);
+
+  // When animating toward a smaller scale, but that is still so large that the
+  // layer grows larger than the viewport at this scale, a new high-res tiling
+  // should get created at source scale 1.
+  animating_transform = true;
+  contents_scale = 11.f;
   maximum_animation_scale = 11.f;
 
   SetContentsScaleOnBothLayers(contents_scale,
@@ -2469,8 +2640,9 @@ TEST_F(PictureLayerImplTest, HighResTilingDuringAnimationForGpuRasterization) {
   static_cast<FakePicturePileImpl*>(pending_layer_->pile())->set_has_text(true);
   static_cast<FakePicturePileImpl*>(active_layer_->pile())->set_has_text(true);
 
-  // Since we're GPU-rasterizing but have text, starting an animation should
-  // cause tiling resolution to get set to the maximum animation scale.
+  // When we're GPU-rasterizing, even if we have text, starting an animation
+  // should cause tiling resolution to get set to the content scale, since we
+  // render animating text at content scale using distance fields.
   animating_transform = true;
   contents_scale = 2.f;
   maximum_animation_scale = 3.f;
@@ -2480,10 +2652,10 @@ TEST_F(PictureLayerImplTest, HighResTilingDuringAnimationForGpuRasterization) {
                                page_scale,
                                maximum_animation_scale,
                                animating_transform);
-  EXPECT_BOTH_EQ(HighResTiling()->contents_scale(), 3.f);
+  EXPECT_BOTH_EQ(HighResTiling()->contents_scale(), 2.f);
 
-  // Further changes to scale during the animation should not cause a new
-  // high-res tiling to get created.
+  // Further changes to scale during the animation should still cause a new
+  // high-res tiling to get created at content scale.
   contents_scale = 4.f;
   maximum_animation_scale = 5.f;
 
@@ -2492,7 +2664,7 @@ TEST_F(PictureLayerImplTest, HighResTilingDuringAnimationForGpuRasterization) {
                                page_scale,
                                maximum_animation_scale,
                                animating_transform);
-  EXPECT_BOTH_EQ(HighResTiling()->contents_scale(), 3.f);
+  EXPECT_BOTH_EQ(HighResTiling()->contents_scale(), 4.f);
 
   // Once we stop animating, a new high-res tiling should be created.
   animating_transform = false;
@@ -2571,7 +2743,7 @@ TEST_F(PictureLayerImplTest, LayerRasterTileIterator) {
 
   EXPECT_TRUE(reached_prepaint);
   EXPECT_EQ(0u, non_ideal_tile_count);
-  EXPECT_EQ(1u, low_res_tile_count);
+  EXPECT_EQ(0u, low_res_tile_count);
   EXPECT_EQ(16u, high_res_tile_count);
   EXPECT_EQ(low_res_tile_count + high_res_tile_count + non_ideal_tile_count,
             unique_tiles.size());
@@ -2583,7 +2755,8 @@ TEST_F(PictureLayerImplTest, LayerRasterTileIterator) {
 
   pending_layer_->draw_properties().visible_content_rect =
       gfx::Rect(1100, 1100, 500, 500);
-  pending_layer_->UpdateTiles(Occlusion());
+  bool resourceless_software_draw = false;
+  pending_layer_->UpdateTiles(Occlusion(), resourceless_software_draw);
 
   unique_tiles.clear();
   high_res_tile_count = 0u;
@@ -2613,24 +2786,21 @@ TEST_F(PictureLayerImplTest, LayerRasterTileIterator) {
 
   pending_layer_->draw_properties().visible_content_rect =
       gfx::Rect(0, 0, 500, 500);
-  pending_layer_->UpdateTiles(Occlusion());
+  pending_layer_->UpdateTiles(Occlusion(), resourceless_software_draw);
 
   std::vector<Tile*> high_res_tiles = high_res_tiling->AllTilesForTesting();
   for (std::vector<Tile*>::iterator tile_it = high_res_tiles.begin();
        tile_it != high_res_tiles.end();
        ++tile_it) {
     Tile* tile = *tile_it;
-    ManagedTileState::TileVersion& tile_version =
-        tile->GetTileVersionForTesting(
-            tile->DetermineRasterModeForTree(ACTIVE_TREE));
-    tile_version.SetSolidColorForTesting(SK_ColorRED);
+    ManagedTileState::DrawInfo& draw_info = tile->draw_info();
+    draw_info.SetSolidColorForTesting(SK_ColorRED);
   }
 
   non_ideal_tile_count = 0;
   low_res_tile_count = 0;
   high_res_tile_count = 0;
-  for (it = PictureLayerImpl::LayerRasterTileIterator(pending_layer_, false);
-       it;
+  for (it = PictureLayerImpl::LayerRasterTileIterator(pending_layer_, true); it;
        ++it) {
     Tile* tile = *it;
     TilePriority priority = tile->priority(PENDING_TREE);
@@ -2694,7 +2864,7 @@ TEST_F(PictureLayerImplTest, LayerEvictionTileIterator) {
          ++iter) {
       if (mark_required) {
         number_of_marked_tiles++;
-        iter->MarkRequiredForActivation();
+        iter->set_required_for_activation(true);
       } else {
         number_of_unmarked_tiles++;
       }
@@ -2723,7 +2893,7 @@ TEST_F(PictureLayerImplTest, LayerEvictionTileIterator) {
   float expected_scales[] = {2.0f, 0.3f, 0.7f, low_res_factor, 1.0f};
   size_t scale_index = 0;
   bool reached_visible = false;
-  Tile* last_tile = NULL;
+  Tile* last_tile = nullptr;
   for (it = PictureLayerImpl::LayerEvictionTileIterator(
            pending_layer_, SAME_PRIORITY_FOR_BOTH_TREES);
        it;
@@ -2906,7 +3076,6 @@ TEST_F(PictureLayerImplTest, LowResReadyToDrawNotEnoughToActivate) {
 
   CreateHighLowResAndSetAllTilesVisible();
   active_layer_->SetAllTilesReady();
-  pending_layer_->MarkVisibleResourcesAsRequired();
 
   // All pending layer tiles required are not ready.
   EXPECT_FALSE(pending_layer_->AllTilesRequiredForActivationAreReadyToDraw());
@@ -2934,7 +3103,6 @@ TEST_F(PictureLayerImplTest, HighResReadyToDrawEnoughToActivate) {
 
   CreateHighLowResAndSetAllTilesVisible();
   active_layer_->SetAllTilesReady();
-  pending_layer_->MarkVisibleResourcesAsRequired();
 
   // All pending layer tiles required are not ready.
   EXPECT_FALSE(pending_layer_->AllTilesRequiredForActivationAreReadyToDraw());
@@ -2963,8 +3131,6 @@ TEST_F(PictureLayerImplTest,
   // And all the low-res tiles in the pending layer.
   pending_layer_->SetAllTilesReadyInTiling(pending_layer_->LowResTiling());
 
-  pending_layer_->MarkVisibleResourcesAsRequired();
-
   // The unshared high-res tiles are not ready, so we cannot activate.
   EXPECT_FALSE(pending_layer_->AllTilesRequiredForActivationAreReadyToDraw());
 
@@ -2986,8 +3152,6 @@ TEST_F(PictureLayerImplTest, SharedActiveHighResReadyNotEnoughToActivate) {
 
   // Initialize all high-res tiles in the active layer.
   active_layer_->SetAllTilesReadyInTiling(active_layer_->HighResTiling());
-
-  pending_layer_->MarkVisibleResourcesAsRequired();
 
   // The unshared high-res tiles are not ready, so we cannot activate.
   EXPECT_FALSE(pending_layer_->AllTilesRequiredForActivationAreReadyToDraw());
@@ -3063,28 +3227,7 @@ TEST_F(NoLowResPictureLayerImplTest, ManageTilingsCreatesTilings) {
                   pending_layer_->tilings()->tiling_at(0)->contents_scale());
 }
 
-TEST_F(NoLowResPictureLayerImplTest, MarkRequiredNullTiles) {
-  gfx::Size tile_size(100, 100);
-  gfx::Size layer_bounds(1000, 1000);
-
-  scoped_refptr<FakePicturePileImpl> pending_pile =
-      FakePicturePileImpl::CreateEmptyPile(tile_size, layer_bounds);
-  // Layers with entirely empty piles can't get tilings.
-  pending_pile->AddRecordingAt(0, 0);
-
-  SetupPendingTree(pending_pile);
-
-  ASSERT_TRUE(pending_layer_->CanHaveTilings());
-  pending_layer_->AddTiling(1.0f);
-  pending_layer_->AddTiling(2.0f);
-
-  // It should be safe to call this (and MarkVisibleResourcesAsRequired)
-  // on a layer with no recordings.
-  host_impl_.pending_tree()->UpdateDrawProperties();
-  pending_layer_->MarkVisibleResourcesAsRequired();
-}
-
-TEST_F(NoLowResPictureLayerImplTest, NothingRequiredIfAllHighResTilesShared) {
+TEST_F(NoLowResPictureLayerImplTest, AllHighResRequiredEvenIfShared) {
   gfx::Size layer_bounds(400, 400);
   gfx::Size tile_size(100, 100);
   SetupDefaultTreesWithFixedTileSize(layer_bounds, tile_size);
@@ -3097,11 +3240,13 @@ TEST_F(NoLowResPictureLayerImplTest, NothingRequiredIfAllHighResTilesShared) {
 
   // All tiles shared (no invalidation), so even though the active tree's
   // tiles aren't ready, there is nothing required.
-  pending_layer_->MarkVisibleResourcesAsRequired();
-  AssertNoTilesRequired(pending_layer_->HighResTiling());
-  if (host_impl_.settings().create_low_res_tiling) {
+  pending_layer_->HighResTiling()->UpdateAllTilePrioritiesForTesting();
+  if (host_impl_.settings().create_low_res_tiling)
+    pending_layer_->LowResTiling()->UpdateAllTilePrioritiesForTesting();
+
+  AssertAllTilesRequired(pending_layer_->HighResTiling());
+  if (host_impl_.settings().create_low_res_tiling)
     AssertNoTilesRequired(pending_layer_->LowResTiling());
-  }
 }
 
 TEST_F(NoLowResPictureLayerImplTest, NothingRequiredIfActiveMissingTiles) {
@@ -3130,14 +3275,16 @@ TEST_F(NoLowResPictureLayerImplTest, NothingRequiredIfActiveMissingTiles) {
 
   // Since the active layer has no tiles at all, the pending layer doesn't
   // need content in order to activate.
-  pending_layer_->MarkVisibleResourcesAsRequired();
+  pending_layer_->HighResTiling()->UpdateAllTilePrioritiesForTesting();
+  if (host_impl_.settings().create_low_res_tiling)
+    pending_layer_->LowResTiling()->UpdateAllTilePrioritiesForTesting();
+
   AssertNoTilesRequired(pending_layer_->HighResTiling());
   if (host_impl_.settings().create_low_res_tiling)
     AssertNoTilesRequired(pending_layer_->LowResTiling());
 }
 
-TEST_F(NoLowResPictureLayerImplTest,
-       ResourcelessSoftwareDrawHasValidViewportForTilePriority) {
+TEST_F(NoLowResPictureLayerImplTest, InvalidViewportForPrioritizingTiles) {
   base::TimeTicks time_ticks;
   time_ticks += base::TimeDelta::FromMilliseconds(1);
   host_impl_.SetCurrentBeginFrameArgs(
@@ -3158,6 +3305,8 @@ TEST_F(NoLowResPictureLayerImplTest,
   SetupDrawPropertiesAndUpdateTiles(active_layer_, 1.f, 1.f, 1.f, 1.f, false);
 
   // UpdateTiles with valid viewport. Should update tile viewport.
+  // Note viewport is considered invalid if and only if in resourceless
+  // software draw.
   bool resourceless_software_draw = false;
   gfx::Rect viewport = gfx::Rect(layer_bounds);
   gfx::Transform transform;
@@ -3169,20 +3318,16 @@ TEST_F(NoLowResPictureLayerImplTest,
                                         resourceless_software_draw);
   active_layer_->draw_properties().visible_content_rect = viewport;
   active_layer_->draw_properties().screen_space_transform = transform;
-  active_layer_->UpdateTiles(Occlusion());
+  active_layer_->UpdateTiles(Occlusion(), resourceless_software_draw);
 
   gfx::Rect visible_rect_for_tile_priority =
       active_layer_->visible_rect_for_tile_priority();
   EXPECT_FALSE(visible_rect_for_tile_priority.IsEmpty());
-  gfx::Rect viewport_rect_for_tile_priority =
-      active_layer_->viewport_rect_for_tile_priority();
-  EXPECT_FALSE(viewport_rect_for_tile_priority.IsEmpty());
   gfx::Transform screen_space_transform_for_tile_priority =
-      active_layer_->screen_space_transform_for_tile_priority();
+      active_layer_->screen_space_transform();
 
-  // PictureLayerImpl does not make a special case for
-  // resource_less_software_draw, so the tile viewport and matrix should be
-  // respected.
+  // Expand viewport and set it as invalid for prioritizing tiles.
+  // Should update viewport and transform, but not update visible rect.
   time_ticks += base::TimeDelta::FromMilliseconds(200);
   host_impl_.SetCurrentBeginFrameArgs(
       CreateBeginFrameArgsForTesting(time_ticks));
@@ -3197,21 +3342,31 @@ TEST_F(NoLowResPictureLayerImplTest,
                                         viewport,
                                         transform,
                                         resourceless_software_draw);
-  active_layer_->UpdateTiles(Occlusion());
+  active_layer_->UpdateTiles(Occlusion(), resourceless_software_draw);
 
-  visible_rect_for_tile_priority =
-      gfx::ScaleToEnclosingRect(visible_rect_for_tile_priority, 2);
-  viewport_rect_for_tile_priority =
-      gfx::ScaleToEnclosingRect(viewport_rect_for_tile_priority, 2);
-  screen_space_transform_for_tile_priority = transform;
+  // Transform for tile priority is updated.
+  EXPECT_TRANSFORMATION_MATRIX_EQ(transform,
+                                  active_layer_->screen_space_transform());
+  // Visible rect for tile priority retains old value.
+  EXPECT_EQ(visible_rect_for_tile_priority,
+            active_layer_->visible_rect_for_tile_priority());
 
-  EXPECT_RECT_EQ(visible_rect_for_tile_priority,
-                 active_layer_->visible_rect_for_tile_priority());
-  EXPECT_RECT_EQ(viewport_rect_for_tile_priority,
-                 active_layer_->viewport_rect_for_tile_priority());
-  EXPECT_TRANSFORMATION_MATRIX_EQ(
-      screen_space_transform_for_tile_priority,
-      active_layer_->screen_space_transform_for_tile_priority());
+  // Keep expanded viewport but mark it valid. Should update tile viewport.
+  time_ticks += base::TimeDelta::FromMilliseconds(200);
+  host_impl_.SetCurrentBeginFrameArgs(
+      CreateBeginFrameArgsForTesting(time_ticks));
+  resourceless_software_draw = false;
+  host_impl_.SetExternalDrawConstraints(transform,
+                                        viewport,
+                                        viewport,
+                                        viewport,
+                                        transform,
+                                        resourceless_software_draw);
+  active_layer_->UpdateTiles(Occlusion(), resourceless_software_draw);
+
+  EXPECT_TRANSFORMATION_MATRIX_EQ(transform,
+                                  active_layer_->screen_space_transform());
+  EXPECT_EQ(viewport, active_layer_->visible_rect_for_tile_priority());
 }
 
 TEST_F(NoLowResPictureLayerImplTest, CleanUpTilings) {
@@ -3431,7 +3586,6 @@ TEST_F(NoLowResPictureLayerImplTest, ReleaseResources) {
 }
 
 TEST_F(PictureLayerImplTest, SharedQuadStateContainsMaxTilingScale) {
-  MockOcclusionTracker<LayerImpl> occlusion_tracker;
   scoped_ptr<RenderPass> render_pass = RenderPass::Create();
 
   gfx::Size tile_size(400, 400);
@@ -3457,24 +3611,25 @@ TEST_F(PictureLayerImplTest, SharedQuadStateContainsMaxTilingScale) {
                               SK_MScalar1 / max_contents_scale);
 
   AppendQuadsData data;
-  active_layer_->AppendQuads(render_pass.get(), occlusion_tracker, &data);
+  active_layer_->AppendQuads(render_pass.get(), Occlusion(), &data);
 
   // SharedQuadState should have be of size 1, as we are doing AppenQuad once.
   EXPECT_EQ(1u, render_pass->shared_quad_state_list.size());
   // The content_to_target_transform should be scaled by the
   // MaximumTilingContentsScale on the layer.
   EXPECT_EQ(scaled_draw_transform.ToString(),
-            render_pass->shared_quad_state_list[0]
+            render_pass->shared_quad_state_list.front()
                 ->content_to_target_transform.ToString());
   // The content_bounds should be scaled by the
   // MaximumTilingContentsScale on the layer.
-  EXPECT_EQ(gfx::Size(2500u, 5000u).ToString(),
-            render_pass->shared_quad_state_list[0]->content_bounds.ToString());
+  EXPECT_EQ(
+      gfx::Size(2500u, 5000u).ToString(),
+      render_pass->shared_quad_state_list.front()->content_bounds.ToString());
   // The visible_content_rect should be scaled by the
   // MaximumTilingContentsScale on the layer.
-  EXPECT_EQ(
-      gfx::Rect(0u, 0u, 2500u, 5000u).ToString(),
-      render_pass->shared_quad_state_list[0]->visible_content_rect.ToString());
+  EXPECT_EQ(gfx::Rect(0u, 0u, 2500u, 5000u).ToString(),
+            render_pass->shared_quad_state_list.front()
+                ->visible_content_rect.ToString());
 }
 
 TEST_F(PictureLayerImplTest, UpdateTilesForMasksWithNoVisibleContent) {
@@ -3502,7 +3657,7 @@ TEST_F(PictureLayerImplTest, UpdateTilesForMasksWithNoVisibleContent) {
   mask->SetDrawsContent(true);
 
   FakePictureLayerImpl* pending_mask_content = mask.get();
-  layer_with_mask->SetMaskLayer(mask.PassAs<LayerImpl>());
+  layer_with_mask->SetMaskLayer(mask.Pass());
 
   scoped_ptr<FakePictureLayerImpl> child_of_layer_with_mask =
       FakePictureLayerImpl::Create(host_impl_.pending_tree(), 4);
@@ -3511,9 +3666,9 @@ TEST_F(PictureLayerImplTest, UpdateTilesForMasksWithNoVisibleContent) {
   child_of_layer_with_mask->SetContentBounds(bounds);
   child_of_layer_with_mask->SetDrawsContent(true);
 
-  layer_with_mask->AddChild(child_of_layer_with_mask.PassAs<LayerImpl>());
+  layer_with_mask->AddChild(child_of_layer_with_mask.Pass());
 
-  root->AddChild(layer_with_mask.PassAs<LayerImpl>());
+  root->AddChild(layer_with_mask.Pass());
 
   host_impl_.pending_tree()->SetRootLayer(root.Pass());
 
@@ -3526,9 +3681,8 @@ class PictureLayerImplTestWithDelegatingRenderer : public PictureLayerImplTest {
  public:
   PictureLayerImplTestWithDelegatingRenderer() : PictureLayerImplTest() {}
 
-  virtual void InitializeRenderer() OVERRIDE {
-    host_impl_.InitializeRenderer(
-        FakeOutputSurface::CreateDelegating3d().PassAs<OutputSurface>());
+  void InitializeRenderer() override {
+    host_impl_.InitializeRenderer(FakeOutputSurface::CreateDelegating3d());
   }
 };
 
@@ -3566,12 +3720,11 @@ TEST_F(PictureLayerImplTestWithDelegatingRenderer,
   host_impl_.SetTreePriority(SAME_PRIORITY_FOR_BOTH_TREES);
   host_impl_.ManageTiles();
 
-  MockOcclusionTracker<LayerImpl> occlusion_tracker;
   scoped_ptr<RenderPass> render_pass = RenderPass::Create();
   AppendQuadsData data;
-  active_layer_->WillDraw(DRAW_MODE_HARDWARE, NULL);
-  active_layer_->AppendQuads(render_pass.get(), occlusion_tracker, &data);
-  active_layer_->DidDraw(NULL);
+  active_layer_->WillDraw(DRAW_MODE_HARDWARE, nullptr);
+  active_layer_->AppendQuads(render_pass.get(), Occlusion(), &data);
+  active_layer_->DidDraw(nullptr);
 
   // Even when OOM, quads should be produced, and should be different material
   // from quads with resource.
@@ -3599,7 +3752,7 @@ class OcclusionTrackingPictureLayerImplTest : public PictureLayerImplTest {
          ++priority_count) {
       TreePriority tree_priority = static_cast<TreePriority>(priority_count);
       size_t occluded_tile_count = 0u;
-      Tile* last_tile = NULL;
+      Tile* last_tile = nullptr;
 
       for (PictureLayerImpl::LayerEvictionTileIterator it =
                PictureLayerImpl::LayerEvictionTileIterator(layer,
@@ -3679,7 +3832,7 @@ TEST_F(OcclusionTrackingPictureLayerImplTest,
     if (tile_is_visible)
       unoccluded_tile_count++;
   }
-  EXPECT_EQ(unoccluded_tile_count, 25 + 4);
+  EXPECT_EQ(unoccluded_tile_count, 25);
 
   // Partial occlusion.
   pending_layer_->AddChild(LayerImpl::Create(host_impl_.pending_tree(), 1));
@@ -3709,7 +3862,7 @@ TEST_F(OcclusionTrackingPictureLayerImplTest,
     if (tile_is_visible)
       unoccluded_tile_count++;
   }
-  EXPECT_EQ(unoccluded_tile_count, 20 + 2);
+  EXPECT_EQ(20, unoccluded_tile_count);
 
   // Full occlusion.
   layer1->SetPosition(gfx::Point(0, 0));
@@ -3797,6 +3950,7 @@ TEST_F(OcclusionTrackingPictureLayerImplTest,
 
   for (size_t i = 0; i < pending_layer_->num_tilings(); ++i) {
     PictureLayerTiling* tiling = pending_layer_->tilings()->tiling_at(i);
+    tiling->UpdateAllTilePrioritiesForTesting();
 
     occluded_tile_count = 0;
     for (PictureLayerTiling::CoverageIterator iter(
@@ -3836,6 +3990,7 @@ TEST_F(OcclusionTrackingPictureLayerImplTest,
 
   for (size_t i = 0; i < pending_layer_->num_tilings(); ++i) {
     PictureLayerTiling* tiling = pending_layer_->tilings()->tiling_at(i);
+    tiling->UpdateAllTilePrioritiesForTesting();
 
     occluded_tile_count = 0;
     for (PictureLayerTiling::CoverageIterator iter(
@@ -3855,10 +4010,10 @@ TEST_F(OcclusionTrackingPictureLayerImplTest,
     }
     switch (i) {
       case 0:
-        EXPECT_EQ(occluded_tile_count, 25);
+        EXPECT_EQ(25, occluded_tile_count);
         break;
       case 1:
-        EXPECT_EQ(occluded_tile_count, 4);
+        EXPECT_EQ(4, occluded_tile_count);
         break;
       default:
         NOTREACHED();
@@ -3905,6 +4060,7 @@ TEST_F(OcclusionTrackingPictureLayerImplTest, OcclusionForDifferentScales) {
            tilings.begin();
        tiling_iterator != tilings.end();
        ++tiling_iterator) {
+    (*tiling_iterator)->UpdateAllTilePrioritiesForTesting();
     std::vector<Tile*> tiles = (*tiling_iterator)->AllTilesForTesting();
 
     occluded_tile_count = 0;
@@ -3972,6 +4128,7 @@ TEST_F(OcclusionTrackingPictureLayerImplTest, DifferentOcclusionOnTrees) {
 
   for (size_t i = 0; i < pending_layer_->num_tilings(); ++i) {
     PictureLayerTiling* tiling = pending_layer_->tilings()->tiling_at(i);
+    tiling->UpdateAllTilePrioritiesForTesting();
 
     for (PictureLayerTiling::CoverageIterator iter(
              tiling,
@@ -4116,6 +4273,7 @@ TEST_F(OcclusionTrackingPictureLayerImplTest,
   for (size_t i = 0; i < pending_layer_->num_tilings(); ++i) {
     PictureLayerTiling* tiling = pending_layer_->tilings()->tiling_at(i);
     tiling->CreateAllTilesForTesting();
+    tiling->UpdateAllTilePrioritiesForTesting();
 
     size_t occluded_tile_count_on_pending = 0u;
     size_t occluded_tile_count_on_active = 0u;
@@ -4150,6 +4308,7 @@ TEST_F(OcclusionTrackingPictureLayerImplTest,
   for (size_t i = 0; i < active_layer_->num_tilings(); ++i) {
     PictureLayerTiling* tiling = active_layer_->tilings()->tiling_at(i);
     tiling->CreateAllTilesForTesting();
+    tiling->UpdateAllTilePrioritiesForTesting();
 
     size_t occluded_tile_count_on_pending = 0u;
     size_t occluded_tile_count_on_active = 0u;
@@ -4264,12 +4423,12 @@ void PictureLayerImplTest::TestQuadsForSolidColor(bool test_for_solid) {
   SetupPendingTree(pending_pile);
   ActivateTree();
 
+  active_layer_->set_fixed_tile_size(tile_size);
+  host_impl_.active_tree()->UpdateDrawProperties();
   if (test_for_solid) {
     EXPECT_EQ(0u, active_layer_->tilings()->num_tilings());
   } else {
     ASSERT_TRUE(active_layer_->tilings());
-    active_layer_->set_fixed_tile_size(tile_size);
-    host_impl_.active_tree()->UpdateDrawProperties();
     ASSERT_GT(active_layer_->tilings()->num_tilings(), 0u);
     std::vector<Tile*> tiles =
         active_layer_->tilings()->tiling_at(0)->AllTilesForTesting();
@@ -4277,12 +4436,11 @@ void PictureLayerImplTest::TestQuadsForSolidColor(bool test_for_solid) {
     host_impl_.tile_manager()->InitializeTilesWithResourcesForTesting(tiles);
   }
 
-  MockOcclusionTracker<LayerImpl> occlusion_tracker;
   scoped_ptr<RenderPass> render_pass = RenderPass::Create();
   AppendQuadsData data;
-  active_layer_->WillDraw(DRAW_MODE_SOFTWARE, NULL);
-  active_layer_->AppendQuads(render_pass.get(), occlusion_tracker, &data);
-  active_layer_->DidDraw(NULL);
+  active_layer_->WillDraw(DRAW_MODE_SOFTWARE, nullptr);
+  active_layer_->AppendQuads(render_pass.get(), Occlusion(), &data);
+  active_layer_->DidDraw(nullptr);
 
   DrawQuad::Material expected = test_for_solid
                                     ? DrawQuad::Material::SOLID_COLOR
@@ -4368,6 +4526,130 @@ TEST_F(PictureLayerImplTest, NonSolidToSolidNoTilings) {
   // We've switched to a solid color, so we should end up with no tilings.
   ASSERT_TRUE(active_layer_->tilings());
   EXPECT_EQ(0u, active_layer_->tilings()->num_tilings());
+}
+
+TEST_F(PictureLayerImplTest, ChangeInViewportAllowsTilingUpdates) {
+  base::TimeTicks time_ticks;
+  time_ticks += base::TimeDelta::FromMilliseconds(1);
+  host_impl_.SetCurrentBeginFrameArgs(
+      CreateBeginFrameArgsForTesting(time_ticks));
+
+  gfx::Size tile_size(100, 100);
+  gfx::Size layer_bounds(400, 4000);
+
+  scoped_refptr<FakePicturePileImpl> pending_pile =
+      FakePicturePileImpl::CreateFilledPile(tile_size, layer_bounds);
+  scoped_refptr<FakePicturePileImpl> active_pile =
+      FakePicturePileImpl::CreateFilledPile(tile_size, layer_bounds);
+
+  SetupTrees(pending_pile, active_pile);
+
+  Region invalidation;
+  gfx::Rect viewport = gfx::Rect(0, 0, 100, 100);
+  gfx::Transform transform;
+
+  host_impl_.SetRequiresHighResToDraw();
+
+  // Update tiles.
+  pending_layer_->draw_properties().visible_content_rect = viewport;
+  pending_layer_->draw_properties().screen_space_transform = transform;
+  SetupDrawPropertiesAndUpdateTiles(pending_layer_, 1.f, 1.f, 1.f, 1.f, false);
+  pending_layer_->HighResTiling()->UpdateAllTilePrioritiesForTesting();
+
+  // Ensure we can't activate.
+  EXPECT_FALSE(pending_layer_->AllTilesRequiredForActivationAreReadyToDraw());
+
+  // Now in the same frame, move the viewport (this can happen during
+  // animation).
+  viewport = gfx::Rect(0, 2000, 100, 100);
+
+  // Update tiles.
+  pending_layer_->draw_properties().visible_content_rect = viewport;
+  pending_layer_->draw_properties().screen_space_transform = transform;
+  SetupDrawPropertiesAndUpdateTiles(pending_layer_, 1.f, 1.f, 1.f, 1.f, false);
+  pending_layer_->HighResTiling()->UpdateAllTilePrioritiesForTesting();
+
+  // Make sure all viewport tiles (viewport from the tiling) are ready to draw.
+  std::vector<Tile*> tiles;
+  for (PictureLayerTiling::CoverageIterator iter(
+           pending_layer_->HighResTiling(),
+           1.f,
+           pending_layer_->HighResTiling()->GetCurrentVisibleRectForTesting());
+       iter;
+       ++iter) {
+    if (*iter)
+      tiles.push_back(*iter);
+  }
+
+  host_impl_.tile_manager()->InitializeTilesWithResourcesForTesting(tiles);
+
+  // Ensure we can activate.
+  EXPECT_TRUE(pending_layer_->AllTilesRequiredForActivationAreReadyToDraw());
+}
+
+class TileSizeSettings : public ImplSidePaintingSettings {
+ public:
+  TileSizeSettings() {
+    default_tile_size = gfx::Size(100, 100);
+    max_untiled_layer_size = gfx::Size(200, 200);
+  }
+};
+
+class TileSizeTest : public PictureLayerImplTest {
+ public:
+  TileSizeTest() : PictureLayerImplTest(TileSizeSettings()) {}
+};
+
+TEST_F(TileSizeTest, TileSizes) {
+  host_impl_.CreatePendingTree();
+
+  LayerTreeImpl* pending_tree = host_impl_.pending_tree();
+  scoped_ptr<FakePictureLayerImpl> layer =
+      FakePictureLayerImpl::Create(pending_tree, id_);
+
+  host_impl_.SetViewportSize(gfx::Size(1000, 1000));
+  gfx::Size result;
+
+  host_impl_.SetUseGpuRasterization(false);
+
+  // Default tile-size for large layers.
+  result = layer->CalculateTileSize(gfx::Size(10000, 10000));
+  EXPECT_EQ(result.width(), 100);
+  EXPECT_EQ(result.height(), 100);
+  // Don't tile and round-up, when under max_untiled_layer_size.
+  result = layer->CalculateTileSize(gfx::Size(42, 42));
+  EXPECT_EQ(result.width(), 64);
+  EXPECT_EQ(result.height(), 64);
+  result = layer->CalculateTileSize(gfx::Size(191, 191));
+  EXPECT_EQ(result.width(), 192);
+  EXPECT_EQ(result.height(), 192);
+  result = layer->CalculateTileSize(gfx::Size(199, 199));
+  EXPECT_EQ(result.width(), 200);
+  EXPECT_EQ(result.height(), 200);
+
+  // Gpu-rasterization uses 25% viewport-height tiles.
+  // The +2's below are for border texels.
+  host_impl_.SetUseGpuRasterization(true);
+  host_impl_.SetViewportSize(gfx::Size(2000, 2000));
+  result = layer->CalculateTileSize(gfx::Size(10000, 10000));
+  EXPECT_EQ(result.width(), 2000);
+  EXPECT_EQ(result.height(), 500 + 2);
+
+  // Clamp and round-up, when smaller than viewport.
+  // Tile-height doubles to 50% when width shrinks to <= 50%.
+  host_impl_.SetViewportSize(gfx::Size(1000, 1000));
+  result = layer->CalculateTileSize(gfx::Size(447, 10000));
+  EXPECT_EQ(result.width(), 448);
+  EXPECT_EQ(result.height(), 500 + 2);
+
+  // Largest layer is 50% of viewport width (rounded up), and
+  // 50% of viewport in height.
+  result = layer->CalculateTileSize(gfx::Size(447, 400));
+  EXPECT_EQ(result.width(), 448);
+  EXPECT_EQ(result.height(), 448);
+  result = layer->CalculateTileSize(gfx::Size(500, 499));
+  EXPECT_EQ(result.width(), 512);
+  EXPECT_EQ(result.height(), 500 + 2);
 }
 
 }  // namespace

@@ -15,7 +15,7 @@
 #include "cc/resources/raster_worker_pool.h"
 #include "cc/trees/layer_tree_host_common.h"
 #include "cc/trees/layer_tree_host_impl.h"
-#include "ui/gfx/rect.h"
+#include "ui/gfx/geometry/rect.h"
 
 namespace cc {
 
@@ -37,7 +37,7 @@ class BenchmarkRasterTask : public Task {
         best_time_(base::TimeDelta::Max()) {}
 
   // Overridden from Task:
-  virtual void RunOnWorkerThread() OVERRIDE {
+  void RunOnWorkerThread() override {
     // Parameters for LapTimer.
     const int kTimeLimitMillis = 1;
     const int kWarmupRuns = 0;
@@ -57,9 +57,9 @@ class BenchmarkRasterTask : public Task {
         PicturePileImpl::Analysis analysis;
 
         picture_pile_->AnalyzeInRect(
-            content_rect_, contents_scale_, &analysis, NULL);
+            content_rect_, contents_scale_, &analysis, nullptr);
         picture_pile_->RasterToBitmap(
-            &canvas, content_rect_, contents_scale_, NULL);
+            &canvas, content_rect_, contents_scale_, nullptr);
 
         is_solid_color_ = analysis.is_solid_color;
 
@@ -76,7 +76,7 @@ class BenchmarkRasterTask : public Task {
   base::TimeDelta GetBestTime() const { return best_time_; }
 
  private:
-  virtual ~BenchmarkRasterTask() {}
+  ~BenchmarkRasterTask() override {}
 
   PicturePileImpl* picture_pile_;
   gfx::Rect content_rect_;
@@ -94,48 +94,48 @@ class FixedInvalidationPictureLayerTilingClient
       const Region invalidation)
       : base_client_(base_client), invalidation_(invalidation) {}
 
-  virtual scoped_refptr<Tile> CreateTile(
-      PictureLayerTiling* tiling,
-      const gfx::Rect& content_rect) OVERRIDE {
+  scoped_refptr<Tile> CreateTile(PictureLayerTiling* tiling,
+                                 const gfx::Rect& content_rect) override {
     return base_client_->CreateTile(tiling, content_rect);
   }
 
-  virtual PicturePileImpl* GetPile() OVERRIDE {
-    return base_client_->GetPile();
-  }
+  PicturePileImpl* GetPile() override { return base_client_->GetPile(); }
 
-  virtual gfx::Size CalculateTileSize(
-      const gfx::Size& content_bounds) const OVERRIDE {
+  gfx::Size CalculateTileSize(const gfx::Size& content_bounds) const override {
     return base_client_->CalculateTileSize(content_bounds);
   }
 
   // This is the only function that returns something different from the base
   // client.
-  virtual const Region* GetInvalidation() OVERRIDE { return &invalidation_; }
+  const Region* GetInvalidation() override { return &invalidation_; }
 
-  virtual const PictureLayerTiling* GetTwinTiling(
-      const PictureLayerTiling* tiling) const OVERRIDE {
+  const PictureLayerTiling* GetTwinTiling(
+      const PictureLayerTiling* tiling) const override {
     return base_client_->GetTwinTiling(tiling);
   }
 
-  virtual PictureLayerTiling* GetRecycledTwinTiling(
-      const PictureLayerTiling* tiling) OVERRIDE {
+  PictureLayerTiling* GetRecycledTwinTiling(
+      const PictureLayerTiling* tiling) override {
     return base_client_->GetRecycledTwinTiling(tiling);
   }
 
-  virtual size_t GetMaxTilesForInterestArea() const OVERRIDE {
+  size_t GetMaxTilesForInterestArea() const override {
     return base_client_->GetMaxTilesForInterestArea();
   }
 
-  virtual float GetSkewportTargetTimeInSeconds() const OVERRIDE {
+  float GetSkewportTargetTimeInSeconds() const override {
     return base_client_->GetSkewportTargetTimeInSeconds();
   }
 
-  virtual int GetSkewportExtrapolationLimitInContentPixels() const OVERRIDE {
+  int GetSkewportExtrapolationLimitInContentPixels() const override {
     return base_client_->GetSkewportExtrapolationLimitInContentPixels();
   }
 
-  virtual WhichTree GetTree() const OVERRIDE { return base_client_->GetTree(); }
+  WhichTree GetTree() const override { return base_client_->GetTree(); }
+
+  bool RequiresHighResToDraw() const override {
+    return base_client_->RequiresHighResToDraw();
+  }
 
  private:
   PictureLayerTilingClient* base_client_;
@@ -150,7 +150,7 @@ RasterizeAndRecordBenchmarkImpl::RasterizeAndRecordBenchmarkImpl(
     const MicroBenchmarkImpl::DoneCallback& callback)
     : MicroBenchmarkImpl(callback, origin_loop),
       rasterize_repeat_count_(kDefaultRasterizeRepeatCount) {
-  base::DictionaryValue* settings = NULL;
+  base::DictionaryValue* settings = nullptr;
   value->GetAsDictionary(&settings);
   if (!settings)
     return;
@@ -184,7 +184,7 @@ void RasterizeAndRecordBenchmarkImpl::DidCompleteCommit(
   result->SetInteger("total_picture_layers_off_screen",
                      rasterize_results_.total_picture_layers_off_screen);
 
-  NotifyDone(result.PassAs<base::Value>());
+  NotifyDone(result.Pass());
 }
 
 void RasterizeAndRecordBenchmarkImpl::Run(LayerImpl* layer) {
@@ -211,9 +211,10 @@ void RasterizeAndRecordBenchmarkImpl::RunOnLayer(PictureLayerImpl* layer) {
 
   FixedInvalidationPictureLayerTilingClient client(
       layer, gfx::Rect(layer->content_bounds()));
-  PictureLayerTilingSet tiling_set(&client, layer->content_bounds());
+  PictureLayerTilingSet tiling_set(&client);
 
-  PictureLayerTiling* tiling = tiling_set.AddTiling(layer->contents_scale_x());
+  PictureLayerTiling* tiling =
+      tiling_set.AddTiling(layer->contents_scale_x(), layer->bounds());
   tiling->CreateAllTilesForTesting();
   for (PictureLayerTiling::CoverageIterator it(
            tiling, layer->contents_scale_x(), layer->visible_content_rect());

@@ -7,7 +7,6 @@
 
 #include <map>
 
-#include "base/compiler_specific.h"
 #include "base/memory/ref_counted.h"
 #include "mojo/public/cpp/system/core.h"
 #include "mojo/spy/public/spy.mojom.h"
@@ -22,20 +21,19 @@ class SpyServerImpl :
   SpyServerImpl();
 
   // spy_api::SpyServer implementation.
-  virtual void StartSession(
-      spy_api::VersionPtr version,
-      const mojo::Callback<void(spy_api::Result,
-                                mojo::String)>& callback) OVERRIDE;
+  void StartSession(spy_api::VersionPtr version,
+                    const mojo::Callback<void(spy_api::Result, mojo::String)>&
+                        callback) override;
 
-  virtual void StopSession(
-      const mojo::Callback<void(spy_api::Result)>& callback) OVERRIDE;
+  void StopSession(
+      const mojo::Callback<void(spy_api::Result)>& callback) override;
 
-  virtual void TrackConnection(
+  void TrackConnection(
       uint32_t id,
       spy_api::ConnectionOptions options,
-      const mojo::Callback<void(spy_api::Result)>& callback) OVERRIDE;
+      const mojo::Callback<void(spy_api::Result)>& callback) override;
 
-  virtual void OnConnectionError() OVERRIDE;
+  void OnConnectionError() override;
 
   // SpyServerImpl own methods.
   void OnIntercept(const GURL& url);
@@ -44,7 +42,7 @@ class SpyServerImpl :
 
  private:
   friend class base::RefCounted<SpyServerImpl>;
-  virtual ~SpyServerImpl();
+  ~SpyServerImpl() override;
 
   // Item models the entities that we track by IDs.
   struct Item;

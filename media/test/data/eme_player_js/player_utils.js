@@ -15,7 +15,7 @@ PlayerUtils.registerDefaultEventListeners = function(player) {
   // Map from event name to event listener function name.  It is common for
   // event listeners to be named onEventName.
   var eventListenerMap = {
-    'needkey': 'onNeedKey',
+    'encrypted': 'onEncrypted',
     'webkitneedkey': 'onWebkitNeedKey',
     'webkitkeymessage': 'onWebkitKeyMessage',
     'webkitkeyadded': 'onWebkitKeyAdded',
@@ -37,7 +37,7 @@ PlayerUtils.registerDefaultEventListeners = function(player) {
 };
 
 PlayerUtils.registerEMEEventListeners = function(player) {
-  player.video.addEventListener('needkey', function(message) {
+  player.video.addEventListener('encrypted', function(message) {
 
     function addMediaKeySessionListeners(mediaKeySession) {
       mediaKeySession.addEventListener('message', function(message) {
@@ -53,39 +53,44 @@ PlayerUtils.registerEMEEventListeners = function(player) {
       });
     }
 
-    Utils.timeLog('Creating new media key session for contentType: ' +
-                  message.contentType + ', initData: ' +
-                  Utils.getHexString(message.initData));
     try {
-      if (message.target.mediaKeys.createSession.length == 0) {
-        // FIXME(jrummell): Remove this test (and else branch) once blink
-        // uses the new API.
+      if (player.testConfig.sessionToLoad) {
+        Utils.timeLog('Loading session: ' + player.testConfig.sessionToLoad);
+        var session = message.target.mediaKeys.createSession('persistent');
+        addMediaKeySessionListeners(session);
+        session.load(player.testConfig.sessionToLoad)
+            .catch(function(error) { Utils.failTest(error, KEY_ERROR); });
+      } else {
+        Utils.timeLog('Creating new media key session for initDataType: ' +
+                      message.initDataType + ', initData: ' +
+                      Utils.getHexString(new Uint8Array(message.initData)));
         var session = message.target.mediaKeys.createSession();
         addMediaKeySessionListeners(session);
-        session.generateRequest(message.contentType, message.initData)
+        session.generateRequest(message.initDataType, message.initData)
           .catch(function(error) {
             Utils.failTest(error, KEY_ERROR);
           });
-      } else {
-        var session = message.target.mediaKeys.createSession(
-            message.contentType, message.initData);
-        session.then(addMediaKeySessionListeners)
-            .catch(function(error) {
-              Utils.failTest(error, KEY_ERROR);
-            });
       }
     } catch (e) {
       Utils.failTest(e);
     }
   });
+
   this.registerDefaultEventListeners(player);
   try {
     Utils.timeLog('Setting video media keys: ' + player.testConfig.keySystem);
-    MediaKeys.create(player.testConfig.keySystem).then(function(mediaKeys) {
-      player.video.setMediaKeys(mediaKeys);
-    }).catch(function(error) {
-      Utils.failTest(error, NOTSUPPORTEDERROR);
-    });
+    if (typeof navigator.requestMediaKeySystemAccess == 'function') {
+      navigator.requestMediaKeySystemAccess(player.testConfig.keySystem)
+          .then(function(access) { return access.createMediaKeys(); })
+          .then(function(mediaKeys) { player.video.setMediaKeys(mediaKeys); })
+          .catch(function(error) { Utils.failTest(error, NOTSUPPORTEDERROR); });
+    } else {
+      // TODO(jrummell): Remove this once the blink change for
+      // requestMediaKeySystemAccess lands.
+      MediaKeys.create(player.testConfig.keySystem)
+          .then(function(mediaKeys) { player.video.setMediaKeys(mediaKeys); })
+          .catch(function(error) { Utils.failTest(error, NOTSUPPORTEDERROR); });
+    }
   } catch (e) {
     Utils.failTest(e);
   }

@@ -43,8 +43,9 @@ const int kShowAnimationDurationMs = 350;
 const int kHideAnimationDurationMs = 100;
 
 // The opacity of virtual keyboard container when show animation starts or
-// hide animation finishes.
-// TODO(rsadam@): Investigate why setting this to zero crashes.
+// hide animation finishes. This cannot be zero because we call Show() on the
+// keyboard window before setting the opacity back to 1.0. Since windows are not
+// allowed to be shown with zero opacity, we always animate to 0.01 instead.
 const float kAnimationStartOrAfterHideOpacity = 0.01f;
 
 // Event targeter for the keyboard container.
@@ -61,7 +62,7 @@ class KeyboardContainerTargeter : public wm::MaskedWindowTargeter {
  private:
   // wm::MaskedWindowTargeter:
   virtual bool GetHitTestMask(aura::Window* window,
-                              gfx::Path* mask) const OVERRIDE {
+                              gfx::Path* mask) const override {
     if (proxy_ && !proxy_->HasKeyboardWindow())
       return true;
     gfx::Rect keyboard_bounds = proxy_ ? proxy_->GetKeyboardWindow()->bounds() :
@@ -87,34 +88,34 @@ class KeyboardWindowDelegate : public aura::WindowDelegate {
 
  private:
   // Overridden from aura::WindowDelegate:
-  virtual gfx::Size GetMinimumSize() const OVERRIDE { return gfx::Size(); }
-  virtual gfx::Size GetMaximumSize() const OVERRIDE { return gfx::Size(); }
+  virtual gfx::Size GetMinimumSize() const override { return gfx::Size(); }
+  virtual gfx::Size GetMaximumSize() const override { return gfx::Size(); }
   virtual void OnBoundsChanged(const gfx::Rect& old_bounds,
-                               const gfx::Rect& new_bounds) OVERRIDE {
+                               const gfx::Rect& new_bounds) override {
     bounds_ = new_bounds;
   }
-  virtual gfx::NativeCursor GetCursor(const gfx::Point& point) OVERRIDE {
+  virtual gfx::NativeCursor GetCursor(const gfx::Point& point) override {
     return gfx::kNullCursor;
   }
-  virtual int GetNonClientComponent(const gfx::Point& point) const OVERRIDE {
+  virtual int GetNonClientComponent(const gfx::Point& point) const override {
     return HTNOWHERE;
   }
   virtual bool ShouldDescendIntoChildForEventHandling(
       aura::Window* child,
-      const gfx::Point& location) OVERRIDE {
+      const gfx::Point& location) override {
     return true;
   }
-  virtual bool CanFocus() OVERRIDE { return false; }
-  virtual void OnCaptureLost() OVERRIDE {}
-  virtual void OnPaint(gfx::Canvas* canvas) OVERRIDE {}
-  virtual void OnDeviceScaleFactorChanged(float device_scale_factor) OVERRIDE {}
-  virtual void OnWindowDestroying(aura::Window* window) OVERRIDE {}
-  virtual void OnWindowDestroyed(aura::Window* window) OVERRIDE { delete this; }
-  virtual void OnWindowTargetVisibilityChanged(bool visible) OVERRIDE {}
-  virtual bool HasHitTestMask() const OVERRIDE {
+  virtual bool CanFocus() override { return false; }
+  virtual void OnCaptureLost() override {}
+  virtual void OnPaint(gfx::Canvas* canvas) override {}
+  virtual void OnDeviceScaleFactorChanged(float device_scale_factor) override {}
+  virtual void OnWindowDestroying(aura::Window* window) override {}
+  virtual void OnWindowDestroyed(aura::Window* window) override { delete this; }
+  virtual void OnWindowTargetVisibilityChanged(bool visible) override {}
+  virtual bool HasHitTestMask() const override {
     return !proxy_ || proxy_->HasKeyboardWindow();
   }
-  virtual void GetHitTestMask(gfx::Path* mask) const OVERRIDE {
+  virtual void GetHitTestMask(gfx::Path* mask) const override {
     if (proxy_ && !proxy_->HasKeyboardWindow())
       return;
     gfx::Rect keyboard_bounds = proxy_ ? proxy_->GetKeyboardWindow()->bounds() :
@@ -170,11 +171,11 @@ class CallbackAnimationObserver : public ui::LayerAnimationObserver {
 
  private:
   // Overridden from ui::LayerAnimationObserver:
-  virtual void OnLayerAnimationEnded(ui::LayerAnimationSequence* seq) OVERRIDE;
+  virtual void OnLayerAnimationEnded(ui::LayerAnimationSequence* seq) override;
   virtual void OnLayerAnimationAborted(
-      ui::LayerAnimationSequence* seq) OVERRIDE;
+      ui::LayerAnimationSequence* seq) override;
   virtual void OnLayerAnimationScheduled(
-      ui::LayerAnimationSequence* seq) OVERRIDE {}
+      ui::LayerAnimationSequence* seq) override {}
 
   ui::LayerAnimator* animator_;
   base::Callback<void(void)> callback_;
@@ -208,8 +209,8 @@ class WindowBoundsChangeObserver : public aura::WindowObserver {
  public:
   virtual void OnWindowBoundsChanged(aura::Window* window,
                                      const gfx::Rect& old_bounds,
-                                     const gfx::Rect& new_bounds) OVERRIDE;
-  virtual void OnWindowDestroyed(aura::Window* window) OVERRIDE;
+                                     const gfx::Rect& new_bounds) override;
+  virtual void OnWindowDestroyed(aura::Window* window) override;
 
   void AddObservedWindow(aura::Window* window);
   void RemoveAllObservedWindows();

@@ -5,6 +5,7 @@
 #ifndef MOJO_EXAMPLES_AURA_DEMO_WINDOW_TREE_HOST_VIEW_MANAGER_H_
 #define MOJO_EXAMPLES_AURA_DEMO_WINDOW_TREE_HOST_VIEW_MANAGER_H_
 
+#include "base/macros.h"
 #include "mojo/services/public/cpp/view_manager/view_observer.h"
 #include "ui/aura/window_tree_host.h"
 #include "ui/events/event_source.h"
@@ -18,23 +19,17 @@ class Compositor;
 
 namespace mojo {
 
-class WindowTreeHostMojoDelegate;
+class Shell;
+class SurfaceContextFactory;
 
 class WindowTreeHostMojo : public aura::WindowTreeHost,
                            public ui::EventSource,
                            public ViewObserver {
  public:
-  WindowTreeHostMojo(View* view, WindowTreeHostMojoDelegate* delegate);
-  virtual ~WindowTreeHostMojo();
-
-  // Returns the WindowTreeHostMojo for the specified compositor.
-  static WindowTreeHostMojo* ForCompositor(ui::Compositor* compositor);
+  WindowTreeHostMojo(Shell* shell, View* view);
+  ~WindowTreeHostMojo() override;
 
   const gfx::Rect& bounds() const { return bounds_; }
-
-  // Sets the contents to show in this WindowTreeHost. This forwards to the
-  // delegate.
-  void SetContents(const SkBitmap& contents);
 
   ui::EventDispatchDetails SendEventToProcessor(ui::Event* event) {
     return ui::EventSource::SendEventToProcessor(event);
@@ -42,34 +37,33 @@ class WindowTreeHostMojo : public aura::WindowTreeHost,
 
  private:
   // WindowTreeHost:
-  virtual ui::EventSource* GetEventSource() OVERRIDE;
-  virtual gfx::AcceleratedWidget GetAcceleratedWidget() OVERRIDE;
-  virtual void Show() OVERRIDE;
-  virtual void Hide() OVERRIDE;
-  virtual gfx::Rect GetBounds() const OVERRIDE;
-  virtual void SetBounds(const gfx::Rect& bounds) OVERRIDE;
-  virtual gfx::Point GetLocationOnNativeScreen() const OVERRIDE;
-  virtual void SetCapture() OVERRIDE;
-  virtual void ReleaseCapture() OVERRIDE;
-  virtual void PostNativeEvent(const base::NativeEvent& native_event) OVERRIDE;
-  virtual void SetCursorNative(gfx::NativeCursor cursor) OVERRIDE;
-  virtual void MoveCursorToNative(const gfx::Point& location) OVERRIDE;
-  virtual void OnCursorVisibilityChangedNative(bool show) OVERRIDE;
+  ui::EventSource* GetEventSource() override;
+  gfx::AcceleratedWidget GetAcceleratedWidget() override;
+  void Show() override;
+  void Hide() override;
+  gfx::Rect GetBounds() const override;
+  void SetBounds(const gfx::Rect& bounds) override;
+  gfx::Point GetLocationOnNativeScreen() const override;
+  void SetCapture() override;
+  void ReleaseCapture() override;
+  void PostNativeEvent(const base::NativeEvent& native_event) override;
+  void SetCursorNative(gfx::NativeCursor cursor) override;
+  void MoveCursorToNative(const gfx::Point& location) override;
+  void OnCursorVisibilityChangedNative(bool show) override;
 
   // ui::EventSource:
-  virtual ui::EventProcessor* GetEventProcessor() OVERRIDE;
+  ui::EventProcessor* GetEventProcessor() override;
 
   // ViewObserver:
-  virtual void OnViewBoundsChanged(
-      View* view,
-      const gfx::Rect& old_bounds,
-      const gfx::Rect& new_bounds) OVERRIDE;
+  void OnViewBoundsChanged(View* view,
+                           const gfx::Rect& old_bounds,
+                           const gfx::Rect& new_bounds) override;
 
   View* view_;
 
   gfx::Rect bounds_;
 
-  WindowTreeHostMojoDelegate* delegate_;
+  scoped_ptr<SurfaceContextFactory> context_factory_;
 
   DISALLOW_COPY_AND_ASSIGN(WindowTreeHostMojo);
 };

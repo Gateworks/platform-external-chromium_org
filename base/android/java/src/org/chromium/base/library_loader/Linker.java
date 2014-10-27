@@ -136,7 +136,7 @@ import javax.annotation.Nullable;
  *
  *    This behaviour is altered by the BROWSER_SHARED_RELRO_CONFIG configuration
  *    variable below, which may force the browser to load the libraries at
- *    fixed addresses to.
+ *    fixed addresses too.
  *
  *  - Once all libraries are loaded in the browser process, one can call
  *    getSharedRelros() which returns a Bundle instance containing a map that
@@ -196,6 +196,8 @@ public class Linker {
     private static boolean sRelroSharingSupported = false;
 
     // Set to true if this runs in the browser process. Disabled by initServiceProcess().
+    // TODO(petrcermak): This flag can be incorrectly set to false (even though this might run in
+    // the browser process) on low-memory devices.
     private static boolean sInBrowserProcess = true;
 
     // Becomes true to indicate this process needs to wait for a shared RELRO in
@@ -215,9 +217,6 @@ public class Linker {
     // Current fixed-location load address for the next library called by loadLibrary().
     private static long sCurrentLoadAddress = 0;
 
-    // Becomes true if any library fails to load at a given, non-0, fixed address.
-    private static boolean sLoadAtFixedAddressFailed = false;
-
     // Becomes true once prepareLibraryLoad() has been called.
     private static boolean sPrepareLibraryLoadCalled = false;
 
@@ -227,7 +226,7 @@ public class Linker {
 
         if (!sInitialized) {
             sRelroSharingSupported = false;
-            if (NativeLibraries.USE_LINKER) {
+            if (NativeLibraries.sUseLinker) {
                 if (DEBUG) Log.i(TAG, "Loading lib" + TAG + ".so");
                 try {
                     System.loadLibrary(TAG);
@@ -282,7 +281,7 @@ public class Linker {
     /**
      * A public interface used to run runtime linker tests after loading
      * libraries. Should only be used to implement the linker unit tests,
-     * which is controlled by the value of NativeLibraries.ENABLE_LINKER_TESTS
+     * which is controlled by the value of NativeLibraries.sEnableLinkerTests
      * configured at build time.
      */
     public interface TestRunner {
@@ -306,7 +305,7 @@ public class Linker {
     public static void setTestRunnerClassName(String testRunnerClassName) {
         if (DEBUG) Log.i(TAG, "setTestRunnerByClassName(" + testRunnerClassName + ") called");
 
-        if (!NativeLibraries.ENABLE_LINKER_TESTS) {
+        if (!NativeLibraries.sEnableLinkerTests) {
             // Ignore this in production code to prevent malvolent runtime injection.
             return;
         }
@@ -338,7 +337,7 @@ public class Linker {
     public static void setMemoryDeviceConfig(int memoryDeviceConfig) {
         if (DEBUG) Log.i(TAG, "setMemoryDeviceConfig(" + memoryDeviceConfig + ") called");
         // Sanity check. This method should only be called during tests.
-        assert NativeLibraries.ENABLE_LINKER_TESTS;
+        assert NativeLibraries.sEnableLinkerTests;
         synchronized (Linker.class) {
             assert sMemoryDeviceConfig == MEMORY_DEVICE_CONFIG_INIT;
             assert memoryDeviceConfig == MEMORY_DEVICE_CONFIG_LOW ||
@@ -361,8 +360,8 @@ public class Linker {
     public static boolean isUsed() {
         // Only GYP targets that are APKs and have the 'use_chromium_linker' variable
         // defined as 1 will use this linker. For all others (the default), the
-        // auto-generated NativeLibraries.USE_LINKER variable will be false.
-        if (!NativeLibraries.USE_LINKER)
+        // auto-generated NativeLibraries.sUseLinker variable will be false.
+        if (!NativeLibraries.sUseLinker)
             return false;
 
         synchronized (Linker.class) {
@@ -389,7 +388,7 @@ public class Linker {
      * the library directly from the zip file.
      */
     public static boolean isInZipFile() {
-        return NativeLibraries.USE_LIBRARY_IN_ZIP_FILE;
+        return NativeLibraries.sUseLibraryInZipFile;
     }
 
     /**
@@ -458,7 +457,7 @@ public class Linker {
                 }
             }
 
-            if (NativeLibraries.ENABLE_LINKER_TESTS && sTestRunnerClassName != null) {
+            if (NativeLibraries.sEnableLinkerTests && sTestRunnerClassName != null) {
                 // The TestRunner implementation must be instantiated _after_
                 // all libraries are loaded to ensure that its native methods
                 // are properly registered.
@@ -700,15 +699,6 @@ public class Linker {
     }
 
     /**
-     * Returns whether the linker was unable to load one library at a given fixed address.
-     *
-     * @return true if at least one library was not loaded at the expected fixed address.
-     */
-    public static boolean loadAtFixedAddressFailed() {
-        return sLoadAtFixedAddressFailed;
-    }
-
-    /**
      * Load a native shared library with the Chromium linker.
      * The shared library is uncompressed and page aligned inside the zipfile.
      * Note the crazy linker treats libraries and files as equivalent,
@@ -754,8 +744,7 @@ public class Linker {
 
             String libName = System.mapLibraryName(library);
 
-            if (sLoadedLibraries == null)
-              sLoadedLibraries = new HashMap<String, LibInfo>();
+            if (sLoadedLibraries == null) sLoadedLibraries = new HashMap<String, LibInfo>();
 
             if (sLoadedLibraries.containsKey(libName)) {
                 if (DEBUG) Log.i(TAG, "Not loading " + libName + " twice");
@@ -771,11 +760,9 @@ public class Linker {
 
             String sharedRelRoName = libName;
             if (zipFile != null) {
-                if (!nativeLoadLibraryInZipFile(
-                        zipFile, libName, loadAddress, libInfo)) {
-                    String errorMessage =
-                            "Unable to load library: " + libName + " in: " +
-                            zipFile;
+                if (!nativeLoadLibraryInZipFile(zipFile, libName, loadAddress, libInfo)) {
+                    String errorMessage = "Unable to load library: " + libName +
+                                          ", in: " + zipFile;
                     Log.e(TAG, errorMessage);
                     throw new UnsatisfiedLinkError(errorMessage);
                 }
@@ -787,9 +774,6 @@ public class Linker {
                     throw new UnsatisfiedLinkError(errorMessage);
                 }
             }
-            // Keep track whether the library has been loaded at the expected load address.
-            if (loadAddress != 0 && loadAddress != libInfo.mLoadAddress)
-                sLoadAtFixedAddressFailed = true;
 
             // Print the load address to the logcat when testing the linker. The format
             // of the string is expected by the Python test_runner script as one of:
@@ -797,7 +781,7 @@ public class Linker {
             //    RENDERER_LIBRARY_ADDRESS: <library-name> <address>
             // Where <library-name> is the library name, and <address> is the hexadecimal load
             // address.
-            if (NativeLibraries.ENABLE_LINKER_TESTS) {
+            if (NativeLibraries.sEnableLinkerTests) {
                 Log.i(TAG, String.format(
                         Locale.US,
                         "%s_LIBRARY_ADDRESS: %s %x",
@@ -831,8 +815,27 @@ public class Linker {
                 sCurrentLoadAddress = libInfo.mLoadAddress + libInfo.mLoadSize;
             }
 
-            sLoadedLibraries.put(libName, libInfo);
+            sLoadedLibraries.put(sharedRelRoName, libInfo);
             if (DEBUG) Log.i(TAG, "Library details " + libInfo.toString());
+        }
+    }
+
+    /**
+     * Check whether the device supports loading a library directly from the APK file.
+     *
+     * @param apkFile Filename of the APK.
+     * @return true if supported.
+     */
+    public static boolean checkLibraryLoadFromApkSupport(String apkFile) {
+        assert apkFile != null;
+        synchronized (Linker.class) {
+            ensureInitializedLocked();
+
+            if (DEBUG) Log.i(TAG, "checkLibraryLoadFromApkSupported: " + apkFile);
+            boolean supported = nativeCheckLibraryLoadFromApkSupport(apkFile);
+            if (DEBUG) Log.i(TAG, "Loading a library directly from the APK file " +
+                    (supported ? "" : "NOT ") + "supported");
+            return supported;
         }
     }
 
@@ -932,6 +935,16 @@ public class Linker {
      * @return address to pass to future mmap, or 0 on error.
      */
     private static native long nativeGetRandomBaseLoadAddress(long sizeBytes);
+
+    /**
+     * Native method which checks whether the device supports loading a library
+     * directly from the APK file.
+     *
+     * @param apkFile Filename of the APK.
+     * @return true if supported.
+     *
+     */
+    private static native boolean nativeCheckLibraryLoadFromApkSupport(String apkFile);
 
     /**
      * Record information for a given library.

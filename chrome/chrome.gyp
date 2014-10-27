@@ -390,6 +390,7 @@
             '../content/content_shell_and_tests.gyp:content_shell',
             '../content/content_shell_and_tests.gyp:content_unittests',
             '../net/net.gyp:net_unittests',
+            '../ui/base/ui_base_tests.gyp:ui_base_unittests',
             '../ui/base/ui_base_tests.gyp:ui_unittests',
           ],
         },
@@ -576,6 +577,7 @@
       {
       'targets': [
         {
+          # GN: //chrome/android:chrome_java
           'target_name': 'chrome_java',
           'type': 'none',
           'dependencies': [
@@ -583,6 +585,11 @@
             'app_banner_metrics_ids_java',
             'chrome_resources.gyp:chrome_strings',
             'chrome_strings_grd',
+            'chrome_version_java',
+            'profile_account_management_metrics_java',
+            'content_setting_java',
+            'content_settings_type_java',
+            'page_info_connection_type_java',
             'profile_sync_service_model_type_selection_java',
             'resource_id_java',
             'toolbar_model_security_levels_java',
@@ -591,8 +598,8 @@
             '../components/components.gyp:bookmarks_java',
             '../components/components.gyp:dom_distiller_core_java',
             '../components/components.gyp:gcm_driver_java',
+            '../components/components.gyp:invalidation_java',
             '../components/components.gyp:navigation_interception_java',
-            '../components/components.gyp:sessions',
             '../components/components.gyp:variations_java',
             '../components/components.gyp:web_contents_delegate_android_java',
             '../content/content.gyp:content_java',
@@ -616,6 +623,7 @@
           ],
         },
         {
+          # GN: //chrome/android:chrome_strings_grd
           'target_name': 'chrome_strings_grd',
           'type': 'none',
           'variables': {
@@ -624,6 +632,33 @@
           'includes': [
             '../build/java_strings_grd.gypi',
           ],
+        },
+        {
+          # GN: //chrome:content_setting_javagen
+          'target_name': 'content_setting_java',
+          'type': 'none',
+          'variables': {
+            'source_file': '../components/content_settings/core/common/content_settings.h',
+          },
+          'includes': [ '../build/android/java_cpp_enum.gypi' ],
+        },
+        {
+          # GN: //chrome:content_settings_type_javagen
+          'target_name': 'content_settings_type_java',
+          'type': 'none',
+          'variables': {
+            'source_file': '../components/content_settings/core/common/content_settings_types.h',
+          },
+          'includes': [ '../build/android/java_cpp_enum.gypi' ],
+        },
+        {
+          # GN: //chrome:page_info_connection_type_javagen
+          'target_name': 'page_info_connection_type_java',
+          'type': 'none',
+          'variables': {
+            'source_file': 'browser/ui/android/website_settings_popup_android.h',
+          },
+          'includes': [ '../build/android/java_cpp_enum.gypi' ],
         },
       ], # 'targets'
       'includes': [

@@ -8,9 +8,9 @@
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
 #include "chrome/browser/chrome_notification_types.h"
-#include "chrome/browser/ui/views/constrained_window_views.h"
 #include "chrome/browser/ui/views/signed_certificate_timestamp_info_view.h"
 #include "chrome/grit/generated_resources.h"
+#include "components/constrained_window/constrained_window_views.h"
 #include "content/public/browser/notification_source.h"
 #include "content/public/browser/signed_certificate_timestamp_store.h"
 #include "content/public/common/signed_certificate_timestamp_id_and_status.h"
@@ -59,8 +59,8 @@ class SCTListModel : public ui::ComboboxModel {
   virtual ~SCTListModel();
 
   // Overridden from ui::ComboboxModel:
-  virtual int GetItemCount() const OVERRIDE;
-  virtual base::string16 GetItemAt(int index) OVERRIDE;
+  virtual int GetItemCount() const override;
+  virtual base::string16 GetItemAt(int index) override;
 
  private:
   net::SignedCertificateTimestampAndStatusList sct_list_;

@@ -38,13 +38,13 @@ class DataSourceSender : public base::RefCounted<DataSourceSender>,
   friend class base::RefCounted<DataSourceSender>;
   class PendingSend;
 
-  virtual ~DataSourceSender();
+  ~DataSourceSender() override;
 
   // mojo::InterfaceImpl<serial::DataSourceSender> overrides.
-  virtual void Init(mojo::ScopedDataPipeProducerHandle handle) OVERRIDE;
-  virtual void Resume() OVERRIDE;
+  void Init(mojo::ScopedDataPipeProducerHandle handle) override;
+  void Resume() override;
   // Invoked in the event of a connection error. Calls DispatchFatalError().
-  virtual void OnConnectionError() OVERRIDE;
+  void OnConnectionError() override;
 
   // Starts waiting for |handle_| to be ready for writes.
   void StartWaiting();

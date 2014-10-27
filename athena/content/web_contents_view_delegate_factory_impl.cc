@@ -24,14 +24,15 @@ class WebContentsViewDelegateImpl : public content::WebContentsViewDelegate {
  public:
   explicit WebContentsViewDelegateImpl(content::WebContents* web_contents)
       : web_contents_(web_contents) {}
-  virtual ~WebContentsViewDelegateImpl() {}
+  ~WebContentsViewDelegateImpl() override {}
 
-  virtual content::WebDragDestDelegate* GetDragDestDelegate() OVERRIDE {
+  content::WebDragDestDelegate* GetDragDestDelegate() override {
     // TODO(oshima): crbug.com/401610
-    return NULL;
+    NOTIMPLEMENTED();
+    return nullptr;
   }
 
-  virtual bool Focus() OVERRIDE {
+  bool Focus() override {
     web_modal::PopupManager* popup_manager =
         web_modal::PopupManager::FromWebContents(web_contents_);
     if (popup_manager)
@@ -39,28 +40,27 @@ class WebContentsViewDelegateImpl : public content::WebContentsViewDelegate {
     return false;
   }
 
-  virtual void ShowContextMenu(
-      content::RenderFrameHost* render_frame_host,
-      const content::ContextMenuParams& params) OVERRIDE {
+  void ShowContextMenu(content::RenderFrameHost* render_frame_host,
+                       const content::ContextMenuParams& params) override {
     ShowMenu(BuildMenu(
         content::WebContents::FromRenderFrameHost(render_frame_host), params));
   }
 
-  virtual void SizeChanged(const gfx::Size& size) OVERRIDE {
+  void SizeChanged(const gfx::Size& size) override {
     // TODO(oshima|sadrul): Implement this when sad_tab is componentized.
     // See c/b/ui/views/tab_contents/chrome_web_contents_view_delegate_views.cc
   }
 
-  virtual void ShowDisambiguationPopup(
+  void ShowDisambiguationPopup(
       const gfx::Rect& target_rect,
       const SkBitmap& zoomed_bitmap,
       const gfx::NativeView content,
       const base::Callback<void(ui::GestureEvent*)>& gesture_cb,
-      const base::Callback<void(ui::MouseEvent*)>& mouse_cb) OVERRIDE {
+      const base::Callback<void(ui::MouseEvent*)>& mouse_cb) override {
+    NOTIMPLEMENTED();
   }
 
-  virtual void HideDisambiguationPopup() OVERRIDE {
-  }
+  void HideDisambiguationPopup() override { NOTIMPLEMENTED(); }
 
   scoped_ptr<RenderViewContextMenuImpl> BuildMenu(
       content::WebContents* web_contents,
@@ -127,7 +127,7 @@ class WebContentsViewDelegateImpl : public content::WebContentsViewDelegate {
 
   views::FocusManager* GetFocusManager() {
     views::Widget* toplevel_widget = GetTopLevelWidget();
-    return toplevel_widget ? toplevel_widget->GetFocusManager() : NULL;
+    return toplevel_widget ? toplevel_widget->GetFocusManager() : nullptr;
   }
 
   void SetInitialFocus() {

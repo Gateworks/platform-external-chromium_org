@@ -82,8 +82,10 @@ const char kNewWallpaperLayoutNodeName[] = "layout";
 const char kNewWallpaperLocationNodeName[] = "file";
 const char kNewWallpaperTypeNodeName[] = "type";
 
+#if !defined(USE_ATHENA)
 // Maximum number of wallpapers cached by CacheUsersWallpapers().
 const int kMaxWallpapersToCache = 3;
+#endif
 
 // Maximum number of entries in WallpaperManager::last_load_times_ .
 const size_t kLastLoadsStatsMsMaxSize = 4;
@@ -253,9 +255,9 @@ class WallpaperManager::CustomizedWallpaperRescaledFiles {
     return path_rescaled_large_;
   }
 
-  const bool downloaded_exists() const { return downloaded_exists_; }
-  const bool rescaled_small_exists() const { return rescaled_small_exists_; }
-  const bool rescaled_large_exists() const { return rescaled_large_exists_; }
+  bool downloaded_exists() const { return downloaded_exists_; }
+  bool rescaled_small_exists() const { return rescaled_small_exists_; }
+  bool rescaled_large_exists() const { return rescaled_large_exists_; }
 
  private:
   // Must be called on BlockingPool.
@@ -1301,6 +1303,8 @@ bool WallpaperManager::GetWallpaperFromCache(const std::string& user_id,
 }
 
 void WallpaperManager::CacheUsersWallpapers() {
+#if !defined(USE_ATHENA)
+  // TODO(dpolukhin): crbug.com/408734.
   DCHECK(BrowserThread::CurrentlyOn(BrowserThread::UI));
   user_manager::UserList users = user_manager::UserManager::Get()->GetUsers();
 
@@ -1315,6 +1319,7 @@ void WallpaperManager::CacheUsersWallpapers() {
       CacheUserWallpaper(user_id);
     }
   }
+#endif
 }
 
 void WallpaperManager::CacheUserWallpaper(const std::string& user_id) {
@@ -1439,6 +1444,13 @@ void WallpaperManager::LoadWallpaper(const std::string& user_id,
                                      const WallpaperInfo& info,
                                      bool update_wallpaper,
                                      MovableOnDestroyCallbackHolder on_finish) {
+#if defined(USE_ATHENA)
+  // For Athena builds ignore all wallpaper load requests for now since they
+  // might result in crash (there's no ash::Shell instance).
+  // http://crbug.com/408734
+  return;
+#endif
+
   base::FilePath wallpaper_dir;
   base::FilePath wallpaper_path;
 

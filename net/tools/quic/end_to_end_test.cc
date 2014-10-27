@@ -139,12 +139,6 @@ vector<TestParams> GetTestParams() {
         for (size_t i = 1; i < all_supported_versions.size(); ++i) {
           QuicVersionVector server_supported_versions;
           server_supported_versions.push_back(all_supported_versions[i]);
-          if (all_supported_versions[i] >= QUIC_VERSION_18) {
-            // Until flow control is globally rolled out and we remove
-            // QUIC_VERSION_16, the server MUST support at least one QUIC
-            // version that does not use flow control.
-            server_supported_versions.push_back(QUIC_VERSION_16);
-          }
           params.push_back(TestParams(all_supported_versions,
                                       server_supported_versions,
                                       server_supported_versions[0],
@@ -165,10 +159,10 @@ class ServerDelegate : public PacketDroppingTestWriter::Delegate {
       : writer_factory_(writer_factory),
         dispatcher_(dispatcher) {}
   virtual ~ServerDelegate() {}
-  virtual void OnPacketSent(WriteResult result) OVERRIDE {
+  virtual void OnPacketSent(WriteResult result) override {
     writer_factory_->OnPacketSent(result);
   }
-  virtual void OnCanWrite() OVERRIDE { dispatcher_->OnCanWrite(); }
+  virtual void OnCanWrite() override { dispatcher_->OnCanWrite(); }
  private:
   TestWriterFactory* writer_factory_;
   QuicDispatcher* dispatcher_;
@@ -178,8 +172,8 @@ class ClientDelegate : public PacketDroppingTestWriter::Delegate {
  public:
   explicit ClientDelegate(QuicClient* client) : client_(client) {}
   virtual ~ClientDelegate() {}
-  virtual void OnPacketSent(WriteResult result) OVERRIDE {}
-  virtual void OnCanWrite() OVERRIDE {
+  virtual void OnPacketSent(WriteResult result) override {}
+  virtual void OnCanWrite() override {
     EpollEvent event(EPOLLOUT, false);
     client_->OnEvent(client_->fd(), &event);
   }
@@ -203,9 +197,6 @@ class EndToEndTest : public ::testing::TestWithParam<TestParams> {
     FLAGS_enable_quic_fec = GetParam().use_fec;
 
     VLOG(1) << "Using Configuration: " << GetParam();
-
-    client_config_.SetDefaults();
-    server_config_.SetDefaults();
 
     // Use different flow control windows for client/server.
     client_config_.SetInitialFlowControlWindowToSend(
@@ -247,39 +238,39 @@ class EndToEndTest : public ::testing::TestWithParam<TestParams> {
   }
 
   void set_client_initial_flow_control_receive_window(uint32 window) {
-    CHECK(client_.get() == NULL);
+    CHECK(client_.get() == nullptr);
     DVLOG(1) << "Setting client initial flow control window: " << window;
     client_config_.SetInitialFlowControlWindowToSend(window);
   }
 
   void set_client_initial_stream_flow_control_receive_window(uint32 window) {
-    CHECK(client_.get() == NULL);
+    CHECK(client_.get() == nullptr);
     DVLOG(1) << "Setting client initial stream flow control window: " << window;
     client_config_.SetInitialStreamFlowControlWindowToSend(window);
   }
 
   void set_client_initial_session_flow_control_receive_window(uint32 window) {
-    CHECK(client_.get() == NULL);
+    CHECK(client_.get() == nullptr);
     DVLOG(1) << "Setting client initial session flow control window: "
              << window;
     client_config_.SetInitialSessionFlowControlWindowToSend(window);
   }
 
   void set_server_initial_flow_control_receive_window(uint32 window) {
-    CHECK(server_thread_.get() == NULL);
+    CHECK(server_thread_.get() == nullptr);
     DVLOG(1) << "Setting server initial flow control window: " << window;
     server_config_.SetInitialFlowControlWindowToSend(window);
   }
 
   void set_server_initial_stream_flow_control_receive_window(uint32 window) {
-    CHECK(server_thread_.get() == NULL);
+    CHECK(server_thread_.get() == nullptr);
     DVLOG(1) << "Setting server initial stream flow control window: "
              << window;
     server_config_.SetInitialStreamFlowControlWindowToSend(window);
   }
 
   void set_server_initial_session_flow_control_receive_window(uint32 window) {
-    CHECK(server_thread_.get() == NULL);
+    CHECK(server_thread_.get() == nullptr);
     DVLOG(1) << "Setting server initial session flow control window: "
              << window;
     server_config_.SetInitialSessionFlowControlWindowToSend(window);
@@ -329,14 +320,14 @@ class EndToEndTest : public ::testing::TestWithParam<TestParams> {
     return client_->client()->connected();
   }
 
-  virtual void SetUp() OVERRIDE {
+  virtual void SetUp() override {
     // The ownership of these gets transferred to the QuicPacketWriterWrapper
     // and TestWriterFactory when Initialize() is executed.
     client_writer_ = new PacketDroppingTestWriter();
     server_writer_ = new PacketDroppingTestWriter();
   }
 
-  virtual void TearDown() OVERRIDE {
+  virtual void TearDown() override {
     StopServer();
   }
 
@@ -508,7 +499,7 @@ TEST_P(EndToEndTest, MultipleRequestResponse) {
 
 TEST_P(EndToEndTest, MultipleClients) {
   ASSERT_TRUE(Initialize());
-  scoped_ptr<QuicTestClient> client2(CreateQuicClient(NULL));
+  scoped_ptr<QuicTestClient> client2(CreateQuicClient(nullptr));
 
   HTTPMessage request(HttpConstants::HTTP_1_1,
                       HttpConstants::POST, "/foo");
@@ -693,14 +684,6 @@ TEST_P(EndToEndTest, LargePostZeroRTTFailure) {
 
   // The 0-RTT handshake should succeed.
   client_->Connect();
-  if (client_supported_versions_[0] >= QUIC_VERSION_18 &&
-      negotiated_version_ <= QUIC_VERSION_16) {
-    // If the version negotiation has resulted in a downgrade, then the client
-    // must wait for the handshake to complete before sending any data.
-    // Otherwise it may have queued frames which will trigger a
-    // DFATAL when they are serialized after the downgrade.
-    client_->client()->WaitForCryptoHandshakeConfirmed();
-  }
   client_->WaitForResponseForMs(-1);
   ASSERT_TRUE(client_->client()->connected());
   EXPECT_EQ(kFooResponseBody, client_->SendCustomSynchronousRequest(request));
@@ -714,14 +697,6 @@ TEST_P(EndToEndTest, LargePostZeroRTTFailure) {
   StartServer();
 
   client_->Connect();
-  if (client_supported_versions_[0] >= QUIC_VERSION_18 &&
-      negotiated_version_ <= QUIC_VERSION_16) {
-    // If the version negotiation has resulted in a downgrade, then the client
-    // must wait for the handshake to complete before sending any data.
-    // Otherwise it may have queued frames which will trigger a
-    // DFATAL when they are serialized after the downgrade.
-    client_->client()->WaitForCryptoHandshakeConfirmed();
-  }
   ASSERT_TRUE(client_->client()->connected());
   EXPECT_EQ(kFooResponseBody, client_->SendCustomSynchronousRequest(request));
   EXPECT_EQ(2, client_->client()->session()->GetNumSentClientHellos());
@@ -787,9 +762,6 @@ TEST_P(EndToEndTest, DoNotSetResumeWriteAlarmIfConnectionFlowControlBlocked) {
   // an infinite loop in the EpollServer, as the alarm fires and is immediately
   // rescheduled.
   ASSERT_TRUE(Initialize());
-  if (negotiated_version_ < QUIC_VERSION_19) {
-    return;
-  }
   client_->client()->WaitForCryptoHandshakeConfirmed();
 
   // Ensure both stream and connection level are flow control blocked by setting
@@ -855,7 +827,7 @@ TEST_P(EndToEndTest, DISABLED_MultipleTermination) {
   // before HTTP framing is complete, we send an error and close the stream,
   // and the second write is picked up as writing on a closed stream.
   QuicSpdyClientStream* stream = client_->GetOrCreateStream();
-  ASSERT_TRUE(stream != NULL);
+  ASSERT_TRUE(stream != nullptr);
   ReliableQuicStreamPeer::SetStreamBytesWritten(3, stream);
 
   client_->SendData("bar", true);
@@ -870,7 +842,7 @@ TEST_P(EndToEndTest, DISABLED_MultipleTermination) {
 }
 
 TEST_P(EndToEndTest, Timeout) {
-  client_config_.set_idle_connection_state_lifetime(
+  client_config_.SetIdleConnectionStateLifetime(
       QuicTime::Delta::FromMicroseconds(500),
       QuicTime::Delta::FromMicroseconds(500));
   // Note: we do NOT ASSERT_TRUE: we may time out during initial handshake:
@@ -882,22 +854,27 @@ TEST_P(EndToEndTest, Timeout) {
 }
 
 TEST_P(EndToEndTest, NegotiateMaxOpenStreams) {
+  ValueRestore<bool> old_flag(&FLAGS_quic_allow_more_open_streams, true);
+
   // Negotiate 1 max open stream.
-  client_config_.set_max_streams_per_connection(1, 1);
+  client_config_.SetMaxStreamsPerConnection(1, 1);
   ASSERT_TRUE(Initialize());
   client_->client()->WaitForCryptoHandshakeConfirmed();
 
   // Make the client misbehave after negotiation.
-  QuicSessionPeer::SetMaxOpenStreams(client_->client()->session(), 10);
+  const int kServerMaxStreams = kMaxStreamsMinimumIncrement + 1;
+  QuicSessionPeer::SetMaxOpenStreams(client_->client()->session(),
+                                     kServerMaxStreams + 1);
 
-  HTTPMessage request(HttpConstants::HTTP_1_1,
-                      HttpConstants::POST, "/foo");
+  HTTPMessage request(HttpConstants::HTTP_1_1, HttpConstants::POST, "/foo");
   request.AddHeader("content-length", "3");
   request.set_has_complete_message(false);
 
-  // Open two simultaneous streams.
-  client_->SendMessage(request);
-  client_->SendMessage(request);
+  // The server supports a small number of additional streams beyond the
+  // negotiated limit. Open enough streams to go beyond that limit.
+  for (int i = 0; i < kServerMaxStreams + 1; ++i) {
+    client_->SendMessage(request);
+  }
   client_->WaitForResponse();
 
   EXPECT_FALSE(client_->connected());
@@ -932,14 +909,14 @@ TEST_P(EndToEndTest, NegotiateCongestionControl) {
 
 TEST_P(EndToEndTest, LimitMaxOpenStreams) {
   // Server limits the number of max streams to 2.
-  server_config_.set_max_streams_per_connection(2, 2);
+  server_config_.SetMaxStreamsPerConnection(2, 2);
   // Client tries to negotiate for 10.
-  client_config_.set_max_streams_per_connection(10, 5);
+  client_config_.SetMaxStreamsPerConnection(10, 5);
 
   ASSERT_TRUE(Initialize());
   client_->client()->WaitForCryptoHandshakeConfirmed();
   QuicConfig* client_negotiated_config = client_->client()->session()->config();
-  EXPECT_EQ(2u, client_negotiated_config->max_streams_per_connection());
+  EXPECT_EQ(2u, client_negotiated_config->MaxStreamsPerConnection());
 }
 
 TEST_P(EndToEndTest, LimitCongestionWindowAndRTT) {
@@ -1129,13 +1106,13 @@ class WrongAddressWriter : public QuicPacketWriterWrapper {
       const char* buffer,
       size_t buf_len,
       const IPAddressNumber& real_self_address,
-      const IPEndPoint& peer_address) OVERRIDE {
+      const IPEndPoint& peer_address) override {
     // Use wrong address!
     return QuicPacketWriterWrapper::WritePacket(
         buffer, buf_len, self_address_.address(), peer_address);
   }
 
-  virtual bool IsWriteBlockedDataBuffered() const OVERRIDE {
+  virtual bool IsWriteBlockedDataBuffered() const override {
     return false;
   }
 
@@ -1270,7 +1247,7 @@ TEST_P(EndToEndTest, DifferentFlowControlWindowsQ020) {
   set_server_initial_session_flow_control_receive_window(kServerSessionIFCW);
 
   ASSERT_TRUE(Initialize());
-  if (negotiated_version_ <= QUIC_VERSION_19) {
+  if (negotiated_version_ == QUIC_VERSION_19) {
     return;
   }
 

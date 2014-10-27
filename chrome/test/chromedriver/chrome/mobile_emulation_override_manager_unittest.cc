@@ -7,11 +7,11 @@
 
 #include "base/compiler_specific.h"
 #include "base/values.h"
+#include "chrome/test/chromedriver/chrome/browser_info.h"
 #include "chrome/test/chromedriver/chrome/device_metrics.h"
 #include "chrome/test/chromedriver/chrome/mobile_emulation_override_manager.h"
 #include "chrome/test/chromedriver/chrome/status.h"
 #include "chrome/test/chromedriver/chrome/stub_devtools_client.h"
-#include "chrome/test/chromedriver/chrome/version.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace {
@@ -40,13 +40,13 @@ struct Command {
 class RecorderDevToolsClient : public StubDevToolsClient {
  public:
   RecorderDevToolsClient() {}
-  virtual ~RecorderDevToolsClient() {}
+  ~RecorderDevToolsClient() override {}
 
   // Overridden from StubDevToolsClient:
-  virtual Status SendCommandAndGetResult(
+  Status SendCommandAndGetResult(
       const std::string& method,
       const base::DictionaryValue& params,
-      scoped_ptr<base::DictionaryValue>* result) OVERRIDE {
+      scoped_ptr<base::DictionaryValue>* result) override {
     commands_.push_back(Command(method, params));
     return Status(kOk);
   }
@@ -89,11 +89,11 @@ TEST(MobileEmulationOverrideManager, SendsCommandOnConnect) {
   ASSERT_EQ(0u, client.commands_.size());
   ASSERT_EQ(kOk, manager.OnConnected(&client).code());
 
-  ASSERT_EQ(1u, client.commands_.size());
-  ASSERT_EQ(kOk, manager.OnConnected(&client).code());
   ASSERT_EQ(2u, client.commands_.size());
+  ASSERT_EQ(kOk, manager.OnConnected(&client).code());
+  ASSERT_EQ(4u, client.commands_.size());
   ASSERT_NO_FATAL_FAILURE(
-      AssertDeviceMetricsCommand(client.commands_[1], device_metrics));
+      AssertDeviceMetricsCommand(client.commands_[2], device_metrics));
 }
 
 TEST(MobileEmulationOverrideManager, SendsCommandOnNavigation) {
@@ -107,18 +107,18 @@ TEST(MobileEmulationOverrideManager, SendsCommandOnNavigation) {
   ASSERT_EQ(kOk,
             manager.OnEvent(&client, "Page.frameNavigated", main_frame_params)
                 .code());
-  ASSERT_EQ(1u, client.commands_.size());
+  ASSERT_EQ(2u, client.commands_.size());
   ASSERT_EQ(kOk,
             manager.OnEvent(&client, "Page.frameNavigated", main_frame_params)
                 .code());
-  ASSERT_EQ(2u, client.commands_.size());
+  ASSERT_EQ(4u, client.commands_.size());
   ASSERT_NO_FATAL_FAILURE(
-      AssertDeviceMetricsCommand(client.commands_[1], device_metrics));
+      AssertDeviceMetricsCommand(client.commands_[2], device_metrics));
 
   base::DictionaryValue sub_frame_params;
   sub_frame_params.SetString("frame.parentId", "id");
   ASSERT_EQ(
       kOk,
       manager.OnEvent(&client, "Page.frameNavigated", sub_frame_params).code());
-  ASSERT_EQ(2u, client.commands_.size());
+  ASSERT_EQ(4u, client.commands_.size());
 }

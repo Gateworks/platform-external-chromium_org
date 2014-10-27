@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-'use strict';
-
 /**
  * MetadataCache is a map from Entry to an object containing properties.
  * Properties are divided by types, and all properties of one type are accessed
@@ -197,7 +195,7 @@ MetadataCache.prototype.currentEvictionThreshold_ = function() {
  *
  * @param {Array.<Entry>} entries The list of entries.
  * @param {string} type The metadata type.
- * @param {function(Object)} callback The metadata is passed to callback.
+ * @param {?function(Object)} callback The metadata is passed to callback.
  *     The callback is called asynchronously.
  */
 MetadataCache.prototype.get = function(entries, type, callback) {
@@ -210,7 +208,7 @@ MetadataCache.prototype.get = function(entries, type, callback) {
  *
  * @param {Array.<Entry>} entries The list of entries.
  * @param {string} type The metadata type.
- * @param {function(Object)} callback The metadata is passed to callback.
+ * @param {?function(Object)} callback The metadata is passed to callback.
  *     The callback is called asynchronously.
  */
 MetadataCache.prototype.getLatest = function(entries, type, callback) {
@@ -224,7 +222,7 @@ MetadataCache.prototype.getLatest = function(entries, type, callback) {
  * @param {string} type The metadata type.
  * @param {boolean} refresh True to get the latest value and refresh the cache,
  *     false to get the value from the cache.
- * @param {function(Object)} callback The metadata is passed to callback.
+ * @param {?function(Object)} callback The metadata is passed to callback.
  *     The callback is called asynchronously.
  * @private
  */
@@ -495,13 +493,20 @@ MetadataCache.prototype.clearRecursively = function(entry, type) {
 MetadataCache.prototype.addObserver = function(
     entry, relation, type, observer) {
   var entryURL = entry.toURL();
+
+  // Escape following regexp special characters:
+  // \^$.*+?|&{}[]()<>
+  var escapedEntryURL = entryURL.replace(
+      /([\\\^\$\.\*\+\?\|\&\{\}\[\]\(\)\<\>])/g,
+      '\\$1');
+
   var re;
   if (relation === MetadataCache.CHILDREN)
-    re = entryURL + '(/[^/]*)?';
+    re = escapedEntryURL + '(/[^/]*)?';
   else if (relation === MetadataCache.DESCENDANTS)
-    re = entryURL + '(/.*)?';
+    re = escapedEntryURL + '(/.*)?';
   else
-    re = entryURL;
+    re = escapedEntryURL;
 
   var id = ++this.observerId_;
   this.observers_.push({
@@ -703,6 +708,7 @@ MetadataProvider.prototype.fetch = function(entry, type, callback) {
  * This provider returns the following objects:
  * filesystem: { size, modificationTime }
  * @constructor
+ * @extends {MetadataProvider}
  */
 function FilesystemProvider() {
   MetadataProvider.call(this);
@@ -765,6 +771,7 @@ FilesystemProvider.prototype.fetch = function(
  *     thumbnail: { url, transform }
  * @param {VolumeManagerWrapper} volumeManager Volume manager instance.
  * @constructor
+ * @extends {MetadataProvider}
  */
 function ExternalProvider(volumeManager) {
   MetadataProvider.call(this);
@@ -793,8 +800,10 @@ ExternalProvider.prototype = {
  */
 ExternalProvider.prototype.supportsEntry = function(entry) {
   var locationInfo = this.volumeManager_.getLocationInfo(entry);
-  // TODO(mtomasz): Add support for provided file systems.
-  return locationInfo && locationInfo.isDriveBased;
+  if (!locationInfo)
+    return false;
+  return locationInfo.isDriveBased ||
+      locationInfo.rootType === VolumeManagerCommon.RootType.PROVIDED;
 };
 
 /**
@@ -911,6 +920,7 @@ ExternalProvider.prototype.convert_ = function(data, entry) {
  * media: { artist, album, title, width, height, imageTransform, etc. }
  * fetchedMedia: { same fields here }
  * @constructor
+ * @extends {MetadataProvider}
  */
 function ContentProvider() {
   MetadataProvider.call(this);
@@ -951,7 +961,7 @@ ContentProvider.prototype = {
  * @return {boolean} Whether this provider supports the entry.
  */
 ContentProvider.prototype.supportsEntry = function(entry) {
-  return entry.toURL().match(this.urlFilter_);
+  return !!entry.toURL().match(this.urlFilter_);
 };
 
 /**

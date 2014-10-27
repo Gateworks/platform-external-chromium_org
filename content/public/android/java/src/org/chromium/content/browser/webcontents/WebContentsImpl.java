@@ -76,7 +76,7 @@ import org.chromium.content_public.browser.WebContents;
 
     @Override
     public void onHide() {
-         nativeOnHide(mNativeWebContentsAndroid);
+        nativeOnHide(mNativeWebContentsAndroid);
     }
 
     @Override
@@ -157,12 +157,12 @@ import org.chromium.content_public.browser.WebContents;
 
     @Override
     public void resumeResponseDeferredAtStart() {
-         nativeResumeResponseDeferredAtStart(mNativeWebContentsAndroid);
+        nativeResumeResponseDeferredAtStart(mNativeWebContentsAndroid);
     }
 
     @Override
     public void setHasPendingNavigationTransitionForTesting() {
-         nativeSetHasPendingNavigationTransitionForTesting(mNativeWebContentsAndroid);
+        nativeSetHasPendingNavigationTransitionForTesting(mNativeWebContentsAndroid);
     }
 
     @Override
@@ -218,13 +218,20 @@ import org.chromium.content_public.browser.WebContents;
 
     @Override
     public void evaluateJavaScript(String script, JavaScriptCallback callback) {
-         nativeEvaluateJavaScript(mNativeWebContentsAndroid, script, callback);
+        nativeEvaluateJavaScript(mNativeWebContentsAndroid, script, callback);
     }
 
     @CalledByNative
     private static void onEvaluateJavaScriptResult(
             String jsonResult, JavaScriptCallback callback) {
         callback.handleJavaScriptResult(jsonResult);
+    }
+
+    @Override
+    public void postMessageToFrame(String frameName, String message,
+            String sourceOrigin, String targetOrigin) {
+        nativePostMessageToFrame(mNativeWebContentsAndroid, frameName, message, sourceOrigin,
+                targetOrigin);
     }
 
     private native String nativeGetTitle(long nativeWebContentsAndroid);
@@ -258,4 +265,6 @@ import org.chromium.content_public.browser.WebContents;
             String cssSelector);
     private native void nativeEvaluateJavaScript(long nativeWebContentsAndroid,
             String script, JavaScriptCallback callback);
+    private native void nativePostMessageToFrame(long nativeWebContentsAndroid, String frameId,
+            String message, String sourceOrigin, String targetOrigin);
 }

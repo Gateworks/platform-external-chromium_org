@@ -33,7 +33,6 @@ Example usage using git hashes:
 """
 
 import copy
-import datetime
 import errno
 import hashlib
 import optparse
@@ -49,106 +48,15 @@ import zipfile
 sys.path.append(os.path.join(
     os.path.dirname(__file__), os.path.pardir, 'telemetry'))
 
+from bisect_printer import BisectPrinter
 from bisect_results import BisectResults
+from bisect_state import BisectState
 import bisect_utils
 import builder
 import math_utils
 import request_build
-import source_control as source_control_module
+import source_control
 from telemetry.util import cloud_storage
-
-# Below is the map of "depot" names to information about each depot. Each depot
-# is a repository, and in the process of bisecting, revision ranges in these
-# repositories may also be bisected.
-#
-# Each depot information dictionary may contain:
-#   src: Path to the working directory.
-#   recurse: True if this repository will get bisected.
-#   depends: A list of other repositories that are actually part of the same
-#       repository in svn. If the repository has any dependent repositories
-#       (e.g. skia/src needs skia/include and skia/gyp to be updated), then
-#       they are specified here.
-#   svn: URL of SVN repository. Needed for git workflow to resolve hashes to
-#       SVN revisions.
-#   from: Parent depot that must be bisected before this is bisected.
-#   deps_var: Key name in vars variable in DEPS file that has revision
-#       information.
-DEPOT_DEPS_NAME = {
-    'chromium': {
-        'src': 'src',
-        'recurse': True,
-        'depends': None,
-        'from': ['cros', 'android-chrome'],
-        'viewvc':
-            'http://src.chromium.org/viewvc/chrome?view=revision&revision=',
-        'deps_var': 'chromium_rev'
-    },
-    'webkit': {
-        'src': 'src/third_party/WebKit',
-        'recurse': True,
-        'depends': None,
-        'from': ['chromium'],
-        'viewvc':
-            'http://src.chromium.org/viewvc/blink?view=revision&revision=',
-        'deps_var': 'webkit_revision'
-    },
-    'angle': {
-        'src': 'src/third_party/angle',
-        'src_old': 'src/third_party/angle_dx11',
-        'recurse': True,
-        'depends': None,
-        'from': ['chromium'],
-        'platform': 'nt',
-        'deps_var': 'angle_revision'
-    },
-    'v8': {
-        'src': 'src/v8',
-        'recurse': True,
-        'depends': None,
-        'from': ['chromium'],
-        'custom_deps': bisect_utils.GCLIENT_CUSTOM_DEPS_V8,
-        'viewvc': 'https://code.google.com/p/v8/source/detail?r=',
-        'deps_var': 'v8_revision'
-    },
-    'v8_bleeding_edge': {
-        'src': 'src/v8_bleeding_edge',
-        'recurse': True,
-        'depends': None,
-        'svn': 'https://v8.googlecode.com/svn/branches/bleeding_edge',
-        'from': ['v8'],
-        'viewvc': 'https://code.google.com/p/v8/source/detail?r=',
-        'deps_var': 'v8_revision'
-    },
-    'skia/src': {
-        'src': 'src/third_party/skia/src',
-        'recurse': True,
-        'svn': 'http://skia.googlecode.com/svn/trunk/src',
-        'depends': ['skia/include', 'skia/gyp'],
-        'from': ['chromium'],
-        'viewvc': 'https://code.google.com/p/skia/source/detail?r=',
-        'deps_var': 'skia_revision'
-    },
-    'skia/include': {
-        'src': 'src/third_party/skia/include',
-        'recurse': False,
-        'svn': 'http://skia.googlecode.com/svn/trunk/include',
-        'depends': None,
-        'from': ['chromium'],
-        'viewvc': 'https://code.google.com/p/skia/source/detail?r=',
-        'deps_var': 'None'
-    },
-    'skia/gyp': {
-        'src': 'src/third_party/skia/gyp',
-        'recurse': False,
-        'svn': 'http://skia.googlecode.com/svn/trunk/gyp',
-        'depends': None,
-        'from': ['chromium'],
-        'viewvc': 'https://code.google.com/p/skia/source/detail?r=',
-        'deps_var': 'None'
-    }
-}
-
-DEPOT_NAMES = DEPOT_DEPS_NAME.keys()
 
 # The script is in chromium/src/tools/auto_bisect. Throughout this script,
 # we use paths to other things in the chromium/src repository.
@@ -167,8 +75,9 @@ MAX_MAC_BUILD_TIME = 14400
 MAX_WIN_BUILD_TIME = 14400
 MAX_LINUX_BUILD_TIME = 14400
 
-# The confidence percentage at which confidence can be consider "high".
-HIGH_CONFIDENCE = 95
+# The confidence percentage we require to consider the initial range a
+# regression based on the test results of the inital good and bad revisions.
+REGRESSION_CONFIDENCE = 95
 
 # Patch template to add a new file, DEPS.sha under src folder.
 # This file contains SHA1 value of the DEPS changes made while bisecting
@@ -176,100 +85,44 @@ HIGH_CONFIDENCE = 95
 # When a build requested is posted with a patch, bisect builders on try server,
 # once build is produced, it reads SHA value from this file and appends it
 # to build archive filename.
-DEPS_SHA_PATCH = """diff --git src/DEPS.sha src/DEPS.sha
+DEPS_SHA_PATCH = """diff --git DEPS.sha DEPS.sha
 new file mode 100644
 --- /dev/null
-+++ src/DEPS.sha
++++ DEPS.sha
 @@ -0,0 +1 @@
 +%(deps_sha)s
 """
 
-# The possible values of the --bisect_mode flag, which determines what to
-# use when classifying a revision as "good" or "bad".
-BISECT_MODE_MEAN = 'mean'
-BISECT_MODE_STD_DEV = 'std_dev'
-BISECT_MODE_RETURN_CODE = 'return_code'
+REGRESSION_CONFIDENCE_ERROR_TEMPLATE = """
+We could not reproduce the regression with this test/metric/platform combination
+with enough confidence.
 
-# The perf dashboard looks for a string like "Estimated Confidence: 95%"
-# to decide whether or not to cc the author(s). If you change this, please
-# update the perf dashboard as well.
-RESULTS_BANNER = """
-===== BISECT JOB RESULTS =====
-Status: %(status)s
+Here are the results for the initial revision range:
+'Good' revision: {good_rev}
+\tmean: {good_mean}
+\tstd.err.:{good_std_err}
+\tsample size:{good_sample_size}
+'Bad' revision: {bad_rev}
+\tmean: {bad_mean}
+\tstd.err.:{bad_std_err}
+\tsample size:{bad_sample_size}
 
-Test Command: %(command)s
-Test Metric: %(metrics)s
-Relative Change: %(change)s
-Estimated Confidence: %(confidence).02f%%"""
+NOTE: There's still a chance that this is actually a regression, but you may
+      need to bisect a different platform."""
 
-# The perf dashboard specifically looks for the string
-# "Author  : " to parse out who to cc on a bug. If you change the
-# formatting here, please update the perf dashboard as well.
-RESULTS_REVISION_INFO = """
-===== SUSPECTED CL(s) =====
-Subject : %(subject)s
-Author  : %(author)s%(email_info)s%(commit_info)s
-Commit  : %(cl)s
-Date    : %(cl_date)s"""
+# Git branch name used to run bisect try jobs.
+BISECT_TRYJOB_BRANCH = 'bisect-tryjob'
+# Git master branch name.
+BISECT_MASTER_BRANCH = 'master'
+# File to store 'git diff' content.
+BISECT_PATCH_FILE = 'deps_patch.txt'
+# SVN repo where the bisect try jobs are submitted.
+SVN_REPO_URL = 'svn://svn.chromium.org/chrome-try/try-perf'
 
-REPRO_STEPS_LOCAL = """
-==== INSTRUCTIONS TO REPRODUCE ====
-To run locally:
- - Use the test command given under 'BISECT JOB RESULTS' above.
- - Consider using a profiler. Pass --profiler=list to list available profilers.
-"""
+class RunGitError(Exception):
 
-REPRO_STEPS_TRYJOB = """
-To reproduce on a performance try bot:
- 1. Edit run-perf-test.cfg
- 2. Upload your patch with: $ git cl upload --bypass-hooks
- 3. Send to the try server: $ git cl try -m tryserver.chromium.perf -b <bot>
-
-Notes:
- a) Follow the in-file instructions in run-perf-test.cfg.
- b) run-perf-test.cfg is under tools/ or under third_party/WebKit/Tools.
- c) Do your edits preferably under a new git branch.
- d) --browser=release and --browser=android-chromium-testshell are supported
-    depending on the platform (desktop|android).
- e) Strip any src/ directories from the head of relative path names.
- f) Make sure to use the appropriate bot on step 3.
-
-For more details please visit
-https://sites.google.com/a/chromium.org/dev/developers/performance-try-bots"""
-
-REPRO_STEPS_TRYJOB_TELEMETRY = """
-To reproduce on a performance try bot:
-%(command)s
-(Where <bot-name> comes from tools/perf/run_benchmark --browser=list)
-
-For more details please visit
-https://sites.google.com/a/chromium.org/dev/developers/performance-try-bots
-"""
-
-RESULTS_THANKYOU = """
-===== THANK YOU FOR CHOOSING BISECT AIRLINES =====
-Visit http://www.chromium.org/developers/core-principles for Chrome's policy
-on perf regressions.
-Contact chrome-perf-dashboard-team with any questions or suggestions about
-bisecting.
-.                   .-----.
-.     .---.         \      \==)
-.     |PERF\         \       \\
-.     |     ---------'-------'-----------.
-.     .     0 0 0 0 0 0 0 0 0 0 0 0 0 0 |_`-.
-.      \_____________.-------._______________)
-.                   /       /
-.                  /      /
-.                 /     /==)
-.                ._____."""
-
-
-def _AddAdditionalDepotInfo(depot_info):
-  """Adds additional depot info to the global depot variables."""
-  global DEPOT_DEPS_NAME
-  global DEPOT_NAMES
-  DEPOT_DEPS_NAME = dict(DEPOT_DEPS_NAME.items() + depot_info.items())
-  DEPOT_NAMES = DEPOT_DEPS_NAME.keys()
+  def __str__(self):
+    return '%s\nError executing git command.' % self.args[0]
 
 
 def GetSHA1HexDigest(contents):
@@ -569,7 +422,7 @@ def _UpdateDEPSForAngle(revision, depot, deps_file):
   in such cases check "deps" dictionary variable that matches
   angle.git@[a-fA-F0-9]{40}$ and replace git hash.
   """
-  deps_var = DEPOT_DEPS_NAME[depot]['deps_var']
+  deps_var = bisect_utils.DEPOT_DEPS_NAME[depot]['deps_var']
   try:
     deps_contents = ReadStringFromFile(deps_file)
     # Check whether the depot and revision pattern in DEPS file vars variable
@@ -757,91 +610,60 @@ def _GenerateProfileIfNecessary(command_args):
   return True
 
 
-def _AddRevisionsIntoRevisionData(revisions, depot, sort, revision_data):
-  """Adds new revisions to the revision_data dictionary and initializes them.
+def _CheckRegressionConfidenceError(
+    good_revision,
+    bad_revision,
+    known_good_value,
+    known_bad_value):
+  """Checks whether we can be confident beyond a certain degree that the given
+  metrics represent a regression.
 
   Args:
-    revisions: List of revisions to add.
-    depot: Depot that's currently in use (src, webkit, etc...)
-    sort: Sorting key for displaying revisions.
-    revision_data: A dictionary to add the new revisions into.
-        Existing revisions will have their sort keys adjusted.
+    good_revision: string representing the commit considered 'good'
+    bad_revision: Same as above for 'bad'.
+    known_good_value: A dict with at least: 'values', 'mean' and 'std_err'
+    known_bad_value: Same as above.
+
+  Returns:
+    False if there is no error (i.e. we can be confident there's a regressioni),
+    a string containing the details of the lack of confidence otherwise.
   """
-  num_depot_revisions = len(revisions)
-
-  for _, v in revision_data.iteritems():
-    if v['sort'] > sort:
-      v['sort'] += num_depot_revisions
-
-  for i in xrange(num_depot_revisions):
-    r = revisions[i]
-    revision_data[r] = {
-        'revision' : r,
-        'depot' : depot,
-        'value' : None,
-        'perf_time' : 0,
-        'build_time' : 0,
-        'passed' : '?',
-        'sort' : i + sort + 1,
-    }
-
-
-def _PrintThankYou():
-  print RESULTS_THANKYOU
-
-
-def _PrintTableRow(column_widths, row_data):
-  """Prints out a row in a formatted table that has columns aligned.
-
-  Args:
-    column_widths: A list of column width numbers.
-    row_data: A list of items for each column in this row.
-  """
-  assert len(column_widths) == len(row_data)
-  text = ''
-  for i in xrange(len(column_widths)):
-    current_row_data = row_data[i].center(column_widths[i], ' ')
-    text += ('%%%ds' % column_widths[i]) % current_row_data
-  print text
-
-
-def _PrintStepTime(revision_data_sorted):
-  """Prints information about how long various steps took.
-
-  Args:
-    revision_data_sorted: The sorted list of revision data dictionaries."""
-  step_perf_time_avg = 0.0
-  step_build_time_avg = 0.0
-  step_count = 0.0
-  for _, current_data in revision_data_sorted:
-    if current_data['value']:
-      step_perf_time_avg += current_data['perf_time']
-      step_build_time_avg += current_data['build_time']
-      step_count += 1
-  if step_count:
-    step_perf_time_avg = step_perf_time_avg / step_count
-    step_build_time_avg = step_build_time_avg / step_count
-  print
-  print 'Average build time : %s' % datetime.timedelta(
-      seconds=int(step_build_time_avg))
-  print 'Average test time  : %s' % datetime.timedelta(
-      seconds=int(step_perf_time_avg))
-
+  error = False
+  # Adding good and bad values to a parameter list.
+  confidenceParams = []
+  for l in [known_bad_value['values'], known_good_value['values']]:
+    # Flatten if needed
+    if isinstance(l, list) and all([isinstance(x, list) for x in l]):
+      confidenceParams.append(sum(l, []))
+    else:
+      confidenceParams.append(l)
+  regression_confidence = BisectResults.ConfidenceScore(*confidenceParams)
+  if regression_confidence < REGRESSION_CONFIDENCE:
+    error = REGRESSION_CONFIDENCE_ERROR_TEMPLATE.format(
+        good_rev=good_revision,
+        good_mean=known_good_value['mean'],
+        good_std_err=known_good_value['std_err'],
+        good_sample_size=len(known_good_value['values']),
+        bad_rev=bad_revision,
+        bad_mean=known_bad_value['mean'],
+        bad_std_err=known_bad_value['std_err'],
+        bad_sample_size=len(known_bad_value['values']))
+  return error
 
 class DepotDirectoryRegistry(object):
 
   def __init__(self, src_cwd):
     self.depot_cwd = {}
-    for depot in DEPOT_NAMES:
+    for depot in bisect_utils.DEPOT_NAMES:
       # The working directory of each depot is just the path to the depot, but
       # since we're already in 'src', we can skip that part.
-      path_in_src = DEPOT_DEPS_NAME[depot]['src'][4:]
-      self.AddDepot(depot, os.path.join(src_cwd, path_in_src))
+      path_in_src = bisect_utils.DEPOT_DEPS_NAME[depot]['src'][4:]
+      self.SetDepotDir(depot, os.path.join(src_cwd, path_in_src))
 
-    self.AddDepot('chromium', src_cwd)
-    self.AddDepot('cros', os.path.join(src_cwd, 'tools', 'cros'))
+    self.SetDepotDir('chromium', src_cwd)
+    self.SetDepotDir('cros', os.path.join(src_cwd, 'tools', 'cros'))
 
-  def AddDepot(self, depot_name, depot_dir):
+  def SetDepotDir(self, depot_name, depot_dir):
     self.depot_cwd[depot_name] = depot_dir
 
   def GetDepotDir(self, depot_name):
@@ -859,6 +681,95 @@ class DepotDirectoryRegistry(object):
     """
     os.chdir(self.GetDepotDir(depot_name))
 
+def _PrepareBisectBranch(parent_branch, new_branch):
+  """Creates a new branch to submit bisect try job.
+
+  Args:
+    parent_branch: Parent branch to be used to create new branch.
+    new_branch: New branch name.
+  """
+  current_branch, returncode = bisect_utils.RunGit(
+      ['rev-parse', '--abbrev-ref', 'HEAD'])
+  if returncode:
+    raise RunGitError('Must be in a git repository to send changes to trybots.')
+
+  current_branch = current_branch.strip()
+  # Make sure current branch is master.
+  if current_branch != parent_branch:
+    output, returncode = bisect_utils.RunGit(['checkout', '-f', parent_branch])
+    if returncode:
+      raise RunGitError('Failed to checkout branch: %s.' % output)
+
+  # Delete new branch if exists.
+  output, returncode = bisect_utils.RunGit(['branch', '--list' ])
+  if new_branch in output:
+    output, returncode = bisect_utils.RunGit(['branch', '-D', new_branch])
+    if returncode:
+      raise RunGitError('Deleting branch failed, %s', output)
+
+  # Check if the tree is dirty: make sure the index is up to date and then
+  # run diff-index.
+  bisect_utils.RunGit(['update-index', '--refresh', '-q'])
+  output, returncode = bisect_utils.RunGit(['diff-index', 'HEAD'])
+  if output:
+    raise RunGitError('Cannot send a try job with a dirty tree.')
+
+  # Create/check out the telemetry-tryjob branch, and edit the configs
+  # for the tryjob there.
+  output, returncode = bisect_utils.RunGit(['checkout', '-b', new_branch])
+  if returncode:
+    raise RunGitError('Failed to checkout branch: %s.' % output)
+
+  output, returncode = bisect_utils.RunGit(
+      ['branch', '--set-upstream-to', parent_branch])
+  if returncode:
+    raise RunGitError('Error in git branch --set-upstream-to')
+
+
+def _BuilderTryjob(git_revision, bot_name, bisect_job_name, patch=None):
+  """Attempts to run a tryjob from the current directory.
+
+  Args:
+    git_revision: A Git hash revision.
+    bot_name: Name of the bisect bot to be used for try job.
+    bisect_job_name: Bisect try job name.
+    patch: A DEPS patch (used while bisecting 3rd party repositories).
+  """
+  try:
+    # Temporary branch for running tryjob.
+    _PrepareBisectBranch(BISECT_MASTER_BRANCH, BISECT_TRYJOB_BRANCH)
+    patch_content = '/dev/null'
+    # Create a temporary patch file, if it fails raise an exception.
+    if patch:
+      WriteStringToFile(patch, BISECT_PATCH_FILE)
+      patch_content = BISECT_PATCH_FILE
+
+    try_cmd = ['try',
+               '-b', bot_name,
+               '-r', git_revision,
+               '-n', bisect_job_name,
+               '--svn_repo=%s' % SVN_REPO_URL,
+               '--diff=%s' % patch_content
+              ]
+    # Execute try job to build revision.
+    output, returncode = bisect_utils.RunGit(try_cmd)
+
+    if returncode:
+      raise RunGitError('Could not execute tryjob: %s.\n Error: %s' % (
+                         'git %s' % ' '.join(try_cmd), output))
+    print ('Try job successfully submitted.\n TryJob Details: %s\n%s' % (
+           'git %s' % ' '.join(try_cmd), output))
+  finally:
+    # Delete patch file if exists
+    try:
+      os.remove(BISECT_PATCH_FILE)
+    except OSError as e:
+      if e.errno != errno.ENOENT:
+        raise
+    # Checkout master branch and delete bisect-tryjob branch.
+    bisect_utils.RunGit(['checkout', '-f', BISECT_MASTER_BRANCH])
+    bisect_utils.RunGit(['branch', '-D', BISECT_TRYJOB_BRANCH])
+
 
 class BisectPerformanceMetrics(object):
   """This class contains functionality to perform a bisection of a range of
@@ -867,11 +778,10 @@ class BisectPerformanceMetrics(object):
   The main entry-point is the Run method.
   """
 
-  def __init__(self, source_control, opts):
+  def __init__(self, opts):
     super(BisectPerformanceMetrics, self).__init__()
 
     self.opts = opts
-    self.source_control = source_control
 
     # The src directory here is NOT the src/ directory for the repository
     # where the bisect script is running from. Instead, it's the src/ directory
@@ -924,94 +834,10 @@ class BisectPerformanceMetrics(object):
       revision_work_list = sorted(revision_work_list, reverse=True)
     else:
       cwd = self.depot_registry.GetDepotDir(depot)
-      revision_work_list = self.source_control.GetRevisionList(bad_revision,
+      revision_work_list = source_control.GetRevisionList(bad_revision,
           good_revision, cwd=cwd)
 
     return revision_work_list
-
-  def _GetV8BleedingEdgeFromV8TrunkIfMappable(self, revision):
-    commit_position = self.source_control.GetCommitPosition(revision)
-
-    if bisect_utils.IsStringInt(commit_position):
-      # V8 is tricky to bisect, in that there are only a few instances when
-      # we can dive into bleeding_edge and get back a meaningful result.
-      # Try to detect a V8 "business as usual" case, which is when:
-      #  1. trunk revision N has description "Version X.Y.Z"
-      #  2. bleeding_edge revision (N-1) has description "Prepare push to
-      #     trunk. Now working on X.Y.(Z+1)."
-      #
-      # As of 01/24/2014, V8 trunk descriptions are formatted:
-      # "Version 3.X.Y (based on bleeding_edge revision rZ)"
-      # So we can just try parsing that out first and fall back to the old way.
-      v8_dir = self.depot_registry.GetDepotDir('v8')
-      v8_bleeding_edge_dir = self.depot_registry.GetDepotDir('v8_bleeding_edge')
-
-      revision_info = self.source_control.QueryRevisionInfo(revision,
-          cwd=v8_dir)
-
-      version_re = re.compile("Version (?P<values>[0-9,.]+)")
-
-      regex_results = version_re.search(revision_info['subject'])
-
-      if regex_results:
-        git_revision = None
-
-        # Look for "based on bleeding_edge" and parse out revision
-        if 'based on bleeding_edge' in revision_info['subject']:
-          try:
-            bleeding_edge_revision = revision_info['subject'].split(
-                'bleeding_edge revision r')[1]
-            bleeding_edge_revision = int(bleeding_edge_revision.split(')')[0])
-            git_revision = self.source_control.ResolveToRevision(
-                bleeding_edge_revision, 'v8_bleeding_edge', DEPOT_DEPS_NAME, 1,
-                cwd=v8_bleeding_edge_dir)
-            return git_revision
-          except (IndexError, ValueError):
-            pass
-
-        if not git_revision:
-          # Wasn't successful, try the old way of looking for "Prepare push to"
-          git_revision = self.source_control.ResolveToRevision(
-              int(commit_position) - 1, 'v8_bleeding_edge', DEPOT_DEPS_NAME, -1,
-              cwd=v8_bleeding_edge_dir)
-
-          if git_revision:
-            revision_info = self.source_control.QueryRevisionInfo(git_revision,
-                cwd=v8_bleeding_edge_dir)
-
-            if 'Prepare push to trunk' in revision_info['subject']:
-              return git_revision
-    return None
-
-  def _GetNearestV8BleedingEdgeFromTrunk(self, revision, search_forward=True):
-    cwd = self.depot_registry.GetDepotDir('v8')
-    cmd = ['log', '--format=%ct', '-1', revision]
-    output = bisect_utils.CheckRunGit(cmd, cwd=cwd)
-    commit_time = int(output)
-    commits = []
-
-    if search_forward:
-      cmd = ['log', '--format=%H', '-10', '--after=%d' % commit_time,
-          'origin/master']
-      output = bisect_utils.CheckRunGit(cmd, cwd=cwd)
-      output = output.split()
-      commits = output
-      commits = reversed(commits)
-    else:
-      cmd = ['log', '--format=%H', '-10', '--before=%d' % commit_time,
-          'origin/master']
-      output = bisect_utils.CheckRunGit(cmd, cwd=cwd)
-      output = output.split()
-      commits = output
-
-    bleeding_edge_revision = None
-
-    for c in commits:
-      bleeding_edge_revision = self._GetV8BleedingEdgeFromV8TrunkIfMappable(c)
-      if bleeding_edge_revision:
-        break
-
-    return bleeding_edge_revision
 
   def _ParseRevisionsFromDEPSFile(self, depot):
     """Parses the local DEPS file to determine blink/skia/v8 revisions which may
@@ -1037,7 +863,7 @@ class BisectPerformanceMetrics(object):
 
       rxp = re.compile(".git@(?P<revision>[a-fA-F0-9]+)")
       results = {}
-      for depot_name, depot_data in DEPOT_DEPS_NAME.iteritems():
+      for depot_name, depot_data in bisect_utils.DEPOT_DEPS_NAME.iteritems():
         if (depot_data.get('platform') and
             depot_data.get('platform') != os.name):
           continue
@@ -1046,7 +872,7 @@ class BisectPerformanceMetrics(object):
           depot_data_src = depot_data.get('src') or depot_data.get('src_old')
           src_dir = deps_data.get(depot_data_src)
           if src_dir:
-            self.depot_registry.AddDepot(depot_name, os.path.join(
+            self.depot_registry.SetDepotDir(depot_name, os.path.join(
                 self.src_cwd, depot_data_src[4:]))
             re_results = rxp.search(src_dir)
             if re_results:
@@ -1066,10 +892,10 @@ class BisectPerformanceMetrics(object):
       for depot_name, depot_revision in parse_results.iteritems():
         depot_revision = depot_revision.strip('@')
         print depot_name, depot_revision
-        for current_name, current_data in DEPOT_DEPS_NAME.iteritems():
-          if (current_data.has_key('deps_var') and
-              current_data['deps_var'] == depot_name):
-            src_name = current_name
+        for cur_name, cur_data in bisect_utils.DEPOT_DEPS_NAME.iteritems():
+          if (cur_data.has_key('deps_var') and
+              cur_data['deps_var'] == depot_name):
+            src_name = cur_name
             results[src_name] = depot_revision
             break
       return results
@@ -1159,23 +985,24 @@ class BisectPerformanceMetrics(object):
     if restore:
       source_dir, destination_dir = destination_dir, source_dir
     if os.path.exists(source_dir):
-      RmTreeAndMkDir(destination_dir, skip_makedir=True)
+      RemoveDirectoryTree(destination_dir)
       shutil.move(source_dir, destination_dir)
       return destination_dir
     return None
 
-  def GetBuildArchiveForRevision(self, revision, gs_bucket, target_arch,
-                                 patch_sha, out_dir):
+  def _GetBuildArchiveForRevision(self, revision, gs_bucket, target_arch,
+                                  patch_sha, out_dir):
     """Checks and downloads build archive for a given revision.
 
     Checks for build archive with Git hash or SVN revision. If either of the
     file exists, then downloads the archive file.
 
     Args:
-      revision: A Git hash revision.
-      gs_bucket: Cloud storage bucket name
-      target_arch: 32 or 64 bit build target
-      patch: A DEPS patch (used while bisecting 3rd party repositories).
+      revision: A git commit hash.
+      gs_bucket: Cloud storage bucket name.
+      target_arch: Architecture name string, e.g. "ia32" or "x64".
+      patch_sha: A SHA1 hex digest of a DEPS file patch, used while
+          bisecting 3rd party repositories.
       out_dir: Build output directory where downloaded file is stored.
 
     Returns:
@@ -1187,7 +1014,7 @@ class BisectPerformanceMetrics(object):
     downloaded_archive = FetchFromCloudStorage(gs_bucket, source_file, out_dir)
     if not downloaded_archive:
       # Get commit position for the given SHA.
-      commit_position = self.source_control.GetCommitPosition(revision)
+      commit_position = source_control.GetCommitPosition(revision)
       if commit_position:
         # Source archive file path on cloud storage using SVN revision.
         source_file = GetRemoteBuildPath(
@@ -1195,18 +1022,23 @@ class BisectPerformanceMetrics(object):
         return FetchFromCloudStorage(gs_bucket, source_file, out_dir)
     return downloaded_archive
 
-  def DownloadCurrentBuild(self, revision, build_type='Release', patch=None):
+  def _DownloadAndUnzipBuild(self, revision, depot, build_type='Release'):
     """Downloads the build archive for the given revision.
 
     Args:
-      revision: The Git revision to download or build.
-      build_type: Target build type ('Release', 'Debug', 'Release_x64' etc.)
-      patch: A DEPS patch (used while bisecting 3rd party repositories).
+      revision: The git revision to download.
+      depot: The name of a dependency repository. Should be in DEPOT_NAMES.
+      build_type: Target build type, e.g. Release', 'Debug', 'Release_x64' etc.
 
     Returns:
       True if download succeeds, otherwise False.
     """
+    patch = None
     patch_sha = None
+    if depot != 'chromium':
+      # Create a DEPS patch with new revision for dependency repository.
+      revision, patch = self.CreateDEPSPatch(depot, revision)
+
     if patch:
       # Get the SHA of the DEPS changes patch.
       patch_sha = GetSHA1HexDigest(patch)
@@ -1215,31 +1047,140 @@ class BisectPerformanceMetrics(object):
       # 'DEPS.sha' and add patch_sha evaluated above to it.
       patch = '%s\n%s' % (patch, DEPS_SHA_PATCH % {'deps_sha': patch_sha})
 
-    # Get Build output directory
-    abs_build_dir = os.path.abspath(
-        builder.GetBuildOutputDirectory(self.opts, self.src_cwd))
+    build_dir = builder.GetBuildOutputDirectory(self.opts, self.src_cwd)
+    downloaded_file = self._WaitForBuildDownload(
+        revision, build_dir, deps_patch=patch, deps_patch_sha=patch_sha)
+    if not downloaded_file:
+      return False
+    return self._UnzipAndMoveBuildProducts(downloaded_file, build_dir,
+                                           build_type=build_type)
 
-    fetch_build_func = lambda: self.GetBuildArchiveForRevision(
-      revision, self.opts.gs_bucket, self.opts.target_arch,
-      patch_sha, abs_build_dir)
+  def _WaitForBuildDownload(self, revision, build_dir, deps_patch=None,
+                            deps_patch_sha=None):
+    """Tries to download a zip archive for a build.
+
+    This involves seeing whether the archive is already available, and if not,
+    then requesting a build and waiting before downloading.
+
+    Args:
+      revision: A git commit hash.
+      build_dir: The directory to download the build into.
+      deps_patch: A patch which changes a dependency repository revision in
+          the DEPS, if applicable.
+      deps_patch_sha: The SHA1 hex digest of the above patch.
+
+    Returns:
+      File path of the downloaded file if successful, otherwise None.
+    """
+    abs_build_dir = os.path.abspath(build_dir)
+    fetch_build_func = lambda: self._GetBuildArchiveForRevision(
+        revision, self.opts.gs_bucket, self.opts.target_arch,
+        deps_patch_sha, abs_build_dir)
 
     # Downloaded archive file path, downloads build archive for given revision.
+    # This will be False if the build isn't yet available.
     downloaded_file = fetch_build_func()
 
-    # When build archive doesn't exists, post a build request to tryserver
+    # When build archive doesn't exist, post a build request to try server
     # and wait for the build to be produced.
     if not downloaded_file:
-      downloaded_file = self.PostBuildRequestAndWait(
-          revision, fetch_build=fetch_build_func, patch=patch)
+      downloaded_file = self._RequestBuildAndWait(
+          revision, fetch_build=fetch_build_func, patch=deps_patch)
       if not downloaded_file:
-        return False
+        return None
 
-    # Generic name for the archive, created when archive file is extracted.
+    return downloaded_file
+
+  def _RequestBuildAndWait(self, git_revision, fetch_build, patch=None):
+    """Triggers a try job for a build job.
+
+    This function prepares and starts a try job on the tryserver.chromium.perf
+    master, and waits for the binaries to be produced and archived in cloud
+    storage. Once the build is ready it's downloaded.
+
+    Args:
+      git_revision: A Git hash revision.
+      fetch_build: Function to check and download build from cloud storage.
+      patch: A DEPS patch (used while bisecting 3rd party repositories).
+
+    Returns:
+      Downloaded archive file path when requested build exists and download is
+      successful, otherwise None.
+    """
+    if not fetch_build:
+      return False
+
+    # Create a unique ID for each build request posted to try server builders.
+    # This ID is added to "Reason" property of the build.
+    build_request_id = GetSHA1HexDigest(
+        '%s-%s-%s' % (git_revision, patch, time.time()))
+
+    # Reverts any changes to DEPS file.
+    source_control.CheckoutFileAtRevision(
+      bisect_utils.FILE_DEPS, git_revision, cwd=self.src_cwd)
+
+    bot_name = self._GetBuilderName(self.opts.target_platform)
+    build_timeout = self._GetBuilderBuildTime()
+    target_file = None
+    try:
+      # Execute try job request to build revision with patch.
+      _BuilderTryjob(git_revision, bot_name, build_request_id, patch)
+      target_file, error_msg = _WaitUntilBuildIsReady(
+          fetch_build, bot_name, self.opts.builder_host,
+          self.opts.builder_port, build_request_id, build_timeout)
+      if not target_file:
+        print '%s [revision: %s]' % (error_msg, git_revision)
+    except RunGitError as e:
+      print ('Failed to post builder try job for revision: [%s].\n'
+             'Error: %s' % (git_revision, e))
+
+    return target_file
+
+  @staticmethod
+  def _GetBuilderName(target_platform):
+    """Gets builder bot name and build time in seconds based on platform."""
+    if bisect_utils.IsWindowsHost():
+      return 'win_perf_bisect_builder'
+    if bisect_utils.IsLinuxHost():
+      if target_platform == 'android':
+        return 'android_perf_bisect_builder'
+      return 'linux_perf_bisect_builder'
+    if bisect_utils.IsMacHost():
+      return 'mac_perf_bisect_builder'
+    raise NotImplementedError('Unsupported Platform "%s".' % sys.platform)
+
+  @staticmethod
+  def _GetBuilderBuildTime():
+    """Returns the time to wait for a build after requesting one."""
+    if bisect_utils.IsWindowsHost():
+      return MAX_WIN_BUILD_TIME
+    if bisect_utils.IsLinuxHost():
+      return MAX_LINUX_BUILD_TIME
+    if bisect_utils.IsMacHost():
+      return MAX_MAC_BUILD_TIME
+    raise NotImplementedError('Unsupported Platform "%s".' % sys.platform)
+
+  def _UnzipAndMoveBuildProducts(self, downloaded_file, build_dir,
+                                 build_type='Release'):
+    """Unzips the build archive and moves it to the build output directory.
+
+    The build output directory is whereever the binaries are expected to
+    be in order to start Chrome and run tests.
+
+    Args:
+      downloaded_file: File path of the downloaded zip file.
+      build_dir: Directory where the the zip file was downloaded to.
+      build_type: "Release" or "Debug".
+
+    Returns:
+      True if successful, False otherwise.
+    """
+    abs_build_dir = os.path.abspath(build_dir)
     output_dir = os.path.join(
         abs_build_dir, GetZipFileName(target_arch=self.opts.target_arch))
-    # Unzip build archive directory.
+
     try:
-      RmTreeAndMkDir(output_dir, skip_makedir=True)
+      RemoveDirectoryTree(output_dir)
       self.BackupOrRestoreOutputDirectory(restore=False)
       # Build output directory based on target(e.g. out/Release, out/Debug).
       target_build_output_dir = os.path.join(abs_build_dir, build_type)
@@ -1261,87 +1202,20 @@ class BisectPerformanceMetrics(object):
       self.BackupOrRestoreOutputDirectory(restore=True)
       # Cleanup any leftovers from unzipping.
       if os.path.exists(output_dir):
-        RmTreeAndMkDir(output_dir, skip_makedir=True)
+        RemoveDirectoryTree(output_dir)
     finally:
       # Delete downloaded archive
       if os.path.exists(downloaded_file):
         os.remove(downloaded_file)
     return False
 
-  def PostBuildRequestAndWait(self, git_revision, fetch_build, patch=None):
-    """POSTs the build request job to the try server instance.
-
-    A try job build request is posted to tryserver.chromium.perf master,
-    and waits for the binaries to be produced and archived on cloud storage.
-    Once the build is ready and stored onto cloud, build archive is downloaded
-    into the output folder.
-
-    Args:
-      git_revision: A Git hash revision.
-      fetch_build: Function to check and download build from cloud storage.
-      patch: A DEPS patch (used while bisecting 3rd party repositories).
-
-    Returns:
-      Downloaded archive file path when requested build exists and download is
-      successful, otherwise None.
-    """
-    def GetBuilderNameAndBuildTime(target_platform, target_arch='ia32'):
-      """Gets builder bot name and build time in seconds based on platform."""
-      # Bot names should match the one listed in tryserver.chromium's
-      # master.cfg which produces builds for bisect.
-      if bisect_utils.IsWindowsHost():
-        if bisect_utils.Is64BitWindows() and target_arch == 'x64':
-          return ('win_perf_bisect_builder', MAX_WIN_BUILD_TIME)
-        return ('win_perf_bisect_builder', MAX_WIN_BUILD_TIME)
-      if bisect_utils.IsLinuxHost():
-        if target_platform == 'android':
-          return ('android_perf_bisect_builder', MAX_LINUX_BUILD_TIME)
-        return ('linux_perf_bisect_builder', MAX_LINUX_BUILD_TIME)
-      if bisect_utils.IsMacHost():
-        return ('mac_perf_bisect_builder', MAX_MAC_BUILD_TIME)
-      raise NotImplementedError('Unsupported Platform "%s".' % sys.platform)
-    if not fetch_build:
-      return False
-
-    bot_name, build_timeout = GetBuilderNameAndBuildTime(
-       self.opts.target_platform, self.opts.target_arch)
-    builder_host = self.opts.builder_host
-    builder_port = self.opts.builder_port
-    # Create a unique ID for each build request posted to try server builders.
-    # This ID is added to "Reason" property of the build.
-    build_request_id = GetSHA1HexDigest(
-        '%s-%s-%s' % (git_revision, patch, time.time()))
-
-    # Creates a try job description.
-    # Always use Git hash to post build request since Commit positions are
-    # not supported by builders to build.
-    job_args = {
-        'revision': 'src@%s' % git_revision,
-        'bot': bot_name,
-        'name': build_request_id,
-    }
-    # Update patch information if supplied.
-    if patch:
-      job_args['patch'] = patch
-    # Posts job to build the revision on the server.
-    if request_build.PostTryJob(builder_host, builder_port, job_args):
-      target_file, error_msg = _WaitUntilBuildIsReady(
-          fetch_build, bot_name, builder_host, builder_port, build_request_id,
-          build_timeout)
-      if not target_file:
-        print '%s [revision: %s]' % (error_msg, git_revision)
-        return None
-      return target_file
-    print 'Failed to post build request for revision: [%s]' % git_revision
-    return None
-
   def IsDownloadable(self, depot):
     """Checks if build can be downloaded based on target platform and depot."""
     if (self.opts.target_platform in ['chromium', 'android'] and
         self.opts.gs_bucket):
       return (depot == 'chromium' or
-              'chromium' in DEPOT_DEPS_NAME[depot]['from'] or
-              'v8' in DEPOT_DEPS_NAME[depot]['from'])
+              'chromium' in bisect_utils.DEPOT_DEPS_NAME[depot]['from'] or
+              'v8' in bisect_utils.DEPOT_DEPS_NAME[depot]['from'])
     return False
 
   def UpdateDepsContents(self, deps_contents, depot, git_revision, deps_key):
@@ -1362,7 +1236,7 @@ class BisectPerformanceMetrics(object):
                                re.MULTILINE)
     new_data = None
     if re.search(deps_revision, deps_contents):
-      commit_position = self.source_control.GetCommitPosition(
+      commit_position = source_control.GetCommitPosition(
           git_revision, self.depot_registry.GetDepotDir(depot))
       if not commit_position:
         print 'Could not determine commit position for %s' % git_revision
@@ -1404,7 +1278,7 @@ class BisectPerformanceMetrics(object):
     if not os.path.exists(deps_file):
       return False
 
-    deps_var = DEPOT_DEPS_NAME[depot]['deps_var']
+    deps_var = bisect_utils.DEPOT_DEPS_NAME[depot]['deps_var']
     # Don't update DEPS file if deps_var is not set in DEPOT_DEPS_NAME.
     if not deps_var:
       print 'DEPS update not supported for Depot: %s', depot
@@ -1449,16 +1323,16 @@ class BisectPerformanceMetrics(object):
     if not chromium_sha:
       raise RuntimeError('Failed to determine Chromium revision for %s' %
                          revision)
-    if ('chromium' in DEPOT_DEPS_NAME[depot]['from'] or
-        'v8' in DEPOT_DEPS_NAME[depot]['from']):
+    if ('chromium' in bisect_utils.DEPOT_DEPS_NAME[depot]['from'] or
+        'v8' in bisect_utils.DEPOT_DEPS_NAME[depot]['from']):
       # Checkout DEPS file for the current chromium revision.
-      if self.source_control.CheckoutFileAtRevision(
+      if source_control.CheckoutFileAtRevision(
           bisect_utils.FILE_DEPS, chromium_sha, cwd=self.src_cwd):
         if self.UpdateDeps(revision, depot, deps_file_path):
           diff_command = [
               'diff',
-              '--src-prefix=src/',
-              '--dst-prefix=src/',
+              '--src-prefix=',
+              '--dst-prefix=',
               '--no-ext-diff',
                bisect_utils.FILE_DEPS,
           ]
@@ -1472,11 +1346,16 @@ class BisectPerformanceMetrics(object):
             'DEPS checkout Failed for chromium revision : [%s]' % chromium_sha)
     return (None, None)
 
-  def BuildCurrentRevision(self, depot, revision=None):
-    """Builds chrome and performance_ui_tests on the current revision.
+  def _ObtainBuild(self, depot, revision=None):
+    """Obtains a build by either downloading or building directly.
+
+    Args:
+      depot: Dependency repository name.
+      revision: A git commit hash. If None is given, the currently checked-out
+          revision is built.
 
     Returns:
-      True if the build was successful.
+      True for success.
     """
     if self.opts.debug_ignore_build:
       return True
@@ -1487,16 +1366,7 @@ class BisectPerformanceMetrics(object):
     # Fetch build archive for the given revision from the cloud storage when
     # the storage bucket is passed.
     if self.IsDownloadable(depot) and revision:
-      deps_patch = None
-      if depot != 'chromium':
-        # Create a DEPS patch with new revision for dependency repository.
-        revision, deps_patch = self.CreateDEPSPatch(depot, revision)
-      if self.DownloadCurrentBuild(revision, patch=deps_patch):
-        if deps_patch:
-          # Reverts the changes to DEPS file.
-          self.source_control.CheckoutFileAtRevision(
-              bisect_utils.FILE_DEPS, revision, cwd=self.src_cwd)
-        build_success = True
+      build_success = self._DownloadAndUnzipBuild(revision, depot)
     else:
       # These codes are executed when bisect bots builds binaries locally.
       build_success = self.builder.Build(depot, self.opts)
@@ -1514,13 +1384,14 @@ class BisectPerformanceMetrics(object):
     return not bisect_utils.RunGClient(['runhooks'], cwd=self.src_cwd)
 
   def _IsBisectModeUsingMetric(self):
-    return self.opts.bisect_mode in [BISECT_MODE_MEAN, BISECT_MODE_STD_DEV]
+    return self.opts.bisect_mode in [bisect_utils.BISECT_MODE_MEAN,
+                                     bisect_utils.BISECT_MODE_STD_DEV]
 
   def _IsBisectModeReturnCode(self):
-    return self.opts.bisect_mode in [BISECT_MODE_RETURN_CODE]
+    return self.opts.bisect_mode in [bisect_utils.BISECT_MODE_RETURN_CODE]
 
   def _IsBisectModeStandardDeviation(self):
-    return self.opts.bisect_mode in [BISECT_MODE_STD_DEV]
+    return self.opts.bisect_mode in [bisect_utils.BISECT_MODE_STD_DEV]
 
   def GetCompatibleCommand(self, command_to_run, revision, depot):
     """Return a possibly modified test command depending on the revision.
@@ -1536,8 +1407,8 @@ class BisectPerformanceMetrics(object):
       if depot != 'chromium':
         revision = bisect_utils.CheckRunGit(
             ['rev-parse', 'HEAD'], cwd=self.src_cwd).strip()
-      commit_position = self.source_control.GetCommitPosition(revision,
-                                                              cwd=self.src_cwd)
+      commit_position = source_control.GetCommitPosition(revision,
+                                                         cwd=self.src_cwd)
       if not commit_position:
         return command_to_run
       cmd_re = re.compile('--browser=(?P<browser_type>\S+)')
@@ -1584,6 +1455,14 @@ class BisectPerformanceMetrics(object):
           'std_dev': 0.0,
           'values': [0.0]
       }
+
+      # When debug_fake_test_mean is set, its value is returned as the mean
+      # and the flag is cleared so that further calls behave as if it wasn't
+      # set (returning the fake_results dict as defined above).
+      if self.opts.debug_fake_first_test_mean:
+        fake_results['mean'] = float(self.opts.debug_fake_first_test_mean)
+        self.opts.debug_fake_first_test_mean = 0
+
       return (fake_results, success_code)
 
     # For Windows platform set posix=False, to parse windows paths correctly.
@@ -1721,22 +1600,20 @@ class BisectPerformanceMetrics(object):
     # figure out for each mirror which git revision to grab. There's no
     # guarantee that the SVN revision will exist for each of the dependent
     # depots, so we have to grep the git logs and grab the next earlier one.
-    if (not is_base
-        and DEPOT_DEPS_NAME[depot]['depends']
-        and self.source_control.IsGit()):
-      commit_position = self.source_control.GetCommitPosition(revision)
+    if not is_base and bisect_utils.DEPOT_DEPS_NAME[depot]['depends']:
+      commit_position = source_control.GetCommitPosition(revision)
 
-      for d in DEPOT_DEPS_NAME[depot]['depends']:
+      for d in bisect_utils.DEPOT_DEPS_NAME[depot]['depends']:
         self.depot_registry.ChangeToDepotDir(d)
 
-        dependant_rev = self.source_control.ResolveToRevision(
-            commit_position, d, DEPOT_DEPS_NAME, -1000)
+        dependant_rev = source_control.ResolveToRevision(
+            commit_position, d, bisect_utils.DEPOT_DEPS_NAME, -1000)
 
         if dependant_rev:
           revisions_to_sync.append([d, dependant_rev])
 
       num_resolved = len(revisions_to_sync)
-      num_needed = len(DEPOT_DEPS_NAME[depot]['depends'])
+      num_needed = len(bisect_utils.DEPOT_DEPS_NAME[depot]['depends'])
 
       self.depot_registry.ChangeToDepotDir(depot)
 
@@ -1792,17 +1669,7 @@ class BisectPerformanceMetrics(object):
     Returns:
       True if successful.
     """
-    if depot == 'chromium' or depot == 'android-chrome':
-      # Removes third_party/libjingle. At some point, libjingle was causing
-      # issues syncing when using the git workflow (crbug.com/266324).
-      os.chdir(self.src_cwd)
-      if not bisect_utils.RemoveThirdPartyDirectory('libjingle'):
-        return False
-      # Removes third_party/skia. At some point, skia was causing
-      # issues syncing when using the git workflow (crbug.com/377951).
-      if not bisect_utils.RemoveThirdPartyDirectory('skia'):
-        return False
-    elif depot == 'cros':
+    if depot == 'cros':
       return self.PerformCrosChrootCleanup()
     return True
 
@@ -1826,7 +1693,8 @@ class BisectPerformanceMetrics(object):
       return self.RunGClientHooks()
     return True
 
-  def ShouldSkipRevision(self, depot, revision):
+  @staticmethod
+  def ShouldSkipRevision(depot, revision):
     """Checks whether a particular revision can be safely skipped.
 
     Some commits can be safely skipped (such as a DEPS roll), since the tool
@@ -1840,14 +1708,13 @@ class BisectPerformanceMetrics(object):
       True if we should skip building/testing this revision.
     """
     if depot == 'chromium':
-      if self.source_control.IsGit():
-        cmd = ['diff-tree', '--no-commit-id', '--name-only', '-r', revision]
-        output = bisect_utils.CheckRunGit(cmd)
+      cmd = ['diff-tree', '--no-commit-id', '--name-only', '-r', revision]
+      output = bisect_utils.CheckRunGit(cmd)
 
-        files = output.splitlines()
+      files = output.splitlines()
 
-        if len(files) == 1 and files[0] == 'DEPS':
-          return True
+      if len(files) == 1 and files[0] == 'DEPS':
+        return True
 
     return False
 
@@ -1884,7 +1751,7 @@ class BisectPerformanceMetrics(object):
       if not self._SyncAllRevisions(revisions_to_sync, sync_client):
         return ('Failed to sync: [%s]' % str(revision), BUILD_RESULT_FAIL)
 
-     # Try to do any post-sync steps. This may include "gclient runhooks".
+    # Try to do any post-sync steps. This may include "gclient runhooks".
     if not self._RunPostSync(depot):
       return ('Failed to run [gclient runhooks].', BUILD_RESULT_FAIL)
 
@@ -1896,7 +1763,7 @@ class BisectPerformanceMetrics(object):
     # Obtain a build for this revision. This may be done by requesting a build
     # from another builder, waiting for it and downloading it.
     start_build_time = time.time()
-    build_success = self.BuildCurrentRevision(depot, revision)
+    build_success = self._ObtainBuild(depot, revision)
     if not build_success:
       return ('Failed to build revision: [%s]' % str(revision),
               BUILD_RESULT_FAIL)
@@ -1948,9 +1815,10 @@ class BisectPerformanceMetrics(object):
       # want so that all the dependencies sync properly as well.
       # i.e. gclient sync src@<SHA1>
       if sync_client == 'gclient':
-        revision = '%s@%s' % (DEPOT_DEPS_NAME[depot]['src'], revision)
+        revision = '%s@%s' % (bisect_utils.DEPOT_DEPS_NAME[depot]['src'],
+                              revision)
 
-      sync_success = self.source_control.SyncToRevision(revision, sync_client)
+      sync_success = source_control.SyncToRevision(revision, sync_client)
       if not sync_success:
         return False
 
@@ -1969,7 +1837,7 @@ class BisectPerformanceMetrics(object):
       True if the current_value is closer to the known_good_value than the
       known_bad_value.
     """
-    if self.opts.bisect_mode == BISECT_MODE_STD_DEV:
+    if self.opts.bisect_mode == bisect_utils.BISECT_MODE_STD_DEV:
       dist_to_good_value = abs(current_value['std_dev'] -
           known_good_value['std_dev'])
       dist_to_bad_value = abs(current_value['std_dev'] -
@@ -1980,18 +1848,156 @@ class BisectPerformanceMetrics(object):
 
     return dist_to_good_value < dist_to_bad_value
 
-  def _FillInV8BleedingEdgeInfo(self, min_revision_data, max_revision_data):
-    r1 = self._GetNearestV8BleedingEdgeFromTrunk(min_revision_data['revision'],
-        search_forward=True)
-    r2 = self._GetNearestV8BleedingEdgeFromTrunk(max_revision_data['revision'],
-        search_forward=False)
-    min_revision_data['external']['v8_bleeding_edge'] = r1
-    max_revision_data['external']['v8_bleeding_edge'] = r2
+  def _GetV8BleedingEdgeFromV8TrunkIfMappable(
+      self, revision, bleeding_edge_branch):
+    """Gets v8 bleeding edge revision mapped to v8 revision in trunk.
+
+    Args:
+      revision: A trunk V8 revision mapped to bleeding edge revision.
+      bleeding_edge_branch: Branch used to perform lookup of bleeding edge
+                            revision.
+    Return:
+      A mapped bleeding edge revision if found, otherwise None.
+    """
+    commit_position = source_control.GetCommitPosition(revision)
+
+    if bisect_utils.IsStringInt(commit_position):
+      # V8 is tricky to bisect, in that there are only a few instances when
+      # we can dive into bleeding_edge and get back a meaningful result.
+      # Try to detect a V8 "business as usual" case, which is when:
+      #  1. trunk revision N has description "Version X.Y.Z"
+      #  2. bleeding_edge revision (N-1) has description "Prepare push to
+      #     trunk. Now working on X.Y.(Z+1)."
+      #
+      # As of 01/24/2014, V8 trunk descriptions are formatted:
+      # "Version 3.X.Y (based on bleeding_edge revision rZ)"
+      # So we can just try parsing that out first and fall back to the old way.
+      v8_dir = self.depot_registry.GetDepotDir('v8')
+      v8_bleeding_edge_dir = self.depot_registry.GetDepotDir('v8_bleeding_edge')
+
+      revision_info = source_control.QueryRevisionInfo(revision, cwd=v8_dir)
+      version_re = re.compile("Version (?P<values>[0-9,.]+)")
+      regex_results = version_re.search(revision_info['subject'])
+      if regex_results:
+        git_revision = None
+        # TODO (prasadv): Support the v8 git migration based subject
+        # "based on <githash>"
+        # Look for "based on bleeding_edge" and parse out revision
+        if 'based on bleeding_edge' in revision_info['subject']:
+          try:
+            bleeding_edge_revision = revision_info['subject'].split(
+                'bleeding_edge revision r')[1]
+            bleeding_edge_revision = int(bleeding_edge_revision.split(')')[0])
+            bleeding_edge_url = ('https://v8.googlecode.com/svn/branches/'
+                                 'bleeding_edge@%s' % bleeding_edge_revision)
+            cmd = ['log',
+                   '--format=%H',
+                   '--grep',
+                   bleeding_edge_url,
+                   '-1',
+                   bleeding_edge_branch]
+            output = bisect_utils.CheckRunGit(cmd, cwd=v8_dir)
+            if output:
+              git_revision = output.strip()
+            return git_revision
+          except (IndexError, ValueError):
+            pass
+        if not git_revision:
+          # Wasn't successful, try the old way of looking for "Prepare push to"
+          git_revision = source_control.ResolveToRevision(
+              int(commit_position) - 1, 'v8_bleeding_edge',
+              bisect_utils.DEPOT_DEPS_NAME, -1, cwd=v8_bleeding_edge_dir)
+
+          if git_revision:
+            revision_info = source_control.QueryRevisionInfo(git_revision,
+                cwd=v8_bleeding_edge_dir)
+
+            if 'Prepare push to trunk' in revision_info['subject']:
+              return git_revision
+    return None
+
+  def _GetNearestV8BleedingEdgeFromTrunk(
+      self, revision, v8_branch, bleeding_edge_branch, search_forward=True):
+    """Gets the nearest V8 roll and maps to bleeding edge revision.
+
+    V8 is a bit tricky to bisect since it isn't just rolled out like blink.
+    Each revision on trunk might just be whatever was in bleeding edge, rolled
+    directly out. Or it could be some mixture of previous v8 trunk versions,
+    with bits and pieces cherry picked out from bleeding edge. In order to
+    bisect, we need both the before/after versions on trunk v8 to be just pushes
+    from bleeding edge. With the V8 git migration, the branches got switched.
+    a) master (external/v8) == candidates (v8/v8)
+    b) bleeding_edge (external/v8) == master (v8/v8)
+
+    Args:
+      revision: A V8 revision to get its nearest bleeding edge revision
+      search_forward: Searches forward if True, otherwise search backward.
+
+    Return:
+      A mapped bleeding edge revision if found, otherwise None.
+    """
+    cwd = self.depot_registry.GetDepotDir('v8')
+    cmd = ['log', '--format=%ct', '-1', revision]
+    output = bisect_utils.CheckRunGit(cmd, cwd=cwd)
+    commit_time = int(output)
+    commits = []
+    if search_forward:
+      cmd = ['log',
+             '--format=%H',
+             '--after=%d' % commit_time,
+             v8_branch,
+             '--reverse']
+      output = bisect_utils.CheckRunGit(cmd, cwd=cwd)
+      output = output.split()
+      commits = output
+      #Get 10 git hashes immediately after the given commit.
+      commits = commits[:10]
+    else:
+      cmd = ['log',
+             '--format=%H',
+             '-10',
+             '--before=%d' % commit_time,
+             v8_branch]
+      output = bisect_utils.CheckRunGit(cmd, cwd=cwd)
+      output = output.split()
+      commits = output
+
+    bleeding_edge_revision = None
+
+    for c in commits:
+      bleeding_edge_revision = self._GetV8BleedingEdgeFromV8TrunkIfMappable(
+          c, bleeding_edge_branch)
+      if bleeding_edge_revision:
+        break
+
+    return bleeding_edge_revision
+
+  def _FillInV8BleedingEdgeInfo(self, min_revision_state, max_revision_state):
+    cwd = self.depot_registry.GetDepotDir('v8')
+    # when "remote.origin.url" is https://chromium.googlesource.com/v8/v8.git
+    v8_branch = 'origin/candidates'
+    bleeding_edge_branch = 'origin/master'
+
+    # Support for the chromium revisions with external V8 repo.
+    # ie https://chromium.googlesource.com/external/v8.git
+    cmd = ['config', '--get', 'remote.origin.url']
+    v8_repo_url = bisect_utils.CheckRunGit(cmd, cwd=cwd)
+
+    if 'external/v8.git' in v8_repo_url:
+      v8_branch = 'origin/master'
+      bleeding_edge_branch = 'origin/bleeding_edge'
+
+    r1 = self._GetNearestV8BleedingEdgeFromTrunk(min_revision_state.revision,
+        v8_branch, bleeding_edge_branch, search_forward=True)
+    r2 = self._GetNearestV8BleedingEdgeFromTrunk(max_revision_state.revision,
+        v8_branch, bleeding_edge_branch, search_forward=False)
+    min_revision_state.external['v8_bleeding_edge'] = r1
+    max_revision_state.external['v8_bleeding_edge'] = r2
 
     if (not self._GetV8BleedingEdgeFromV8TrunkIfMappable(
-            min_revision_data['revision'])
+            min_revision_state.revision, bleeding_edge_branch)
         or not self._GetV8BleedingEdgeFromV8TrunkIfMappable(
-            max_revision_data['revision'])):
+            max_revision_state.revision, bleeding_edge_branch)):
       self.warnings.append(
           'Trunk revisions in V8 did not map directly to bleeding_edge. '
           'Attempted to expand the range to find V8 rolls which did map '
@@ -1999,54 +2005,54 @@ class BisectPerformanceMetrics(object):
           'valid.')
 
   def _FindNextDepotToBisect(
-      self, current_depot, min_revision_data, max_revision_data):
+      self, current_depot, min_revision_state, max_revision_state):
     """Decides which depot the script should dive into next (if any).
 
     Args:
       current_depot: Current depot being bisected.
-      min_revision_data: Data about the earliest revision in the bisect range.
-      max_revision_data: Data about the latest revision in the bisect range.
+      min_revision_state: State of the earliest revision in the bisect range.
+      max_revision_state: State of the latest revision in the bisect range.
 
     Returns:
       Name of the depot to bisect next, or None.
     """
     external_depot = None
-    for next_depot in DEPOT_NAMES:
-      if DEPOT_DEPS_NAME[next_depot].has_key('platform'):
-        if DEPOT_DEPS_NAME[next_depot]['platform'] != os.name:
+    for next_depot in bisect_utils.DEPOT_NAMES:
+      if bisect_utils.DEPOT_DEPS_NAME[next_depot].has_key('platform'):
+        if bisect_utils.DEPOT_DEPS_NAME[next_depot]['platform'] != os.name:
           continue
 
-      if not (DEPOT_DEPS_NAME[next_depot]['recurse']
-              and min_revision_data['depot']
-              in DEPOT_DEPS_NAME[next_depot]['from']):
+      if not (bisect_utils.DEPOT_DEPS_NAME[next_depot]['recurse']
+              and min_revision_state.depot
+              in bisect_utils.DEPOT_DEPS_NAME[next_depot]['from']):
         continue
 
       if current_depot == 'v8':
         # We grab the bleeding_edge info here rather than earlier because we
         # finally have the revision range. From that we can search forwards and
         # backwards to try to match trunk revisions to bleeding_edge.
-        self._FillInV8BleedingEdgeInfo(min_revision_data, max_revision_data)
+        self._FillInV8BleedingEdgeInfo(min_revision_state, max_revision_state)
 
-      if (min_revision_data['external'].get(next_depot) ==
-          max_revision_data['external'].get(next_depot)):
+      if (min_revision_state.external.get(next_depot) ==
+          max_revision_state.external.get(next_depot)):
         continue
 
-      if (min_revision_data['external'].get(next_depot) and
-          max_revision_data['external'].get(next_depot)):
+      if (min_revision_state.external.get(next_depot) and
+          max_revision_state.external.get(next_depot)):
         external_depot = next_depot
         break
 
     return external_depot
 
   def PrepareToBisectOnDepot(
-      self, current_depot, end_revision, start_revision, previous_revision):
+      self, current_depot, start_revision, end_revision, previous_revision):
     """Changes to the appropriate directory and gathers a list of revisions
     to bisect between |start_revision| and |end_revision|.
 
     Args:
       current_depot: The depot we want to bisect.
-      end_revision: End of the revision range.
       start_revision: Start of the revision range.
+      end_revision: End of the revision range.
       previous_revision: The last revision we synced to on |previous_depot|.
 
     Returns:
@@ -2059,10 +2065,11 @@ class BisectPerformanceMetrics(object):
 
     # V8 (and possibly others) is merged in periodically. Bisecting
     # this directory directly won't give much good info.
-    if DEPOT_DEPS_NAME[current_depot].has_key('custom_deps'):
+    if bisect_utils.DEPOT_DEPS_NAME[current_depot].has_key('custom_deps'):
       config_path = os.path.join(self.src_cwd, '..')
-      if bisect_utils.RunGClientAndCreateConfig(self.opts,
-          DEPOT_DEPS_NAME[current_depot]['custom_deps'], cwd=config_path):
+      if bisect_utils.RunGClientAndCreateConfig(
+          self.opts, bisect_utils.DEPOT_DEPS_NAME[current_depot]['custom_deps'],
+          cwd=config_path):
         return []
       if bisect_utils.RunGClient(
           ['sync', '--revision', previous_revision], cwd=self.src_cwd):
@@ -2077,9 +2084,10 @@ class BisectPerformanceMetrics(object):
       self.cleanup_commands.append(['mv', 'v8', 'v8_bleeding_edge'])
       self.cleanup_commands.append(['mv', 'v8.bak', 'v8'])
 
-      self.depot_registry.AddDepot('v8_bleeding_edge',
+      self.depot_registry.SetDepotDir('v8_bleeding_edge',
                                   os.path.join(self.src_cwd, 'v8'))
-      self.depot_registry.AddDepot('v8', os.path.join(self.src_cwd, 'v8.bak'))
+      self.depot_registry.SetDepotDir('v8', os.path.join(self.src_cwd,
+                                                         'v8.bak'))
 
       self.depot_registry.ChangeToDepotDir(current_depot)
 
@@ -2116,8 +2124,8 @@ class BisectPerformanceMetrics(object):
 
   def PrintRevisionsToBisectMessage(self, revision_list, depot):
     if self.opts.output_buildbot_annotations:
-      step_name = 'Bisection Range: [%s - %s]' % (
-          revision_list[len(revision_list)-1], revision_list[0])
+      step_name = 'Bisection Range: [%s:%s - %s]' % (depot, revision_list[-1],
+                                                     revision_list[0])
       bisect_utils.OutputAnnotationStepStart(step_name)
 
     print
@@ -2148,15 +2156,15 @@ class BisectPerformanceMetrics(object):
     if good_svn_revision >= 291563:
       return (bad_revision, good_revision)
 
-    if self.source_control.IsGit() and self.opts.target_platform == 'chromium':
-      changes_to_deps = self.source_control.QueryFileRevisionHistory(
+    if self.opts.target_platform == 'chromium':
+      changes_to_deps = source_control.QueryFileRevisionHistory(
           bisect_utils.FILE_DEPS, good_revision, bad_revision)
 
       if changes_to_deps:
         # DEPS file was changed, search from the oldest change to DEPS file to
         # bad_revision to see if there are matching .DEPS.git changes.
         oldest_deps_change = changes_to_deps[-1]
-        changes_to_gitdeps = self.source_control.QueryFileRevisionHistory(
+        changes_to_gitdeps = source_control.QueryFileRevisionHistory(
             bisect_utils.FILE_DEPS_GIT, oldest_deps_change, bad_revision)
 
         if len(changes_to_deps) != len(changes_to_gitdeps):
@@ -2192,21 +2200,16 @@ class BisectPerformanceMetrics(object):
     Returns:
       True if the revisions are in the proper order (good earlier than bad).
     """
-    if self.source_control.IsGit() and target_depot != 'cros':
+    if target_depot != 'cros':
       cwd = self.depot_registry.GetDepotDir(target_depot)
-
-      cmd = ['log', '--format=%ct', '-1', good_revision]
-      output = bisect_utils.CheckRunGit(cmd, cwd=cwd)
-      good_commit_time = int(output)
-
-      cmd = ['log', '--format=%ct', '-1', bad_revision]
-      output = bisect_utils.CheckRunGit(cmd, cwd=cwd)
-      bad_commit_time = int(output)
-
-      return good_commit_time <= bad_commit_time
+      good_position = source_control.GetCommitPosition(good_revision, cwd)
+      bad_position = source_control.GetCommitPosition(bad_revision, cwd)
     else:
       # CrOS and SVN use integers.
-      return int(good_revision) <= int(bad_revision)
+      good_position = int(good_revision)
+      bad_position = int(bad_revision)
+
+    return good_position <= bad_position
 
   def CanPerformBisect(self, good_revision, bad_revision):
     """Checks whether a given revision is bisectable.
@@ -2224,7 +2227,7 @@ class BisectPerformanceMetrics(object):
       this will contain the field "error", otherwise None.
     """
     if self.opts.target_platform == 'android':
-      good_revision = self.source_control.GetCommitPosition(good_revision)
+      good_revision = source_control.GetCommitPosition(good_revision)
       if (bisect_utils.IsStringInt(good_revision)
           and good_revision < 265549):
         return {'error': (
@@ -2236,8 +2239,8 @@ class BisectPerformanceMetrics(object):
             'Please try bisecting revisions greater than or equal to r265549.')}
 
     if bisect_utils.IsWindowsHost():
-      good_revision = self.source_control.GetCommitPosition(good_revision)
-      bad_revision = self.source_control.GetCommitPosition(bad_revision)
+      good_revision = source_control.GetCommitPosition(good_revision)
+      bad_revision = source_control.GetCommitPosition(bad_revision)
       if (bisect_utils.IsStringInt(good_revision) and
           bisect_utils.IsStringInt(bad_revision)):
         if (289987 <= good_revision < 290716 or
@@ -2262,8 +2265,6 @@ class BisectPerformanceMetrics(object):
     Returns:
       A BisectResults object.
     """
-    results = BisectResults(self.depot_registry, self.source_control)
-
     # Choose depot to bisect first
     target_depot = 'chromium'
     if self.opts.target_platform == 'cros':
@@ -2275,26 +2276,26 @@ class BisectPerformanceMetrics(object):
     self.depot_registry.ChangeToDepotDir(target_depot)
 
     # If they passed SVN revisions, we can try match them to git SHA1 hashes.
-    bad_revision = self.source_control.ResolveToRevision(
-        bad_revision_in, target_depot, DEPOT_DEPS_NAME, 100)
-    good_revision = self.source_control.ResolveToRevision(
-        good_revision_in, target_depot, DEPOT_DEPS_NAME, -100)
+    bad_revision = source_control.ResolveToRevision(
+        bad_revision_in, target_depot, bisect_utils.DEPOT_DEPS_NAME, 100)
+    good_revision = source_control.ResolveToRevision(
+        good_revision_in, target_depot, bisect_utils.DEPOT_DEPS_NAME, -100)
 
     os.chdir(cwd)
     if bad_revision is None:
-      results.error = 'Couldn\'t resolve [%s] to SHA1.' % bad_revision_in
-      return results
+      return BisectResults(
+          error='Couldn\'t resolve [%s] to SHA1.' % bad_revision_in)
 
     if good_revision is None:
-      results.error = 'Couldn\'t resolve [%s] to SHA1.' % good_revision_in
-      return results
+      return BisectResults(
+          error='Couldn\'t resolve [%s] to SHA1.' % good_revision_in)
 
     # Check that they didn't accidentally swap good and bad revisions.
     if not self.CheckIfRevisionsInProperOrder(
         target_depot, good_revision, bad_revision):
-      results.error = ('bad_revision < good_revision, did you swap these '
-                       'by mistake?')
-      return results
+      return BisectResults(error='bad_revision < good_revision, did you swap '
+                                 'these by mistake?')
+
     bad_revision, good_revision = self.NudgeRevisionsIfDEPSChange(
         bad_revision, good_revision, good_revision_in)
     if self.opts.output_buildbot_annotations:
@@ -2302,45 +2303,17 @@ class BisectPerformanceMetrics(object):
 
     cannot_bisect = self.CanPerformBisect(good_revision, bad_revision)
     if cannot_bisect:
-      results.error = cannot_bisect.get('error')
-      return results
+      return BisectResults(error=cannot_bisect.get('error'))
 
     print 'Gathering revision range for bisection.'
     # Retrieve a list of revisions to do bisection on.
-    src_revision_list = self.GetRevisionList(
-        target_depot, bad_revision, good_revision)
+    revision_list = self.GetRevisionList(target_depot, bad_revision,
+                                         good_revision)
 
     if self.opts.output_buildbot_annotations:
       bisect_utils.OutputAnnotationStepClosed()
 
-    if src_revision_list:
-      # revision_data will store information about a revision such as the
-      # depot it came from, the webkit/V8 revision at that time,
-      # performance timing, build state, etc...
-      revision_data = results.revision_data
-
-      # revision_list is the list we're binary searching through at the moment.
-      revision_list = []
-
-      sort_key_ids = 0
-
-      for current_revision_id in src_revision_list:
-        sort_key_ids += 1
-
-        revision_data[current_revision_id] = {
-            'value' : None,
-            'passed' : '?',
-            'depot' : target_depot,
-            'external' : None,
-            'perf_time' : 0,
-            'build_time' : 0,
-            'sort' : sort_key_ids,
-        }
-        revision_list.append(current_revision_id)
-
-      min_revision = 0
-      max_revision = len(revision_list) - 1
-
+    if revision_list:
       self.PrintRevisionsToBisectMessage(revision_list, target_depot)
 
       if self.opts.output_buildbot_annotations:
@@ -2351,71 +2324,108 @@ class BisectPerformanceMetrics(object):
       # Perform the performance tests on the good and bad revisions, to get
       # reference values.
       bad_results, good_results = self.GatherReferenceValues(good_revision,
-                                                               bad_revision,
-                                                               command_to_run,
-                                                               metric,
-                                                               target_depot)
+                                                             bad_revision,
+                                                             command_to_run,
+                                                             metric,
+                                                             target_depot)
 
       if self.opts.output_buildbot_annotations:
         bisect_utils.OutputAnnotationStepClosed()
 
       if bad_results[1]:
-        results.error = ('An error occurred while building and running '
-            'the \'bad\' reference value. The bisect cannot continue without '
-            'a working \'bad\' revision to start from.\n\nError: %s' %
-            bad_results[0])
-        return results
+        error = ('An error occurred while building and running the \'bad\' '
+                 'reference value. The bisect cannot continue without '
+                 'a working \'bad\' revision to start from.\n\nError: %s' %
+                 bad_results[0])
+        return BisectResults(error=error)
 
       if good_results[1]:
-        results.error = ('An error occurred while building and running '
-            'the \'good\' reference value. The bisect cannot continue without '
-            'a working \'good\' revision to start from.\n\nError: %s' %
-            good_results[0])
-        return results
-
+        error = ('An error occurred while building and running the \'good\' '
+                 'reference value. The bisect cannot continue without '
+                 'a working \'good\' revision to start from.\n\nError: %s' %
+                 good_results[0])
+        return BisectResults(error=error)
 
       # We need these reference values to determine if later runs should be
       # classified as pass or fail.
       known_bad_value = bad_results[0]
       known_good_value = good_results[0]
 
+      # Check the direction of improvement only if the improvement_direction
+      # option is set to a specific direction (1 for higher is better or -1 for
+      # lower is better).
+      improvement_dir = self.opts.improvement_direction
+      if improvement_dir:
+        higher_is_better = improvement_dir > 0
+        if higher_is_better:
+          message = "Expecting higher values to be better for this metric, "
+        else:
+          message = "Expecting lower values to be better for this metric, "
+        metric_increased = known_bad_value['mean'] > known_good_value['mean']
+        if metric_increased:
+          message += "and the metric appears to have increased. "
+        else:
+          message += "and the metric appears to have decreased. "
+        if ((higher_is_better and metric_increased) or
+            (not higher_is_better and not metric_increased)):
+          error = (message + 'Then, the test results for the ends of the given '
+                   '\'good\' - \'bad\' range of revisions represent an '
+                   'improvement (and not a regression).')
+          return BisectResults(error=error)
+        print message, "Therefore we continue to bisect."
+
+      bisect_state = BisectState(target_depot, revision_list)
+      revision_states = bisect_state.GetRevisionStates()
+
+      min_revision = 0
+      max_revision = len(revision_states) - 1
+      # Check how likely it is that the good and bad results are different
+      # beyond chance-induced variation.
+      if not self.opts.debug_ignore_regression_confidence:
+        error = _CheckRegressionConfidenceError(good_revision,
+                                                bad_revision,
+                                                known_good_value,
+                                                known_bad_value)
+        if error:
+          return BisectResults(error=error)
+
       # Can just mark the good and bad revisions explicitly here since we
       # already know the results.
-      bad_revision_data = revision_data[revision_list[0]]
-      bad_revision_data['external'] = bad_results[2]
-      bad_revision_data['perf_time'] = bad_results[3]
-      bad_revision_data['build_time'] = bad_results[4]
-      bad_revision_data['passed'] = False
-      bad_revision_data['value'] = known_bad_value
+      bad_revision_state = revision_states[min_revision]
+      bad_revision_state.external = bad_results[2]
+      bad_revision_state.perf_time = bad_results[3]
+      bad_revision_state.build_time = bad_results[4]
+      bad_revision_state.passed = False
+      bad_revision_state.value = known_bad_value
 
-      good_revision_data = revision_data[revision_list[max_revision]]
-      good_revision_data['external'] = good_results[2]
-      good_revision_data['perf_time'] = good_results[3]
-      good_revision_data['build_time'] = good_results[4]
-      good_revision_data['passed'] = True
-      good_revision_data['value'] = known_good_value
+      good_revision_state = revision_states[max_revision]
+      good_revision_state.external = good_results[2]
+      good_revision_state.perf_time = good_results[3]
+      good_revision_state.build_time = good_results[4]
+      good_revision_state.passed = True
+      good_revision_state.value = known_good_value
 
-      next_revision_depot = target_depot
+      bisect_printer = BisectPrinter(self.opts, self.depot_registry)
 
       while True:
-        if not revision_list:
+        if not revision_states:
           break
 
-        min_revision_data = revision_data[revision_list[min_revision]]
-        max_revision_data = revision_data[revision_list[max_revision]]
-
         if max_revision - min_revision <= 1:
-          current_depot = min_revision_data['depot']
-          if min_revision_data['passed'] == '?':
+          min_revision_state = revision_states[min_revision]
+          max_revision_state = revision_states[max_revision]
+          current_depot = min_revision_state.depot
+          # TODO(sergiyb): Under which conditions can first two branches be hit?
+          if min_revision_state.passed == '?':
             next_revision_index = min_revision
-          elif max_revision_data['passed'] == '?':
+          elif max_revision_state.passed == '?':
             next_revision_index = max_revision
           elif current_depot in ['android-chrome', 'cros', 'chromium', 'v8']:
-            previous_revision = revision_list[min_revision]
+            previous_revision = revision_states[min_revision].revision
             # If there were changes to any of the external libraries we track,
             # should bisect the changes there as well.
             external_depot = self._FindNextDepotToBisect(
-                current_depot, min_revision_data, max_revision_data)
+                current_depot, min_revision_state, max_revision_state)
             # If there was no change in any of the external depots, the search
             # is over.
             if not external_depot:
@@ -2427,33 +2437,30 @@ class BisectPerformanceMetrics(object):
                     'bleeding_edge.')
               break
 
-            earliest_revision = max_revision_data['external'][external_depot]
-            latest_revision = min_revision_data['external'][external_depot]
+            earliest_revision = max_revision_state.external[external_depot]
+            latest_revision = min_revision_state.external[external_depot]
 
             new_revision_list = self.PrepareToBisectOnDepot(
-                external_depot, latest_revision, earliest_revision,
+                external_depot, earliest_revision, latest_revision,
                 previous_revision)
 
             if not new_revision_list:
-              results.error = ('An error occurred attempting to retrieve '
-                               'revision range: [%s..%s]' %
-                               (earliest_revision, latest_revision))
-              return results
+              error = ('An error occurred attempting to retrieve revision '
+                       'range: [%s..%s]' % (earliest_revision, latest_revision))
+              return BisectResults(error=error)
 
-            _AddRevisionsIntoRevisionData(
-                new_revision_list, external_depot, min_revision_data['sort'],
-                revision_data)
+            revision_states = bisect_state.CreateRevisionStatesAfter(
+                external_depot, new_revision_list, current_depot,
+                previous_revision)
 
-            # Reset the bisection and perform it on the newly inserted
-            # changelists.
-            revision_list = new_revision_list
+            # Reset the bisection and perform it on the newly inserted states.
             min_revision = 0
-            max_revision = len(revision_list) - 1
-            sort_key_ids += len(revision_list)
+            max_revision = len(revision_states) - 1
 
             print ('Regression in metric %s appears to be the result of '
                    'changes in [%s].' % (metric, external_depot))
 
+            revision_list = [state.revision for state in revision_states]
             self.PrintRevisionsToBisectMessage(revision_list, external_depot)
 
             continue
@@ -2463,36 +2470,34 @@ class BisectPerformanceMetrics(object):
           next_revision_index = (int((max_revision - min_revision) / 2) +
                                  min_revision)
 
-        next_revision_id = revision_list[next_revision_index]
-        next_revision_data = revision_data[next_revision_id]
-        next_revision_depot = next_revision_data['depot']
+        next_revision_state = revision_states[next_revision_index]
+        next_revision = next_revision_state.revision
+        next_depot = next_revision_state.depot
 
-        self.depot_registry.ChangeToDepotDir(next_revision_depot)
+        self.depot_registry.ChangeToDepotDir(next_depot)
 
+        message = 'Working on [%s:%s]' % (next_depot, next_revision)
+        print message
         if self.opts.output_buildbot_annotations:
-          step_name = 'Working on [%s]' % next_revision_id
-          bisect_utils.OutputAnnotationStepStart(step_name)
+          bisect_utils.OutputAnnotationStepStart(message)
 
-        print 'Working on revision: [%s]' % next_revision_id
-
-        run_results = self.RunTest(
-            next_revision_id, next_revision_depot, command_to_run, metric,
-            skippable=True)
+        run_results = self.RunTest(next_revision, next_depot, command_to_run,
+                                   metric, skippable=True)
 
         # If the build is successful, check whether or not the metric
         # had regressed.
         if not run_results[1]:
           if len(run_results) > 2:
-            next_revision_data['external'] = run_results[2]
-            next_revision_data['perf_time'] = run_results[3]
-            next_revision_data['build_time'] = run_results[4]
+            next_revision_state.external = run_results[2]
+            next_revision_state.perf_time = run_results[3]
+            next_revision_state.build_time = run_results[4]
 
           passed_regression = self._CheckIfRunPassed(run_results[0],
                                                      known_good_value,
                                                      known_bad_value)
 
-          next_revision_data['passed'] = passed_regression
-          next_revision_data['value'] = run_results[0]
+          next_revision_state.passed = passed_regression
+          next_revision_state.value = run_results[0]
 
           if passed_regression:
             max_revision = next_revision_index
@@ -2500,302 +2505,28 @@ class BisectPerformanceMetrics(object):
             min_revision = next_revision_index
         else:
           if run_results[1] == BUILD_RESULT_SKIPPED:
-            next_revision_data['passed'] = 'Skipped'
+            next_revision_state.passed = 'Skipped'
           elif run_results[1] == BUILD_RESULT_FAIL:
-            next_revision_data['passed'] = 'Build Failed'
+            next_revision_state.passed = 'Build Failed'
 
           print run_results[0]
 
           # If the build is broken, remove it and redo search.
-          revision_list.pop(next_revision_index)
+          revision_states.pop(next_revision_index)
 
           max_revision -= 1
 
         if self.opts.output_buildbot_annotations:
-          self._PrintPartialResults(results)
+          bisect_printer.PrintPartialResults(bisect_state)
           bisect_utils.OutputAnnotationStepClosed()
+
+      return BisectResults(bisect_state, self.depot_registry, self.opts,
+                           self.warnings)
     else:
       # Weren't able to sync and retrieve the revision range.
-      results.error = ('An error occurred attempting to retrieve revision '
-                       'range: [%s..%s]' % (good_revision, bad_revision))
-
-    return results
-
-  def _PrintPartialResults(self, results):
-    results_dict = results.GetResultsDict()
-    self._PrintTestedCommitsTable(results_dict['revision_data_sorted'],
-                                  results_dict['first_working_revision'],
-                                  results_dict['last_broken_revision'],
-                                  100, final_step=False)
-
-  def _ConfidenceLevelStatus(self, results_dict):
-    if not results_dict['confidence']:
-      return None
-    confidence_status = 'Successful with %(level)s confidence%(warning)s.'
-    if results_dict['confidence'] >= HIGH_CONFIDENCE:
-      level = 'high'
-    else:
-      level = 'low'
-    warning = ' and warnings'
-    if not self.warnings:
-      warning = ''
-    return confidence_status % {'level': level, 'warning': warning}
-
-  def _GetViewVCLinkFromDepotAndHash(self, cl, depot):
-    info = self.source_control.QueryRevisionInfo(cl,
-        self.depot_registry.GetDepotDir(depot))
-    if depot and DEPOT_DEPS_NAME[depot].has_key('viewvc'):
-      try:
-        # Format is "git-svn-id: svn://....@123456 <other data>"
-        svn_line = [i for i in info['body'].splitlines() if 'git-svn-id:' in i]
-        svn_revision = svn_line[0].split('@')
-        svn_revision = svn_revision[1].split(' ')[0]
-        return DEPOT_DEPS_NAME[depot]['viewvc'] + svn_revision
-      except IndexError:
-        return ''
-    return ''
-
-  def _PrintRevisionInfo(self, cl, info, depot=None):
-    email_info = ''
-    if not info['email'].startswith(info['author']):
-      email_info = '\nEmail   : %s' % info['email']
-    commit_link = self._GetViewVCLinkFromDepotAndHash(cl, depot)
-    if commit_link:
-      commit_info = '\nLink    : %s' % commit_link
-    else:
-      commit_info = ('\nFailed to parse SVN revision from body:\n%s' %
-                     info['body'])
-    print RESULTS_REVISION_INFO % {
-        'subject': info['subject'],
-        'author': info['author'],
-        'email_info': email_info,
-        'commit_info': commit_info,
-        'cl': cl,
-        'cl_date': info['date']
-    }
-
-  def _PrintTestedCommitsHeader(self):
-    if self.opts.bisect_mode == BISECT_MODE_MEAN:
-      _PrintTableRow(
-          [20, 70, 14, 12, 13],
-          ['Depot', 'Commit SHA', 'Mean', 'Std. Error', 'State'])
-    elif self.opts.bisect_mode == BISECT_MODE_STD_DEV:
-      _PrintTableRow(
-          [20, 70, 14, 12, 13],
-          ['Depot', 'Commit SHA', 'Std. Error', 'Mean', 'State'])
-    elif self.opts.bisect_mode == BISECT_MODE_RETURN_CODE:
-      _PrintTableRow(
-          [20, 70, 14, 13],
-          ['Depot', 'Commit SHA', 'Return Code', 'State'])
-    else:
-      assert False, 'Invalid bisect_mode specified.'
-
-  def _PrintTestedCommitsEntry(self, current_data, cl_link, state_str):
-    if self.opts.bisect_mode == BISECT_MODE_MEAN:
-      std_error = '+-%.02f' % current_data['value']['std_err']
-      mean = '%.02f' % current_data['value']['mean']
-      _PrintTableRow(
-          [20, 70, 12, 14, 13],
-          [current_data['depot'], cl_link, mean, std_error, state_str])
-    elif self.opts.bisect_mode == BISECT_MODE_STD_DEV:
-      std_error = '+-%.02f' % current_data['value']['std_err']
-      mean = '%.02f' % current_data['value']['mean']
-      _PrintTableRow(
-          [20, 70, 12, 14, 13],
-          [current_data['depot'], cl_link, std_error, mean, state_str])
-    elif self.opts.bisect_mode == BISECT_MODE_RETURN_CODE:
-      mean = '%d' % current_data['value']['mean']
-      _PrintTableRow(
-          [20, 70, 14, 13],
-          [current_data['depot'], cl_link, mean, state_str])
-
-  def _PrintTestedCommitsTable(
-      self, revision_data_sorted, first_working_revision, last_broken_revision,
-      confidence, final_step=True):
-    print
-    if final_step:
-      print '===== TESTED COMMITS ====='
-    else:
-      print '===== PARTIAL RESULTS ====='
-    self._PrintTestedCommitsHeader()
-    state = 0
-    for current_id, current_data in revision_data_sorted:
-      if current_data['value']:
-        if (current_id == last_broken_revision or
-            current_id == first_working_revision):
-          # If confidence is too low, don't add this empty line since it's
-          # used to put focus on a suspected CL.
-          if confidence and final_step:
-            print
-          state += 1
-          if state == 2 and not final_step:
-            # Just want a separation between "bad" and "good" cl's.
-            print
-
-        state_str = 'Bad'
-        if state == 1 and final_step:
-          state_str = 'Suspected CL'
-        elif state == 2:
-          state_str = 'Good'
-
-        # If confidence is too low, don't bother outputting good/bad.
-        if not confidence:
-          state_str = ''
-        state_str = state_str.center(13, ' ')
-
-        cl_link = self._GetViewVCLinkFromDepotAndHash(current_id,
-            current_data['depot'])
-        if not cl_link:
-          cl_link = current_id
-        self._PrintTestedCommitsEntry(current_data, cl_link, state_str)
-
-  def _PrintReproSteps(self):
-    """Prints out a section of the results explaining how to run the test.
-
-    This message includes the command used to run the test.
-    """
-    command = '$ ' + self.opts.command
-    if bisect_utils.IsTelemetryCommand(self.opts.command):
-      command += ('\nAlso consider passing --profiler=list to see available '
-                  'profilers.')
-    print REPRO_STEPS_LOCAL
-    if bisect_utils.IsTelemetryCommand(self.opts.command):
-      telemetry_command = re.sub(r'--browser=[^\s]+',
-                                 '--browser=<bot-name>',
-                                 command)
-      print REPRO_STEPS_TRYJOB_TELEMETRY % {'command': telemetry_command}
-    else:
-      print REPRO_STEPS_TRYJOB
-
-  def _PrintOtherRegressions(self, other_regressions, revision_data):
-    """Prints a section of the results about other potential regressions."""
-    print
-    print 'Other regressions may have occurred:'
-    print '  %8s  %70s  %10s' % ('Depot'.center(8, ' '),
-        'Range'.center(70, ' '), 'Confidence'.center(10, ' '))
-    for regression in other_regressions:
-      current_id, previous_id, confidence = regression
-      current_data = revision_data[current_id]
-      previous_data = revision_data[previous_id]
-
-      current_link = self._GetViewVCLinkFromDepotAndHash(current_id,
-          current_data['depot'])
-      previous_link = self._GetViewVCLinkFromDepotAndHash(previous_id,
-          previous_data['depot'])
-
-      # If we can't map it to a viewable URL, at least show the original hash.
-      if not current_link:
-        current_link = current_id
-      if not previous_link:
-        previous_link = previous_id
-
-      print '  %8s  %70s %s' % (
-          current_data['depot'], current_link,
-          ('%d%%' % confidence).center(10, ' '))
-      print '  %8s  %70s' % (
-          previous_data['depot'], previous_link)
-      print
-
-  def _CheckForWarnings(self, results_dict):
-    if len(results_dict['culprit_revisions']) > 1:
-      self.warnings.append('Due to build errors, regression range could '
-                           'not be narrowed down to a single commit.')
-    if self.opts.repeat_test_count == 1:
-      self.warnings.append('Tests were only set to run once. This may '
-                           'be insufficient to get meaningful results.')
-    if 0 < results_dict['confidence'] < HIGH_CONFIDENCE:
-      self.warnings.append('Confidence is not high. Try bisecting again '
-                           'with increased repeat_count, larger range, or '
-                           'on another metric.')
-    if not results_dict['confidence']:
-      self.warnings.append('Confidence score is 0%. Try bisecting again on '
-                           'another platform or another metric.')
-
-  def FormatAndPrintResults(self, bisect_results):
-    """Prints the results from a bisection run in a readable format.
-
-    Args:
-      bisect_results: The results from a bisection test run.
-    """
-    results_dict = bisect_results.GetResultsDict()
-
-    self._CheckForWarnings(results_dict)
-
-    if self.opts.output_buildbot_annotations:
-      bisect_utils.OutputAnnotationStepStart('Build Status Per Revision')
-
-    print
-    print 'Full results of bisection:'
-    for current_id, current_data  in results_dict['revision_data_sorted']:
-      build_status = current_data['passed']
-
-      if type(build_status) is bool:
-        if build_status:
-          build_status = 'Good'
-        else:
-          build_status = 'Bad'
-
-      print '  %20s  %40s  %s' % (current_data['depot'],
-                                  current_id, build_status)
-    print
-
-    if self.opts.output_buildbot_annotations:
-      bisect_utils.OutputAnnotationStepClosed()
-      # The perf dashboard scrapes the "results" step in order to comment on
-      # bugs. If you change this, please update the perf dashboard as well.
-      bisect_utils.OutputAnnotationStepStart('Results')
-
-    self._PrintBanner(results_dict)
-    self._PrintWarnings()
-
-    if results_dict['culprit_revisions'] and results_dict['confidence']:
-      for culprit in results_dict['culprit_revisions']:
-        cl, info, depot = culprit
-        self._PrintRevisionInfo(cl, info, depot)
-      if results_dict['other_regressions']:
-        self._PrintOtherRegressions(results_dict['other_regressions'],
-                                    results_dict['revision_data'])
-    self._PrintTestedCommitsTable(results_dict['revision_data_sorted'],
-                                  results_dict['first_working_revision'],
-                                  results_dict['last_broken_revision'],
-                                  results_dict['confidence'])
-    _PrintStepTime(results_dict['revision_data_sorted'])
-    self._PrintReproSteps()
-    _PrintThankYou()
-    if self.opts.output_buildbot_annotations:
-      bisect_utils.OutputAnnotationStepClosed()
-
-  def _PrintBanner(self, results_dict):
-    if self._IsBisectModeReturnCode():
-      metrics = 'N/A'
-      change = 'Yes'
-    else:
-      metrics = '/'.join(self.opts.metric)
-      change = '%.02f%% (+/-%.02f%%)' % (
-          results_dict['regression_size'], results_dict['regression_std_err'])
-
-    if results_dict['culprit_revisions'] and results_dict['confidence']:
-      status = self._ConfidenceLevelStatus(results_dict)
-    else:
-      status = 'Failure, could not reproduce.'
-      change = 'Bisect could not reproduce a change.'
-
-    print RESULTS_BANNER % {
-        'status': status,
-        'command': self.opts.command,
-        'metrics': metrics,
-        'change': change,
-        'confidence': results_dict['confidence'],
-    }
-
-  def _PrintWarnings(self):
-    """Prints a list of warning strings if there are any."""
-    if not self.warnings:
-      return
-    print
-    print 'WARNINGS:'
-    for w in set(self.warnings):
-      print '  ! %s' % w
+      error = ('An error occurred attempting to retrieve revision range: '
+               '[%s..%s]' % (good_revision, bad_revision))
+      return BisectResults(error=error)
 
 
 def _IsPlatformSupported():
@@ -2812,36 +2543,32 @@ def _IsPlatformSupported():
   return os.name in supported
 
 
-def RmTreeAndMkDir(path_to_dir, skip_makedir=False):
-  """Removes the directory tree specified, and then creates an empty
-  directory in the same location (if not specified to skip).
+def RemakeDirectoryTree(path_to_dir):
+  """Removes a directory tree and replaces it with an empty one.
 
-  Args:
-    path_to_dir: Path to the directory tree.
-    skip_makedir: Whether to skip creating empty directory, default is False.
-
-  Returns:
-    True if successful, False if an error occurred.
+  Returns True if successful, False otherwise.
   """
+  if not RemoveDirectoryTree(path_to_dir):
+    return False
+  return MaybeMakeDirectory(path_to_dir)
+
+
+def RemoveDirectoryTree(path_to_dir):
+  """Removes a directory tree. Returns True if successful or False otherwise."""
   try:
     if os.path.exists(path_to_dir):
       shutil.rmtree(path_to_dir)
   except OSError, e:
     if e.errno != errno.ENOENT:
       return False
-
-  if not skip_makedir:
-    return MaybeMakeDirectory(path_to_dir)
-
   return True
 
 
 def RemoveBuildFiles(build_type):
   """Removes build files from previous runs."""
-  if RmTreeAndMkDir(os.path.join('out', build_type)):
-    if RmTreeAndMkDir(os.path.join('build', build_type)):
-      return True
-  return False
+  out_dir = os.path.join('out', build_type)
+  build_dir = os.path.join('build', build_type)
+  return RemakeDirectoryTree(out_dir) and RemakeDirectoryTree(build_dir)
 
 
 class BisectOptions(object):
@@ -2869,12 +2596,15 @@ class BisectOptions(object):
     self.debug_ignore_build = None
     self.debug_ignore_sync = None
     self.debug_ignore_perf_test = None
+    self.debug_ignore_regression_confidence = None
+    self.debug_fake_first_test_mean = 0
     self.gs_bucket = None
     self.target_arch = 'ia32'
     self.target_build_type = 'Release'
     self.builder_host = None
     self.builder_port = None
-    self.bisect_mode = BISECT_MODE_MEAN
+    self.bisect_mode = bisect_utils.BISECT_MODE_MEAN
+    self.improvement_direction = 0
 
   @staticmethod
   def _CreateCommandLineParser():
@@ -2908,6 +2638,12 @@ class BisectOptions(object):
                      type='str',
                      help='The desired metric to bisect on. For example ' +
                      '"vm_rss_final_b/vm_rss_f_b"')
+    group.add_option('-d', '--improvement_direction',
+                     type='int',
+                     default=0,
+                     help='An integer number representing the direction of ' +
+                     'improvement. 1 for higher is better, -1 for lower is ' +
+                     'better, 0 for ignore (default).')
     group.add_option('-r', '--repeat_test_count',
                      type='int',
                      default=20,
@@ -2932,9 +2668,10 @@ class BisectOptions(object):
                      'discarded).')
     group.add_option('--bisect_mode',
                      type='choice',
-                     choices=[BISECT_MODE_MEAN, BISECT_MODE_STD_DEV,
-                        BISECT_MODE_RETURN_CODE],
-                     default=BISECT_MODE_MEAN,
+                     choices=[bisect_utils.BISECT_MODE_MEAN,
+                              bisect_utils.BISECT_MODE_STD_DEV,
+                              bisect_utils.BISECT_MODE_RETURN_CODE],
+                     default=bisect_utils.BISECT_MODE_MEAN,
                      help='The bisect mode. Choices are to bisect on the '
                      'difference in mean, std_dev, or return_code.')
     parser.add_option_group(group)
@@ -3028,6 +2765,16 @@ class BisectOptions(object):
     group.add_option('--debug_ignore_perf_test',
                      action='store_true',
                      help='DEBUG: Don\'t perform performance tests.')
+    group.add_option('--debug_ignore_regression_confidence',
+                     action='store_true',
+                     help='DEBUG: Don\'t score the confidence of the initial '
+                          'good and bad revisions\' test results.')
+    group.add_option('--debug_fake_first_test_mean',
+                     type='int',
+                     default='0',
+                     help=('DEBUG: When faking performance tests, return this '
+                           'value as the mean of the first performance test, '
+                           'and return a mean of 0.0 for further tests.'))
     parser.add_option_group(group)
     return parser
 
@@ -3046,7 +2793,8 @@ class BisectOptions(object):
       if not opts.bad_revision:
         raise RuntimeError('missing required parameter: --bad_revision')
 
-      if not opts.metric and opts.bisect_mode != BISECT_MODE_RETURN_CODE:
+      if (not opts.metric and
+          opts.bisect_mode != bisect_utils.BISECT_MODE_RETURN_CODE):
         raise RuntimeError('missing required parameter: --metric')
 
       if opts.gs_bucket:
@@ -3073,7 +2821,7 @@ class BisectOptions(object):
         if not opts.working_directory:
           raise RuntimeError('missing required parameter: --working_directory')
 
-      if opts.bisect_mode != BISECT_MODE_RETURN_CODE:
+      if opts.bisect_mode != bisect_utils.BISECT_MODE_RETURN_CODE:
         metric_values = opts.metric.split('/')
         if len(metric_values) != 2:
           raise RuntimeError('Invalid metric specified: [%s]' % opts.metric)
@@ -3109,7 +2857,7 @@ class BisectOptions(object):
       assert hasattr(opts, k), 'Invalid %s attribute in BisectOptions.' % k
       setattr(opts, k, v)
 
-    if opts.metric and opts.bisect_mode != BISECT_MODE_RETURN_CODE:
+    if opts.metric and opts.bisect_mode != bisect_utils.BISECT_MODE_RETURN_CODE:
       metric_values = opts.metric.split('/')
       if len(metric_values) != 2:
         raise RuntimeError('Invalid metric specified: [%s]' % opts.metric)
@@ -3133,7 +2881,7 @@ def main():
       extra_src = bisect_utils.LoadExtraSrc(opts.extra_src)
       if not extra_src:
         raise RuntimeError('Invalid or missing --extra_src.')
-      _AddAdditionalDepotInfo(extra_src.GetAdditionalDepotInfo())
+      bisect_utils.AddAdditionalDepotInfo(extra_src.GetAdditionalDepotInfo())
 
     if opts.working_directory:
       custom_deps = bisect_utils.DEFAULT_GCLIENT_CUSTOM_DEPS
@@ -3149,11 +2897,7 @@ def main():
     if not _IsPlatformSupported():
       raise RuntimeError('Sorry, this platform isn\'t supported yet.')
 
-    # Check what source control method is being used, and create a
-    # SourceControl object if possible.
-    source_control = source_control_module.DetermineAndCreateSourceControl(opts)
-
-    if not source_control:
+    if not source_control.IsInGitRepository():
       raise RuntimeError(
           'Sorry, only the git workflow is supported at the moment.')
 
@@ -3162,15 +2906,14 @@ def main():
         not opts.debug_ignore_sync and
         not opts.working_directory):
       raise RuntimeError('You must switch to master branch to run bisection.')
-    bisect_test = BisectPerformanceMetrics(source_control, opts)
+    bisect_test = BisectPerformanceMetrics(opts)
+    bisect_printer = BisectPrinter(opts, bisect_test.depot_registry)
     try:
-      bisect_results = bisect_test.Run(opts.command,
-                                       opts.bad_revision,
-                                       opts.good_revision,
-                                       opts.metric)
-      if bisect_results.error:
-        raise RuntimeError(bisect_results.error)
-      bisect_test.FormatAndPrintResults(bisect_results)
+      results = bisect_test.Run(opts.command, opts.bad_revision,
+                                opts.good_revision, opts.metric)
+      if results.error:
+        raise RuntimeError(results.error)
+      bisect_printer.FormatAndPrintResults(results)
       return 0
     finally:
       bisect_test.PerformCleanup()

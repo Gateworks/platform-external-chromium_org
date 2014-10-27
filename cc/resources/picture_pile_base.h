@@ -15,7 +15,7 @@
 #include "cc/base/region.h"
 #include "cc/base/tiling_data.h"
 #include "cc/resources/picture.h"
-#include "ui/gfx/size.h"
+#include "ui/gfx/geometry/size.h"
 
 namespace base {
 namespace debug {
@@ -64,6 +64,10 @@ class CC_EXPORT PicturePileBase : public base::RefCounted<PicturePileBase> {
   TilingData& tiling() { return tiling_; }
 
   void AsValueInto(base::debug::TracedValue* array) const;
+
+  SkTileGridFactory::TileGridInfo GetTileGridInfoForTesting() const {
+    return tile_grid_info_;
+  }
 
  protected:
   class CC_EXPORT PictureInfo {

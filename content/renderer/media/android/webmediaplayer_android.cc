@@ -11,6 +11,7 @@
 #include "base/callback_helpers.h"
 #include "base/command_line.h"
 #include "base/files/file_path.h"
+#include "base/float_util.h"
 #include "base/logging.h"
 #include "base/metrics/histogram.h"
 #include "base/single_thread_task_runner.h"
@@ -24,6 +25,7 @@
 #include "content/renderer/media/android/renderer_demuxer_android.h"
 #include "content/renderer/media/android/renderer_media_player_manager.h"
 #include "content/renderer/media/crypto/key_systems.h"
+#include "content/renderer/media/crypto/render_cdm_factory.h"
 #include "content/renderer/media/crypto/renderer_cdm_manager.h"
 #include "content/renderer/media/webcontentdecryptionmodule_impl.h"
 #include "content/renderer/render_frame_impl.h"
@@ -34,7 +36,6 @@
 #include "media/base/android/media_common_android.h"
 #include "media/base/android/media_player_android.h"
 #include "media/base/bind_to_current_loop.h"
-// TODO(xhwang): Remove when we remove prefixed EME implementation.
 #include "media/base/media_keys.h"
 #include "media/base/media_log.h"
 #include "media/base/media_switches.h"
@@ -64,7 +65,6 @@ static const int kSDKVersionToSupportSecurityOriginCheck = 20;
 using blink::WebMediaPlayer;
 using blink::WebSize;
 using blink::WebString;
-using blink::WebTimeRanges;
 using blink::WebURL;
 using gpu::gles2::GLES2Interface;
 using media::MediaPlayerAndroid;
@@ -90,10 +90,10 @@ class SyncPointClientImpl : public media::VideoFrame::SyncPointClient {
       blink::WebGraphicsContext3D* web_graphics_context)
       : web_graphics_context_(web_graphics_context) {}
   virtual ~SyncPointClientImpl() {}
-  virtual uint32 InsertSyncPoint() OVERRIDE {
+  virtual uint32 InsertSyncPoint() override {
     return web_graphics_context_->insertSyncPoint();
   }
-  virtual void WaitSyncPoint(uint32 sync_point) OVERRIDE {
+  virtual void WaitSyncPoint(uint32 sync_point) override {
     web_graphics_context_->waitSyncPoint(sync_point);
   }
 
@@ -140,7 +140,7 @@ WebMediaPlayerAndroid::WebMediaPlayerAndroid(
       has_size_info_(false),
       // Compositor thread does not exist in layout tests.
       compositor_loop_(
-          RenderThreadImpl::current()->compositor_message_loop_proxy()
+          RenderThreadImpl::current()->compositor_message_loop_proxy().get()
               ? RenderThreadImpl::current()->compositor_message_loop_proxy()
               : base::MessageLoopProxy::current()),
       stream_texture_factory_(factory),
@@ -178,7 +178,7 @@ WebMediaPlayerAndroid::WebMediaPlayerAndroid(
   // Set the initial CDM, if specified.
   if (initial_cdm) {
     web_cdm_ = ToWebContentDecryptionModuleImpl(initial_cdm);
-    if (web_cdm_->GetCdmId() != RendererCdmManager::kInvalidCdmId)
+    if (web_cdm_->GetCdmId() != media::MediaKeys::kInvalidCdmId)
       player_manager_->SetCdm(player_id_, web_cdm_->GetCdmId());
   }
 }
@@ -456,6 +456,10 @@ bool WebMediaPlayerAndroid::hasAudio() const {
   return false;
 }
 
+bool WebMediaPlayerAndroid::isRemote() const {
+  return is_remote_;
+}
+
 bool WebMediaPlayerAndroid::paused() const {
   return !is_playing_;
 }
@@ -514,19 +518,21 @@ WebMediaPlayer::ReadyState WebMediaPlayerAndroid::readyState() const {
   return ready_state_;
 }
 
-WebTimeRanges WebMediaPlayerAndroid::buffered() const {
+blink::WebTimeRanges WebMediaPlayerAndroid::buffered() const {
   if (media_source_delegate_)
     return media_source_delegate_->Buffered();
   return buffered_;
 }
 
-double WebMediaPlayerAndroid::maxTimeSeekable() const {
-  // If we haven't even gotten to ReadyStateHaveMetadata yet then just
-  // return 0 so that the seekable range is empty.
-  if (ready_state_ < WebMediaPlayer::ReadyStateHaveMetadata)
-    return 0.0;
+blink::WebTimeRanges WebMediaPlayerAndroid::seekable() const {
+  // Media without duration are considered streaming and should not be seekable.
+  const double seekable_end = duration();
+  if (!base::IsFinite(seekable_end))
+    return blink::WebTimeRanges();
 
-  return duration();
+  // If we have a finite duration then use [0, duration] as the seekable range.
+  blink::WebTimeRange seekable_range(0.0, seekable_end);
+  return blink::WebTimeRanges(&seekable_range, 1);
 }
 
 bool WebMediaPlayerAndroid::didLoadingProgress() {
@@ -566,12 +572,6 @@ bool WebMediaPlayerAndroid::EnsureTextureBackedSkBitmap(GrContext* gr,
   }
 
   return true;
-}
-
-void WebMediaPlayerAndroid::paint(blink::WebCanvas* canvas,
-                                  const blink::WebRect& rect,
-                                  unsigned char alpha) {
-  paint(canvas, rect, alpha, SkXfermode::kSrcOver_Mode);
 }
 
 void WebMediaPlayerAndroid::paint(blink::WebCanvas* canvas,
@@ -639,7 +639,7 @@ bool WebMediaPlayerAndroid::copyVideoTextureToPlatformTexture(
     video_frame = current_frame_;
   }
 
-  if (!video_frame ||
+  if (!video_frame.get() ||
       video_frame->format() != media::VideoFrame::NATIVE_TEXTURE)
     return false;
   const gpu::MailboxHolder* mailbox_holder = video_frame->mailbox_holder();
@@ -1297,7 +1297,7 @@ void WebMediaPlayerAndroid::TryCreateStreamTextureProxyIfNeeded() {
     return;
 
   // No factory to create proxy.
-  if (!stream_texture_factory_)
+  if (!stream_texture_factory_.get())
     return;
 
   // Not needed for hole punching.
@@ -1493,11 +1493,11 @@ WebMediaPlayer::MediaKeyException WebMediaPlayerAndroid::generateKeyRequest(
 // so we keep it as simple as possible without breaking major use cases.
 static std::string GuessInitDataType(const unsigned char* init_data,
                                      unsigned init_data_length) {
-  // Most WebM files use KeyId of 16 bytes. MP4 init data are always >16 bytes.
+  // Most WebM files use KeyId of 16 bytes. CENC init data is always >16 bytes.
   if (init_data_length == 16)
-    return "video/webm";
+    return "webm";
 
-  return "video/mp4";
+  return "cenc";
 }
 
 // TODO(xhwang): Report an error when there is encrypted stream but EME is
@@ -1515,7 +1515,6 @@ WebMediaPlayerAndroid::GenerateKeyRequestInternal(
   if (current_key_system_.empty()) {
     if (!proxy_decryptor_) {
       proxy_decryptor_.reset(new ProxyDecryptor(
-          cdm_manager_,
           base::Bind(&WebMediaPlayerAndroid::OnKeyAdded,
                      weak_factory_.GetWeakPtr()),
           base::Bind(&WebMediaPlayerAndroid::OnKeyError,
@@ -1525,8 +1524,11 @@ WebMediaPlayerAndroid::GenerateKeyRequestInternal(
     }
 
     GURL security_origin(frame_->document().securityOrigin().toString());
-    if (!proxy_decryptor_->InitializeCDM(key_system, security_origin))
+    RenderCdmFactory cdm_factory(cdm_manager_);
+    if (!proxy_decryptor_->InitializeCDM(&cdm_factory, key_system,
+                                         security_origin)) {
       return WebMediaPlayer::MediaKeyExceptionKeySystemNotSupported;
+    }
 
     if (!decryptor_ready_cb_.is_null()) {
       base::ResetAndReturn(&decryptor_ready_cb_)
@@ -1535,7 +1537,7 @@ WebMediaPlayerAndroid::GenerateKeyRequestInternal(
 
     // Only browser CDMs have CDM ID. Render side CDMs (e.g. ClearKey CDM) do
     // not have a CDM ID and there is no need to call player_manager_->SetCdm().
-    if (proxy_decryptor_->GetCdmId() != RendererCdmManager::kInvalidCdmId)
+    if (proxy_decryptor_->GetCdmId() != media::MediaKeys::kInvalidCdmId)
       player_manager_->SetCdm(player_id_, proxy_decryptor_->GetCdmId());
 
     current_key_system_ = key_system;
@@ -1654,7 +1656,7 @@ void WebMediaPlayerAndroid::setContentDecryptionModule(
         .Run(web_cdm_->GetDecryptor(), base::Bind(DoNothing));
   }
 
-  if (web_cdm_->GetCdmId() != RendererCdmManager::kInvalidCdmId)
+  if (web_cdm_->GetCdmId() != media::MediaKeys::kInvalidCdmId)
     player_manager_->SetCdm(player_id_, web_cdm_->GetCdmId());
 }
 
@@ -1688,7 +1690,7 @@ void WebMediaPlayerAndroid::setContentDecryptionModule(
     ContentDecryptionModuleAttached(result, true);
   }
 
-  if (web_cdm_->GetCdmId() != RendererCdmManager::kInvalidCdmId)
+  if (web_cdm_->GetCdmId() != media::MediaKeys::kInvalidCdmId)
     player_manager_->SetCdm(player_id_, web_cdm_->GetCdmId());
 }
 
@@ -1770,7 +1772,7 @@ void WebMediaPlayerAndroid::OnNeedKey(const std::string& type,
     init_data_type_ = type;
 
   const uint8* init_data_ptr = init_data.empty() ? NULL : &init_data[0];
-  client_->keyNeeded(
+  client_->encrypted(
       WebString::fromUTF8(type), init_data_ptr, init_data.size());
 }
 

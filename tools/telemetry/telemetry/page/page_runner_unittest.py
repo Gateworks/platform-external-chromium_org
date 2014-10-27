@@ -6,6 +6,8 @@ import logging
 import os
 import tempfile
 import unittest
+import StringIO
+import sys
 
 from telemetry import benchmark
 from telemetry import decorators
@@ -20,6 +22,8 @@ from telemetry.page import page_test
 from telemetry.page import test_expectations
 from telemetry.results import results_options
 from telemetry.unittest import options_for_unittests
+from telemetry.unittest import system_stub
+from telemetry.util import exception_formatter as exception_formatter_module
 from telemetry.value import scalar
 from telemetry.value import string
 
@@ -66,11 +70,36 @@ def GetSuccessfulPageRuns(results):
   return [run for run in results.all_page_runs if run.ok or run.skipped]
 
 
+class FakeExceptionFormatterModule(object):
+  @staticmethod
+  def PrintFormattedException(
+      exception_class=None, exception=None, tb=None, msg=None):
+    pass
+
+
 class PageRunnerTests(unittest.TestCase):
   # TODO(nduca): Move the basic "test failed, test succeeded" tests from
   # page_test_unittest to here.
 
+  def setUp(self):
+    self._page_runner_logging_stub = None
+
+  def SuppressExceptionFormatting(self):
+    page_runner.exception_formatter = FakeExceptionFormatterModule
+    self._page_runner_logging_stub = system_stub.Override(
+      page_runner, ['logging'])
+
+  def RestoreExceptionFormatter(self):
+    page_runner.exception_formatter = exception_formatter_module
+    if self._page_runner_logging_stub:
+      self._page_runner_logging_stub.Restore()
+      self._page_runner_logging_stub = None
+
+  def tearDown(self):
+    self.RestoreExceptionFormatter()
+
   def testHandlingOfCrashedTab(self):
+    self.SuppressExceptionFormatting()
     ps = page_set.PageSet()
     expectations = test_expectations.TestExpectations()
     page1 = page_module.Page('chrome://crash', ps)
@@ -90,6 +119,7 @@ class PageRunnerTests(unittest.TestCase):
     self.assertEquals(1, len(results.failures))
 
   def testHandlingOfTestThatRaisesWithNonFatalUnknownExceptions(self):
+    self.SuppressExceptionFormatting()
     ps = page_set.PageSet()
     expectations = test_expectations.TestExpectations()
     ps.pages.append(page_module.Page(
@@ -122,6 +152,7 @@ class PageRunnerTests(unittest.TestCase):
     self.assertEquals(1, len(results.failures))
 
   def testHandlingOfCrashedTabWithExpectedFailure(self):
+    self.SuppressExceptionFormatting()
     ps = page_set.PageSet()
     expectations = test_expectations.TestExpectations()
     expectations.Fail('chrome://crash')
@@ -142,6 +173,7 @@ class PageRunnerTests(unittest.TestCase):
     self.assertEquals(0, len(results.failures))
 
   def testRetryOnBrowserCrash(self):
+    self.SuppressExceptionFormatting()
     ps = page_set.PageSet()
     expectations = test_expectations.TestExpectations()
     ps.pages.append(page_module.Page(
@@ -157,6 +189,10 @@ class PageRunnerTests(unittest.TestCase):
         if not self.has_crashed:
           self.has_crashed = True
           raise exceptions.BrowserGoneException(tab.browser)
+
+      @property
+      def attempts(self):
+        return 3
 
     options = options_for_unittests.GetCopy()
     options.output_formats = ['csv']
@@ -250,38 +286,34 @@ class PageRunnerTests(unittest.TestCase):
         results.AddValue(scalar.ScalarValue(
             page, 'metric', 'unit', self.i))
 
-    output_file = tempfile.NamedTemporaryFile(delete=False).name
-    try:
-      options = options_for_unittests.GetCopy()
-      options.output_formats = ['buildbot']
-      options.output_file = output_file
-      options.suppress_gtest_report = True
-      options.reset_results = None
-      options.upload_results = None
-      options.results_label = None
+    options = options_for_unittests.GetCopy()
+    options.output_formats = ['buildbot']
+    options.suppress_gtest_report = True
+    options.reset_results = None
+    options.upload_results = None
+    options.results_label = None
+    options.page_repeat = 1
+    options.pageset_repeat = 2
+    SetUpPageRunnerArguments(options)
 
-      options.page_repeat = 1
-      options.pageset_repeat = 2
-      SetUpPageRunnerArguments(options)
+    output = StringIO.StringIO()
+    real_stdout = sys.stdout
+    sys.stdout = output
+    try:
       results = results_options.CreateResults(EmptyMetadataForTest(), options)
       page_runner.Run(Measurement(), ps, expectations, options, results)
       results.PrintSummary()
+      contents = output.getvalue()
       self.assertEquals(4, len(GetSuccessfulPageRuns(results)))
       self.assertEquals(0, len(results.failures))
-      with open(output_file) as f:
-        stdout = f.read()
-      self.assertIn('RESULT metric: blank.html= [1,3] unit', stdout)
-      self.assertIn('RESULT metric: green_rect.html= [2,4] unit', stdout)
-      self.assertIn('*RESULT metric: metric= [1,2,3,4] unit', stdout)
+      self.assertIn('RESULT metric: blank.html= [1,3] unit', contents)
+      self.assertIn('RESULT metric: green_rect.html= [2,4] unit', contents)
+      self.assertIn('*RESULT metric: metric= [1,2,3,4] unit', contents)
     finally:
-      # TODO(chrishenry): This is a HACK!!1 Really, the right way to
-      # do this is for page_runner (or output formatter) to close any
-      # files it has opened.
-      for formatter in results._output_formatters:  # pylint: disable=W0212
-        formatter.output_stream.close()
-      os.remove(output_file)
+      sys.stdout = real_stdout
 
   def testCredentialsWhenLoginFails(self):
+    self.SuppressExceptionFormatting()
     credentials_backend = StubCredentialsBackend(login_return_value=False)
     did_run = self.runCredentialsTest(credentials_backend)
     assert credentials_backend.did_get_login == True
@@ -298,17 +330,17 @@ class PageRunnerTests(unittest.TestCase):
   def runCredentialsTest(self, credentials_backend):
     ps = page_set.PageSet()
     expectations = test_expectations.TestExpectations()
-    page = page_module.Page(
-        'file://blank.html', ps, base_dir=util.GetUnittestDataDir())
-    page.credentials = "test"
-    ps.pages.append(page)
-
     did_run = [False]
 
     try:
       with tempfile.NamedTemporaryFile(delete=False) as f:
+        page = page_module.Page(
+        'file://blank.html', ps, base_dir=util.GetUnittestDataDir(),
+        credentials_path=f.name)
+        page.credentials = "test"
+        ps.pages.append(page)
+
         f.write(SIMPLE_CREDENTIALS_STRING)
-        ps.credentials_path = f.name
 
       class TestThatInstallsCredentialsBackend(page_test.PageTest):
         def __init__(self, credentials_backend):
@@ -582,6 +614,7 @@ class PageRunnerTests(unittest.TestCase):
     self.TestUseLiveSitesFlag(options, expect_from_archive=True)
 
   def _testMaxFailuresOptionIsRespectedAndOverridable(self, max_failures=None):
+    self.SuppressExceptionFormatting()
     class TestPage(page_module.Page):
       def __init__(self, *args, **kwargs):
         super(TestPage, self).__init__(*args, **kwargs)

@@ -14,9 +14,11 @@ import sys
 
 from pylib import cmd_helper
 from pylib import constants
+from pylib import valgrind_tools
 
 from pylib.base import base_test_result
 from pylib.base import test_dispatcher
+from pylib.device import device_utils
 from pylib.gtest import test_package_apk
 from pylib.gtest import test_package_exe
 from pylib.gtest import test_runner
@@ -40,6 +42,7 @@ _ISOLATE_FILE_PATHS = {
     'media_unittests': 'media/media_unittests.isolate',
     'net_unittests': 'net/net_unittests.isolate',
     'sql_unittests': 'sql/sql_unittests.isolate',
+    'ui_base_unittests': 'ui/base/ui_base_tests.isolate',
     'ui_unittests': 'ui/base/ui_base_tests.isolate',
     'unit_tests': 'chrome/unit_tests.isolate',
     'webkit_unit_tests':
@@ -118,6 +121,8 @@ def _GenerateDepsDirUsingIsolate(suite_name, isolate_file_path=None):
       '--config-variable', 'component', 'static_library',
       '--config-variable', 'fastbuild', '0',
       '--config-variable', 'icu_use_data_file_flag', '1',
+      '--config-variable', 'libpeer_target_type', 'static_library',
+      '--config-variable', 'lsan', '0',
       # TODO(maruel): This may not be always true.
       '--config-variable', 'target_arch', 'arm',
       '--config-variable', 'use_openssl', '0',
@@ -216,11 +221,6 @@ def _GetTests(test_options, test_package, devices):
   """
   def TestListerRunnerFactory(device, _shard_index):
     class TestListerRunner(test_runner.TestRunner):
-      #override
-      def PushDataDeps(self):
-        pass
-
-      #override
       def RunTest(self, _test):
         result = base_test_result.BaseTestResult(
             'gtest_list_tests', base_test_result.ResultType.PASS)
@@ -290,6 +290,19 @@ def _FilterDisabledTests(tests, suite_name, has_gtest_filter):
   return tests
 
 
+def PushDataDeps(device, test_options, test_package):
+  valgrind_tools.PushFilesForTool(test_options.tool, device)
+  if os.path.exists(constants.ISOLATE_DEPS_DIR):
+    device_dir = (
+        constants.TEST_EXECUTABLE_DIR
+        if test_package.suite_name == 'breakpad_unittests'
+        else device.GetExternalStoragePath())
+    device.PushChangedFiles([
+        (os.path.join(constants.ISOLATE_DEPS_DIR, p),
+         '%s/%s' % (device_dir, p))
+        for p in os.listdir(constants.ISOLATE_DEPS_DIR)])
+
+
 def Setup(test_options, devices):
   """Create the test runner factory and tests.
 
@@ -316,6 +329,9 @@ def Setup(test_options, devices):
 
   _GenerateDepsDirUsingIsolate(test_options.suite_name,
                                test_options.isolate_file_path)
+
+  device_utils.DeviceUtils.parallel(devices).pMap(
+      PushDataDeps, test_options, test_package)
 
   tests = _GetTests(test_options, test_package, devices)
 

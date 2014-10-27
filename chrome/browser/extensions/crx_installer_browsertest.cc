@@ -30,6 +30,7 @@
 #include "extensions/browser/extension_prefs.h"
 #include "extensions/browser/extension_registry.h"
 #include "extensions/browser/extension_system.h"
+#include "extensions/browser/install/crx_installer_error.h"
 #include "extensions/browser/management_policy.h"
 #include "extensions/browser/notification_types.h"
 #include "extensions/common/extension.h"
@@ -102,19 +103,17 @@ class MockInstallPrompt : public ExtensionInstallPrompt {
   void set_record_oauth2_grant(bool record) { record_oauth2_grant_ = record; }
 
   // Overriding some of the ExtensionInstallUI API.
-  virtual void ConfirmInstall(
-      Delegate* delegate,
-      const Extension* extension,
-      const ShowDialogCallback& show_dialog_callback) OVERRIDE {
+  void ConfirmInstall(Delegate* delegate,
+                      const Extension* extension,
+                      const ShowDialogCallback& show_dialog_callback) override {
     proxy_->set_confirmation_requested();
     delegate->InstallUIProceed();
   }
-  virtual void OnInstallSuccess(const Extension* extension,
-                                SkBitmap* icon) OVERRIDE {
+  void OnInstallSuccess(const Extension* extension, SkBitmap* icon) override {
     proxy_->set_extension_id(extension->id());
     base::MessageLoopForUI::current()->Quit();
   }
-  virtual void OnInstallFailure(const CrxInstallerError& error) OVERRIDE {
+  void OnInstallFailure(const CrxInstallerError& error) override {
     proxy_->set_error(error.message());
     base::MessageLoopForUI::current()->Quit();
   }
@@ -134,7 +133,7 @@ scoped_ptr<ExtensionInstallPrompt> MockPromptProxy::CreatePrompt() {
       new MockInstallPrompt(web_contents_, this));
   if (record_oauth2_grant_.get())
     prompt->set_record_oauth2_grant(*record_oauth2_grant_.get());
-  return prompt.PassAs<ExtensionInstallPrompt>();
+  return prompt.Pass();
 }
 
 
@@ -148,12 +147,12 @@ class ManagementPolicyMock : public extensions::ManagementPolicy::Provider {
  public:
   ManagementPolicyMock() {}
 
-  virtual std::string GetDebugPolicyProviderName() const OVERRIDE {
+  std::string GetDebugPolicyProviderName() const override {
     return "ManagementPolicyMock";
   }
 
-  virtual bool UserMayLoad(const Extension* extension,
-                           base::string16* error) const OVERRIDE {
+  bool UserMayLoad(const Extension* extension,
+                   base::string16* error) const override {
     *error = base::UTF8ToUTF16("Dummy error message");
     return false;
   }

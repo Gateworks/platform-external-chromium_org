@@ -30,18 +30,12 @@ std::vector<APIPermissionInfo*> ChromeAPIPermissions::GetAllPermissions()
     const {
   APIPermissionInfo::InitInfo permissions_to_register[] = {
       // Register permissions for all extension types.
-      {APIPermission::kAppView, "appview",
-       APIPermissionInfo::kFlagCannotBeOptional},
       {APIPermission::kBackground, "background"},
       {APIPermission::kClipboardRead, "clipboardRead",
        APIPermissionInfo::kFlagNone, IDS_EXTENSION_PROMPT_WARNING_CLIPBOARD,
        PermissionMessage::kClipboard},
       {APIPermission::kClipboardWrite, "clipboardWrite"},
       {APIPermission::kDeclarativeContent, "declarativeContent"},
-      {APIPermission::kDeclarativeWebRequest, "declarativeWebRequest",
-       APIPermissionInfo::kFlagNone,
-       IDS_EXTENSION_PROMPT_WARNING_DECLARATIVE_WEB_REQUEST,
-       PermissionMessage::kDeclarativeWebRequest},
       {APIPermission::kDesktopCapture, "desktopCapture",
        APIPermissionInfo::kFlagNone,
        IDS_EXTENSION_PROMPT_WARNING_DESKTOP_CAPTURE,
@@ -151,8 +145,6 @@ std::vector<APIPermissionInfo*> ChromeAPIPermissions::GetAllPermissions()
       {APIPermission::kWebNavigation, "webNavigation",
        APIPermissionInfo::kFlagNone, IDS_EXTENSION_PROMPT_WARNING_HISTORY_READ,
        PermissionMessage::kTabs},
-      {APIPermission::kWebRequest, "webRequest"},
-      {APIPermission::kWebRequestBlocking, "webRequestBlocking"},
 
       // Register private permissions.
       {APIPermission::kScreenlockPrivate, "screenlockPrivate",
@@ -251,10 +243,6 @@ std::vector<APIPermissionInfo*> ChromeAPIPermissions::GetAllPermissions()
        APIPermissionInfo::kFlagCannotBeOptional},
       {APIPermission::kFirstRunPrivate, "firstRunPrivate",
        APIPermissionInfo::kFlagCannotBeOptional},
-      {APIPermission::kBluetoothPrivate, "bluetoothPrivate",
-       APIPermissionInfo::kFlagCannotBeOptional,
-       IDS_EXTENSION_PROMPT_WARNING_BLUETOOTH_PRIVATE,
-       PermissionMessage::kBluetoothPrivate},
 
       // Full url access permissions.
       {APIPermission::kDebugger, "debugger",
@@ -336,7 +324,7 @@ std::vector<APIPermissionInfo*> ChromeAPIPermissions::GetAllPermissions()
 
   std::vector<APIPermissionInfo*> permissions;
 
-  for (size_t i = 0; i < ARRAYSIZE_UNSAFE(permissions_to_register); ++i)
+  for (size_t i = 0; i < arraysize(permissions_to_register); ++i)
     permissions.push_back(new APIPermissionInfo(permissions_to_register[i]));
   return permissions;
 }

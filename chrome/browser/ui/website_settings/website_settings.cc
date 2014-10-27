@@ -22,9 +22,6 @@
 #include "chrome/browser/browsing_data/browsing_data_file_system_helper.h"
 #include "chrome/browser/browsing_data/browsing_data_indexed_db_helper.h"
 #include "chrome/browser/browsing_data/browsing_data_local_storage_helper.h"
-#include "chrome/browser/content_settings/content_settings_utils.h"
-#include "chrome/browser/content_settings/host_content_settings_map.h"
-#include "chrome/browser/content_settings/local_shared_objects_container.h"
 #include "chrome/browser/history/history_service_factory.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ssl/chrome_ssl_host_state_delegate.h"
@@ -35,6 +32,9 @@
 #include "chrome/common/chrome_switches.h"
 #include "chrome/grit/chromium_strings.h"
 #include "chrome/grit/generated_resources.h"
+#include "components/content_settings/core/browser/content_settings_utils.h"
+#include "components/content_settings/core/browser/host_content_settings_map.h"
+#include "components/content_settings/core/browser/local_shared_objects_counter.h"
 #include "components/content_settings/core/common/content_settings_pattern.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/cert_store.h"
@@ -337,7 +337,13 @@ void WebsiteSettings::OnRevokeSSLErrorBypassButtonPressed() {
 void WebsiteSettings::Init(Profile* profile,
                            const GURL& url,
                            const content::SSLStatus& ssl) {
-  if (url.SchemeIs(content::kChromeUIScheme)) {
+  bool isChromeUINativeScheme = false;
+#if defined(OS_ANDROID)
+  isChromeUINativeScheme = url.SchemeIs(chrome::kChromeUINativeScheme);
+#endif
+
+  if (url.SchemeIs(content::kChromeUIScheme) ||
+      url.SchemeIs(url::kAboutScheme) || isChromeUINativeScheme) {
     site_identity_status_ = SITE_IDENTITY_STATUS_INTERNAL_PAGE;
     site_identity_details_ =
         l10n_util::GetStringUTF16(IDS_PAGE_INFO_INTERNAL_PAGE);
@@ -401,50 +407,68 @@ void WebsiteSettings::Init(Profile* profile,
       } else {
         NOTREACHED() << "Need to specify string for this warning";
       }
-    } else if (ssl.cert_status & net::CERT_STATUS_IS_EV) {
-      // EV HTTPS page.
-      site_identity_status_ = GetSiteIdentityStatusByCTInfo(
-          ssl.signed_certificate_timestamp_ids, true);
-      DCHECK(!cert->subject().organization_names.empty());
-      organization_name_ = UTF8ToUTF16(cert->subject().organization_names[0]);
-      // An EV Cert is required to have a city (localityName) and country but
-      // state is "if any".
-      DCHECK(!cert->subject().locality_name.empty());
-      DCHECK(!cert->subject().country_name.empty());
-      base::string16 locality;
-      if (!cert->subject().state_or_province_name.empty()) {
-        locality = l10n_util::GetStringFUTF16(
-            IDS_PAGEINFO_ADDRESS,
-            UTF8ToUTF16(cert->subject().locality_name),
-            UTF8ToUTF16(cert->subject().state_or_province_name),
-            UTF8ToUTF16(cert->subject().country_name));
-      } else {
-        locality = l10n_util::GetStringFUTF16(
-            IDS_PAGEINFO_PARTIAL_ADDRESS,
-            UTF8ToUTF16(cert->subject().locality_name),
-            UTF8ToUTF16(cert->subject().country_name));
-      }
-      DCHECK(!cert->subject().organization_names.empty());
-      site_identity_details_.assign(l10n_util::GetStringFUTF16(
-          GetSiteIdentityDetailsMessageByCTInfo(
-              ssl.signed_certificate_timestamp_ids, true /* is EV */),
-          UTF8ToUTF16(cert->subject().organization_names[0]),
-          locality,
-          UTF8ToUTF16(cert->issuer().GetDisplayName())));
     } else {
-      // Non-EV OK HTTPS page.
-      site_identity_status_ = GetSiteIdentityStatusByCTInfo(
-          ssl.signed_certificate_timestamp_ids, false);
-      base::string16 issuer_name(UTF8ToUTF16(cert->issuer().GetDisplayName()));
-      if (issuer_name.empty()) {
-        issuer_name.assign(l10n_util::GetStringUTF16(
-            IDS_PAGE_INFO_SECURITY_TAB_UNKNOWN_PARTY));
-      }
+      if (ssl.cert_status & net::CERT_STATUS_IS_EV) {
+        // EV HTTPS page.
+        site_identity_status_ = GetSiteIdentityStatusByCTInfo(
+            ssl.signed_certificate_timestamp_ids, true);
+        DCHECK(!cert->subject().organization_names.empty());
+        organization_name_ = UTF8ToUTF16(cert->subject().organization_names[0]);
+        // An EV Cert is required to have a city (localityName) and country but
+        // state is "if any".
+        DCHECK(!cert->subject().locality_name.empty());
+        DCHECK(!cert->subject().country_name.empty());
+        base::string16 locality;
+        if (!cert->subject().state_or_province_name.empty()) {
+          locality = l10n_util::GetStringFUTF16(
+              IDS_PAGEINFO_ADDRESS,
+              UTF8ToUTF16(cert->subject().locality_name),
+              UTF8ToUTF16(cert->subject().state_or_province_name),
+              UTF8ToUTF16(cert->subject().country_name));
+        } else {
+          locality = l10n_util::GetStringFUTF16(
+              IDS_PAGEINFO_PARTIAL_ADDRESS,
+              UTF8ToUTF16(cert->subject().locality_name),
+              UTF8ToUTF16(cert->subject().country_name));
+        }
+        DCHECK(!cert->subject().organization_names.empty());
+        site_identity_details_.assign(l10n_util::GetStringFUTF16(
+            GetSiteIdentityDetailsMessageByCTInfo(
+                ssl.signed_certificate_timestamp_ids, true /* is EV */),
+            UTF8ToUTF16(cert->subject().organization_names[0]),
+            locality,
+            UTF8ToUTF16(cert->issuer().GetDisplayName())));
+      } else {
+        // Non-EV OK HTTPS page.
+        site_identity_status_ = GetSiteIdentityStatusByCTInfo(
+            ssl.signed_certificate_timestamp_ids, false);
+        base::string16 issuer_name(
+            UTF8ToUTF16(cert->issuer().GetDisplayName()));
+        if (issuer_name.empty()) {
+          issuer_name.assign(l10n_util::GetStringUTF16(
+              IDS_PAGE_INFO_SECURITY_TAB_UNKNOWN_PARTY));
+        }
 
-      site_identity_details_.assign(l10n_util::GetStringFUTF16(
-          GetSiteIdentityDetailsMessageByCTInfo(
-              ssl.signed_certificate_timestamp_ids, false /* not EV */),
-          issuer_name));
+        site_identity_details_.assign(l10n_util::GetStringFUTF16(
+            GetSiteIdentityDetailsMessageByCTInfo(
+                ssl.signed_certificate_timestamp_ids, false /* not EV */),
+            issuer_name));
+      }
+      // The date after which no new SHA-1 certificates may be issued.
+      // 2016-01-01 00:00:00 UTC
+      static const int64_t kSHA1LastIssuanceDate = INT64_C(13096080000000000);
+      if ((ssl.cert_status & net::CERT_STATUS_SHA1_SIGNATURE_PRESENT) &&
+          cert->valid_expiry() >
+              base::Time::FromInternalValue(kSHA1LastIssuanceDate) &&
+          base::FieldTrialList::FindFullName("SHA1IdentityUIWarning") ==
+              "Enabled") {
+        site_identity_status_ =
+            SITE_IDENTITY_STATUS_DEPRECATED_SIGNATURE_ALGORITHM;
+        site_identity_details_ +=
+            UTF8ToUTF16("\n\n") +
+            l10n_util::GetStringUTF16(
+                IDS_PAGE_INFO_SECURITY_TAB_DEPRECATED_SIGNATURE_ALGORITHM);
+      }
     }
   } else {
     // HTTP or HTTPS with errors (not warnings).
@@ -540,8 +564,6 @@ void WebsiteSettings::Init(Profile* profile,
         IDS_PAGE_INFO_SECURITY_TAB_SSL_VERSION,
         ASCIIToUTF16(ssl_version_str));
 
-    bool did_fallback = (ssl.connection_status &
-                         net::SSL_CONNECTION_VERSION_FALLBACK) != 0;
     bool no_renegotiation =
         (ssl.connection_status &
         net::SSL_CONNECTION_NO_RENEGOTIATION_EXTENSION) != 0;
@@ -561,14 +583,19 @@ void WebsiteSettings::Init(Profile* profile,
           ASCIIToUTF16(cipher), ASCIIToUTF16(mac), ASCIIToUTF16(key_exchange));
     }
 
+    if (ssl_version == net::SSL_CONNECTION_VERSION_SSL3 &&
+        site_connection_status_ < SITE_CONNECTION_STATUS_MIXED_CONTENT) {
+      site_connection_status_ = SITE_CONNECTION_STATUS_ENCRYPTED_ERROR;
+    }
+
+    const bool did_fallback =
+        (ssl.connection_status & net::SSL_CONNECTION_VERSION_FALLBACK) != 0;
     if (did_fallback) {
-      // For now, only SSLv3 fallback will trigger a warning icon.
-      if (site_connection_status_ < SITE_CONNECTION_STATUS_MIXED_CONTENT)
-        site_connection_status_ = SITE_CONNECTION_STATUS_MIXED_CONTENT;
       site_connection_details_ += ASCIIToUTF16("\n\n");
       site_connection_details_ += l10n_util::GetStringUTF16(
           IDS_PAGE_INFO_SECURITY_TAB_FALLBACK_MESSAGE);
     }
+
     if (no_renegotiation) {
       site_connection_details_ += ASCIIToUTF16("\n\n");
       site_connection_details_ += l10n_util::GetStringUTF16(
@@ -598,7 +625,9 @@ void WebsiteSettings::Init(Profile* profile,
       site_connection_status_ == SITE_CONNECTION_STATUS_MIXED_CONTENT ||
       site_identity_status_ == SITE_IDENTITY_STATUS_ERROR ||
       site_identity_status_ == SITE_IDENTITY_STATUS_CERT_REVOCATION_UNKNOWN ||
-      site_identity_status_ == SITE_IDENTITY_STATUS_ADMIN_PROVIDED_CERT)
+      site_identity_status_ == SITE_IDENTITY_STATUS_ADMIN_PROVIDED_CERT ||
+      site_identity_status_ ==
+          SITE_IDENTITY_STATUS_DEPRECATED_SIGNATURE_ALGORITHM)
     tab_id = WebsiteSettingsUI::TAB_ID_CONNECTION;
   ui_->SetSelectedTab(tab_id);
 }
@@ -674,9 +703,9 @@ void WebsiteSettings::PresentSitePermissions() {
 
 void WebsiteSettings::PresentSiteData() {
   CookieInfoList cookie_info_list;
-  const LocalSharedObjectsContainer& allowed_objects =
+  const LocalSharedObjectsCounter& allowed_objects =
       tab_specific_content_settings()->allowed_local_shared_objects();
-  const LocalSharedObjectsContainer& blocked_objects =
+  const LocalSharedObjectsCounter& blocked_objects =
       tab_specific_content_settings()->blocked_local_shared_objects();
 
   // Add first party cookie and site data counts.

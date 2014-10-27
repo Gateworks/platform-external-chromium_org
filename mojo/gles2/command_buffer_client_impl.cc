@@ -64,10 +64,10 @@ class CommandBufferClientImpl::SyncClientImpl
 
  private:
   // CommandBufferSyncClient methods:
-  virtual void DidInitialize(bool success) OVERRIDE {
+  void DidInitialize(bool success) override {
     initialized_successfully_ = success;
   }
-  virtual void DidMakeProgress(CommandBufferStatePtr state) OVERRIDE {
+  void DidMakeProgress(CommandBufferStatePtr state) override {
     command_buffer_state_ = state.Pass();
   }
 
@@ -191,20 +191,28 @@ gpu::Capabilities CommandBufferClientImpl::GetCapabilities() {
   return gpu::Capabilities();
 }
 
-gfx::GpuMemoryBuffer* CommandBufferClientImpl::CreateGpuMemoryBuffer(
+int32_t CommandBufferClientImpl::CreateImage(ClientBuffer buffer,
+                                             size_t width,
+                                             size_t height,
+                                             unsigned internalformat) {
+  // TODO(piman)
+  NOTIMPLEMENTED();
+  return -1;
+}
+
+void CommandBufferClientImpl::DestroyImage(int32 id) {
+  // TODO(piman)
+  NOTIMPLEMENTED();
+}
+
+int32_t CommandBufferClientImpl::CreateGpuMemoryBufferImage(
     size_t width,
     size_t height,
     unsigned internalformat,
-    unsigned usage,
-    int32* id) {
+    unsigned usage) {
   // TODO(piman)
   NOTIMPLEMENTED();
-  return NULL;
-}
-
-void CommandBufferClientImpl::DestroyGpuMemoryBuffer(int32 id) {
-  // TODO(piman)
-  NOTIMPLEMENTED();
+  return -1;
 }
 
 uint32 CommandBufferClientImpl::InsertSyncPoint() {
@@ -239,10 +247,6 @@ void CommandBufferClientImpl::SignalQuery(uint32 query,
 void CommandBufferClientImpl::SetSurfaceVisible(bool visible) {
   // TODO(piman)
   NOTIMPLEMENTED();
-}
-
-void CommandBufferClientImpl::Echo(const base::Closure& callback) {
-  command_buffer_->Echo(callback);
 }
 
 uint32 CommandBufferClientImpl::CreateStreamTexture(uint32 texture_id) {

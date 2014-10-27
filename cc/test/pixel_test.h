@@ -8,7 +8,7 @@
 #include "cc/quads/render_pass.h"
 #include "cc/test/pixel_comparator.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "ui/gfx/size.h"
+#include "ui/gfx/geometry/size.h"
 #include "ui/gl/gl_implementation.h"
 
 #ifndef CC_TEST_PIXEL_TEST_H_
@@ -21,7 +21,8 @@ class FakeOutputSurfaceClient;
 class OutputSurface;
 class ResourceProvider;
 class SoftwareRenderer;
-class SharedBitmapManager;
+class TestGpuMemoryBufferManager;
+class TestSharedBitmapManager;
 
 class PixelTest : public testing::Test, RendererClient {
  protected:
@@ -44,7 +45,8 @@ class PixelTest : public testing::Test, RendererClient {
   class PixelTestRendererClient;
   scoped_ptr<FakeOutputSurfaceClient> output_surface_client_;
   scoped_ptr<OutputSurface> output_surface_;
-  scoped_ptr<SharedBitmapManager> shared_bitmap_manager_;
+  scoped_ptr<TestSharedBitmapManager> shared_bitmap_manager_;
+  scoped_ptr<TestGpuMemoryBufferManager> gpu_memory_buffer_manager_;
   scoped_ptr<BlockingTaskRunner> main_thread_task_runner_;
   scoped_ptr<ResourceProvider> resource_provider_;
   scoped_ptr<TextureMailboxDeleter> texture_mailbox_deleter_;
@@ -62,7 +64,7 @@ class PixelTest : public testing::Test, RendererClient {
   void EnableExternalStencilTest();
 
   // RendererClient implementation.
-  virtual void SetFullRootLayerDamage() OVERRIDE {}
+  void SetFullRootLayerDamage() override {}
 
  private:
   void ReadbackResult(base::Closure quit_run_loop,
@@ -85,7 +87,7 @@ class RendererPixelTest : public PixelTest {
   bool ExpandedViewport() const;
 
  protected:
-  virtual void SetUp() OVERRIDE;
+  virtual void SetUp() override;
 };
 
 // Wrappers to differentiate renderers where the the output surface and viewport

@@ -22,6 +22,7 @@
 #include "chrome/browser/ui/browser.h"
 #include "chrome/common/pref_names.h"
 #include "chrome/common/url_constants.h"
+#include "components/content_settings/core/common/permission_request_id.h"
 #include "components/pref_registry/pref_registry_syncable.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/desktop_notification_delegate.h"
@@ -42,6 +43,7 @@
 #include "extensions/browser/extension_system.h"
 #include "extensions/browser/extension_util.h"
 #include "extensions/browser/info_map.h"
+#include "extensions/browser/suggest_permission_util.h"
 #include "extensions/common/constants.h"
 #include "extensions/common/extension.h"
 #include "extensions/common/extension_set.h"
@@ -55,8 +57,8 @@ using message_center::NotifierId;
 
 namespace {
 
-void CancelNotification(const std::string& id) {
-  g_browser_process->notification_ui_manager()->CancelById(id);
+void CancelNotification(const std::string& id, ProfileID profile_id) {
+  g_browser_process->notification_ui_manager()->CancelById(id, profile_id);
 }
 
 }  // namespace
@@ -100,11 +102,12 @@ std::string DesktopNotificationService::AddIconNotification(
 
 DesktopNotificationService::DesktopNotificationService(Profile* profile)
     : PermissionContextBase(profile, CONTENT_SETTINGS_TYPE_NOTIFICATIONS),
-      profile_(profile),
+      profile_(profile)
 #if defined(ENABLE_EXTENSIONS)
-      extension_registry_observer_(this),
+      ,
+      extension_registry_observer_(this)
 #endif
-      weak_factory_(this) {
+{
   OnStringListPrefChanged(
       prefs::kMessageCenterDisabledExtensionIds, &disabled_extension_ids_);
   OnStringListPrefChanged(
@@ -138,18 +141,45 @@ DesktopNotificationService::~DesktopNotificationService() {
 void DesktopNotificationService::RequestNotificationPermission(
     content::WebContents* web_contents,
     const PermissionRequestID& request_id,
-    const GURL& requesting_frame,
+    const GURL& requesting_origin,
     bool user_gesture,
-    const NotificationPermissionCallback& callback) {
+    const base::Callback<void(bool)>& result_callback) {
   DCHECK(BrowserThread::CurrentlyOn(BrowserThread::UI));
-  RequestPermission(
-      web_contents,
-      request_id,
-      requesting_frame,
-      user_gesture,
-      base::Bind(&DesktopNotificationService::OnNotificationPermissionRequested,
-                 weak_factory_.GetWeakPtr(),
-                 callback));
+
+#if defined(ENABLE_EXTENSIONS)
+  extensions::InfoMap* extension_info_map =
+      extensions::ExtensionSystem::Get(profile_)->info_map();
+  const extensions::Extension* extension = NULL;
+  if (extension_info_map) {
+    extensions::ExtensionSet extensions;
+    extension_info_map->GetExtensionsWithAPIPermissionForSecurityOrigin(
+        requesting_origin,
+        request_id.render_process_id(),
+        extensions::APIPermission::kNotifications,
+        &extensions);
+    for (extensions::ExtensionSet::const_iterator iter = extensions.begin();
+         iter != extensions.end(); ++iter) {
+      if (IsNotifierEnabled(NotifierId(
+              NotifierId::APPLICATION, (*iter)->id()))) {
+        extension = iter->get();
+        break;
+      }
+    }
+  }
+  if (IsExtensionWithPermissionOrSuggestInConsole(
+          extensions::APIPermission::kNotifications,
+          extension,
+          web_contents->GetRenderViewHost())) {
+    result_callback.Run(true);
+    return;
+  }
+#endif
+
+  RequestPermission(web_contents,
+                    request_id,
+                    requesting_origin,
+                    user_gesture,
+                    result_callback);
 }
 
 void DesktopNotificationService::ShowDesktopNotification(
@@ -159,21 +189,28 @@ void DesktopNotificationService::ShowDesktopNotification(
     base::Closure* cancel_callback) {
   DCHECK(BrowserThread::CurrentlyOn(BrowserThread::UI));
   const GURL& origin = params.origin;
-  NotificationObjectProxy* proxy =
-      new NotificationObjectProxy(render_frame_host, delegate.Pass());
+  NotificationObjectProxy* proxy = new NotificationObjectProxy(delegate.Pass());
 
   base::string16 display_source = DisplayNameForOriginInProcessId(
       origin, render_frame_host->GetProcess()->GetID());
-  Notification notification(origin, params.icon_url, params.title,
-      params.body, params.direction, display_source, params.replace_id,
-      proxy);
+
+  // TODO(peter): Icons for Web Notifications are currently always requested for
+  // 1x scale, whereas the displays on which they can be displayed can have a
+  // different pixel density. Be smarter about this when the API gets updated
+  // with a way for developers to specify images of different resolutions.
+  Notification notification(origin, params.title, params.body,
+      gfx::Image::CreateFrom1xBitmap(params.icon),
+      display_source, params.replace_id, proxy);
 
   // The webkit notification doesn't timeout.
   notification.set_never_timeout(true);
 
   g_browser_process->notification_ui_manager()->Add(notification, profile_);
   if (cancel_callback)
-    *cancel_callback = base::Bind(&CancelNotification, proxy->id());
+    *cancel_callback =
+        base::Bind(&CancelNotification,
+                   proxy->id(),
+                   NotificationUIManager::GetProfileID(profile_));
 
   DesktopNotificationProfileUtil::UsePermission(profile_, origin);
 }
@@ -316,15 +353,6 @@ void DesktopNotificationService::UpdateContentSetting(
   } else {
     DesktopNotificationProfileUtil::DenyPermission(profile_, requesting_origin);
   }
-}
-
-void DesktopNotificationService::OnNotificationPermissionRequested(
-    const NotificationPermissionCallback& callback, bool allowed) {
-  blink::WebNotificationPermission permission = allowed ?
-      blink::WebNotificationPermissionAllowed :
-      blink::WebNotificationPermissionDenied;
-
-  callback.Run(permission);
 }
 
 void DesktopNotificationService::FirePermissionLevelChangedEvent(

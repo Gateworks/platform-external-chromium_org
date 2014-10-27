@@ -22,6 +22,7 @@
 #include "chrome/browser/search/search.h"
 #include "chrome/browser/themes/theme_service.h"
 #include "chrome/browser/ui/browser.h"
+#include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/browser_window.h"
 #import "chrome/browser/ui/cocoa/background_gradient_view.h"
 #include "chrome/browser/ui/cocoa/drag_util.h"
@@ -34,9 +35,9 @@
 #import "chrome/browser/ui/cocoa/location_bar/location_bar_view_mac.h"
 #import "chrome/browser/ui/cocoa/menu_button.h"
 #import "chrome/browser/ui/cocoa/toolbar/back_forward_menu_controller.h"
-#import "chrome/browser/ui/cocoa/toolbar/reload_button.h"
-#import "chrome/browser/ui/cocoa/toolbar/toolbar_button.h"
-#import "chrome/browser/ui/cocoa/toolbar/toolbar_view.h"
+#import "chrome/browser/ui/cocoa/toolbar/reload_button_cocoa.h"
+#import "chrome/browser/ui/cocoa/toolbar/toolbar_button_cocoa.h"
+#import "chrome/browser/ui/cocoa/toolbar/toolbar_view_cocoa.h"
 #import "chrome/browser/ui/cocoa/toolbar/wrench_toolbar_button_cell.h"
 #import "chrome/browser/ui/cocoa/view_id_util.h"
 #import "chrome/browser/ui/cocoa/wrench_menu/wrench_menu_controller.h"
@@ -108,16 +109,15 @@ class NotificationBridge : public WrenchMenuBadgeController::Delegate {
       : controller_(controller),
         badge_controller_([controller browser]->profile(), this) {
   }
-  virtual ~NotificationBridge() {
-  }
+  ~NotificationBridge() override {}
 
   void UpdateBadgeSeverity() {
     badge_controller_.UpdateDelegate();
   }
 
-  virtual void UpdateBadgeSeverity(WrenchMenuBadgeController::BadgeType type,
-                                   WrenchIconPainter::Severity severity,
-                                   bool animate) OVERRIDE {
+  void UpdateBadgeSeverity(WrenchMenuBadgeController::BadgeType type,
+                           WrenchIconPainter::Severity severity,
+                           bool animate) override {
     [controller_ updateWrenchButtonSeverity:severity animate:animate];
   }
 
@@ -258,6 +258,7 @@ class NotificationBridge : public WrenchMenuBadgeController::Delegate {
   [homeButton_ setHandleMiddleClick:YES];
 
   [self initCommandStatus:commands_];
+  [reloadButton_ setCommandUpdater:commands_];
 
   locationBarView_.reset(new LocationBarViewMac(locationBar_, commands_,
                                                 profile_, browser_));
@@ -440,6 +441,9 @@ class NotificationBridge : public WrenchMenuBadgeController::Delegate {
   if (browserActionsController_.get()) {
     [browserActionsController_ update];
   }
+
+  BOOL needReloadMenu = chrome::IsDebuggerAttachedToCurrentTab(browser_);
+  [reloadButton_ setMenuEnabled:needReloadMenu];
 }
 
 - (void)setStarredState:(BOOL)isStarred {

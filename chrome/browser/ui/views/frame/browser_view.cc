@@ -37,8 +37,6 @@
 #include "chrome/browser/themes/theme_properties.h"
 #include "chrome/browser/themes/theme_service_factory.h"
 #include "chrome/browser/translate/chrome_translate_client.h"
-#include "chrome/browser/ui/app_modal_dialogs/app_modal_dialog.h"
-#include "chrome/browser/ui/app_modal_dialogs/app_modal_dialog_queue.h"
 #include "chrome/browser/ui/bookmarks/bookmark_bar_constants.h"
 #include "chrome/browser/ui/bookmarks/bookmark_bubble_delegate.h"
 #include "chrome/browser/ui/bookmarks/bookmark_bubble_sign_in_delegate.h"
@@ -100,6 +98,8 @@
 #include "chrome/grit/chromium_strings.h"
 #include "chrome/grit/generated_resources.h"
 #include "chrome/grit/locale_settings.h"
+#include "components/app_modal_dialogs/app_modal_dialog.h"
+#include "components/app_modal_dialogs/app_modal_dialog_queue.h"
 #include "components/signin/core/common/profile_management_switches.h"
 #include "components/translate/core/browser/language_state.h"
 #include "content/app/resources/grit/content_resources.h"
@@ -242,11 +242,11 @@ class BrowserViewLayoutDelegateImpl : public BrowserViewLayoutDelegate {
   virtual ~BrowserViewLayoutDelegateImpl() {}
 
   // BrowserViewLayoutDelegate overrides:
-  virtual views::View* GetContentsWebView() const OVERRIDE {
+  virtual views::View* GetContentsWebView() const override {
     return browser_view_->contents_web_view_;
   }
 
-  virtual bool DownloadShelfNeedsLayout() const OVERRIDE {
+  virtual bool DownloadShelfNeedsLayout() const override {
     DownloadShelfView* download_shelf = browser_view_->download_shelf_.get();
     // Re-layout the shelf either if it is visible or if its close animation
     // is currently running.
@@ -254,11 +254,11 @@ class BrowserViewLayoutDelegateImpl : public BrowserViewLayoutDelegate {
            (download_shelf->IsShowing() || download_shelf->IsClosing());
   }
 
-  virtual bool IsTabStripVisible() const OVERRIDE {
+  virtual bool IsTabStripVisible() const override {
     return browser_view_->IsTabStripVisible();
   }
 
-  virtual gfx::Rect GetBoundsForTabStripInBrowserView() const OVERRIDE {
+  virtual gfx::Rect GetBoundsForTabStripInBrowserView() const override {
     gfx::RectF bounds_f(browser_view_->frame()->GetBoundsForTabStrip(
         browser_view_->tabstrip()));
     views::View::ConvertRectToTarget(browser_view_->parent(), browser_view_,
@@ -266,26 +266,26 @@ class BrowserViewLayoutDelegateImpl : public BrowserViewLayoutDelegate {
     return gfx::ToEnclosingRect(bounds_f);
   }
 
-  virtual int GetTopInsetInBrowserView() const OVERRIDE {
+  virtual int GetTopInsetInBrowserView() const override {
     return browser_view_->frame()->GetTopInset() -
         browser_view_->y();
   }
 
-  virtual int GetThemeBackgroundXInset() const OVERRIDE {
+  virtual int GetThemeBackgroundXInset() const override {
     // TODO(pkotwicz): Return the inset with respect to the left edge of the
     // BrowserView.
     return browser_view_->frame()->GetThemeBackgroundXInset();
   }
 
-  virtual bool IsToolbarVisible() const OVERRIDE {
+  virtual bool IsToolbarVisible() const override {
     return browser_view_->IsToolbarVisible();
   }
 
-  virtual bool IsBookmarkBarVisible() const OVERRIDE {
+  virtual bool IsBookmarkBarVisible() const override {
     return browser_view_->IsBookmarkBarVisible();
   }
 
-  virtual FullscreenExitBubbleViews* GetFullscreenExitBubble() const OVERRIDE {
+  virtual FullscreenExitBubbleViews* GetFullscreenExitBubble() const override {
     return browser_view_->fullscreen_exit_bubble();
   }
 
@@ -306,7 +306,7 @@ class BookmarkExtensionBackground : public views::Background {
                               Browser* browser);
 
   // View methods overridden from views:Background.
-  virtual void Paint(gfx::Canvas* canvas, views::View* view) const OVERRIDE;
+  virtual void Paint(gfx::Canvas* canvas, views::View* view) const override;
 
  private:
   BrowserView* browser_view_;
@@ -2438,7 +2438,7 @@ void BrowserView::ShowAvatarBubbleFromAvatarButton(
   }
 }
 
-void BrowserView::OverscrollUpdate(int delta_y) {
+void BrowserView::OverscrollUpdate(float delta_y) {
   if (scroll_end_effect_controller_)
     scroll_end_effect_controller_->OverscrollUpdate(delta_y);
 }

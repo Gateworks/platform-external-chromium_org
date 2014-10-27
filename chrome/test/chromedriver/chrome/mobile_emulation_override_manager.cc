@@ -2,12 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "chrome/test/chromedriver/chrome/mobile_emulation_override_manager.h"
+
 #include "base/values.h"
+#include "chrome/test/chromedriver/chrome/browser_info.h"
 #include "chrome/test/chromedriver/chrome/device_metrics.h"
 #include "chrome/test/chromedriver/chrome/devtools_client.h"
-#include "chrome/test/chromedriver/chrome/mobile_emulation_override_manager.h"
 #include "chrome/test/chromedriver/chrome/status.h"
-#include "chrome/test/chromedriver/chrome/version.h"
 
 MobileEmulationOverrideManager::MobileEmulationOverrideManager(
     DevToolsClient* client,
@@ -66,5 +67,13 @@ Status MobileEmulationOverrideManager::ApplyOverrideIfNeeded() {
                     overridden_device_metrics_->text_autosizing);
   params.SetDouble("fontScaleFactor",
                    overridden_device_metrics_->font_scale_factor);
-  return client_->SendCommand("Page.setDeviceMetricsOverride", params);
+  Status status = client_->SendCommand("Page.setDeviceMetricsOverride", params);
+  if (status.IsError())
+    return status;
+
+  // Always emulate touch.
+  base::DictionaryValue emulate_touch_params;
+  emulate_touch_params.SetBoolean("enabled", true);
+  return client_->SendCommand(
+      "Page.setTouchEmulationEnabled", emulate_touch_params);
 }

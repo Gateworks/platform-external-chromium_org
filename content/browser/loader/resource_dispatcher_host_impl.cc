@@ -32,6 +32,7 @@
 #include "content/browser/download/save_file_resource_handler.h"
 #include "content/browser/fileapi/chrome_blob_storage_context.h"
 #include "content/browser/frame_host/navigation_request_info.h"
+#include "content/browser/frame_host/navigator.h"
 #include "content/browser/loader/async_resource_handler.h"
 #include "content/browser/loader/buffered_resource_handler.h"
 #include "content/browser/loader/cross_site_resource_handler.h"
@@ -53,6 +54,7 @@
 #include "content/browser/streams/stream_registry.h"
 #include "content/browser/web_contents/web_contents_impl.h"
 #include "content/common/appcache_interfaces.h"
+#include "content/common/navigation_params.h"
 #include "content/common/resource_messages.h"
 #include "content/common/ssl_status_serialization.h"
 #include "content/common/view_messages.h"
@@ -65,6 +67,7 @@
 #include "content/public/browser/resource_request_details.h"
 #include "content/public/browser/resource_throttle.h"
 #include "content/public/browser/stream_handle.h"
+#include "content/public/browser/stream_info.h"
 #include "content/public/browser/user_metrics.h"
 #include "content/public/common/content_switches.h"
 #include "content/public/common/process_type.h"
@@ -137,6 +140,60 @@ const double kMaxRequestsPerProcessRatio = 0.45;
 // should be and once we stop blocking multiple simultaneous requests for the
 // same resource (see bugs 46104 and 31014).
 const int kDefaultDetachableCancelDelayMs = 30000;
+
+enum SHA1HistogramTypes {
+  // SHA-1 is not present in the certificate chain.
+  SHA1_NOT_PRESENT = 0,
+  // SHA-1 is present in the certificate chain, and the leaf expires on or
+  // after January 1, 2017.
+  SHA1_EXPIRES_AFTER_JANUARY_2017 = 1,
+  // SHA-1 is present in the certificate chain, and the leaf expires on or
+  // after June 1, 2016.
+  SHA1_EXPIRES_AFTER_JUNE_2016 = 2,
+  // SHA-1 is present in the certificate chain, and the leaf expires on or
+  // after January 1, 2016.
+  SHA1_EXPIRES_AFTER_JANUARY_2016 = 3,
+  // SHA-1 is present in the certificate chain, but the leaf expires before
+  // January 1, 2016
+  SHA1_PRESENT = 4,
+  // Always keep this at the end.
+  SHA1_HISTOGRAM_TYPES_MAX,
+};
+
+void RecordCertificateHistograms(const net::SSLInfo& ssl_info,
+                                 ResourceType resource_type) {
+  // The internal representation of the dates for UI treatment of SHA-1.
+  // See http://crbug.com/401365 for details
+  static const int64_t kJanuary2017 = INT64_C(13127702400000000);
+  static const int64_t kJune2016 = INT64_C(13109213000000000);
+  static const int64_t kJanuary2016 = INT64_C(13096080000000000);
+
+  SHA1HistogramTypes sha1_histogram = SHA1_NOT_PRESENT;
+  if (ssl_info.cert_status & net::CERT_STATUS_SHA1_SIGNATURE_PRESENT) {
+    DCHECK(ssl_info.cert.get());
+    if (ssl_info.cert->valid_expiry() >=
+        base::Time::FromInternalValue(kJanuary2017)) {
+      sha1_histogram = SHA1_EXPIRES_AFTER_JANUARY_2017;
+    } else if (ssl_info.cert->valid_expiry() >=
+               base::Time::FromInternalValue(kJune2016)) {
+      sha1_histogram = SHA1_EXPIRES_AFTER_JUNE_2016;
+    } else if (ssl_info.cert->valid_expiry() >=
+               base::Time::FromInternalValue(kJanuary2016)) {
+      sha1_histogram = SHA1_EXPIRES_AFTER_JANUARY_2016;
+    } else {
+      sha1_histogram = SHA1_PRESENT;
+    }
+  }
+  if (resource_type == RESOURCE_TYPE_MAIN_FRAME) {
+    UMA_HISTOGRAM_ENUMERATION("Net.Certificate.SHA1.MainFrame",
+                              sha1_histogram,
+                              SHA1_HISTOGRAM_TYPES_MAX);
+  } else {
+    UMA_HISTOGRAM_ENUMERATION("Net.Certificate.SHA1.Subresource",
+                              sha1_histogram,
+                              SHA1_HISTOGRAM_TYPES_MAX);
+  }
+}
 
 bool IsDetachableResourceType(ResourceType type) {
   switch (type) {
@@ -329,6 +386,24 @@ void AttachRequestBodyBlobDataHandles(
   }
 }
 
+// PlzNavigate
+// This method is called in the UI thread to send the timestamp of a resource
+// request to the respective Navigator (for an UMA histogram).
+void LogResourceRequestTimeOnUI(
+    base::TimeTicks timestamp,
+    int render_process_id,
+    int render_frame_id,
+    const GURL& url) {
+  DCHECK(BrowserThread::CurrentlyOn(BrowserThread::UI));
+  RenderFrameHostImpl* host =
+      RenderFrameHostImpl::FromID(render_process_id, render_frame_id);
+  if (host != NULL) {
+    DCHECK(host->frame_tree_node()->IsMainFrame());
+    host->frame_tree_node()->navigator()->LogResourceRequestTime(
+        timestamp, url);
+  }
+}
+
 }  // namespace
 
 // static
@@ -421,7 +496,7 @@ void ResourceDispatcherHostImpl::CancelRequestsForContext(
   // the requests to cancel first, and then we start cancelling. We assert at
   // the end that there are no more to cancel since the context is about to go
   // away.
-  typedef std::vector<linked_ptr<ResourceLoader> > LoaderList;
+  typedef std::vector<linked_ptr<ResourceLoader>> LoaderList;
   LoaderList loaders_to_cancel;
 
   for (LoaderMap::iterator i = pending_loaders_.begin();
@@ -663,23 +738,19 @@ ResourceDispatcherHostImpl::MaybeInterceptAsStream(net::URLRequest* request,
                                 origin));
 
   info->set_is_stream(true);
-  delegate_->OnStreamCreated(
-      request,
-      handler->stream()->CreateHandle(
-          request->url(),
-          mime_type,
-          response->head.headers));
-  return handler.PassAs<ResourceHandler>();
-}
-
-void ResourceDispatcherHostImpl::ClearSSLClientAuthHandlerForRequest(
-    net::URLRequest* request) {
-  ResourceRequestInfoImpl* info = ResourceRequestInfoImpl::ForRequest(request);
-  if (info) {
-    ResourceLoader* loader = GetLoader(info->GetGlobalRequestID());
-    if (loader)
-      loader->ClearSSLClientAuthHandler();
+  scoped_ptr<StreamInfo> stream_info(new StreamInfo);
+  stream_info->handle = handler->stream()->CreateHandle();
+  stream_info->original_url = request->url();
+  stream_info->mime_type = mime_type;
+  // Make a copy of the response headers so it is safe to pass across threads;
+  // the old handler (AsyncResourceHandler) may modify it in parallel via the
+  // ResourceDispatcherHostDelegate.
+  if (response->head.headers.get()) {
+    stream_info->response_headers =
+        new net::HttpResponseHeaders(response->head.headers->raw_headers());
   }
+  delegate_->OnStreamCreated(request, stream_info.Pass());
+  return handler.Pass();
 }
 
 ResourceDispatcherHostLoginDelegate*
@@ -801,6 +872,11 @@ void ResourceDispatcherHostImpl::DidFinishLoading(ResourceLoader* loader) {
         -loader->request()->status().error());
   }
 
+  if (loader->request()->url().SchemeIsSecure()) {
+    RecordCertificateHistograms(loader->request()->ssl_info(),
+                                info->GetResourceType());
+  }
+
   if (delegate_)
     delegate_->RequestComplete(loader->request());
 
@@ -888,6 +964,19 @@ void ResourceDispatcherHostImpl::OnRequestResource(
     int routing_id,
     int request_id,
     const ResourceHostMsg_Request& request_data) {
+  // When logging time-to-network only care about main frame and non-transfer
+  // navigations.
+  if (request_data.resource_type == RESOURCE_TYPE_MAIN_FRAME &&
+      request_data.transferred_request_request_id == -1) {
+    BrowserThread::PostTask(
+        BrowserThread::UI,
+        FROM_HERE,
+        base::Bind(&LogResourceRequestTimeOnUI,
+                   TimeTicks::Now(),
+                   filter_->child_id(),
+                   request_data.render_frame_id,
+                   request_data.url));
+  }
   BeginRequest(request_id, request_data, NULL, routing_id);
 }
 
@@ -922,10 +1011,13 @@ void ResourceDispatcherHostImpl::UpdateRequestForTransfer(
   GlobalRequestID new_request_id(child_id, request_id);
 
   // Clear out data that depends on |info| before updating it.
+  // We always need to move the memory stats to the new process.  In contrast,
+  // stats.num_requests is only tracked for some requests (those that require
+  // file descriptors for their shared memory buffer).
   IncrementOutstandingRequestsMemory(-1, *info);
-  OustandingRequestsStats empty_stats = { 0, 0 };
-  OustandingRequestsStats old_stats = GetOutstandingRequestsStats(*info);
-  UpdateOutstandingRequestsStats(*info, empty_stats);
+  bool should_update_count = info->counted_as_in_flight_request();
+  if (should_update_count)
+    IncrementOutstandingRequestsCount(-1, info);
   pending_loaders_.erase(old_request_id);
 
   // ResourceHandlers should always get state related to the request from the
@@ -938,8 +1030,9 @@ void ResourceDispatcherHostImpl::UpdateRequestForTransfer(
   // Update maps that used the old IDs, if necessary.  Some transfers in tests
   // do not actually use a different ID, so not all maps need to be updated.
   pending_loaders_[new_request_id] = loader;
-  UpdateOutstandingRequestsStats(*info, old_stats);
   IncrementOutstandingRequestsMemory(1, *info);
+  if (should_update_count)
+    IncrementOutstandingRequestsCount(1, info);
   if (old_routing_id != new_routing_id) {
     if (blocked_loaders_map_.find(old_routing_id) !=
             blocked_loaders_map_.end()) {
@@ -1084,12 +1177,17 @@ void ResourceDispatcherHostImpl::BeginRequest(
       GetBlobStorageContext(filter_);
   // Resolve elements from request_body and prepare upload data.
   if (request_data.request_body.get()) {
-    // Attaches the BlobDataHandles to request_body not to free the blobs and
-    // any attached shareable files until upload completion. These data will be
-    // used in UploadDataStream and ServiceWorkerURLRequestJob.
-    AttachRequestBodyBlobDataHandles(
-        request_data.request_body.get(),
-        blob_context);
+    // |blob_context| could be null when the request is from the plugins because
+    // ResourceMessageFilters created in PluginProcessHost don't have the blob
+    // context.
+    if (blob_context) {
+      // Attaches the BlobDataHandles to request_body not to free the blobs and
+      // any attached shareable files until upload completion. These data will
+      // be used in UploadDataStream and ServiceWorkerURLRequestJob.
+      AttachRequestBodyBlobDataHandles(
+          request_data.request_body.get(),
+          blob_context);
+    }
     new_request->set_upload(UploadDataStreamBuilder::Build(
         request_data.request_body.get(),
         blob_context,
@@ -1138,15 +1236,22 @@ void ResourceDispatcherHostImpl::BeginRequest(
             new_request->url()));
   }
 
-  // Initialize the service worker handler for the request.
+  // Initialize the service worker handler for the request. We don't use
+  // ServiceWorker for synchronous loads to avoid renderer deadlocks. We
+  // don't use ServiceWorker for favicons to avoid cache tainting.
+  bool is_favicon_load = request_data.resource_type == RESOURCE_TYPE_FAVICON;
   ServiceWorkerRequestHandler::InitializeHandler(
       new_request.get(),
       filter_->service_worker_context(),
       blob_context,
       child_id,
       request_data.service_worker_provider_id,
-      request_data.skip_service_worker,
+      request_data.skip_service_worker || is_sync_load || is_favicon_load,
+      request_data.fetch_request_mode,
+      request_data.fetch_credentials_mode,
       request_data.resource_type,
+      request_data.fetch_request_context_type,
+      request_data.fetch_frame_type,
       request_data.request_body);
 
   // Have the appcache associate its extra info with the request.
@@ -1350,11 +1455,11 @@ ResourceRequestInfoImpl* ResourceDispatcherHostImpl::CreateRequestInfo(
       true);     // is_async
 }
 
-void ResourceDispatcherHostImpl::OnRenderViewHostCreated(
-    int child_id,
-    int route_id,
-    bool is_visible) {
-  scheduler_->OnClientCreated(child_id, route_id, is_visible);
+void ResourceDispatcherHostImpl::OnRenderViewHostCreated(int child_id,
+                                                         int route_id,
+                                                         bool is_visible,
+                                                         bool is_audible) {
+  scheduler_->OnClientCreated(child_id, route_id, is_visible, is_audible);
 }
 
 void ResourceDispatcherHostImpl::OnRenderViewHostDeleted(
@@ -1380,6 +1485,13 @@ void ResourceDispatcherHostImpl::OnRenderViewHostWasShown(
     int child_id,
     int route_id) {
   scheduler_->OnVisibilityChanged(child_id, route_id, true);
+}
+
+void ResourceDispatcherHostImpl::OnAudioRenderHostStreamStateChanged(
+    int child_id,
+    int route_id,
+    bool is_playing) {
+  scheduler_->OnAudibilityChanged(child_id, route_id, is_playing);
 }
 
 // This function is only used for saving feature.
@@ -1628,23 +1740,28 @@ ResourceDispatcherHostImpl::IncrementOutstandingRequestsMemory(
 ResourceDispatcherHostImpl::OustandingRequestsStats
 ResourceDispatcherHostImpl::IncrementOutstandingRequestsCount(
     int count,
-    const ResourceRequestInfoImpl& info) {
+    ResourceRequestInfoImpl* info) {
   DCHECK_EQ(1, abs(count));
   num_in_flight_requests_ += count;
 
-  OustandingRequestsStats stats = GetOutstandingRequestsStats(info);
+  // Keep track of whether this request is counting toward the number of
+  // in-flight requests for this process, in case we need to transfer it to
+  // another process. This should be a toggle.
+  DCHECK_NE(info->counted_as_in_flight_request(), count > 0);
+  info->set_counted_as_in_flight_request(count > 0);
+
+  OustandingRequestsStats stats = GetOutstandingRequestsStats(*info);
   stats.num_requests += count;
   DCHECK_GE(stats.num_requests, 0);
-  UpdateOutstandingRequestsStats(info, stats);
+  UpdateOutstandingRequestsStats(*info, stats);
 
   return stats;
 }
 
 bool ResourceDispatcherHostImpl::HasSufficientResourcesForRequest(
-    const net::URLRequest* request_) {
-  const ResourceRequestInfoImpl* info =
-      ResourceRequestInfoImpl::ForRequest(request_);
-  OustandingRequestsStats stats = IncrementOutstandingRequestsCount(1, *info);
+    net::URLRequest* request) {
+  ResourceRequestInfoImpl* info = ResourceRequestInfoImpl::ForRequest(request);
+  OustandingRequestsStats stats = IncrementOutstandingRequestsCount(1, info);
 
   if (stats.num_requests > max_num_in_flight_requests_per_process_)
     return false;
@@ -1655,13 +1772,13 @@ bool ResourceDispatcherHostImpl::HasSufficientResourcesForRequest(
 }
 
 void ResourceDispatcherHostImpl::FinishedWithResourcesForRequest(
-    const net::URLRequest* request_) {
-  const ResourceRequestInfoImpl* info =
-      ResourceRequestInfoImpl::ForRequest(request_);
-  IncrementOutstandingRequestsCount(-1, *info);
+    net::URLRequest* request) {
+  ResourceRequestInfoImpl* info = ResourceRequestInfoImpl::ForRequest(request);
+  IncrementOutstandingRequestsCount(-1, info);
 }
 
 void ResourceDispatcherHostImpl::StartNavigationRequest(
+    const CommonNavigationParams& params,
     const NavigationRequestInfo& info,
     scoped_refptr<ResourceRequestBody> request_body,
     int64 navigation_request_id,

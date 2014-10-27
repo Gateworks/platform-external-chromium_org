@@ -19,9 +19,7 @@
 #include "chrome/common/chrome_switches.h"
 #include "chrome/common/chrome_version_info.h"
 #include "chrome/common/crash_keys.h"
-#include "chrome/common/extensions/chrome_extensions_client.h"
 #include "chrome/common/extensions/extension_constants.h"
-#include "chrome/common/extensions/extension_process_policy.h"
 #include "chrome/common/localized_error.h"
 #include "chrome/common/pepper_permission_util.h"
 #include "chrome/common/render_messages.h"
@@ -79,10 +77,6 @@
 #include "content/public/renderer/render_view.h"
 #include "content/public/renderer/render_view_visitor.h"
 #include "extensions/common/constants.h"
-#include "extensions/common/extension.h"
-#include "extensions/common/extension_set.h"
-#include "extensions/common/extension_urls.h"
-#include "extensions/common/switches.h"
 #include "ipc/ipc_sync_channel.h"
 #include "net/base/net_errors.h"
 #include "ppapi/c/private/ppb_nacl_private.h"
@@ -112,11 +106,17 @@
 #endif
 
 #if defined(ENABLE_EXTENSIONS)
+#include "chrome/common/extensions/chrome_extensions_client.h"
+#include "chrome/common/extensions/extension_process_policy.h"
 #include "chrome/renderer/extensions/chrome_extensions_dispatcher_delegate.h"
 #include "chrome/renderer/extensions/chrome_extensions_renderer_client.h"
 #include "chrome/renderer/extensions/extension_frame_helper.h"
 #include "chrome/renderer/extensions/renderer_permissions_policy_delegate.h"
 #include "chrome/renderer/extensions/resource_request_policy.h"
+#include "extensions/common/extension.h"
+#include "extensions/common/extension_set.h"
+#include "extensions/common/extension_urls.h"
+#include "extensions/common/switches.h"
 #include "extensions/renderer/dispatcher.h"
 #include "extensions/renderer/extension_helper.h"
 #include "extensions/renderer/extensions_render_frame_observer.h"
@@ -214,7 +214,7 @@ class SpellCheckReplacer : public content::RenderViewVisitor {
  public:
   explicit SpellCheckReplacer(SpellCheck* spellcheck)
       : spellcheck_(spellcheck) {}
-  virtual bool Visit(content::RenderView* render_view) OVERRIDE;
+  bool Visit(content::RenderView* render_view) override;
 
  private:
   SpellCheck* spellcheck_;  // New shared spellcheck for all views. Weak Ptr.
@@ -268,9 +268,9 @@ void IsGuestViewApiAvailableToScriptContext(
 ChromeContentRendererClient::ChromeContentRendererClient() {
   g_current_client = this;
 
+#if defined(ENABLE_EXTENSIONS)
   extensions::ExtensionsClient::Set(
       extensions::ChromeExtensionsClient::GetInstance());
-#if defined(ENABLE_EXTENSIONS)
   extensions::ExtensionsRendererClient::Set(
       ChromeExtensionsRendererClient::GetInstance());
 #endif
@@ -400,23 +400,22 @@ void ChromeContentRendererClient::RenderThreadStarted() {
   WebSecurityPolicy::registerURLSchemeAsNotAllowingJavascriptURLs(
       chrome_search_scheme);
 
-  // chrome:, chrome-search:, and chrome-extension: resources shouldn't trigger
-  // insecure content warnings.
+  // chrome:, chrome-search:, chrome-extension:, and chrome-extension-resource:
+  // resources shouldn't trigger insecure content warnings.
   WebSecurityPolicy::registerURLSchemeAsSecure(chrome_ui_scheme);
   WebSecurityPolicy::registerURLSchemeAsSecure(chrome_search_scheme);
 
   WebString extension_scheme(ASCIIToUTF16(extensions::kExtensionScheme));
   WebSecurityPolicy::registerURLSchemeAsSecure(extension_scheme);
 
-  // chrome-extension: resources should be allowed to receive CORS requests.
-  WebSecurityPolicy::registerURLSchemeAsCORSEnabled(extension_scheme);
-
   WebString extension_resource_scheme(
       ASCIIToUTF16(extensions::kExtensionResourceScheme));
   WebSecurityPolicy::registerURLSchemeAsSecure(extension_resource_scheme);
 
-  // chrome-extension-resource: resources should be allowed to receive CORS
-  // requests.
+  // chrome:, chrome-extension:, chrome-extension-resource: resources should be
+  // allowed to receive CORS requests.
+  WebSecurityPolicy::registerURLSchemeAsCORSEnabled(chrome_ui_scheme);
+  WebSecurityPolicy::registerURLSchemeAsCORSEnabled(extension_scheme);
   WebSecurityPolicy::registerURLSchemeAsCORSEnabled(extension_resource_scheme);
 
   // chrome-extension: resources should bypass Content Security Policy checks
@@ -535,10 +534,6 @@ SkBitmap* ChromeContentRendererClient::GetSadPluginBitmap() {
 SkBitmap* ChromeContentRendererClient::GetSadWebViewBitmap() {
   return const_cast<SkBitmap*>(ResourceBundle::GetSharedInstance().
       GetImageNamed(IDR_SAD_WEBVIEW).ToSkBitmap());
-}
-
-std::string ChromeContentRendererClient::GetDefaultEncoding() {
-  return l10n_util::GetStringUTF8(IDS_DEFAULT_ENCODING);
 }
 
 #if defined(ENABLE_EXTENSIONS)
@@ -709,7 +704,7 @@ WebPlugin* ChromeContentRendererClient::CreatePlugin(
         break;
       }
       case ChromeViewHostMsg_GetPluginInfo_Status::kAllowed: {
-#if !defined(DISABLE_NACL)
+#if !defined(DISABLE_NACL) && defined(ENABLE_EXTENSIONS)
         const bool is_nacl_plugin =
             plugin.name == ASCIIToUTF16(nacl::kNaClPluginName);
         const bool is_nacl_mime_type =
@@ -774,7 +769,7 @@ WebPlugin* ChromeContentRendererClient::CreatePlugin(
             break;
           }
         }
-#endif  // !defined(DISABLE_NACL)
+#endif  // !defined(DISABLE_NACL) && defined(ENABLE_EXTENSIONS)
 
         // Delay loading plugins if prerendering.
         // TODO(mmenke):  In the case of prerendering, feed into
@@ -945,7 +940,7 @@ GURL ChromeContentRendererClient::GetNaClContentHandlerURL(
     const std::string& actual_mime_type,
     const content::WebPluginInfo& plugin) {
   // Look for the manifest URL among the MIME type's additonal parameters.
-  const char* kNaClPluginManifestAttribute = "nacl";
+  const char kNaClPluginManifestAttribute[] = "nacl";
   base::string16 nacl_attr = ASCIIToUTF16(kNaClPluginManifestAttribute);
   for (size_t i = 0; i < plugin.mime_types.size(); ++i) {
     if (plugin.mime_types[i].mime_type == actual_mime_type) {
@@ -960,6 +955,7 @@ GURL ChromeContentRendererClient::GetNaClContentHandlerURL(
   return GURL();
 }
 
+#if !defined(DISABLE_NACL)
 //  static
 bool ChromeContentRendererClient::IsNaClAllowed(
     const GURL& manifest_url,
@@ -1001,17 +997,21 @@ bool ChromeContentRendererClient::IsNaClAllowed(
 
   bool is_whitelisted_app = is_photo_app || is_hangouts_app;
 
-  bool is_extension_from_webstore = extension &&
-      extension->from_webstore();
+  bool is_extension_from_webstore = false;
+  bool is_invoked_by_hosted_app = false;
+  bool is_extension_unrestricted = false;
+#if defined(ENABLE_EXTENSIONS)
+  is_extension_from_webstore = extension && extension->from_webstore();
 
-  bool is_invoked_by_hosted_app = extension &&
+  is_invoked_by_hosted_app = extension &&
       extension->is_hosted_app() &&
       extension->web_extent().MatchesURL(app_url);
 
   // Allow built-in extensions and extensions under development.
-  bool is_extension_unrestricted = extension &&
+  is_extension_unrestricted = extension &&
       (extension->location() == extensions::Manifest::COMPONENT ||
        extensions::Manifest::IsUnpackedLocation(extension->location()));
+#endif  // defined(ENABLE_EXTENSIONS)
 
   bool is_invoked_by_extension = app_url.SchemeIs("chrome-extension");
 
@@ -1061,6 +1061,7 @@ bool ChromeContentRendererClient::IsNaClAllowed(
   }
   return is_nacl_allowed;
 }
+#endif  // defined(DISABLE_NACL)
 
 bool ChromeContentRendererClient::HasErrorPage(int http_status_code,
                                                std::string* error_domain) {
@@ -1113,8 +1114,13 @@ void ChromeContentRendererClient::GetNavigationErrorStrings(
   bool is_post = EqualsASCII(failed_request.httpMethod(), "POST");
 
   if (error_html) {
+    bool extension_but_not_bookmark_app = false;
+#if defined(ENABLE_EXTENSIONS)
+    extension_but_not_bookmark_app = extension && !extension->from_bookmark();
+#endif
     // Use a local error page.
-    if (extension && !extension->from_bookmark()) {
+    if (extension_but_not_bookmark_app) {
+#if defined(ENABLE_EXTENSIONS)
       // TODO(erikkay): Should we use a different template for different
       // error messages?
       int resource_id = IDR_ERROR_APP_HTML;
@@ -1131,6 +1137,7 @@ void ChromeContentRendererClient::GetNavigationErrorStrings(
         *error_html = webui::GetTemplatesHtml(template_html, &error_strings,
                                               "t");
       }
+#endif
     } else {
       // TODO(ellyjones): change GetNavigationErrorStrings to take a RenderFrame
       // instead of a RenderView, then pass that in.
@@ -1490,13 +1497,17 @@ bool ChromeContentRendererClient::AllowPepperMediaStreamAPI(
 }
 
 void ChromeContentRendererClient::AddKeySystems(
-    std::vector<content::KeySystemInfo>* key_systems) {
+    std::vector<media::KeySystemInfo>* key_systems) {
   AddChromeKeySystems(key_systems);
 }
 
 bool ChromeContentRendererClient::ShouldReportDetailedMessageForSource(
     const base::string16& source) const {
+#if defined(ENABLE_EXTENSIONS)
   return extensions::IsSourceFromAnExtension(source);
+#else
+  return false;
+#endif
 }
 
 bool ChromeContentRendererClient::ShouldEnableSiteIsolationPolicy() const {
@@ -1505,8 +1516,12 @@ bool ChromeContentRendererClient::ShouldEnableSiteIsolationPolicy() const {
   // running a normal web page from the Internet. We only turn on
   // SiteIsolationPolicy for a renderer process that does not have the extension
   // flag on.
+#if defined(ENABLE_EXTENSIONS)
   CommandLine* command_line = CommandLine::ForCurrentProcess();
   return !command_line->HasSwitch(extensions::switches::kExtensionProcess);
+#else
+  return true;
+#endif
 }
 
 blink::WebWorkerPermissionClientProxy*

@@ -9,7 +9,6 @@
 #include "ash/accessibility_delegate.h"
 #include "ash/magnifier/magnifier_constants.h"
 #include "ash/media_delegate.h"
-#include "ash/system/tray/default_system_tray_delegate.h"
 #include "ash/wm/window_util.h"
 #include "base/command_line.h"
 #include "chrome/browser/accessibility/accessibility_events.h"
@@ -23,6 +22,7 @@
 #include "chrome/browser/ui/ash/chrome_new_window_delegate.h"
 #include "chrome/browser/ui/ash/session_state_delegate_views.h"
 #include "chrome/browser/ui/ash/solid_color_user_wallpaper_delegate.h"
+#include "chrome/browser/ui/ash/system_tray_delegate_common.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/browser_list.h"
@@ -34,14 +34,6 @@
 #include "chrome/common/chrome_switches.h"
 #include "content/public/browser/notification_service.h"
 
-#if defined(OS_WIN)
-#include "chrome/browser/ui/ash/system_tray_delegate_win.h"
-#endif
-
-#if defined(OS_LINUX) && !defined(OS_CHROMEOS)
-#include "chrome/browser/ui/ash/system_tray_delegate_linux.h"
-#endif
-
 namespace {
 
 class NewWindowDelegateImpl : public ChromeNewWindowDelegate {
@@ -50,9 +42,9 @@ class NewWindowDelegateImpl : public ChromeNewWindowDelegate {
   virtual ~NewWindowDelegateImpl() {}
 
   // Overridden from ash::NewWindowDelegate:
-  virtual void OpenFileManager() OVERRIDE {}
-  virtual void OpenCrosh() OVERRIDE {}
-  virtual void ShowKeyboardOverlay() OVERRIDE {}
+  virtual void OpenFileManager() override {}
+  virtual void OpenCrosh() override {}
+  virtual void ShowKeyboardOverlay() override {}
 
  private:
   DISALLOW_COPY_AND_ASSIGN(NewWindowDelegateImpl);
@@ -62,11 +54,11 @@ class MediaDelegateImpl : public ash::MediaDelegate {
  public:
   MediaDelegateImpl() {}
   virtual ~MediaDelegateImpl() {}
-  virtual void HandleMediaNextTrack() OVERRIDE {}
-  virtual void HandleMediaPlayPause() OVERRIDE {}
-  virtual void HandleMediaPrevTrack() OVERRIDE {}
+  virtual void HandleMediaNextTrack() override {}
+  virtual void HandleMediaPlayPause() override {}
+  virtual void HandleMediaPrevTrack() override {}
   virtual ash::MediaCaptureState GetMediaCaptureState(
-      content::BrowserContext* context) OVERRIDE {
+      content::BrowserContext* context) override {
     return ash::MEDIA_CAPTURE_NONE;
   }
 
@@ -79,84 +71,84 @@ class EmptyAccessibilityDelegate : public ash::AccessibilityDelegate {
   EmptyAccessibilityDelegate() {}
   virtual ~EmptyAccessibilityDelegate() {}
 
-  virtual void ToggleHighContrast() OVERRIDE {
+  virtual void ToggleHighContrast() override {
   }
 
-  virtual bool IsHighContrastEnabled() const OVERRIDE {
+  virtual bool IsHighContrastEnabled() const override {
     return false;
   }
 
-  virtual bool IsSpokenFeedbackEnabled() const OVERRIDE {
+  virtual bool IsSpokenFeedbackEnabled() const override {
     return false;
   }
 
   virtual void ToggleSpokenFeedback(
-      ash::AccessibilityNotificationVisibility notify) OVERRIDE {
+      ash::AccessibilityNotificationVisibility notify) override {
   }
 
-  virtual void SetLargeCursorEnabled(bool enalbed) OVERRIDE {
+  virtual void SetLargeCursorEnabled(bool enalbed) override {
   }
 
-  virtual bool IsLargeCursorEnabled() const OVERRIDE {
+  virtual bool IsLargeCursorEnabled() const override {
     return false;
   }
 
-  virtual void SetMagnifierEnabled(bool enabled) OVERRIDE {
+  virtual void SetMagnifierEnabled(bool enabled) override {
   }
 
-  virtual void SetMagnifierType(ash::MagnifierType type) OVERRIDE {
+  virtual void SetMagnifierType(ash::MagnifierType type) override {
   }
 
-  virtual bool IsMagnifierEnabled() const OVERRIDE {
+  virtual bool IsMagnifierEnabled() const override {
     return false;
   }
 
-  virtual void SetAutoclickEnabled(bool enabled) OVERRIDE {
+  virtual void SetAutoclickEnabled(bool enabled) override {
   }
 
-  virtual bool IsAutoclickEnabled() const OVERRIDE {
+  virtual bool IsAutoclickEnabled() const override {
     return false;
   }
 
-  virtual ash::MagnifierType GetMagnifierType() const OVERRIDE {
+  virtual ash::MagnifierType GetMagnifierType() const override {
     return ash::kDefaultMagnifierType;
   }
 
-  virtual void SaveScreenMagnifierScale(double scale) OVERRIDE {
+  virtual void SaveScreenMagnifierScale(double scale) override {
   }
 
-  virtual double GetSavedScreenMagnifierScale() OVERRIDE {
+  virtual double GetSavedScreenMagnifierScale() override {
     return std::numeric_limits<double>::min();
   }
 
-  virtual bool ShouldShowAccessibilityMenu() const OVERRIDE {
+  virtual bool ShouldShowAccessibilityMenu() const override {
     return false;
   }
 
-  virtual bool IsBrailleDisplayConnected() const OVERRIDE { return false; }
+  virtual bool IsBrailleDisplayConnected() const override { return false; }
 
-  virtual void SilenceSpokenFeedback() const OVERRIDE {
+  virtual void SilenceSpokenFeedback() const override {
   }
 
-  virtual void SetVirtualKeyboardEnabled(bool enabled) OVERRIDE {
+  virtual void SetVirtualKeyboardEnabled(bool enabled) override {
   }
 
-  virtual bool IsVirtualKeyboardEnabled() const OVERRIDE {
+  virtual bool IsVirtualKeyboardEnabled() const override {
     return false;
   }
 
   virtual void TriggerAccessibilityAlert(
-      ash::AccessibilityAlert alert) OVERRIDE {
+      ash::AccessibilityAlert alert) override {
   }
 
-  virtual ash::AccessibilityAlert GetLastAccessibilityAlert() OVERRIDE {
+  virtual ash::AccessibilityAlert GetLastAccessibilityAlert() override {
     return ash::A11Y_ALERT_NONE;
   }
 
-  virtual void PlayEarcon(int sound_key) OVERRIDE {
+  virtual void PlayEarcon(int sound_key) override {
   }
 
-  virtual base::TimeDelta PlayShutdownSound() const OVERRIDE {
+  virtual base::TimeDelta PlayShutdownSound() const override {
     return base::TimeDelta();
   }
 
@@ -189,13 +181,7 @@ ash::SessionStateDelegate* ChromeShellDelegate::CreateSessionStateDelegate() {
 }
 
 ash::SystemTrayDelegate* ChromeShellDelegate::CreateSystemTrayDelegate() {
-#if defined(OS_WIN)
-  return CreateWindowsSystemTrayDelegate();
-#elif defined(OS_LINUX) && !defined(OS_CHROMEOS)
-  return CreateLinuxSystemTrayDelegate();
-#else
-  return new ash::DefaultSystemTrayDelegate;
-#endif
+  return new SystemTrayDelegateCommon();
 }
 
 ash::AccessibilityDelegate* ChromeShellDelegate::CreateAccessibilityDelegate() {

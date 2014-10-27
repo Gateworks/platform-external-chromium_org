@@ -15,12 +15,6 @@
 
 class GURL;
 
-namespace net {
-namespace test_server {
-class EmbeddedTestServer;
-}
-}  // namespace net
-
 namespace mojo {
 namespace shell {
 namespace test {
@@ -30,7 +24,7 @@ class ShellTestBase : public testing::Test {
   ShellTestBase();
   virtual ~ShellTestBase();
 
-  virtual void SetUp() OVERRIDE;
+  virtual void SetUp() override;
 
   // |application_url| should typically be a mojo: URL (the origin will be set
   // to an "appropriate" file: URL).
@@ -60,7 +54,6 @@ class ShellTestBase : public testing::Test {
   Context* shell_context() { return &shell_context_; }
 
  private:
-  scoped_ptr<net::test_server::EmbeddedTestServer> test_server_;
   Context shell_context_;
   base::MessageLoop message_loop_;
 

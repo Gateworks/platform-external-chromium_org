@@ -84,6 +84,8 @@ source_set("browser") {
       "$root_gen_dir/ui/resources/grit/webui_resources_map.cc",
       "$root_gen_dir/content/browser/devtools/devtools_protocol_constants.cc",
       "$root_gen_dir/content/browser/devtools/devtools_protocol_constants.h",
+      "$root_gen_dir/content/browser/devtools/protocol/devtools_protocol_handler_impl.cc",
+      "$root_gen_dir/content/browser/devtools/protocol/devtools_protocol_handler_impl.h",
     ], ".")
 
     # Non-iOS deps.
@@ -125,7 +127,11 @@ source_set("browser") {
     ]
     deps += [ "//third_party/power_gadget" ]
   } else {
-    sources += [ "power_profiler/power_data_provider_dummy.cc" ]
+    sources += [
+      "power_profiler/power_data_provider_dummy.cc",
+      "file_descriptor_info_impl.cc",
+      "file_descriptor_info_impl.h",
+    ]
     sources -= [ "renderer_host/web_input_event_aurawin.cc" ]
   }
 
@@ -267,16 +273,16 @@ source_set("browser") {
   if (is_android || is_chromeos || (is_linux && use_dbus)) {
     sources -= [ "battery_status/battery_status_manager_default.cc" ]
   }
-  if (is_linux && !use_dbus) {
+  if (is_chromeos || (is_linux && !use_dbus)) {
     # This will already have gotten removed for all non-Linux cases.
-    sources -= [ "battery_status/battery_status_manager_linux.cc" ]
+    sources -= [
+      "battery_status/battery_status_manager_linux.cc",
+      "geolocation/wifi_data_provider_linux.cc"
+    ]
   }
 
   if (is_android) {
     sources -= [ "geolocation/wifi_data_provider_common.cc" ]
-  }
-  if (is_chromeos || (is_linux && !use_dbus)) {
-    sources -= [ "geolocation/wifi_data_provider_linux.cc" ]
   }
   if (is_linux && use_dbus) {
     sources -= [ "geolocation/empty_wifi_data_provider.cc" ]
@@ -326,6 +332,7 @@ source_set("browser") {
     deps += [
       "//content/public/android:jni",
       "//media",
+      "//mojo/android:libsystem_java",
     ]
     libs += [ "jnigraphics" ]
   }

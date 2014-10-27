@@ -27,9 +27,14 @@ class EVENTS_OZONE_EVDEV_EXPORT TouchEventConverterEvdev
   };
   TouchEventConverterEvdev(int fd,
                            base::FilePath path,
+                           int id,
                            const EventDeviceInfo& info,
                            const EventDispatchCallback& dispatch);
   virtual ~TouchEventConverterEvdev();
+
+  // EventConverterEvdev:
+  virtual bool HasTouchscreen() const override;
+  virtual gfx::Size GetTouchscreenSize() const override;
 
  private:
   friend class MockTouchEventConverterEvdev;
@@ -38,7 +43,7 @@ class EVENTS_OZONE_EVDEV_EXPORT TouchEventConverterEvdev
   void Init(const EventDeviceInfo& info);
 
   // Overidden from base::MessagePumpLibevent::Watcher.
-  virtual void OnFileCanReadWithoutBlocking(int fd) OVERRIDE;
+  virtual void OnFileCanReadWithoutBlocking(int fd) override;
 
   virtual bool Reinitialize();
 
@@ -77,6 +82,9 @@ class EVENTS_OZONE_EVDEV_EXPORT TouchEventConverterEvdev
   float y_min_pixels_;
   float y_num_pixels_;
 
+  // Size of the touchscreen as reported by the driver.
+  gfx::Size native_size_;
+
   // Touch point currently being updated from the /dev/input/event* stream.
   int current_slot_;
 
@@ -85,6 +93,8 @@ class EVENTS_OZONE_EVDEV_EXPORT TouchEventConverterEvdev
   std::bitset<MAX_FINGERS> altered_slots_;
 
   struct InProgressEvents {
+    InProgressEvents();
+
     float x_;
     float y_;
     int id_;  // Device reported "unique" touch point id; -1 means not active

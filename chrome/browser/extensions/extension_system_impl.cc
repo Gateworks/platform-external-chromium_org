@@ -39,7 +39,6 @@
 #include "chrome/common/extensions/extension_constants.h"
 #include "chrome/common/extensions/extension_file_util.h"
 #include "chrome/common/extensions/features/feature_channel.h"
-#include "chrome/common/extensions/manifest_url_handler.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/url_data_source.h"
 #include "extensions/browser/content_verifier.h"
@@ -63,6 +62,7 @@
 #include "extensions/common/extension.h"
 #include "extensions/common/extension_urls.h"
 #include "extensions/common/manifest.h"
+#include "extensions/common/manifest_url_handlers.h"
 #include "net/base/escape.h"
 
 #if defined(ENABLE_NOTIFICATIONS)
@@ -159,9 +159,9 @@ class ContentVerifierDelegateImpl : public ContentVerifierDelegate {
   explicit ContentVerifierDelegateImpl(ExtensionService* service)
       : service_(service->AsWeakPtr()), default_mode_(GetDefaultMode()) {}
 
-  virtual ~ContentVerifierDelegateImpl() {}
+  ~ContentVerifierDelegateImpl() override {}
 
-  virtual Mode ShouldBeVerified(const Extension& extension) OVERRIDE {
+  Mode ShouldBeVerified(const Extension& extension) override {
 #if defined(OS_CHROMEOS)
     if (ExtensionAssetsManagerChromeOS::IsSharedInstall(&extension))
       return ContentVerifierDelegate::ENFORCE_STRICT;
@@ -184,15 +184,15 @@ class ContentVerifierDelegateImpl : public ContentVerifierDelegate {
     return default_mode_;
   }
 
-  virtual const ContentVerifierKey& PublicKey() OVERRIDE {
+  const ContentVerifierKey& PublicKey() override {
     static ContentVerifierKey key(
         extension_misc::kWebstoreSignaturesPublicKey,
         extension_misc::kWebstoreSignaturesPublicKeySize);
     return key;
   }
 
-  virtual GURL GetSignatureFetchUrl(const std::string& extension_id,
-                                    const base::Version& version) OVERRIDE {
+  GURL GetSignatureFetchUrl(const std::string& extension_id,
+                            const base::Version& version) override {
     // TODO(asargent) Factor out common code from the extension updater's
     // ManifestFetchData class that can be shared for use here.
     std::vector<std::string> parts;
@@ -210,12 +210,13 @@ class ContentVerifierDelegateImpl : public ContentVerifierDelegate {
     return base_url.ReplaceComponents(replacements);
   }
 
-  virtual std::set<base::FilePath> GetBrowserImagePaths(
-      const extensions::Extension* extension) OVERRIDE {
+  std::set<base::FilePath> GetBrowserImagePaths(
+      const extensions::Extension* extension) override {
     return extension_file_util::GetBrowserImagePaths(extension);
   }
 
-  virtual void VerifyFailed(const std::string& extension_id) OVERRIDE {
+  void VerifyFailed(const std::string& extension_id,
+                    ContentVerifyJob::FailureReason reason) override {
     if (!service_)
       return;
     ExtensionRegistry* registry = ExtensionRegistry::Get(service_->profile());
@@ -229,6 +230,8 @@ class ContentVerifierDelegateImpl : public ContentVerifierDelegate {
       ExtensionPrefs::Get(service_->profile())
           ->IncrementCorruptedDisableCount();
       UMA_HISTOGRAM_BOOLEAN("Extensions.CorruptExtensionBecameDisabled", true);
+      UMA_HISTOGRAM_ENUMERATION("Extensions.CorruptExtensionDisabledReason",
+          reason, ContentVerifyJob::FAILURE_REASON_MAX);
     } else if (!ContainsKey(would_be_disabled_ids_, extension_id)) {
       UMA_HISTOGRAM_BOOLEAN("Extensions.CorruptExtensionWouldBeDisabled", true);
       would_be_disabled_ids_.insert(extension_id);

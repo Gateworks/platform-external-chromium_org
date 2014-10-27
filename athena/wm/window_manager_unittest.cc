@@ -5,7 +5,8 @@
 #include "athena/wm/public/window_manager.h"
 
 #include "athena/screen/public/screen_manager.h"
-#include "athena/test/athena_test_base.h"
+#include "athena/test/base/athena_test_base.h"
+#include "athena/test/base/test_windows.h"
 #include "athena/wm/public/window_list_provider.h"
 #include "athena/wm/split_view_controller.h"
 #include "athena/wm/test/window_manager_impl_test_api.h"
@@ -24,11 +25,12 @@ namespace athena {
 class WindowManagerTest : public test::AthenaTestBase {
  public:
   WindowManagerTest() {}
-  virtual ~WindowManagerTest() {}
+  ~WindowManagerTest() override {}
 
   scoped_ptr<aura::Window> CreateAndActivateWindow(
       aura::WindowDelegate* delegate) {
-    scoped_ptr<aura::Window> window(CreateTestWindow(delegate, gfx::Rect()));
+    scoped_ptr<aura::Window> window(
+        test::CreateNormalWindow(delegate, nullptr));
     window->Show();
     wm::ActivateWindow(window.get());
     return window.Pass();
@@ -57,7 +59,7 @@ TEST_F(WindowManagerTest, OverviewModeBasics) {
   EXPECT_FALSE(WindowManager::Get()->IsOverviewModeActive());
 
   // Tests that going into overview mode does not change the window bounds.
-  WindowManager::Get()->ToggleOverview();
+  WindowManager::Get()->EnterOverview();
   ASSERT_TRUE(WindowManager::Get()->IsOverviewModeActive());
   EXPECT_EQ(first->bounds().ToString(), second->bounds().ToString());
   EXPECT_EQ(gfx::Screen::GetNativeScreen()
@@ -71,7 +73,7 @@ TEST_F(WindowManagerTest, OverviewModeBasics) {
 
   // Terminate overview mode. |first| should be hidden, since it's not visible
   // to the user anymore.
-  WindowManager::Get()->ToggleOverview();
+  WindowManager::Get()->ExitOverview();
   ASSERT_FALSE(WindowManager::Get()->IsOverviewModeActive());
   EXPECT_FALSE(first->IsVisible());
   EXPECT_TRUE(second->IsVisible());
@@ -86,14 +88,14 @@ TEST_F(WindowManagerTest, OverviewToSplitViewMode) {
   scoped_ptr<aura::Window> w3(CreateAndActivateWindow(&delegate));
   wm::ActivateWindow(w3.get());
 
-  WindowManager::Get()->ToggleOverview();
+  WindowManager::Get()->EnterOverview();
   EXPECT_TRUE(w1->IsVisible());
   EXPECT_TRUE(w2->IsVisible());
   EXPECT_TRUE(w3->IsVisible());
 
   // Go into split-view mode.
   WindowOverviewModeDelegate* overview_delegate = wm_api.wm();
-  overview_delegate->OnSelectSplitViewWindow(w3.get(), NULL, w3.get());
+  overview_delegate->OnSelectSplitViewWindow(w3.get(), nullptr, w3.get());
   EXPECT_TRUE(w3->IsVisible());
   EXPECT_TRUE(w2->IsVisible());
   EXPECT_FALSE(w1->IsVisible());
@@ -104,7 +106,7 @@ TEST_F(WindowManagerTest, NewWindowFromOverview) {
   scoped_ptr<aura::Window> w1(CreateAndActivateWindow(&delegate));
   scoped_ptr<aura::Window> w2(CreateAndActivateWindow(&delegate));
 
-  WindowManager::Get()->ToggleOverview();
+  WindowManager::Get()->EnterOverview();
   EXPECT_TRUE(w1->IsVisible());
   EXPECT_TRUE(w2->IsVisible());
 
@@ -296,7 +298,7 @@ TEST_F(WindowManagerTest, NewWindowBounds) {
   EXPECT_EQ(first->bounds().ToString(), second->bounds().ToString());
 
   // Get into split view.
-  wm_api.GetSplitViewController()->ActivateSplitMode(NULL, NULL, NULL);
+  wm_api.GetSplitViewController()->ActivateSplitMode(nullptr, nullptr, nullptr);
   const gfx::Rect left_bounds =
       wm_api.GetSplitViewController()->left_window()->bounds();
   EXPECT_NE(work_area.ToString(),
@@ -306,6 +308,23 @@ TEST_F(WindowManagerTest, NewWindowBounds) {
   scoped_ptr<aura::Window> third(CreateAndActivateWindow(&delegate));
   EXPECT_EQ(wm_api.GetSplitViewController()->left_window(), third.get());
   EXPECT_EQ(left_bounds.ToString(), third->bounds().ToString());
+}
+
+TEST_F(WindowManagerTest, OverviewModeAccelerators) {
+  ui::test::EventGenerator generator(root_window());
+
+  // F6 toggles overview mode
+  ASSERT_FALSE(WindowManager::Get()->IsOverviewModeActive());
+  generator.PressKey(ui::VKEY_F6, ui::EF_NONE);
+  EXPECT_TRUE(WindowManager::Get()->IsOverviewModeActive());
+  generator.PressKey(ui::VKEY_F6, ui::EF_NONE);
+  EXPECT_FALSE(WindowManager::Get()->IsOverviewModeActive());
+
+  // ESC exits overview mode
+  generator.PressKey(ui::VKEY_F6, ui::EF_NONE);
+  EXPECT_TRUE(WindowManager::Get()->IsOverviewModeActive());
+  generator.PressKey(ui::VKEY_ESCAPE, ui::EF_NONE);
+  EXPECT_FALSE(WindowManager::Get()->IsOverviewModeActive());
 }
 
 TEST_F(WindowManagerTest, SplitModeActivationByShortcut) {
@@ -346,8 +365,8 @@ TEST_F(WindowManagerTest, OverviewModeFromSplitMode) {
   scoped_ptr<aura::Window> w3(CreateAndActivateWindow(&delegate));
 
   // Get into split-view mode, and then turn on overview mode.
-  wm_api.GetSplitViewController()->ActivateSplitMode(NULL, NULL, NULL);
-  WindowManager::Get()->ToggleOverview();
+  wm_api.GetSplitViewController()->ActivateSplitMode(nullptr, nullptr, nullptr);
+  WindowManager::Get()->EnterOverview();
   EXPECT_TRUE(wm_api.GetSplitViewController()->IsSplitViewModeActive());
   EXPECT_EQ(w3.get(), wm_api.GetSplitViewController()->left_window());
   EXPECT_EQ(w2.get(), wm_api.GetSplitViewController()->right_window());
@@ -359,6 +378,19 @@ TEST_F(WindowManagerTest, OverviewModeFromSplitMode) {
   // Make sure the windows that were in split-view mode are hidden.
   EXPECT_FALSE(w2->IsVisible());
   EXPECT_FALSE(w3->IsVisible());
+}
+
+// Clicking a background in overview should not crash.
+TEST_F(WindowManagerTest, ClickBackgroundInOverview) {
+  test::WindowManagerImplTestApi wm_api;
+
+  aura::test::TestWindowDelegate delegate;
+  scoped_ptr<aura::Window> w1(CreateAndActivateWindow(&delegate));
+  WindowManager::Get()->EnterOverview();
+
+  ui::test::EventGenerator generator(root_window());
+  generator.MoveMouseTo(1, 1);
+  generator.ClickLeftButton();
 }
 
 }  // namespace athena

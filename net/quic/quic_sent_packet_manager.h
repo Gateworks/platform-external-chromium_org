@@ -51,27 +51,12 @@ class NET_EXPORT_PRIVATE QuicSentPacketManager {
         TransmissionType transmission_type,
         QuicByteCount byte_size) {}
 
-    virtual void OnSentPacket(
-        QuicPacketSequenceNumber sequence_number,
-        QuicTime sent_time,
-        QuicByteCount bytes,
-        TransmissionType transmission_type) {}
-
-    virtual void OnRetransmittedPacket(
-        QuicPacketSequenceNumber old_sequence_number,
-        QuicPacketSequenceNumber new_sequence_number,
-        TransmissionType transmission_type,
-        QuicTime time) {}
-
     virtual void OnIncomingAck(
         const QuicAckFrame& ack_frame,
         QuicTime ack_receive_time,
         QuicPacketSequenceNumber largest_observed,
         bool largest_observed_acked,
         QuicPacketSequenceNumber least_unacked_sent_packet) {}
-
-    virtual void OnSerializedPacket(
-        const SerializedPacket& packet) {}
   };
 
   // Interface which gets callbacks from the QuicSentPacketManager when
@@ -114,16 +99,6 @@ class NET_EXPORT_PRIVATE QuicSentPacketManager {
   virtual void SetFromConfig(const QuicConfig& config);
 
   void SetHandshakeConfirmed() { handshake_confirmed_ = true; }
-
-  // Called when a new packet is serialized.  If the packet contains
-  // retransmittable data, it will be added to the unacked packet map.
-  void OnSerializedPacket(const SerializedPacket& serialized_packet);
-
-  // Called when a packet is retransmitted with a new sequence number.
-  // Replaces the old entry in the unacked packet map with the new
-  // sequence number.
-  void OnRetransmittedPacket(QuicPacketSequenceNumber old_sequence_number,
-                             QuicPacketSequenceNumber new_sequence_number);
 
   // Processes the incoming ack.
   void OnIncomingAck(const QuicAckFrame& ack_frame,
@@ -169,7 +144,8 @@ class NET_EXPORT_PRIVATE QuicSentPacketManager {
   // Called when we have sent bytes to the peer.  This informs the manager both
   // the number of bytes sent and if they were retransmitted.  Returns true if
   // the sender should reset the retransmission timer.
-  virtual bool OnPacketSent(QuicPacketSequenceNumber sequence_number,
+  virtual bool OnPacketSent(SerializedPacket* serialized_packet,
+                            QuicPacketSequenceNumber original_sequence_number,
                             QuicTime sent_time,
                             QuicByteCount bytes,
                             TransmissionType transmission_type,
@@ -266,6 +242,12 @@ class NET_EXPORT_PRIVATE QuicSentPacketManager {
   typedef linked_hash_map<QuicPacketSequenceNumber,
                           TransmissionType> PendingRetransmissionMap;
 
+  // Called when a packet is retransmitted with a new sequence number.
+  // Replaces the old entry in the unacked packet map with the new
+  // sequence number.
+  void OnRetransmittedPacket(QuicPacketSequenceNumber old_sequence_number,
+                             QuicPacketSequenceNumber new_sequence_number);
+
   // Updates the least_packet_awaited_by_peer.
   void UpdatePacketInformationReceivedByPeer(const QuicAckFrame& ack_frame);
 
@@ -330,14 +312,19 @@ class NET_EXPORT_PRIVATE QuicSentPacketManager {
       const SequenceNumberList& all_transmissions,
       QuicPacketSequenceNumber acked_sequence_number);
 
+  // Returns true if the client is sending or the server has received a
+  // connection option.
+  bool HasClientSentConnectionOption(const QuicConfig& config,
+                                     QuicTag tag) const;
+
   // Newly serialized retransmittable and fec packets are added to this map,
   // which contains owning pointers to any contained frames.  If a packet is
   // retransmitted, this map will contain entries for both the old and the new
-  // packet. The old packet's retransmittable frames entry will be NULL, while
-  // the new packet's entry will contain the frames to retransmit.
+  // packet. The old packet's retransmittable frames entry will be nullptr,
+  // while the new packet's entry will contain the frames to retransmit.
   // If the old packet is acked before the new packet, then the old entry will
   // be removed from the map and the new entry's retransmittable frames will be
-  // set to NULL.
+  // set to nullptr.
   QuicUnackedPacketMap unacked_packets_;
 
   // Pending retransmissions which have not been packetized and sent yet.

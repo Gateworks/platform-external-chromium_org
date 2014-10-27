@@ -61,9 +61,9 @@ class BlobURLRequestJobTest : public testing::Test {
     MockProtocolHandler(BlobURLRequestJobTest* test) : test_(test) {}
 
     // net::URLRequestJobFactory::ProtocolHandler override.
-    virtual net::URLRequestJob* MaybeCreateJob(
+    net::URLRequestJob* MaybeCreateJob(
         net::URLRequest* request,
-        net::NetworkDelegate* network_delegate) const OVERRIDE {
+        net::NetworkDelegate* network_delegate) const override {
       return new BlobURLRequestJob(request,
                                    network_delegate,
                                    test_->blob_data_.get(),

@@ -20,7 +20,6 @@
 #include "extensions/browser/view_type_utils.h"
 #include "extensions/common/api/app_runtime.h"
 #include "extensions/common/extension_messages.h"
-#include "extensions/common/switches.h"
 #include "extensions/strings/grit/extensions_strings.h"
 #include "ipc/ipc_message_macros.h"
 
@@ -90,10 +89,6 @@ bool AppViewGuest::CompletePendingRequest(
 // static
 GuestViewBase* AppViewGuest::Create(content::BrowserContext* browser_context,
                                     int guest_instance_id) {
-  if (!base::CommandLine::ForCurrentProcess()->HasSwitch(
-      extensions::switches::kEnableAppView)) {
-    return NULL;
-  }
   return new AppViewGuest(browser_context, guest_instance_id);
 }
 
@@ -203,8 +198,12 @@ void AppViewGuest::DidAttachToEmbedder() {
   // element. This means that the host element knows how to route input
   // events to the guest, and the guest knows how to get frames to the
   // embedder.
+  if (!url_.is_valid())
+    return;
+
   web_contents()->GetController().LoadURL(
       url_, content::Referrer(), ui::PAGE_TRANSITION_LINK, std::string());
+  url_ = GURL();
 }
 
 void AppViewGuest::DidInitialize() {

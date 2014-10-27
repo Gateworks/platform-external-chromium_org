@@ -152,12 +152,10 @@ class ExtensionFunctionDispatcher::UIThreadResponseCallbackWrapper
         weak_ptr_factory_(this) {
   }
 
-  virtual ~UIThreadResponseCallbackWrapper() {
-  }
+  ~UIThreadResponseCallbackWrapper() override {}
 
   // content::WebContentsObserver overrides.
-  virtual void RenderViewDeleted(
-      RenderViewHost* render_view_host) OVERRIDE {
+  void RenderViewDeleted(RenderViewHost* render_view_host) override {
     DCHECK_CURRENTLY_ON(BrowserThread::UI);
     if (render_view_host != render_view_host_)
       return;
@@ -231,8 +229,6 @@ void ExtensionFunctionDispatcher::DispatchOnIOThread(
     const ExtensionHostMsg_Request_Params& params) {
   const Extension* extension =
       extension_info_map->extensions().GetByID(params.extension_id);
-  if (!extension)
-    return;
 
   ExtensionFunction::ResponseCallback callback(
       base::Bind(&IOThreadResponseCallback, ipc_sender, routing_id,
@@ -257,11 +253,20 @@ void ExtensionFunctionDispatcher::DispatchOnIOThread(
   }
   function_io->set_ipc_sender(ipc_sender, routing_id);
   function_io->set_extension_info_map(extension_info_map);
-  function->set_include_incognito(
-      extension_info_map->IsIncognitoEnabled(extension->id()));
+  if (extension) {
+    function->set_include_incognito(
+        extension_info_map->IsIncognitoEnabled(extension->id()));
+  }
 
   if (!CheckPermissions(function.get(), params, callback))
     return;
+
+  if (!extension) {
+    // Skip all of the UMA, quota, event page, activity logging stuff if there
+    // isn't an extension, e.g. if the function call was from WebUI.
+    function->Run()->Execute();
+    return;
+  }
 
   QuotaService* quota = extension_info_map->GetQuotaService();
   std::string violation_error = quota->Assess(extension->id(),

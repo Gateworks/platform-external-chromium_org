@@ -29,41 +29,44 @@ class VIEWS_EXPORT BubbleFrameView : public NonClientFrameView,
   // Internal class name.
   static const char kViewClassName[];
 
+  explicit BubbleFrameView(const gfx::Insets& content_margins);
+  virtual ~BubbleFrameView();
+
   // Insets to make bubble contents align horizontal with the bubble title.
   // NOTE: this does not take into account whether a title actually exists.
   static gfx::Insets GetTitleInsets();
 
-  explicit BubbleFrameView(const gfx::Insets& content_margins);
-  virtual ~BubbleFrameView();
+  // Creates a close button used in the corner of the dialog.
+  static LabelButton* CreateCloseButton(ButtonListener* listener);
 
   // NonClientFrameView overrides:
-  virtual gfx::Rect GetBoundsForClientView() const OVERRIDE;
+  virtual gfx::Rect GetBoundsForClientView() const override;
   virtual gfx::Rect GetWindowBoundsForClientBounds(
-      const gfx::Rect& client_bounds) const OVERRIDE;
-  virtual int NonClientHitTest(const gfx::Point& point) OVERRIDE;
+      const gfx::Rect& client_bounds) const override;
+  virtual int NonClientHitTest(const gfx::Point& point) override;
   virtual void GetWindowMask(const gfx::Size& size,
-                             gfx::Path* window_mask) OVERRIDE;
-  virtual void ResetWindowControls() OVERRIDE;
-  virtual void UpdateWindowIcon() OVERRIDE;
-  virtual void UpdateWindowTitle() OVERRIDE;
-  virtual void SizeConstraintsChanged() OVERRIDE;
+                             gfx::Path* window_mask) override;
+  virtual void ResetWindowControls() override;
+  virtual void UpdateWindowIcon() override;
+  virtual void UpdateWindowTitle() override;
+  virtual void SizeConstraintsChanged() override;
 
   // Set the FontList to be used for the title of the bubble.
   // Caller must arrange to update the layout to have the call take effect.
   void SetTitleFontList(const gfx::FontList& font_list);
 
   // View overrides:
-  virtual gfx::Insets GetInsets() const OVERRIDE;
-  virtual gfx::Size GetPreferredSize() const OVERRIDE;
-  virtual gfx::Size GetMinimumSize() const OVERRIDE;
-  virtual void Layout() OVERRIDE;
-  virtual const char* GetClassName() const OVERRIDE;
-  virtual void ChildPreferredSizeChanged(View* child) OVERRIDE;
-  virtual void OnThemeChanged() OVERRIDE;
-  virtual void OnNativeThemeChanged(const ui::NativeTheme* theme) OVERRIDE;
+  virtual gfx::Insets GetInsets() const override;
+  virtual gfx::Size GetPreferredSize() const override;
+  virtual gfx::Size GetMinimumSize() const override;
+  virtual void Layout() override;
+  virtual const char* GetClassName() const override;
+  virtual void ChildPreferredSizeChanged(View* child) override;
+  virtual void OnThemeChanged() override;
+  virtual void OnNativeThemeChanged(const ui::NativeTheme* theme) override;
 
   // Overridden from ButtonListener:
-  virtual void ButtonPressed(Button* sender, const ui::Event& event) OVERRIDE;
+  virtual void ButtonPressed(Button* sender, const ui::Event& event) override;
 
   // Use bubble_border() and SetBubbleBorder(), not border() and SetBorder().
   BubbleBorder* bubble_border() const { return bubble_border_; }
@@ -83,6 +86,9 @@ class VIEWS_EXPORT BubbleFrameView : public NonClientFrameView,
  protected:
   // Returns the available screen bounds if the frame were to show in |rect|.
   virtual gfx::Rect GetAvailableScreenBounds(const gfx::Rect& rect);
+
+  bool IsCloseButtonVisible() const;
+  gfx::Rect GetCloseButtonBounds() const;
 
  private:
   FRIEND_TEST_ALL_PREFIXES(BubbleFrameViewTest, GetBoundsForClientView);

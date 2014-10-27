@@ -77,7 +77,7 @@ class MigrationTest : public SyncTest  {
   // Set up sync for all profiles and initialize all MigrationWatchers. This
   // helps ensure that all migration events are captured, even if they were to
   // occur before a test calls AwaitMigration for a specific profile.
-  virtual bool SetupSync() OVERRIDE {
+  bool SetupSync() override {
     if (!SyncTest::SetupSync())
       return false;
 
@@ -283,7 +283,7 @@ IN_PROC_BROWSER_TEST_F(MigrationSingleClientTest, PrefsNigoriBoth) {
 }
 
 // The whole shebang -- all data types.
-#if defined(OS_WIN)
+#if defined(OS_WIN) || defined(OS_MACOSX)
 // http://crbug.com/403778
 #define MAYBE_AllTypesIndividually DISABLED_AllTypesIndividually
 #else
@@ -294,7 +294,7 @@ IN_PROC_BROWSER_TEST_F(MigrationSingleClientTest, MAYBE_AllTypesIndividually) {
   RunSingleClientMigrationTest(GetPreferredDataTypesList(), MODIFY_BOOKMARK);
 }
 
-#if defined(OS_WIN)
+#if defined(OS_WIN) || defined(OS_MACOSX)
 // http://crbug.com/403778
 #define MAYBE_AllTypesIndividuallyTriggerNotification DISABLED_AllTypesIndividuallyTriggerNotification
 #else
@@ -421,7 +421,7 @@ class MigrationReconfigureTest : public MigrationTwoClientTest {
  public:
   MigrationReconfigureTest() {}
 
-  virtual void SetUpCommandLine(base::CommandLine* cl) OVERRIDE {
+  void SetUpCommandLine(base::CommandLine* cl) override {
     AddTestSwitches(cl);
     // Do not add optional datatypes.
   }

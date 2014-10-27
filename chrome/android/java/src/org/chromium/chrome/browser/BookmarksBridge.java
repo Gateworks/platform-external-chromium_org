@@ -268,6 +268,7 @@ public class BookmarksBridge {
     /**
      * @return The BookmarkId for Mobile folder node
      */
+    @VisibleForTesting
     public BookmarkId getMobileFolderId() {
         assert mIsNativeBookmarkModelLoaded;
         return nativeGetMobileFolderId(mNativeBookmarksBridge);
@@ -276,7 +277,6 @@ public class BookmarksBridge {
     /**
      * @return Id representing the special "other" folder from bookmark model.
      */
-    @VisibleForTesting
     public BookmarkId getOtherFolderId() {
         assert mIsNativeBookmarkModelLoaded;
         return nativeGetOtherFolderId(mNativeBookmarksBridge);
@@ -308,6 +308,19 @@ public class BookmarksBridge {
                 getBookmarks,
                 result);
         return result;
+    }
+
+    /**
+     * Gets the child of a folder at the specific position.
+     * @param folderId Id of the parent folder
+     * @param index Posision of child among all children in folder
+     * @return BookmarkId of the child, which will be null if folderId does not point to a folder or
+     *         index is invalid.
+     */
+    public BookmarkId getChildAt(BookmarkId folderId, int index) {
+        assert mIsNativeBookmarkModelLoaded;
+        return nativeGetChildAt(mNativeBookmarksBridge, folderId.getId(), folderId.getType(),
+                index);
     }
 
     /**
@@ -422,7 +435,7 @@ public class BookmarksBridge {
      *         not editable), returns null.
      */
     public BookmarkId addFolder(BookmarkId parent, int index, String title) {
-        assert parent.getType() == BookmarkType.BOOKMARK_TYPE_NORMAL;
+        assert parent.getType() == BookmarkType.NORMAL;
         assert index >= 0;
         assert title != null;
 
@@ -442,7 +455,7 @@ public class BookmarksBridge {
      *         not editable), returns null.
      */
     public BookmarkId addBookmark(BookmarkId parent, int index, String title, String url) {
-        assert parent.getType() == BookmarkType.BOOKMARK_TYPE_NORMAL;
+        assert parent.getType() == BookmarkType.NORMAL;
         assert index >= 0;
         assert title != null;
         assert url != null;
@@ -471,13 +484,6 @@ public class BookmarksBridge {
      */
     public void endGroupingUndos() {
         nativeEndGroupingUndos(mNativeBookmarksBridge);
-    }
-
-    /**
-     * A bridge function to BookmarkModelFactory::GetForProfile.
-     */
-    public static long getNativeBookmarkModel(Profile profile) {
-        return nativeGetNativeBookmarkModel(profile);
     }
 
     public static boolean isEditBookmarksEnabled() {
@@ -621,6 +627,8 @@ public class BookmarksBridge {
     private native BookmarkId nativeGetDesktopFolderId(long nativeBookmarksBridge);
     private native void nativeGetChildIDs(long nativeBookmarksBridge, long id, int type,
             boolean getFolders, boolean getBookmarks, List<BookmarkId> bookmarksList);
+    private native BookmarkId nativeGetChildAt(long nativeBookmarksBridge, long id, int type,
+            int index);
     private native void nativeGetAllBookmarkIDsOrderedByCreationDate(long nativeBookmarksBridge,
             List<BookmarkId> result);
     private native void nativeSetBookmarkTitle(long nativeBookmarksBridge, long id, int type,
@@ -644,7 +652,6 @@ public class BookmarksBridge {
     private native void nativeUndo(long nativeBookmarksBridge);
     private native void nativeStartGroupingUndos(long nativeBookmarksBridge);
     private native void nativeEndGroupingUndos(long nativeBookmarksBridge);
-    private static native long nativeGetNativeBookmarkModel(Profile profile);
     private static native boolean nativeIsEnhancedBookmarksFeatureEnabled(Profile profile);
     private native void nativeLoadEmptyPartnerBookmarkShimForTesting(long nativeBookmarksBridge);
 

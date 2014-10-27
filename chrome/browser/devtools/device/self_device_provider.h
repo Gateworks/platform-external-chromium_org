@@ -12,17 +12,17 @@ class SelfAsDeviceProvider : public AndroidDeviceManager::DeviceProvider {
  public:
   explicit SelfAsDeviceProvider(int port);
 
-  virtual void QueryDevices(const SerialsCallback& callback) OVERRIDE;
+  void QueryDevices(const SerialsCallback& callback) override;
 
-  virtual void QueryDeviceInfo(const std::string& serial,
-                               const DeviceInfoCallback& callback) OVERRIDE;
+  void QueryDeviceInfo(const std::string& serial,
+                       const DeviceInfoCallback& callback) override;
 
-  virtual void OpenSocket(const std::string& serial,
-                          const std::string& socket_name,
-                          const SocketCallback& callback) OVERRIDE;
+  void OpenSocket(const std::string& serial,
+                  const std::string& socket_name,
+                  const SocketCallback& callback) override;
 
  private:
-  virtual ~SelfAsDeviceProvider(){}
+  ~SelfAsDeviceProvider() override {}
 
   int port_;
 };

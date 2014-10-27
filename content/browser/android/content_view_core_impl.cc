@@ -70,10 +70,17 @@ using blink::WebInputEvent;
 // Describes the type and enabled state of a select popup item.
 namespace {
 
-enum {
-#define DEFINE_POPUP_ITEM_TYPE(name, value) POPUP_ITEM_TYPE_##name = value,
-#include "content/browser/android/popup_item_type_list.h"
-#undef DEFINE_POPUP_ITEM_TYPE
+// A Java counterpart will be generated for this enum.
+// GENERATED_JAVA_ENUM_PACKAGE: org.chromium.content.browser.input
+enum PopupItemType {
+  // Popup item is of type group
+  POPUP_ITEM_TYPE_GROUP,
+
+  // Popup item is disabled
+  POPUP_ITEM_TYPE_DISABLED,
+
+  // Popup item is enabled
+  POPUP_ITEM_TYPE_ENABLED,
 };
 
 } //namespace
@@ -108,37 +115,37 @@ ScopedJavaLocalRef<jobject> CreateJavaRect(
 int ToGestureEventType(WebInputEvent::Type type) {
   switch (type) {
     case WebInputEvent::GestureScrollBegin:
-      return SCROLL_START;
+      return GESTURE_EVENT_TYPE_SCROLL_START;
     case WebInputEvent::GestureScrollEnd:
-      return SCROLL_END;
+      return GESTURE_EVENT_TYPE_SCROLL_END;
     case WebInputEvent::GestureScrollUpdate:
-      return SCROLL_BY;
+      return GESTURE_EVENT_TYPE_SCROLL_BY;
     case WebInputEvent::GestureFlingStart:
-      return FLING_START;
+      return GESTURE_EVENT_TYPE_FLING_START;
     case WebInputEvent::GestureFlingCancel:
-      return FLING_CANCEL;
+      return GESTURE_EVENT_TYPE_FLING_CANCEL;
     case WebInputEvent::GestureShowPress:
-      return SHOW_PRESS;
+      return GESTURE_EVENT_TYPE_SHOW_PRESS;
     case WebInputEvent::GestureTap:
-      return SINGLE_TAP_CONFIRMED;
+      return GESTURE_EVENT_TYPE_SINGLE_TAP_CONFIRMED;
     case WebInputEvent::GestureTapUnconfirmed:
-      return SINGLE_TAP_UNCONFIRMED;
+      return GESTURE_EVENT_TYPE_SINGLE_TAP_UNCONFIRMED;
     case WebInputEvent::GestureTapDown:
-      return TAP_DOWN;
+      return GESTURE_EVENT_TYPE_TAP_DOWN;
     case WebInputEvent::GestureTapCancel:
-      return TAP_CANCEL;
+      return GESTURE_EVENT_TYPE_TAP_CANCEL;
     case WebInputEvent::GestureDoubleTap:
-      return DOUBLE_TAP;
+      return GESTURE_EVENT_TYPE_DOUBLE_TAP;
     case WebInputEvent::GestureLongPress:
-      return LONG_PRESS;
+      return GESTURE_EVENT_TYPE_LONG_PRESS;
     case WebInputEvent::GestureLongTap:
-      return LONG_TAP;
+      return GESTURE_EVENT_TYPE_LONG_TAP;
     case WebInputEvent::GesturePinchBegin:
-      return PINCH_BEGIN;
+      return GESTURE_EVENT_TYPE_PINCH_BEGIN;
     case WebInputEvent::GesturePinchEnd:
-      return PINCH_END;
+      return GESTURE_EVENT_TYPE_PINCH_END;
     case WebInputEvent::GesturePinchUpdate:
-      return PINCH_BY;
+      return GESTURE_EVENT_TYPE_PINCH_BY;
     case WebInputEvent::GestureTwoFingerTap:
     case WebInputEvent::GestureScrollUpdateWithoutPropagation:
     default:
@@ -186,7 +193,7 @@ class ContentViewCoreImpl::ContentViewUserData
 ContentViewCoreImpl* ContentViewCoreImpl::FromWebContents(
     content::WebContents* web_contents) {
   ContentViewCoreImpl::ContentViewUserData* data =
-      reinterpret_cast<ContentViewCoreImpl::ContentViewUserData*>(
+      static_cast<ContentViewCoreImpl::ContentViewUserData*>(
           web_contents->GetUserData(kContentViewUserDataKey));
   return data ? data->get() : NULL;
 }
@@ -676,26 +683,6 @@ ScopedJavaLocalRef<jobject> ContentViewCoreImpl::CreateTouchEventSynthesizer() {
   return Java_ContentViewCore_createTouchEventSynthesizer(env, obj.obj());
 }
 
-ScopedJavaLocalRef<jobject> ContentViewCoreImpl::GetContentVideoViewClient() {
-  JNIEnv* env = AttachCurrentThread();
-
-  ScopedJavaLocalRef<jobject> obj = java_ref_.get(env);
-  if (obj.is_null())
-    return ScopedJavaLocalRef<jobject>();
-
-  return Java_ContentViewCore_getContentVideoViewClient(env, obj.obj());
-}
-
-ScopedJavaLocalRef<jobject> ContentViewCoreImpl::GetContext() {
-  JNIEnv* env = AttachCurrentThread();
-
-  ScopedJavaLocalRef<jobject> obj = java_ref_.get(env);
-  if (obj.is_null())
-    return ScopedJavaLocalRef<jobject>();
-
-  return Java_ContentViewCore_getContext(env, obj.obj());
-}
-
 bool ContentViewCoreImpl::ShouldBlockMediaRequest(const GURL& url) {
   JNIEnv* env = AttachCurrentThread();
 
@@ -879,6 +866,20 @@ jboolean ContentViewCoreImpl::OnTouchEvent(JNIEnv* env,
   if (!rwhv)
     return false;
 
+  MotionEventAndroid::Pointer pointer0(pointer_id_0,
+                                       pos_x_0,
+                                       pos_y_0,
+                                       touch_major_0,
+                                       touch_minor_0,
+                                       orientation_0,
+                                       android_tool_type_0);
+  MotionEventAndroid::Pointer pointer1(pointer_id_1,
+                                       pos_x_1,
+                                       pos_y_1,
+                                       touch_major_1,
+                                       touch_minor_1,
+                                       orientation_1,
+                                       android_tool_type_1);
   MotionEventAndroid event(1.f / dpi_scale(),
                            env,
                            motion_event,
@@ -887,24 +888,12 @@ jboolean ContentViewCoreImpl::OnTouchEvent(JNIEnv* env,
                            pointer_count,
                            history_size,
                            action_index,
-                           pos_x_0,
-                           pos_y_0,
-                           pos_x_1,
-                           pos_y_1,
-                           pointer_id_0,
-                           pointer_id_1,
-                           touch_major_0,
-                           touch_major_1,
-                           touch_minor_0,
-                           touch_minor_1,
-                           orientation_0,
-                           orientation_1,
-                           raw_pos_x,
-                           raw_pos_y,
-                           android_tool_type_0,
-                           android_tool_type_1,
                            android_button_state,
-                           android_meta_state);
+                           android_meta_state,
+                           raw_pos_x - pos_x_0,
+                           raw_pos_y - pos_y_0,
+                           pointer0,
+                           pointer1);
 
   return is_touch_handle_event ? rwhv->OnTouchHandleEvent(event)
                                : rwhv->OnTouchEvent(event);
@@ -1158,25 +1147,6 @@ long ContentViewCoreImpl::GetNativeImeAdapter(JNIEnv* env, jobject obj) {
   return rwhva->GetNativeImeAdapter();
 }
 
-// TODO(sgurun) add support for posting a frame whose name is known (only
-//               main frame is supported at this time, see crbug.com/389721)
-// TODO(sgurun) add support for passing message ports
-void ContentViewCoreImpl::PostMessageToFrame(JNIEnv* env, jobject obj,
-    jstring frame_name, jstring message, jstring source_origin,
-    jstring target_origin) {
-
-  RenderViewHost* host = web_contents_->GetRenderViewHost();
-  if (!host)
-      return;
-  ViewMsg_PostMessage_Params params;
-  params.source_origin = ConvertJavaStringToUTF16(env, source_origin);
-  params.target_origin = ConvertJavaStringToUTF16(env, target_origin);
-  params.data = ConvertJavaStringToUTF16(env, message);
-  params.is_data_raw_string = true;
-  params.source_routing_id = MSG_ROUTING_NONE;
-  host->Send(new ViewMsg_PostMessageEvent(host->GetRoutingID(), params));
-}
-
 void ContentViewCoreImpl::UpdateImeAdapter(long native_ime_adapter,
                                            int text_input_type,
                                            int text_input_flags,
@@ -1274,8 +1244,12 @@ jint ContentViewCoreImpl::GetCurrentRenderProcessId(JNIEnv* env, jobject obj) {
 
 void ContentViewCoreImpl::SetBackgroundOpaque(JNIEnv* env, jobject jobj,
     jboolean opaque) {
-  if (GetRenderWidgetHostViewAndroid())
-    GetRenderWidgetHostViewAndroid()->SetBackgroundOpaque(opaque);
+  if (GetRenderWidgetHostViewAndroid()) {
+    if (opaque)
+      GetRenderWidgetHostViewAndroid()->SetBackgroundColorToDefault();
+    else
+      GetRenderWidgetHostViewAndroid()->SetBackgroundColor(SK_ColorTRANSPARENT);
+  }
 }
 
 void ContentViewCoreImpl::RequestTextSurroundingSelection(

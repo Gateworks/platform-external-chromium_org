@@ -81,7 +81,11 @@ const char kLearnMoreIncognitoUrl[] =
 
 // The URL for the Learn More page shown on guest session new tab.
 const char kLearnMoreGuestSessionUrl[] =
+#if defined(OS_CHROMEOS)
     "https://www.google.com/support/chromeos/bin/answer.py?answer=1057090";
+#else
+    "https://support.google.com/chrome/answer/95464#guest";
+#endif
 
 std::string SkColorToRGBAString(SkColor color) {
   // We convert the alpha using DoubleToString because StringPrintf will use
@@ -343,7 +347,6 @@ void NTPResourceCache::CreateNewTabGuestHTML() {
 
 #if defined(OS_CHROMEOS)
   guest_tab_ids = IDR_GUEST_SESSION_TAB_HTML;
-  guest_tab_link = kLearnMoreGuestSessionUrl;
 
   policy::BrowserPolicyConnectorChromeOS* connector =
       g_browser_process->platform_part()->browser_policy_connector_chromeos();
@@ -557,7 +560,6 @@ void NTPResourceCache::CreateNewTabHTML() {
   // Load the new tab page appropriate for this build.
   base::StringPiece new_tab_html(ResourceBundle::GetSharedInstance().
       GetRawDataResource(IDR_NEW_TAB_4_HTML));
-  webui::UseVersion2 version2;
   std::string full_html =
       webui::GetI18nTemplateHtml(new_tab_html, &load_time_data);
   new_tab_html_ = base::RefCountedString::TakeString(&full_html);

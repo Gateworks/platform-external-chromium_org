@@ -154,7 +154,7 @@ void UpdateBookmarksExperimentState(
 
 void InitBookmarksExperimentState(Profile* profile) {
   SigninManagerBase* signin = SigninManagerFactory::GetForProfile(profile);
-  bool is_signed_in = signin && !signin->IsAuthenticated();
+  bool is_signed_in = signin && signin->IsAuthenticated();
   UpdateBookmarksExperimentState(
       profile->GetPrefs(),
       g_browser_process->local_state(),
@@ -258,4 +258,11 @@ bool IsEnableSyncArticlesSet() {
     return true;
 
   return false;
+}
+
+bool IsEnhancedBookmarksSyncEnabled() {
+  // Gate by command line flag during development. Ultimately this should check
+  // whether the user is using the enhanced bookmarks extension.
+  return CommandLine::ForCurrentProcess()->HasSwitch(
+      switches::kEnableEnhancedBookmarksSync);
 }

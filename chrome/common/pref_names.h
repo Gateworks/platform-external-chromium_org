@@ -13,7 +13,8 @@
 
 #include "components/autofill/core/common/autofill_pref_names.h"
 #include "components/bookmarks/common/bookmark_pref_names.h"
-#include "components/data_reduction_proxy/common/data_reduction_proxy_pref_names.h"
+#include "components/content_settings/core/common/pref_names.h"
+#include "components/data_reduction_proxy/core/common/data_reduction_proxy_pref_names.h"
 #include "components/metrics/metrics_pref_names.h"
 #include "components/password_manager/core/common/password_manager_pref_names.h"
 #include "components/signin/core/common/signin_pref_names.h"
@@ -287,6 +288,7 @@ extern const char kEnableAutoSpellCorrect[];
 extern const char kSavingBrowserHistoryDisabled[];
 extern const char kAllowDeletingBrowserHistory[];
 extern const char kForceSafeSearch[];
+extern const char kRecordHistory[];
 extern const char kDeleteTimePeriod[];
 extern const char kLastClearBrowsingDataTime[];
 #if defined(OS_LINUX) && !defined(OS_CHROMEOS)
@@ -321,16 +323,13 @@ extern const char kDefaultBrowserSettingEnabled[];
 extern const char kShowUpdatePromotionInfoBar[];
 #endif
 extern const char kUseCustomChromeFrame[];
-extern const char kDefaultContentSettings[];
-extern const char kOverrideContentSettings[];
-extern const char kContentSettingsClearOnExitMigrated[];
-extern const char kContentSettingsVersion[];
-extern const char kContentSettingsPatternPairs[];
 extern const char kContentSettingsPluginWhitelist[];
 extern const char kBlockThirdPartyCookies[];
 extern const char kClearSiteDataOnExit[];
-extern const char kDefaultZoomLevel[];
-extern const char kPerHostZoomLevels[];
+extern const char kPartitionDefaultZoomLevel[];
+extern const char kDefaultZoomLevelDeprecated[];
+extern const char kPartitionPerHostZoomLevels[];
+extern const char kPerHostZoomLevelsDeprecated[];
 extern const char kAutofillDialogAutofillDefault[];
 extern const char kAutofillDialogPayWithoutWallet[];
 extern const char kAutofillDialogWalletLocationAcceptance[];
@@ -406,6 +405,7 @@ extern const char kCertRevocationCheckingEnabled[];
 extern const char kCertRevocationCheckingRequiredLocalAnchors[];
 extern const char kSSLVersionMin[];
 extern const char kSSLVersionMax[];
+extern const char kSSLVersionFallbackMin[];
 extern const char kCipherSuiteBlacklist[];
 extern const char kDisableSSLRecordSplitting[];
 
@@ -504,7 +504,6 @@ extern const char kSafeBrowsingClientKey[];
 extern const char kSafeBrowsingWrappedKey[];
 
 extern const char kOptionsWindowLastTabIndex[];
-extern const char kContentSettingsWindowLastTabIndex[];
 extern const char kCertificateManagerWindowLastTabIndex[];
 extern const char kShowFirstRunBubbleOption[];
 
@@ -613,30 +612,6 @@ extern const char kCloudPrintUserSettings[];
 
 extern const char kProxy[];
 extern const char kMaxConnectionsPerProxy[];
-
-extern const char kManagedDefaultCookiesSetting[];
-extern const char kManagedDefaultImagesSetting[];
-extern const char kManagedDefaultJavaScriptSetting[];
-extern const char kManagedDefaultPluginsSetting[];
-extern const char kManagedDefaultPopupsSetting[];
-extern const char kManagedDefaultGeolocationSetting[];
-extern const char kManagedDefaultNotificationsSetting[];
-extern const char kManagedDefaultMediaStreamSetting[];
-
-extern const char kManagedCookiesAllowedForUrls[];
-extern const char kManagedCookiesBlockedForUrls[];
-extern const char kManagedCookiesSessionOnlyForUrls[];
-extern const char kManagedImagesAllowedForUrls[];
-extern const char kManagedImagesBlockedForUrls[];
-extern const char kManagedJavaScriptAllowedForUrls[];
-extern const char kManagedJavaScriptBlockedForUrls[];
-extern const char kManagedPluginsAllowedForUrls[];
-extern const char kManagedPluginsBlockedForUrls[];
-extern const char kManagedPopupsAllowedForUrls[];
-extern const char kManagedPopupsBlockedForUrls[];
-extern const char kManagedNotificationsAllowedForUrls[];
-extern const char kManagedNotificationsBlockedForUrls[];
-extern const char kManagedAutoSelectCertificateForUrls[];
 
 extern const char kAudioCaptureAllowed[];
 extern const char kAudioCaptureAllowedUrls[];
@@ -759,8 +734,8 @@ extern const char kShowLogoutButtonInTray[];
 
 #if defined(USE_AURA)
 extern const char kMaxSeparationForGestureTouchesInPixels[];
-extern const char kSemiLongPressTimeInSeconds[];
-extern const char kTabScrubActivationDelayInMS[];
+extern const char kSemiLongPressTimeInMs[];
+extern const char kTabScrubActivationDelayInMs[];
 extern const char kFlingMaxCancelToDownTimeInMs[];
 extern const char kFlingMaxTapGapTimeInMs[];
 extern const char kOverscrollHorizontalThresholdComplete[];
@@ -793,6 +768,7 @@ extern const char kAppLauncherIsEnabled[];
 extern const char kAppLauncherShortcutVersion[];
 extern const char kShowAppLauncherPromo[];
 extern const char kAppLauncherDriveAppMapping[];
+extern const char kAppLauncherUninstalledDriveApps[];
 #endif
 
 extern const char kAppLaunchForMetroRestart[];
@@ -815,6 +791,8 @@ extern const char kPartnerBookmarkMappings[];
 extern const char kQuickCheckEnabled[];
 extern const char kBrowserGuestModeEnabled[];
 extern const char kBrowserAddPersonEnabled[];
+
+extern const char kEasyUnlockHardlockState[];
 
 }  // namespace prefs
 

@@ -12,6 +12,7 @@
 #include "base/bind_helpers.h"
 #include "base/message_loop/message_loop.h"
 #include "components/copresence/handlers/directive_handler.h"
+#include "components/copresence/mediums/audio/audio_manager.h"
 #include "components/copresence/proto/data.pb.h"
 #include "components/copresence/proto/enums.pb.h"
 #include "components/copresence/proto/rpcs.pb.h"
@@ -31,11 +32,8 @@ void CreateSubscribedMessage(const std::vector<std::string>& subscription_ids,
                              const std::string& message_string,
                              SubscribedMessage* message_proto) {
   message_proto->mutable_published_message()->set_payload(message_string);
-  for (std::vector<std::string>::const_iterator subscription_id =
-           subscription_ids.begin();
-       subscription_id != subscription_ids.end();
-       ++subscription_id) {
-    message_proto->add_subscription_id(*subscription_id);
+  for (const std::string& subscription_id : subscription_ids) {
+    message_proto->add_subscription_id(subscription_id);
   }
 }
 
@@ -43,21 +41,21 @@ void CreateSubscribedMessage(const std::vector<std::string>& subscription_ids,
 class FakeDirectiveHandler : public DirectiveHandler {
  public:
   FakeDirectiveHandler() {}
-  virtual ~FakeDirectiveHandler() {}
+  ~FakeDirectiveHandler() override {}
 
   const std::vector<Directive>& added_directives() const {
     return added_directives_;
   }
 
-  virtual void Initialize(
-      const AudioRecorder::DecodeSamplesCallback& decode_cb,
-      const AudioDirectiveHandler::EncodeTokenCallback& encode_cb) OVERRIDE {}
+  void Initialize(const AudioManager::DecodeSamplesCallback& decode_cb,
+                  const AudioManager::EncodeTokenCallback& encode_cb) override {
+  }
 
-  virtual void AddDirective(const Directive& directive) OVERRIDE {
+  void AddDirective(const Directive& directive) override {
     added_directives_.push_back(directive);
   }
 
-  virtual void RemoveDirectives(const std::string& op_id) OVERRIDE {
+  void RemoveDirectives(const std::string& op_id) override {
     // TODO(ckehoe): Add a parallel implementation when prod has one.
   }
 
@@ -140,29 +138,24 @@ class RpcHandlerTest : public testing::Test, public CopresenceDelegate {
 
   // CopresenceDelegate implementation
 
-  virtual void HandleMessages(
-      const std::string& app_id,
-      const std::string& subscription_id,
-      const std::vector<Message>& messages) OVERRIDE {
+  void HandleMessages(const std::string& app_id,
+                      const std::string& subscription_id,
+                      const std::vector<Message>& messages) override {
     // app_id is unused for now, pending a server fix.
     messages_by_subscription_[subscription_id] = messages;
   }
 
-  virtual net::URLRequestContextGetter* GetRequestContext() const OVERRIDE {
+  net::URLRequestContextGetter* GetRequestContext() const override {
     return NULL;
   }
 
-  virtual const std::string GetPlatformVersionString() const OVERRIDE {
+  const std::string GetPlatformVersionString() const override {
     return kChromeVersion;
   }
 
-  virtual const std::string GetAPIKey() const OVERRIDE {
-    return api_key_;
-  }
+  const std::string GetAPIKey() const override { return api_key_; }
 
-  virtual WhispernetClient* GetWhispernetClient() OVERRIDE {
-    return NULL;
-  }
+  WhispernetClient* GetWhispernetClient() override { return NULL; }
 
  protected:
   // For rpc_handler_.invalid_audio_token_cache_
@@ -214,7 +207,7 @@ TEST_F(RpcHandlerTest, ReportTokens) {
   rpc_handler_.ReportTokens(test_tokens);
   EXPECT_EQ(RpcHandler::kReportRequestRpcName, rpc_name_);
   ReportRequest* report = static_cast<ReportRequest*>(request_proto_.get());
-  google::protobuf::RepeatedPtrField<TokenObservation> tokens_sent =
+  RepeatedPtrField<TokenObservation> tokens_sent =
       report->update_signals_request().token_observation();
   ASSERT_EQ(2, tokens_sent.size());
   EXPECT_EQ("token 1", tokens_sent.Get(0).token_id());

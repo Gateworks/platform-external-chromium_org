@@ -12,7 +12,6 @@
 #include "base/location.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/message_loop/message_loop.h"
-#include "base/path_service.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/values.h"
 #include "components/dom_distiller/core/article_distillation_update.h"
@@ -26,7 +25,6 @@
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/dom_distiller_js/dom_distiller.pb.h"
 #include "third_party/dom_distiller_js/dom_distiller_json_converter.h"
-#include "ui/base/resource/resource_bundle.h"
 
 using std::vector;
 using std::string;
@@ -187,15 +185,6 @@ void VerifyArticleProtoMatchesMultipageData(
   }
 }
 
-void AddComponentsResources() {
-  base::FilePath pak_file;
-  base::FilePath pak_dir;
-  PathService::Get(base::DIR_MODULE, &pak_dir);
-  pak_file = pak_dir.Append(FILE_PATH_LITERAL("components_resources.pak"));
-  ui::ResourceBundle::GetSharedInstance().AddDataPackFromPath(
-      pak_file, ui::SCALE_FACTOR_NONE);
-}
-
 }  // namespace
 
 namespace dom_distiller {
@@ -211,8 +200,8 @@ class TestDistillerURLFetcher : public DistillerURLFetcher {
     responses_[kImageURLs[1]] = string(kImageData[1]);
   }
 
-  virtual void FetchURL(const string& url,
-                        const URLFetcherCallback& callback) OVERRIDE {
+  void FetchURL(const string& url,
+                const URLFetcherCallback& callback) override {
     ASSERT_FALSE(callback.is_null());
     url_ = url;
     callback_ = callback;
@@ -239,8 +228,8 @@ class TestDistillerURLFetcherFactory : public DistillerURLFetcherFactory {
  public:
   TestDistillerURLFetcherFactory() : DistillerURLFetcherFactory(NULL) {}
 
-  virtual ~TestDistillerURLFetcherFactory() {}
-  virtual DistillerURLFetcher* CreateDistillerURLFetcher() const OVERRIDE {
+  ~TestDistillerURLFetcherFactory() override {}
+  DistillerURLFetcher* CreateDistillerURLFetcher() const override {
     return new TestDistillerURLFetcher(false);
   }
 };
@@ -256,10 +245,6 @@ class MockDistillerURLFetcherFactory : public DistillerURLFetcherFactory {
 class DistillerTest : public testing::Test {
  public:
   virtual ~DistillerTest() {}
-
-  virtual void SetUp() OVERRIDE {
-    AddComponentsResources();
-  }
 
   void OnDistillArticleDone(scoped_ptr<DistilledArticleProto> proto) {
     article_proto_ = proto.Pass();

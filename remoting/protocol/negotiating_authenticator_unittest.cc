@@ -79,14 +79,13 @@ class NegotiatingAuthenticatorTest : public AuthenticatorTestBase {
     client_as_negotiating_authenticator_ = new NegotiatingClientAuthenticator(
         client_id, client_paired_secret,
         kTestHostId, fetch_secret_callback,
-        scoped_ptr<ThirdPartyClientAuthenticator::TokenFetcher>(), methods);
+        nullptr, methods);
     client_.reset(client_as_negotiating_authenticator_);
   }
 
   void CreatePairingRegistry(bool with_paired_client) {
     pairing_registry_ = new SynchronousPairingRegistry(
-        scoped_ptr<PairingRegistry::Delegate>(
-            new MockPairingRegistryDelegate()));
+        make_scoped_ptr(new MockPairingRegistryDelegate()));
     if (with_paired_client) {
       PairingRegistry::Pairing pairing(
           base::Time(), kTestClientName, kTestClientId, kTestPairedSecret);

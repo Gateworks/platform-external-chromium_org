@@ -7,6 +7,7 @@ LOCAL_MODULE := components_components_resources_gyp
 LOCAL_MODULE_STEM := components_resources
 LOCAL_MODULE_SUFFIX := .stamp
 LOCAL_MODULE_TARGET_ARCH := $(TARGET_$(GYP_VAR_PREFIX)ARCH)
+LOCAL_SDK_VERSION := 21
 gyp_intermediate_dir := $(call local-intermediates-dir,,$(GYP_VAR_PREFIX))
 gyp_shared_intermediate_dir := $(call intermediates-dir-for,GYP,shared,,,$(GYP_VAR_PREFIX))
 
@@ -37,6 +38,7 @@ $(gyp_shared_intermediate_dir)/components/grit/components_scaled_resources.h: $(
 
 $(gyp_shared_intermediate_dir)/components/components_resources_100_percent.pak: $(gyp_shared_intermediate_dir)/components/grit/components_scaled_resources.h ;
 $(gyp_shared_intermediate_dir)/components/components_resources_200_percent.pak: $(gyp_shared_intermediate_dir)/components/grit/components_scaled_resources.h ;
+$(gyp_shared_intermediate_dir)/components/components_resources_300_percent.pak: $(gyp_shared_intermediate_dir)/components/grit/components_scaled_resources.h ;
 
 
 GYP_GENERATED_OUTPUTS := \
@@ -44,12 +46,17 @@ GYP_GENERATED_OUTPUTS := \
 	$(gyp_shared_intermediate_dir)/components/components_resources.pak \
 	$(gyp_shared_intermediate_dir)/components/grit/components_scaled_resources.h \
 	$(gyp_shared_intermediate_dir)/components/components_resources_100_percent.pak \
-	$(gyp_shared_intermediate_dir)/components/components_resources_200_percent.pak
+	$(gyp_shared_intermediate_dir)/components/components_resources_200_percent.pak \
+	$(gyp_shared_intermediate_dir)/components/components_resources_300_percent.pak
 
 # Make sure our deps and generated files are built first.
 LOCAL_ADDITIONAL_DEPENDENCIES := $(GYP_TARGET_DEPENDENCIES) $(GYP_GENERATED_OUTPUTS)
 
 ### Rules for final target.
+### Set directly by aosp_build_settings.
+LOCAL_CLANG := false
+LOCAL_NDK_STL_VARIANT := stlport_static
+
 # Add target alias to "gyp_all_modules" target.
 .PHONY: gyp_all_modules
 gyp_all_modules: components_components_resources_gyp

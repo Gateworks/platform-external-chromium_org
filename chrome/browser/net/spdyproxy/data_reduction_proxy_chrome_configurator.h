@@ -10,7 +10,7 @@
 
 #include "base/gtest_prod_util.h"
 #include "base/task_runner.h"
-#include "components/data_reduction_proxy/browser/data_reduction_proxy_configurator.h"
+#include "components/data_reduction_proxy/core/browser/data_reduction_proxy_configurator.h"
 #include "net/proxy/proxy_config.h"
 
 namespace base {
@@ -30,26 +30,26 @@ class DataReductionProxyChromeConfigurator
   explicit DataReductionProxyChromeConfigurator(
       PrefService* prefs,
       scoped_refptr<base::SequencedTaskRunner> network_task_runner);
-  virtual ~DataReductionProxyChromeConfigurator();
+  ~DataReductionProxyChromeConfigurator() override;
 
-  virtual void Enable(bool primary_restricted,
-                      bool fallback_restricted,
-                      const std::string& primary_origin,
-                      const std::string& fallback_origin,
-                      const std::string& ssl_origin) OVERRIDE;
-  virtual void Disable() OVERRIDE;
+  void Enable(bool primary_restricted,
+              bool fallback_restricted,
+              const std::string& primary_origin,
+              const std::string& fallback_origin,
+              const std::string& ssl_origin) override;
+  void Disable() override;
 
   // Add a host pattern to bypass. This should follow the same syntax used
   // in net::ProxyBypassRules; that is, a hostname pattern, a hostname suffix
   // pattern, an IP literal, a CIDR block, or the magic string '<local>'.
   // Bypass settings persist for the life of this object and are applied
   // each time the proxy is enabled, but are not updated while it is enabled.
-  virtual void AddHostPatternToBypass(const std::string& pattern) OVERRIDE;
+  void AddHostPatternToBypass(const std::string& pattern) override;
 
   // Add a URL pattern to bypass the proxy. The base implementation strips
   // everything in |pattern| after the first single slash and then treats it
   // as a hostname pattern. Subclasses may implement other semantics.
-  virtual void AddURLPatternToBypass(const std::string& pattern) OVERRIDE;
+  void AddURLPatternToBypass(const std::string& pattern) override;
 
   // Updates the config for use on the IO thread.
   void UpdateProxyConfigOnIO(const net::ProxyConfig& config);

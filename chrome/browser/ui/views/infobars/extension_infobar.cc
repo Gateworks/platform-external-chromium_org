@@ -56,7 +56,7 @@ class MenuImageSource: public gfx::CanvasImageSource {
   }
 
   // Overridden from gfx::CanvasImageSource
-  virtual void Draw(gfx::Canvas* canvas) OVERRIDE {
+  virtual void Draw(gfx::Canvas* canvas) override {
     int image_size = extension_misc::EXTENSION_ICON_BITTY;
     canvas->DrawImageInt(icon_, 0, 0, icon_.width(), icon_.height(), 0, 0,
                          image_size, image_size, false);
@@ -85,7 +85,7 @@ class MenuImageSource: public gfx::CanvasImageSource {
 ExtensionInfoBar::ExtensionInfoBar(
     scoped_ptr<ExtensionInfoBarDelegate> delegate,
     Browser* browser)
-    : InfoBarView(delegate.PassAs<infobars::InfoBarDelegate>()),
+    : InfoBarView(delegate.Pass()),
       browser_(browser),
       infobar_icon_(NULL),
       icon_as_menu_(NULL),

@@ -8,7 +8,7 @@
 #include "ash/ash_export.h"
 #include "ash/frame/header_painter.h"
 #include "base/basictypes.h"
-#include "base/compiler_specific.h"  // OVERRIDE
+#include "base/compiler_specific.h"  // override
 #include "base/gtest_prod_util.h"
 #include "base/memory/scoped_ptr.h"
 #include "third_party/skia/include/core/SkColor.h"
@@ -40,22 +40,26 @@ class ASH_EXPORT DefaultHeaderPainter : public HeaderPainter,
             FrameCaptionButtonContainerView* caption_button_container);
 
   // HeaderPainter overrides:
-  virtual int GetMinimumHeaderWidth() const OVERRIDE;
-  virtual void PaintHeader(gfx::Canvas* canvas, Mode mode) OVERRIDE;
-  virtual void LayoutHeader() OVERRIDE;
-  virtual int GetHeaderHeightForPainting() const OVERRIDE;
-  virtual void SetHeaderHeightForPainting(int height) OVERRIDE;
-  virtual void SchedulePaintForTitle() OVERRIDE;
-  virtual void UpdateLeftViewXInset(int left_view_x_inset) OVERRIDE;
+  virtual int GetMinimumHeaderWidth() const override;
+  virtual void PaintHeader(gfx::Canvas* canvas, Mode mode) override;
+  virtual void LayoutHeader() override;
+  virtual int GetHeaderHeightForPainting() const override;
+  virtual void SetHeaderHeightForPainting(int height) override;
+  virtual void SchedulePaintForTitle() override;
+  virtual void UpdateLeftViewXInset(int left_view_x_inset) override;
 
   // Sets the left header view for the header. Passing NULL removes the view.
   void UpdateLeftHeaderView(views::View* left_header_view);
+
+  // Sets the active and inactive frame colors. Note the inactive frame color
+  // will have some transparency added when the frame is drawn.
+  void SetFrameColors(SkColor active_frame_color, SkColor inactive_frame_color);
 
  private:
   FRIEND_TEST_ALL_PREFIXES(DefaultHeaderPainterTest, TitleIconAlignment);
 
   // gfx::AnimationDelegate override:
-  virtual void AnimationProgressed(const gfx::Animation* animation) OVERRIDE;
+  virtual void AnimationProgressed(const gfx::Animation* animation) override;
 
   // Paints highlight around the edge of the header for inactive restored
   // windows.
@@ -88,6 +92,8 @@ class ASH_EXPORT DefaultHeaderPainter : public HeaderPainter,
   views::View* view_;
   views::View* left_header_view_;  // May be NULL.
   int left_view_x_inset_;
+  SkColor active_frame_color_;
+  SkColor inactive_frame_color_;
   FrameCaptionButtonContainerView* caption_button_container_;
 
   // The height of the header including the header/content separator.

@@ -19,8 +19,8 @@
 #include "base/threading/thread.h"
 #include "base/threading/thread_checker.h"
 #include "mojo/common/message_pump_mojo.h"
-#include "mojo/embedder/embedder.h"
-#include "mojo/embedder/simple_platform_support.h"
+#include "mojo/edk/embedder/embedder.h"
+#include "mojo/edk/embedder/simple_platform_support.h"
 #include "mojo/public/cpp/system/core.h"
 #include "mojo/shell/app_child_process.mojom.h"
 
@@ -157,7 +157,7 @@ class AppContext {
 
 class AppChildControllerImpl : public InterfaceImpl<AppChildController> {
  public:
-  virtual ~AppChildControllerImpl() {
+  ~AppChildControllerImpl() override {
     DCHECK(thread_checker_.CalledOnValidThread());
 
     // TODO(vtl): Pass in the result from |MainMain()|.
@@ -190,13 +190,13 @@ class AppChildControllerImpl : public InterfaceImpl<AppChildController> {
     app_context->set_controller(impl.Pass());
   }
 
-  virtual void OnConnectionError() OVERRIDE {
+  void OnConnectionError() override {
     // TODO(darin): How should we handle a connection error here?
   }
 
   // |AppChildController| methods:
-  virtual void StartApp(const String& app_path,
-                        ScopedMessagePipeHandle service) OVERRIDE {
+  void StartApp(const String& app_path,
+                ScopedMessagePipeHandle service) override {
     DVLOG(2) << "AppChildControllerImpl::StartApp(" << app_path << ", ...)";
     DCHECK(thread_checker_.CalledOnValidThread());
 

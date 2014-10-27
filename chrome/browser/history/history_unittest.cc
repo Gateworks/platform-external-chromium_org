@@ -93,16 +93,18 @@ class BackendDelegate : public HistoryBackend::Delegate {
       : history_test_(history_test) {
   }
 
-  virtual void NotifyProfileError(sql::InitStatus init_status) OVERRIDE {}
-  virtual void SetInMemoryBackend(
-      scoped_ptr<InMemoryHistoryBackend> backend) OVERRIDE;
-  virtual void NotifyFaviconChanged(const std::set<GURL>& url) OVERRIDE {}
-  virtual void BroadcastNotifications(
-      int type,
-      scoped_ptr<HistoryDetails> details) OVERRIDE;
-  virtual void DBLoaded() OVERRIDE {}
-  virtual void NotifyVisitDBObserversOnAddVisit(
-      const BriefVisitInfo& info) OVERRIDE {}
+  void NotifyProfileError(sql::InitStatus init_status) override {}
+  void SetInMemoryBackend(scoped_ptr<InMemoryHistoryBackend> backend) override;
+  void NotifyAddVisit(const BriefVisitInfo& info) override {}
+  void NotifyFaviconChanged(const std::set<GURL>& url) override {}
+  void NotifyURLVisited(ui::PageTransition transition,
+                        const URLRow& row,
+                        const RedirectList& redirects,
+                        base::Time visit_time) override {}
+  void BroadcastNotifications(int type,
+                              scoped_ptr<HistoryDetails> details) override;
+  void DBLoaded() override {}
+
  private:
   HistoryBackendDBTest* history_test_;
 };
@@ -1503,12 +1505,11 @@ class HistoryDBTaskImpl : public HistoryDBTask {
   HistoryDBTaskImpl(int* invoke_count, bool* done_invoked)
       : invoke_count_(invoke_count), done_invoked_(done_invoked) {}
 
-  virtual bool RunOnDBThread(HistoryBackend* backend,
-                             HistoryDatabase* db) OVERRIDE {
+  bool RunOnDBThread(HistoryBackend* backend, HistoryDatabase* db) override {
     return (++*invoke_count_ == kWantInvokeCount);
   }
 
-  virtual void DoneRunOnMainThread() OVERRIDE {
+  void DoneRunOnMainThread() override {
     *done_invoked_ = true;
     base::MessageLoop::current()->Quit();
   }
@@ -1517,7 +1518,7 @@ class HistoryDBTaskImpl : public HistoryDBTask {
   bool* done_invoked_;
 
  private:
-  virtual ~HistoryDBTaskImpl() {}
+  ~HistoryDBTaskImpl() override {}
 
   DISALLOW_COPY_AND_ASSIGN(HistoryDBTaskImpl);
 };

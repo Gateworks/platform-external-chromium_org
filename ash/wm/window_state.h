@@ -300,7 +300,7 @@ class ASH_EXPORT WindowState : public aura::WindowObserver {
   // aura::WindowObserver overrides:
   virtual void OnWindowPropertyChanged(aura::Window* window,
                                        const void* key,
-                                       intptr_t old) OVERRIDE;
+                                       intptr_t old) override;
 
  private:
   friend class DefaultState;
@@ -308,6 +308,8 @@ class ASH_EXPORT WindowState : public aura::WindowObserver {
   friend class ash::MaximizeModeWindowState;
   friend ASH_EXPORT WindowState* GetWindowState(aura::Window*);
   FRIEND_TEST_ALL_PREFIXES(WindowAnimationsTest, CrossFadeToBounds);
+  FRIEND_TEST_ALL_PREFIXES(WindowAnimationsTest,
+                           CrossFadeToBoundsFromTransform);
 
   explicit WindowState(aura::Window* window);
 

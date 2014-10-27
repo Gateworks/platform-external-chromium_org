@@ -13,31 +13,7 @@
 #include "sandbox/linux/seccomp-bpf/die.h"
 #include "sandbox/linux/seccomp-bpf/instruction.h"
 #include "sandbox/linux/seccomp-bpf/linux_seccomp.h"
-
-namespace {
-
-// Helper function for Traverse().
-void TraverseRecursively(std::set<sandbox::Instruction*>* visited,
-                         sandbox::Instruction* instruction) {
-  if (visited->find(instruction) == visited->end()) {
-    visited->insert(instruction);
-    switch (BPF_CLASS(instruction->code)) {
-      case BPF_JMP:
-        if (BPF_OP(instruction->code) != BPF_JA) {
-          TraverseRecursively(visited, instruction->jf_ptr);
-        }
-        TraverseRecursively(visited, instruction->jt_ptr);
-        break;
-      case BPF_RET:
-        break;
-      default:
-        TraverseRecursively(visited, instruction->next);
-        break;
-    }
-  }
-}
-
-}  // namespace
+#include "sandbox/linux/seccomp-bpf/trap.h"
 
 namespace sandbox {
 
@@ -56,9 +32,8 @@ CodeGen::~CodeGen() {
   }
 }
 
-void CodeGen::PrintProgram(const SandboxBPF::Program& program) {
-  for (SandboxBPF::Program::const_iterator iter = program.begin();
-       iter != program.end();
+void CodeGen::PrintProgram(const Program& program) {
+  for (Program::const_iterator iter = program.begin(); iter != program.end();
        ++iter) {
     int ip = (int)(iter - program.begin());
     fprintf(stderr, "%3d) ", ip);
@@ -187,18 +162,6 @@ Instruction* CodeGen::MakeInstruction(uint16_t code,
   Instruction* insn = new Instruction(code, k, jt, jf);
   instructions_.push_back(insn);
   return insn;
-}
-
-void CodeGen::Traverse(Instruction* instruction,
-                       void (*fnc)(Instruction*, void*),
-                       void* aux) {
-  std::set<Instruction*> visited;
-  TraverseRecursively(&visited, instruction);
-  for (std::set<Instruction*>::const_iterator iter = visited.begin();
-       iter != visited.end();
-       ++iter) {
-    fnc(*iter, aux);
-  }
 }
 
 void CodeGen::FindBranchTargets(const Instruction& instructions,
@@ -691,7 +654,7 @@ void CodeGen::ComputeRelativeJumps(BasicBlocks* basic_blocks,
 }
 
 void CodeGen::ConcatenateBasicBlocks(const BasicBlocks& basic_blocks,
-                                     SandboxBPF::Program* program) {
+                                     Program* program) {
   // Our basic blocks have been sorted and relative jump offsets have been
   // computed. The last remaining step is for all the instructions in our
   // basic blocks to be concatenated into a BPF program.
@@ -711,7 +674,7 @@ void CodeGen::ConcatenateBasicBlocks(const BasicBlocks& basic_blocks,
   return;
 }
 
-void CodeGen::Compile(Instruction* instructions, SandboxBPF::Program* program) {
+void CodeGen::Compile(Instruction* instructions, Program* program) {
   if (compiled_) {
     SANDBOX_DIE(
         "Cannot call Compile() multiple times. Create a new code "

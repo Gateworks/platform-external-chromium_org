@@ -7,6 +7,7 @@
 #include "base/bind.h"
 #include "base/callback.h"
 #include "base/logging.h"
+#include "base/metrics/histogram.h"
 #include "net/base/completion_callback.h"
 #include "net/base/io_buffer.h"
 #include "net/base/net_errors.h"
@@ -15,6 +16,18 @@
 #include "net/quic/quic_server_id.h"
 
 namespace net {
+
+// Histogram for tracking down the state of disk_cache::Entry.
+enum DiskCacheEntryState {
+  DISK_CACHE_ENTRY_OPENED = 0,
+  DISK_CACHE_ENTRY_CLOSED = 1,
+  DISK_CACHE_ENTRY_NUM_STATES = 2,
+};
+
+void RecordDiskCacheEntryState(DiskCacheEntryState entry_state) {
+  UMA_HISTOGRAM_ENUMERATION("Net.QuicDiskCache.EntryState", entry_state,
+                            DISK_CACHE_ENTRY_NUM_STATES);
+}
 
 // Some APIs inside disk_cache take a handle that the caller must keep alive
 // until the API has finished its asynchronous execution.
@@ -65,6 +78,7 @@ DiskCacheBasedQuicServerInfo::DiskCacheBasedQuicServerInfo(
 void DiskCacheBasedQuicServerInfo::Start() {
   DCHECK(CalledOnValidThread());
   DCHECK_EQ(GET_BACKEND, state_);
+  load_start_time_ = base::TimeTicks::Now();
   DoLoop(OK);
 }
 
@@ -92,6 +106,10 @@ bool DiskCacheBasedQuicServerInfo::IsDataReady() {
 }
 
 bool DiskCacheBasedQuicServerInfo::IsReadyToPersist() {
+  // TODO(rtenneti): Handle updates while a write is pending. Change
+  // Persist() to save the data to be written into a temporary buffer
+  // and then persist that data when we are ready to persist.
+  //
   // The data can be persisted if it has been loaded from the disk cache
   // and there are no pending writes.
   return ready_ && new_data_.empty();
@@ -115,8 +133,10 @@ void DiskCacheBasedQuicServerInfo::Persist() {
 
 DiskCacheBasedQuicServerInfo::~DiskCacheBasedQuicServerInfo() {
   DCHECK(user_callback_.is_null());
-  if (entry_)
+  if (entry_) {
     entry_->Close();
+    RecordDiskCacheEntryState(DISK_CACHE_ENTRY_CLOSED);
+  }
 }
 
 std::string DiskCacheBasedQuicServerInfo::key() const {
@@ -197,6 +217,7 @@ int DiskCacheBasedQuicServerInfo::DoOpenComplete(int rv) {
     entry_ = data_shim_->entry;
     state_ = READ;
     found_entry_ = true;
+    RecordDiskCacheEntryState(DISK_CACHE_ENTRY_OPENED);
   } else {
     state_ = WAIT_FOR_DATA_READY_DONE;
   }
@@ -213,9 +234,7 @@ int DiskCacheBasedQuicServerInfo::DoReadComplete(int rv) {
 }
 
 int DiskCacheBasedQuicServerInfo::DoWriteComplete(int rv) {
-  // Keep the entry open for future writes.
-  new_data_.clear();
-  state_ = NONE;
+  state_ = SET_DONE;
   return OK;
 }
 
@@ -223,8 +242,12 @@ int DiskCacheBasedQuicServerInfo::DoCreateOrOpenComplete(int rv) {
   if (rv != OK) {
     state_ = SET_DONE;
   } else {
-    if (!entry_)
+    if (!entry_) {
       entry_ = data_shim_->entry;
+      found_entry_ = true;
+      RecordDiskCacheEntryState(DISK_CACHE_ENTRY_OPENED);
+    }
+    DCHECK(entry_);
     state_ = WRITE;
   }
   return OK;
@@ -284,16 +307,22 @@ int DiskCacheBasedQuicServerInfo::DoWaitForDataReadyDone() {
   ready_ = true;
   // We close the entry because, if we shutdown before ::Persist is called,
   // then we might leak a cache reference, which causes a DCHECK on shutdown.
-  if (entry_)
+  if (entry_) {
     entry_->Close();
+    RecordDiskCacheEntryState(DISK_CACHE_ENTRY_CLOSED);
+  }
   entry_ = NULL;
   Parse(data_);
+  UMA_HISTOGRAM_TIMES("Net.QuicServerInfo.DiskCacheLoadTime",
+                      base::TimeTicks::Now() - load_start_time_);
   return OK;
 }
 
 int DiskCacheBasedQuicServerInfo::DoSetDone() {
-  if (entry_)
+  if (entry_) {
     entry_->Close();
+    RecordDiskCacheEntryState(DISK_CACHE_ENTRY_CLOSED);
+  }
   entry_ = NULL;
   new_data_.clear();
   state_ = NONE;

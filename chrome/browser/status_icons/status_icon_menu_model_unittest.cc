@@ -20,13 +20,13 @@ using base::ASCIIToUTF16;
 class StatusIconMenuModelTest : public testing::Test,
                                 public StatusIconMenuModel::Observer {
  public:
-  virtual void SetUp() OVERRIDE {
+  virtual void SetUp() override {
     menu_.reset(new StatusIconMenuModel(NULL));
     menu_->AddObserver(this);
     changed_count_ = 0;
   }
 
-  virtual void TearDown() OVERRIDE {
+  virtual void TearDown() override {
     menu_->RemoveObserver(this);
   }
 
@@ -39,9 +39,7 @@ class StatusIconMenuModelTest : public testing::Test,
   }
 
  private:
-  virtual void OnMenuStateChanged() OVERRIDE {
-    ++changed_count_;
-  }
+  void OnMenuStateChanged() override { ++changed_count_; }
 
   scoped_ptr<StatusIconMenuModel> menu_;
   int changed_count_;

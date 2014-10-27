@@ -49,13 +49,13 @@ class DataSourceSender::PendingSend::Buffer : public WritableBuffer {
          PendingSend* send,
          char* buffer,
          uint32_t buffer_size);
-  virtual ~Buffer();
+  ~Buffer() override;
 
   // WritableBuffer overrides.
-  virtual char* GetData() OVERRIDE;
-  virtual uint32_t GetSize() OVERRIDE;
-  virtual void Done(uint32_t bytes_written) OVERRIDE;
-  virtual void DoneWithError(uint32_t bytes_written, int32_t error) OVERRIDE;
+  char* GetData() override;
+  uint32_t GetSize() override;
+  void Done(uint32_t bytes_written) override;
+  void DoneWithError(uint32_t bytes_written, int32_t error) override;
 
  private:
   // The DataSourceSender whose data pipe we are providing a view.

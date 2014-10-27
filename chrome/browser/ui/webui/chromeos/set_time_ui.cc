@@ -45,7 +45,7 @@ class SetTimeMessageHandler : public content::WebUIMessageHandler,
   }
 
   // WebUIMessageHandler:
-  virtual void RegisterMessages() OVERRIDE {
+  virtual void RegisterMessages() override {
     web_ui()->RegisterMessageCallback(
         "setTimeInSeconds",
         base::Bind(&SetTimeMessageHandler::OnSetTime, base::Unretained(this)));
@@ -57,12 +57,12 @@ class SetTimeMessageHandler : public content::WebUIMessageHandler,
 
  private:
   // system::SystemClockClient::Observer:
-  virtual void SystemClockUpdated() OVERRIDE {
+  virtual void SystemClockUpdated() override {
     web_ui()->CallJavascriptFunction("settime.TimeSetter.updateTime");
   }
 
   // system::TimezoneSettings::Observer:
-  virtual void TimezoneChanged(const icu::TimeZone& timezone) OVERRIDE {
+  virtual void TimezoneChanged(const icu::TimeZone& timezone) override {
     base::StringValue timezone_id(
         system::TimezoneSettings::GetTimezoneID(timezone));
     web_ui()->CallJavascriptFunction("settime.TimeSetter.setTimezone",
@@ -107,7 +107,6 @@ SetTimeUI::SetTimeUI(content::WebUI* web_ui) : WebDialogUI(web_ui) {
   // Set up the chrome://set-time source.
   content::WebUIDataSource* source =
       content::WebUIDataSource::Create(chrome::kChromeUISetTimeHost);
-  source->SetUseJsonJSFormatV2();
 
   source->AddLocalizedString("setTimeTitle", IDS_SET_TIME_TITLE);
   source->AddLocalizedString("prompt", IDS_SET_TIME_PROMPT);

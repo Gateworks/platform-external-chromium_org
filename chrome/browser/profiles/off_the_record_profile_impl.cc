@@ -16,13 +16,10 @@
 #include "build/build_config.h"
 #include "chrome/browser/background/background_contents_service_factory.h"
 #include "chrome/browser/browser_process.h"
-#include "chrome/browser/content_settings/host_content_settings_map.h"
 #include "chrome/browser/dom_distiller/profile_utils.h"
 #include "chrome/browser/download/chrome_download_manager_delegate.h"
 #include "chrome/browser/download/download_service.h"
 #include "chrome/browser/download/download_service_factory.h"
-#include "chrome/browser/extensions/extension_service.h"
-#include "chrome/browser/extensions/extension_special_storage_policy.h"
 #include "chrome/browser/io_thread.h"
 #include "chrome/browser/net/chrome_url_request_context_getter.h"
 #include "chrome/browser/net/pref_proxy_config_tracker.h"
@@ -40,6 +37,7 @@
 #include "chrome/common/chrome_switches.h"
 #include "chrome/common/pref_names.h"
 #include "chrome/common/render_messages.h"
+#include "components/content_settings/core/browser/host_content_settings_map.h"
 #include "components/keyed_service/content/browser_context_dependency_manager.h"
 #include "components/user_prefs/user_prefs.h"
 #include "content/public/browser/browser_thread.h"
@@ -72,6 +70,8 @@
 #endif
 
 #if defined(ENABLE_EXTENSIONS)
+#include "chrome/browser/extensions/extension_service.h"
+#include "chrome/browser/extensions/extension_special_storage_policy.h"
 #include "extensions/browser/api/web_request/web_request_api.h"
 #include "extensions/browser/extension_system.h"
 #include "extensions/browser/guest_view/guest_view_manager.h"
@@ -355,6 +355,7 @@ net::SSLConfigService* OffTheRecordProfileImpl::GetSSLConfigService() {
 }
 
 HostContentSettingsMap* OffTheRecordProfileImpl::GetHostContentSettingsMap() {
+  DCHECK_CURRENTLY_ON(BrowserThread::UI);
   // Retrieve the host content settings map of the parent profile in order to
   // ensure the preferences have been migrated.
   profile_->GetHostContentSettingsMap();
@@ -382,7 +383,11 @@ content::BrowserPluginGuestManager* OffTheRecordProfileImpl::GetGuestManager() {
 
 storage::SpecialStoragePolicy*
 OffTheRecordProfileImpl::GetSpecialStoragePolicy() {
+#if defined(ENABLE_EXTENSIONS)
   return GetExtensionSpecialStoragePolicy();
+#else
+  return NULL;
+#endif
 }
 
 content::PushMessagingService*
@@ -493,11 +498,11 @@ class GuestSessionProfile : public OffTheRecordProfileImpl {
       : OffTheRecordProfileImpl(real_profile) {
   }
 
-  virtual ProfileType GetProfileType() const OVERRIDE {
+  virtual ProfileType GetProfileType() const override {
     return GUEST_PROFILE;
   }
 
-  virtual void InitChromeOSPreferences() OVERRIDE {
+  virtual void InitChromeOSPreferences() override {
     chromeos_preferences_.reset(new chromeos::Preferences());
     chromeos_preferences_->Init(
         this, user_manager::UserManager::Get()->GetActiveUser());

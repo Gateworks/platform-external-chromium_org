@@ -310,7 +310,7 @@
                 ],
               },
             }],
-            ['OS=="linux" and chromeos==0', {
+            ['OS=="linux" and chromeos==0 and use_ozone==0', {
               'dependencies' : [
                 # Always use GTK on Linux, even for Aura builds.
                 '../build/linux/system.gyp:gtk',
@@ -431,6 +431,8 @@
           'sources': [
             'host/native_messaging/pipe_messaging_channel.cc',
             'host/native_messaging/pipe_messaging_channel.h',
+            'host/native_messaging/native_messaging_pipe.cc',
+            'host/native_messaging/native_messaging_pipe.h',
             'host/native_messaging/native_messaging_reader.cc',
             'host/native_messaging/native_messaging_reader.h',
             'host/native_messaging/native_messaging_writer.cc',
@@ -872,7 +874,7 @@
             'host/it2me/it2me_native_messaging_host_main.h',
           ],
           'conditions': [
-            ['OS=="linux" and chromeos==0', {
+            ['OS=="linux" and chromeos==0 and use_ozone==0', {
               'dependencies': [
                 # Always use GTK on Linux, even for Aura builds.
                 '../build/linux/system.gyp:gtk',

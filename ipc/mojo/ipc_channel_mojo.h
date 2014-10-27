@@ -67,6 +67,9 @@ class IPC_MOJO_EXPORT ChannelMojo : public Channel,
     virtual void OnChannelCreated(base::WeakPtr<ChannelMojo> channel) = 0;
   };
 
+  // True if ChannelMojo should be used regardless of the flag.
+  static bool ShouldBeUsed();
+
   // Create ChannelMojo. A bootstrap channel is created as well.
   // |host| must not be null for server channels.
   static scoped_ptr<ChannelMojo> Create(Delegate* delegate,
@@ -84,21 +87,21 @@ class IPC_MOJO_EXPORT ChannelMojo : public Channel,
   static scoped_ptr<ChannelFactory> CreateClientFactory(
       const ChannelHandle& channel_handle);
 
-  virtual ~ChannelMojo();
+  ~ChannelMojo() override;
 
   // ChannelMojoHost tells the client handle using this API.
   void OnClientLaunched(base::ProcessHandle handle);
 
   // Channel implementation
-  virtual bool Connect() OVERRIDE;
-  virtual void Close() OVERRIDE;
-  virtual bool Send(Message* message) OVERRIDE;
-  virtual base::ProcessId GetPeerPID() const OVERRIDE;
-  virtual base::ProcessId GetSelfPID() const OVERRIDE;
+  bool Connect() override;
+  void Close() override;
+  bool Send(Message* message) override;
+  base::ProcessId GetPeerPID() const override;
+  base::ProcessId GetSelfPID() const override;
 
 #if defined(OS_POSIX) && !defined(OS_NACL)
-  virtual int GetClientFileDescriptor() const OVERRIDE;
-  virtual int TakeClientFileDescriptor() OVERRIDE;
+  int GetClientFileDescriptor() const override;
+  base::ScopedFD TakeClientFileDescriptor() override;
 
   // These access protected API of IPC::Message, which has ChannelMojo
   // as a friend class.
@@ -111,9 +114,8 @@ class IPC_MOJO_EXPORT ChannelMojo : public Channel,
 #endif  // defined(OS_POSIX) && !defined(OS_NACL)
 
   // MojoBootstrapDelegate implementation
-  virtual void OnPipeAvailable(
-      mojo::embedder::ScopedPlatformHandle handle) OVERRIDE;
-  virtual void OnBootstrapError() OVERRIDE;
+  void OnPipeAvailable(mojo::embedder::ScopedPlatformHandle handle) override;
+  void OnBootstrapError() override;
 
   // Called from MessagePipeReader implementations
   void OnMessageReceived(Message& message);

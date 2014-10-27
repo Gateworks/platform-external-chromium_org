@@ -8,7 +8,6 @@
 #include "chrome/test/chromedriver/chrome/devtools_event_listener.h"
 #include "chrome/test/chromedriver/chrome/devtools_http_client.h"
 #include "chrome/test/chromedriver/chrome/status.h"
-#include "chrome/test/chromedriver/chrome/version.h"
 #include "chrome/test/chromedriver/chrome/web_view_impl.h"
 #include "chrome/test/chromedriver/net/port_server.h"
 
@@ -54,15 +53,6 @@ Status ChromeImpl::GetWebViewIds(std::list<std::string>* web_view_ids) {
   for (size_t i = 0; i < views_info.GetSize(); ++i) {
     const WebViewInfo& view = views_info.Get(i);
     if (view.type != WebViewInfo::kPage && view.type != WebViewInfo::kApp)
-      continue;
-
-    // Workaround to ignore generated background pages that are
-    // being returned as active windows for some builds of Chrome.
-    // TODO(bustamante): Once Chrome builds < 1755 are no longer
-    //   supported this check can be removed.
-    int kBuildNumber = devtools_http_client_->browser_info()->build_no;
-    if (kBuildNumber < 1755 && view.type == WebViewInfo::kApp &&
-        view.url.find("_generated_background") != std::string::npos)
       continue;
 
     bool found = false;

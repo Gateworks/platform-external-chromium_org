@@ -70,19 +70,28 @@ std::string GetEquivalentAriaRoleString(const ui::AXRole role) {
       return "article";
     case ui::AX_ROLE_BANNER:
       return "banner";
+    case ui::AX_ROLE_BUTTON:
+      return "button";
     case ui::AX_ROLE_COMPLEMENTARY:
       return "complementary";
-    case ui::AX_ROLE_CONTENT_INFO:
     case ui::AX_ROLE_FOOTER:
       return "contentinfo";
+    case ui::AX_ROLE_HORIZONTAL_RULE:
+      return "separator";
     case ui::AX_ROLE_IMAGE:
       return "img";
     case ui::AX_ROLE_MAIN:
       return "main";
+    case ui::AX_ROLE_MATH_ELEMENT:
+      return "math";
     case ui::AX_ROLE_NAVIGATION:
       return "navigation";
+    case ui::AX_ROLE_RADIO_BUTTON:
+      return "radio";
     case ui::AX_ROLE_REGION:
       return "region";
+    case ui::AX_ROLE_SLIDER:
+      return "slider";
     default:
       break;
   }
@@ -343,6 +352,12 @@ void BlinkAXTreeSource::SerializeNode(blink::WebAXObject src,
         for (size_t i = 0; i < src_line_breaks.size(); ++i)
           line_breaks.push_back(src_line_breaks[i]);
         dst->AddIntListAttribute(ui::AX_ATTR_LINE_BREAKS, line_breaks);
+      }
+
+      if (dst->role == ui::AX_ROLE_TEXT_FIELD &&
+          src.textInputType().length()) {
+        dst->AddStringAttribute(ui::AX_ATTR_TEXT_INPUT_TYPE,
+                                UTF16ToUTF8(src.textInputType()));
       }
     }
 

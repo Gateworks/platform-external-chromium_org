@@ -21,11 +21,11 @@ namespace {
 class MockPepperPrintSettingsManager : public PepperPrintSettingsManager {
  public:
   MockPepperPrintSettingsManager(const PP_PrintSettings_Dev& settings);
-  virtual ~MockPepperPrintSettingsManager() {}
+  ~MockPepperPrintSettingsManager() override {}
 
   // PepperPrintSettingsManager implementation.
-  virtual void GetDefaultPrintSettings(
-      PepperPrintSettingsManager::Callback callback) OVERRIDE;
+  void GetDefaultPrintSettings(
+      PepperPrintSettingsManager::Callback callback) override;
 
  private:
   PP_PrintSettings_Dev settings_;

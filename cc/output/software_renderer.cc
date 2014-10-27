@@ -107,7 +107,7 @@ void SoftwareRenderer::BeginDrawingFrame(DrawingFrame* frame) {
 
 void SoftwareRenderer::FinishDrawingFrame(DrawingFrame* frame) {
   TRACE_EVENT0("cc", "SoftwareRenderer::FinishDrawingFrame");
-  current_framebuffer_lock_.reset();
+  current_framebuffer_lock_ = nullptr;
   current_canvas_ = NULL;
   root_canvas_ = NULL;
 
@@ -150,7 +150,7 @@ void SoftwareRenderer::Finish() {}
 
 void SoftwareRenderer::BindFramebufferToOutputSurface(DrawingFrame* frame) {
   DCHECK(!output_surface_->HasExternalStencilTest());
-  current_framebuffer_lock_.reset();
+  current_framebuffer_lock_ = nullptr;
   current_canvas_ = root_canvas_;
 }
 
@@ -158,7 +158,6 @@ bool SoftwareRenderer::BindFramebufferToTexture(
     DrawingFrame* frame,
     const ScopedResource* texture,
     const gfx::Rect& target_rect) {
-  current_framebuffer_lock_.reset();
   current_framebuffer_lock_ = make_scoped_ptr(
       new ResourceProvider::ScopedWriteLockSoftware(
           resource_provider_, texture->id()));
@@ -240,14 +239,16 @@ void SoftwareRenderer::DoDrawQuad(DrawingFrame* frame, const DrawQuad* quad) {
   current_canvas_->setMatrix(sk_device_matrix);
 
   current_paint_.reset();
-  if (!IsScaleAndIntegerTranslate(sk_device_matrix)) {
+  if (settings_->force_antialiasing ||
+      !IsScaleAndIntegerTranslate(sk_device_matrix)) {
     // TODO(danakj): Until we can enable AA only on exterior edges of the
     // layer, disable AA if any interior edges are present. crbug.com/248175
     bool all_four_edges_are_exterior = quad->IsTopEdge() &&
                                        quad->IsLeftEdge() &&
                                        quad->IsBottomEdge() &&
                                        quad->IsRightEdge();
-    if (settings_->allow_antialiasing && all_four_edges_are_exterior)
+    if (settings_->allow_antialiasing &&
+        (settings_->force_antialiasing || all_four_edges_are_exterior))
       current_paint_.setAntiAlias(true);
     current_paint_.setFilterLevel(SkPaint::kLow_FilterLevel);
   }
@@ -519,11 +520,11 @@ void SoftwareRenderer::DrawRenderPassQuad(const DrawingFrame* frame,
 
     const SkBitmap* mask = mask_lock.sk_bitmap();
 
-    SkRect mask_rect = SkRect::MakeXYWH(
-        quad->mask_uv_rect.x() * mask->width(),
-        quad->mask_uv_rect.y() * mask->height(),
-        quad->mask_uv_rect.width() * mask->width(),
-        quad->mask_uv_rect.height() * mask->height());
+    // Scale normalized uv rect into absolute texel coordinates.
+    SkRect mask_rect =
+        gfx::RectFToSkRect(gfx::ScaleRect(quad->MaskUVRect(),
+                                          quad->mask_texture_size.width(),
+                                          quad->mask_texture_size.height()));
 
     SkMatrix mask_mat;
     mask_mat.setRectToRect(mask_rect, dest_rect, SkMatrix::kFill_ScaleToFit);

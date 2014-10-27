@@ -37,8 +37,8 @@ class TestAlarm : public QuicAlarm {
       : QuicAlarm(delegate) {
   }
 
-  virtual void SetImpl() OVERRIDE {}
-  virtual void CancelImpl() OVERRIDE {}
+  void SetImpl() override {}
+  void CancelImpl() override {}
 };
 
 }  // namespace
@@ -226,10 +226,9 @@ class NiceMockPacketWriterFactory
     : public QuicConnection::PacketWriterFactory {
  public:
   NiceMockPacketWriterFactory() {}
-  virtual ~NiceMockPacketWriterFactory() {}
+  ~NiceMockPacketWriterFactory() override {}
 
-  virtual QuicPacketWriter* Create(
-      QuicConnection* /*connection*/) const OVERRIDE {
+  QuicPacketWriter* Create(QuicConnection* /*connection*/) const override {
     return new testing::NiceMock<MockPacketWriter>();
   }
 
@@ -311,7 +310,9 @@ void PacketSavingConnection::SendOrQueuePacket(QueuedPacket packet) {
   encrypted_packets_.push_back(encrypted);
   // Transfer ownership of the packet to the SentPacketManager and the
   // ack notifier to the AckNotifierManager.
-  sent_packet_manager_.OnSerializedPacket(packet.serialized_packet);
+  sent_packet_manager_.OnPacketSent(
+      &packet.serialized_packet, 0, QuicTime::Zero(), 1000,
+      NOT_RETRANSMISSION, HAS_RETRANSMITTABLE_DATA);
 }
 
 MockSession::MockSession(QuicConnection* connection)
@@ -325,8 +326,7 @@ MockSession::~MockSession() {
 }
 
 TestSession::TestSession(QuicConnection* connection, const QuicConfig& config)
-    : QuicSession(connection, config),
-      crypto_stream_(NULL) {
+    : QuicSession(connection, config), crypto_stream_(nullptr) {
   InitializeSession();
 }
 
@@ -343,7 +343,7 @@ QuicCryptoStream* TestSession::GetCryptoStream() {
 TestClientSession::TestClientSession(QuicConnection* connection,
                                      const QuicConfig& config)
     : QuicClientSessionBase(connection, config),
-      crypto_stream_(NULL) {
+      crypto_stream_(nullptr) {
   EXPECT_CALL(*this, OnProofValid(_)).Times(AnyNumber());
   InitializeSession();
 }
@@ -480,11 +480,11 @@ QuicEncryptedPacket* ConstructEncryptedPacket(
   QuicFramer framer(QuicSupportedVersions(), QuicTime::Zero(), false);
   scoped_ptr<QuicPacket> packet(
       BuildUnsizedDataPacket(&framer, header, frames).packet);
-  EXPECT_TRUE(packet != NULL);
+  EXPECT_TRUE(packet != nullptr);
   QuicEncryptedPacket* encrypted = framer.EncryptPacket(ENCRYPTION_NONE,
                                                         sequence_number,
                                                         *packet);
-  EXPECT_TRUE(encrypted != NULL);
+  EXPECT_TRUE(encrypted != nullptr);
   return encrypted;
 }
 
@@ -608,7 +608,6 @@ MockEntropyCalculator::~MockEntropyCalculator() {}
 
 QuicConfig DefaultQuicConfig() {
   QuicConfig config;
-  config.SetDefaults();
   config.SetInitialFlowControlWindowToSend(
       kInitialSessionFlowControlWindowForTest);
   config.SetInitialStreamFlowControlWindowToSend(
@@ -624,7 +623,7 @@ QuicVersionVector SupportedVersions(QuicVersion version) {
   return versions;
 }
 
-TestWriterFactory::TestWriterFactory() : current_writer_(NULL) {}
+TestWriterFactory::TestWriterFactory() : current_writer_(nullptr) {}
 TestWriterFactory::~TestWriterFactory() {}
 
 QuicPacketWriter* TestWriterFactory::Create(QuicServerPacketWriter* writer,
@@ -633,15 +632,15 @@ QuicPacketWriter* TestWriterFactory::Create(QuicServerPacketWriter* writer,
 }
 
 void TestWriterFactory::OnPacketSent(WriteResult result) {
-  if (current_writer_ != NULL && result.status == WRITE_STATUS_ERROR) {
+  if (current_writer_ != nullptr && result.status == WRITE_STATUS_ERROR) {
     current_writer_->connection()->OnWriteError(result.error_code);
-    current_writer_ = NULL;
+    current_writer_ = nullptr;
   }
 }
 
 void TestWriterFactory::Unregister(PerConnectionPacketWriter* writer) {
   if (current_writer_ == writer) {
-    current_writer_ = NULL;
+    current_writer_ = nullptr;
   }
 }
 
@@ -662,9 +661,10 @@ WriteResult TestWriterFactory::PerConnectionPacketWriter::WritePacket(
     size_t buf_len,
     const IPAddressNumber& self_address,
     const IPEndPoint& peer_address) {
-  // A DCHECK(factory_current_writer_ == NULL) would be wrong here -- this class
-  // may be used in a setting where connection()->OnPacketSent() is called in a
-  // different way, so TestWriterFactory::OnPacketSent might never be called.
+  // A DCHECK(factory_current_writer_ == nullptr) would be wrong here -- this
+  // class may be used in a setting where connection()->OnPacketSent() is called
+  // in a different way, so TestWriterFactory::OnPacketSent might never be
+  // called.
   factory_->current_writer_ = this;
   return QuicPerConnectionPacketWriter::WritePacket(buffer,
                                                     buf_len,

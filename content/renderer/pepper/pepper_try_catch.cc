@@ -5,6 +5,7 @@
 #include "content/renderer/pepper/pepper_try_catch.h"
 
 #include "content/renderer/pepper/pepper_plugin_instance_impl.h"
+#include "content/renderer/pepper/v8_var_converter.h"
 #include "gin/converter.h"
 #include "ppapi/shared_impl/ppapi_globals.h"
 #include "ppapi/shared_impl/var_tracker.h"
@@ -20,15 +21,10 @@ const char kInvalidException[] = "Error: An invalid exception was thrown.";
 }  // namespace
 
 PepperTryCatch::PepperTryCatch(PepperPluginInstanceImpl* instance,
-                               V8VarConverter::AllowObjectVars convert_objects)
-    : instance_(instance),
-      convert_objects_(convert_objects) {}
+                               V8VarConverter* var_converter)
+    : instance_(instance), var_converter_(var_converter) {}
 
 PepperTryCatch::~PepperTryCatch() {}
-
-v8::Handle<v8::Context> PepperTryCatch::GetContext() {
-  return instance_->GetContext();
-}
 
 v8::Handle<v8::Value> PepperTryCatch::ToV8(PP_Var var) {
   if (HasException()) {
@@ -36,9 +32,8 @@ v8::Handle<v8::Value> PepperTryCatch::ToV8(PP_Var var) {
     return v8::Handle<v8::Value>();
   }
 
-  V8VarConverter converter(instance_->pp_instance(), convert_objects_);
   v8::Handle<v8::Value> result;
-  bool success = converter.ToV8Value(var, GetContext(), &result);
+  bool success = var_converter_->ToV8Value(var, GetContext(), &result);
   if (!success) {
     SetException(kConversionException);
     return v8::Handle<v8::Value>();
@@ -52,8 +47,8 @@ ppapi::ScopedPPVar PepperTryCatch::FromV8(v8::Handle<v8::Value> v8_value) {
     return ppapi::ScopedPPVar();
   }
   ppapi::ScopedPPVar result;
-  V8VarConverter converter(instance_->pp_instance(), convert_objects_);
-  bool success = converter.FromV8ValueSync(v8_value, GetContext(), &result);
+  bool success =
+      var_converter_->FromV8ValueSync(v8_value, GetContext(), &result);
   if (!success) {
     SetException(kConversionException);
     return ppapi::ScopedPPVar();
@@ -61,11 +56,10 @@ ppapi::ScopedPPVar PepperTryCatch::FromV8(v8::Handle<v8::Value> v8_value) {
   return result;
 }
 
-PepperTryCatchV8::PepperTryCatchV8(
-    PepperPluginInstanceImpl* instance,
-    V8VarConverter::AllowObjectVars convert_objects,
-    v8::Isolate* isolate)
-    : PepperTryCatch(instance, convert_objects),
+PepperTryCatchV8::PepperTryCatchV8(PepperPluginInstanceImpl* instance,
+                                   V8VarConverter* var_converter,
+                                   v8::Isolate* isolate)
+    : PepperTryCatch(instance, var_converter),
       exception_(PP_MakeUndefined()) {
   // Typically when using PepperTryCatchV8 we are passed an isolate. We verify
   // that this isolate is the same as the plugin isolate.
@@ -85,12 +79,17 @@ bool PepperTryCatchV8::HasException() {
   return GetContext().IsEmpty() || exception_.type != PP_VARTYPE_UNDEFINED;
 }
 
+v8::Handle<v8::Context> PepperTryCatchV8::GetContext() {
+  // When calling from JS into the plugin always use the current context.
+  return instance_->GetIsolate()->GetCurrentContext();
+}
+
 bool PepperTryCatchV8::ThrowException() {
   if (!HasException())
     return false;
 
-  // If the plugin context is gone, then we have an exception but we don't try
-  // to throw it into v8.
+  // If there is no context then we have an exception but we don't try to throw
+  // it into v8.
   if (GetContext().IsEmpty())
     return true;
 
@@ -119,8 +118,9 @@ void PepperTryCatchV8::SetException(const char* message) {
 }
 
 PepperTryCatchVar::PepperTryCatchVar(PepperPluginInstanceImpl* instance,
+                                     V8VarConverter* var_converter,
                                      PP_Var* exception)
-    : PepperTryCatch(instance, V8VarConverter::kAllowObjectVars),
+    : PepperTryCatch(instance, var_converter),
       handle_scope_(instance_->GetIsolate()),
       context_(GetContext()),
       exception_(exception),
@@ -154,6 +154,11 @@ bool PepperTryCatchVar::HasException() {
   }
 
   return exception_is_set_;
+}
+
+v8::Handle<v8::Context> PepperTryCatchVar::GetContext() {
+  // When calling into JS from the plugin, always use the plugin context.
+  return instance_->GetMainWorldContext();
 }
 
 void PepperTryCatchVar::SetException(const char* message) {

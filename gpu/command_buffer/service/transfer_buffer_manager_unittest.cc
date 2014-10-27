@@ -45,8 +45,8 @@ TEST_F(TransferBufferManagerTest, CanRegisterTransferBuffer) {
       new SharedMemoryBufferBacking(shm.Pass(), kBufferSize));
   SharedMemoryBufferBacking* backing_raw_ptr = backing.get();
 
-  EXPECT_TRUE(transfer_buffer_manager_->RegisterTransferBuffer(
-      1, backing.PassAs<BufferBacking>()));
+  EXPECT_TRUE(
+      transfer_buffer_manager_->RegisterTransferBuffer(1, backing.Pass()));
   scoped_refptr<Buffer> registered =
       transfer_buffer_manager_->GetTransferBuffer(1);
 
@@ -57,10 +57,10 @@ TEST_F(TransferBufferManagerTest, CanRegisterTransferBuffer) {
 
 class FakeBufferBacking : public BufferBacking {
  public:
-  virtual void* GetMemory() const OVERRIDE {
+  void* GetMemory() const override {
     return reinterpret_cast<void*>(0xBADF00D0);
   }
-  virtual size_t GetSize() const OVERRIDE { return 42; }
+  size_t GetSize() const override { return 42; }
   static scoped_ptr<BufferBacking> Make() {
     return scoped_ptr<BufferBacking>(new FakeBufferBacking);
   }

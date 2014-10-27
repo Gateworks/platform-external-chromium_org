@@ -6,7 +6,7 @@
 #include "mojo/shell/context.h"
 #include "mojo/shell/dynamic_application_loader.h"
 #include "mojo/shell/dynamic_service_runner.h"
-#include "net/base/filename_util.h"
+#include "mojo/shell/filename_util.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace mojo {
@@ -30,13 +30,13 @@ class TestDynamicServiceRunner : public DynamicServiceRunner {
   explicit TestDynamicServiceRunner(TestState* state) : state_(state) {
     state_->runner_was_created = true;
   }
-  virtual ~TestDynamicServiceRunner() {
+  ~TestDynamicServiceRunner() override {
     state_->runner_was_destroyed = true;
     base::MessageLoop::current()->Quit();
   }
-  virtual void Start(const base::FilePath& app_path,
-                     ScopedMessagePipeHandle service_handle,
-                     const base::Closure& app_completed_callback) OVERRIDE {
+  void Start(const base::FilePath& app_path,
+             ScopedMessagePipeHandle service_handle,
+             const base::Closure& app_completed_callback) override {
     state_->runner_was_started = true;
   }
 
@@ -47,8 +47,8 @@ class TestDynamicServiceRunner : public DynamicServiceRunner {
 class TestDynamicServiceRunnerFactory : public DynamicServiceRunnerFactory {
  public:
   explicit TestDynamicServiceRunnerFactory(TestState* state) : state_(state) {}
-  virtual ~TestDynamicServiceRunnerFactory() {}
-  virtual scoped_ptr<DynamicServiceRunner> Create(Context* context) OVERRIDE {
+  ~TestDynamicServiceRunnerFactory() override {}
+  scoped_ptr<DynamicServiceRunner> Create(Context* context) override {
     return scoped_ptr<DynamicServiceRunner>(
         new TestDynamicServiceRunner(state_));
   }
@@ -63,7 +63,7 @@ class DynamicApplicationLoaderTest : public testing::Test {
  public:
   DynamicApplicationLoaderTest() {}
   virtual ~DynamicApplicationLoaderTest() {}
-  virtual void SetUp() OVERRIDE {
+  virtual void SetUp() override {
     context_.Init();
     scoped_ptr<DynamicServiceRunnerFactory> factory(
         new TestDynamicServiceRunnerFactory(&state_));
@@ -81,7 +81,7 @@ TEST_F(DynamicApplicationLoaderTest, DoesNotExist) {
   base::ScopedTempDir temp_dir;
   ASSERT_TRUE(temp_dir.CreateUniqueTempDir());
   base::FilePath nonexistent_file(FILE_PATH_LITERAL("nonexistent.txt"));
-  GURL url(net::FilePathToFileURL(temp_dir.path().Append(nonexistent_file)));
+  GURL url(FilePathToFileURL(temp_dir.path().Append(nonexistent_file)));
   MessagePipe pipe;
   scoped_refptr<ApplicationLoader::SimpleLoadCallbacks> callbacks(
       new ApplicationLoader::SimpleLoadCallbacks(pipe.handle0.Pass()));

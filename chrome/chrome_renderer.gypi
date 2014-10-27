@@ -28,8 +28,6 @@
       'renderer/media/chrome_key_systems.h',
       'renderer/net/net_error_helper.cc',
       'renderer/net/net_error_helper.h',
-      'renderer/net/net_error_helper_core.cc',
-      'renderer/net/net_error_helper_core.h',
       'renderer/net/net_error_page_controller.cc',
       'renderer/net/net_error_page_controller.h',
       'renderer/net/predictor_queue.cc',
@@ -169,9 +167,6 @@
       'renderer/resources/extensions/system_indicator_custom_bindings.js',
       'renderer/resources/extensions/tts_custom_bindings.js',
       'renderer/resources/extensions/tts_engine_custom_bindings.js',
-      'renderer/resources/extensions/web_view.js',
-      'renderer/resources/extensions/web_view_events.js',
-      'renderer/resources/extensions/web_view_experimental.js',
     ],
     'chrome_renderer_non_android_sources': [
       'renderer/prerender/prerender_media_load_deferrer.cc',
@@ -266,7 +261,8 @@
         '../third_party/re2/re2.gyp:re2',
         '../components/components.gyp:autofill_content_renderer',
         '../components/components.gyp:cdm_renderer',
-        '../components/components.gyp:data_reduction_proxy_common',
+        '../components/components.gyp:data_reduction_proxy_core_common',
+        '../components/components.gyp:error_page_renderer',
         '../components/components.gyp:startup_metric_utils',
         '../components/components.gyp:password_manager_content_renderer',
         '../components/components.gyp:plugins_renderer',
@@ -276,7 +272,6 @@
         '../content/app/resources/content_resources.gyp:content_resources',
         '../content/app/strings/content_strings.gyp:content_strings',
         '../content/content.gyp:content_renderer',
-        '../extensions/extensions_resources.gyp:extensions_resources',
         '../media/cast/cast.gyp:cast_logging_proto',
         '../media/cast/cast.gyp:cast_net',
         '../media/cast/cast.gyp:cast_sender',
@@ -341,6 +336,7 @@
         ['enable_extensions==1', {
           'dependencies': [
             '../extensions/extensions.gyp:extensions_renderer',
+            '../extensions/extensions_resources.gyp:extensions_resources',
             # TODO(hclam): See crbug.com/298380 for details.
             # We should isolate the APIs needed by the renderer.
             '<(DEPTH)/chrome/common/extensions/api/api.gyp:chrome_api',

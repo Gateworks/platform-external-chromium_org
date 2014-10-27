@@ -318,7 +318,8 @@ class VIEWS_EXPORT Widget : public internal::NativeWidgetDelegate,
   static void GetAllChildWidgets(gfx::NativeView native_view,
                                  Widgets* children);
 
-  // Returns all non-child Widgets owned by |native_view|.
+  // Returns all Widgets owned by |native_view| (including child widgets, but
+  // not including itself).
   static void GetAllOwnedWidgets(gfx::NativeView native_view,
                                  Widgets* owned);
 
@@ -742,55 +743,55 @@ class VIEWS_EXPORT Widget : public internal::NativeWidgetDelegate,
   virtual void OnOwnerClosing();
 
   // Overridden from NativeWidgetDelegate:
-  virtual bool IsModal() const OVERRIDE;
-  virtual bool IsDialogBox() const OVERRIDE;
-  virtual bool CanActivate() const OVERRIDE;
-  virtual bool IsInactiveRenderingDisabled() const OVERRIDE;
-  virtual void EnableInactiveRendering() OVERRIDE;
-  virtual void OnNativeWidgetActivationChanged(bool active) OVERRIDE;
-  virtual void OnNativeFocus(gfx::NativeView old_focused_view) OVERRIDE;
-  virtual void OnNativeBlur(gfx::NativeView new_focused_view) OVERRIDE;
-  virtual void OnNativeWidgetVisibilityChanging(bool visible) OVERRIDE;
-  virtual void OnNativeWidgetVisibilityChanged(bool visible) OVERRIDE;
-  virtual void OnNativeWidgetCreated(bool desktop_widget) OVERRIDE;
-  virtual void OnNativeWidgetDestroying() OVERRIDE;
-  virtual void OnNativeWidgetDestroyed() OVERRIDE;
-  virtual gfx::Size GetMinimumSize() const OVERRIDE;
-  virtual gfx::Size GetMaximumSize() const OVERRIDE;
-  virtual void OnNativeWidgetMove() OVERRIDE;
-  virtual void OnNativeWidgetSizeChanged(const gfx::Size& new_size) OVERRIDE;
-  virtual void OnNativeWidgetWindowShowStateChanged() OVERRIDE;
-  virtual void OnNativeWidgetBeginUserBoundsChange() OVERRIDE;
-  virtual void OnNativeWidgetEndUserBoundsChange() OVERRIDE;
-  virtual bool HasFocusManager() const OVERRIDE;
+  virtual bool IsModal() const override;
+  virtual bool IsDialogBox() const override;
+  virtual bool CanActivate() const override;
+  virtual bool IsInactiveRenderingDisabled() const override;
+  virtual void EnableInactiveRendering() override;
+  virtual void OnNativeWidgetActivationChanged(bool active) override;
+  virtual void OnNativeFocus(gfx::NativeView old_focused_view) override;
+  virtual void OnNativeBlur(gfx::NativeView new_focused_view) override;
+  virtual void OnNativeWidgetVisibilityChanging(bool visible) override;
+  virtual void OnNativeWidgetVisibilityChanged(bool visible) override;
+  virtual void OnNativeWidgetCreated(bool desktop_widget) override;
+  virtual void OnNativeWidgetDestroying() override;
+  virtual void OnNativeWidgetDestroyed() override;
+  virtual gfx::Size GetMinimumSize() const override;
+  virtual gfx::Size GetMaximumSize() const override;
+  virtual void OnNativeWidgetMove() override;
+  virtual void OnNativeWidgetSizeChanged(const gfx::Size& new_size) override;
+  virtual void OnNativeWidgetWindowShowStateChanged() override;
+  virtual void OnNativeWidgetBeginUserBoundsChange() override;
+  virtual void OnNativeWidgetEndUserBoundsChange() override;
+  virtual bool HasFocusManager() const override;
   virtual bool OnNativeWidgetPaintAccelerated(
-      const gfx::Rect& dirty_region) OVERRIDE;
-  virtual void OnNativeWidgetPaint(gfx::Canvas* canvas) OVERRIDE;
-  virtual int GetNonClientComponent(const gfx::Point& point) OVERRIDE;
-  virtual void OnKeyEvent(ui::KeyEvent* event) OVERRIDE;
-  virtual void OnMouseEvent(ui::MouseEvent* event) OVERRIDE;
-  virtual void OnMouseCaptureLost() OVERRIDE;
-  virtual void OnScrollEvent(ui::ScrollEvent* event) OVERRIDE;
-  virtual void OnGestureEvent(ui::GestureEvent* event) OVERRIDE;
-  virtual bool ExecuteCommand(int command_id) OVERRIDE;
-  virtual InputMethod* GetInputMethodDirect() OVERRIDE;
-  virtual const std::vector<ui::Layer*>& GetRootLayers() OVERRIDE;
-  virtual bool HasHitTestMask() const OVERRIDE;
-  virtual void GetHitTestMask(gfx::Path* mask) const OVERRIDE;
-  virtual Widget* AsWidget() OVERRIDE;
-  virtual const Widget* AsWidget() const OVERRIDE;
-  virtual bool SetInitialFocus(ui::WindowShowState show_state) OVERRIDE;
+      const gfx::Rect& dirty_region) override;
+  virtual void OnNativeWidgetPaint(gfx::Canvas* canvas) override;
+  virtual int GetNonClientComponent(const gfx::Point& point) override;
+  virtual void OnKeyEvent(ui::KeyEvent* event) override;
+  virtual void OnMouseEvent(ui::MouseEvent* event) override;
+  virtual void OnMouseCaptureLost() override;
+  virtual void OnScrollEvent(ui::ScrollEvent* event) override;
+  virtual void OnGestureEvent(ui::GestureEvent* event) override;
+  virtual bool ExecuteCommand(int command_id) override;
+  virtual InputMethod* GetInputMethodDirect() override;
+  virtual const std::vector<ui::Layer*>& GetRootLayers() override;
+  virtual bool HasHitTestMask() const override;
+  virtual void GetHitTestMask(gfx::Path* mask) const override;
+  virtual Widget* AsWidget() override;
+  virtual const Widget* AsWidget() const override;
+  virtual bool SetInitialFocus(ui::WindowShowState show_state) override;
 
   // Overridden from ui::EventSource:
-  virtual ui::EventProcessor* GetEventProcessor() OVERRIDE;
+  virtual ui::EventProcessor* GetEventProcessor() override;
 
   // Overridden from FocusTraversable:
-  virtual FocusSearch* GetFocusSearch() OVERRIDE;
-  virtual FocusTraversable* GetFocusTraversableParent() OVERRIDE;
-  virtual View* GetFocusTraversableParentView() OVERRIDE;
+  virtual FocusSearch* GetFocusSearch() override;
+  virtual FocusTraversable* GetFocusTraversableParent() override;
+  virtual View* GetFocusTraversableParentView() override;
 
   // Overridden from ui::NativeThemeObserver:
-  virtual void OnNativeThemeUpdated(ui::NativeTheme* observed_theme) OVERRIDE;
+  virtual void OnNativeThemeUpdated(ui::NativeTheme* observed_theme) override;
 
  protected:
   // Creates the RootView to be used within this Widget. Subclasses may override
@@ -920,17 +921,13 @@ class VIEWS_EXPORT Widget : public internal::NativeWidgetDelegate,
   // Whether native widget has been destroyed.
   bool native_widget_destroyed_;
 
-  // TODO(beng): Remove NativeWidgetGtk's dependence on these:
-  // If true, the mouse is currently down.
-  bool is_mouse_button_pressed_;
-
   // True if capture losses should be ignored.
   bool ignore_capture_loss_;
 
-  // TODO(beng): Remove NativeWidgetGtk's dependence on these:
   // The following are used to detect duplicate mouse move events and not
   // deliver them. Displaying a window may result in the system generating
   // duplicate move events even though the mouse hasn't moved.
+  // TODO(tdanderson): We may be able to remove these members.
   bool last_mouse_event_was_move_;
   gfx::Point last_mouse_event_position_;
 

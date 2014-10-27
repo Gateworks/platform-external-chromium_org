@@ -28,8 +28,8 @@ class NotificationViewTest : public views::ViewsTestBase,
   NotificationViewTest();
   virtual ~NotificationViewTest();
 
-  virtual void SetUp() OVERRIDE;
-  virtual void TearDown() OVERRIDE;
+  virtual void SetUp() override;
+  virtual void TearDown() override;
 
   views::Widget* widget() { return notification_view_->GetWidget(); }
   NotificationView* notification_view() { return notification_view_.get(); }
@@ -37,15 +37,15 @@ class NotificationViewTest : public views::ViewsTestBase,
   RichNotificationData* data() { return data_.get(); }
 
   // Overridden from MessageCenterController:
-  virtual void ClickOnNotification(const std::string& notification_id) OVERRIDE;
+  virtual void ClickOnNotification(const std::string& notification_id) override;
   virtual void RemoveNotification(const std::string& notification_id,
-                                  bool by_user) OVERRIDE;
+                                  bool by_user) override;
   virtual scoped_ptr<ui::MenuModel> CreateMenuModel(
       const NotifierId& notifier_id,
-      const base::string16& display_source) OVERRIDE;
-  virtual bool HasClickedListener(const std::string& notification_id) OVERRIDE;
+      const base::string16& display_source) override;
+  virtual bool HasClickedListener(const std::string& notification_id) override;
   virtual void ClickOnNotificationButton(const std::string& notification_id,
-                                         int button_index) OVERRIDE;
+                                         int button_index) override;
 
  protected:
   const gfx::Image CreateTestImage(int width, int height) {
@@ -229,7 +229,8 @@ TEST_F(NotificationViewTest, UpdateButtonsStateTest) {
   notification_view()->CreateOrUpdateViews(*notification());
   widget()->Show();
 
-  EXPECT_TRUE(NULL == notification_view()->action_buttons_[0]->background());
+  EXPECT_EQ(views::CustomButton::STATE_NORMAL,
+            notification_view()->action_buttons_[0]->state());
 
   // Now construct a mouse move event 1 pixel inside the boundary of the action
   // button.
@@ -243,11 +244,13 @@ TEST_F(NotificationViewTest, UpdateButtonsStateTest) {
                       ui::EF_NONE);
   widget()->OnMouseEvent(&move);
 
-  EXPECT_TRUE(NULL != notification_view()->action_buttons_[0]->background());
+  EXPECT_EQ(views::CustomButton::STATE_HOVERED,
+            notification_view()->action_buttons_[0]->state());
 
   notification_view()->CreateOrUpdateViews(*notification());
 
-  EXPECT_TRUE(NULL != notification_view()->action_buttons_[0]->background());
+  EXPECT_EQ(views::CustomButton::STATE_HOVERED,
+            notification_view()->action_buttons_[0]->state());
 
   // Now construct a mouse move event 1 pixel outside the boundary of the
   // widget.
@@ -259,7 +262,8 @@ TEST_F(NotificationViewTest, UpdateButtonsStateTest) {
                         ui::EF_NONE);
   widget()->OnMouseEvent(&move);
 
-  EXPECT_TRUE(NULL == notification_view()->action_buttons_[0]->background());
+  EXPECT_EQ(views::CustomButton::STATE_NORMAL,
+            notification_view()->action_buttons_[0]->state());
 }
 
 TEST_F(NotificationViewTest, UpdateButtonCountTest) {
@@ -267,8 +271,10 @@ TEST_F(NotificationViewTest, UpdateButtonCountTest) {
   notification_view()->CreateOrUpdateViews(*notification());
   widget()->Show();
 
-  EXPECT_TRUE(NULL == notification_view()->action_buttons_[0]->background());
-  EXPECT_TRUE(NULL == notification_view()->action_buttons_[1]->background());
+  EXPECT_EQ(views::CustomButton::STATE_NORMAL,
+            notification_view()->action_buttons_[0]->state());
+  EXPECT_EQ(views::CustomButton::STATE_NORMAL,
+            notification_view()->action_buttons_[1]->state());
 
   // Now construct a mouse move event 1 pixel inside the boundary of the action
   // button.
@@ -282,13 +288,16 @@ TEST_F(NotificationViewTest, UpdateButtonCountTest) {
                       ui::EF_NONE);
   widget()->OnMouseEvent(&move);
 
-  EXPECT_TRUE(NULL != notification_view()->action_buttons_[0]->background());
-  EXPECT_TRUE(NULL == notification_view()->action_buttons_[1]->background());
+  EXPECT_EQ(views::CustomButton::STATE_HOVERED,
+            notification_view()->action_buttons_[0]->state());
+  EXPECT_EQ(views::CustomButton::STATE_NORMAL,
+            notification_view()->action_buttons_[1]->state());
 
   notification()->set_buttons(CreateButtons(1));
   notification_view()->CreateOrUpdateViews(*notification());
 
-  EXPECT_TRUE(NULL != notification_view()->action_buttons_[0]->background());
+  EXPECT_EQ(views::CustomButton::STATE_HOVERED,
+            notification_view()->action_buttons_[0]->state());
   EXPECT_EQ(1u, notification_view()->action_buttons_.size());
 
   // Now construct a mouse move event 1 pixel outside the boundary of the
@@ -301,7 +310,8 @@ TEST_F(NotificationViewTest, UpdateButtonCountTest) {
                         ui::EF_NONE);
   widget()->OnMouseEvent(&move);
 
-  EXPECT_TRUE(NULL == notification_view()->action_buttons_[0]->background());
+  EXPECT_EQ(views::CustomButton::STATE_NORMAL,
+            notification_view()->action_buttons_[0]->state());
 }
 
 TEST_F(NotificationViewTest, ViewOrderingTest) {

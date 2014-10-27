@@ -29,19 +29,17 @@ class TestObserver : public GpuDataManagerObserver {
       : gpu_info_updated_(false),
         video_memory_usage_stats_updated_(false) {
   }
-  virtual ~TestObserver() { }
+  ~TestObserver() override {}
 
   bool gpu_info_updated() const { return gpu_info_updated_; }
   bool video_memory_usage_stats_updated() const {
     return video_memory_usage_stats_updated_;
   }
 
-  virtual void OnGpuInfoUpdate() OVERRIDE {
-    gpu_info_updated_ = true;
-  }
+  void OnGpuInfoUpdate() override { gpu_info_updated_ = true; }
 
-  virtual void OnVideoMemoryUsageStatsUpdate(
-      const GPUVideoMemoryUsageStats& stats) OVERRIDE {
+  void OnVideoMemoryUsageStatsUpdate(
+      const GPUVideoMemoryUsageStats& stats) override {
     video_memory_usage_stats_updated_ = true;
   }
 

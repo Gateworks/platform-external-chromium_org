@@ -21,8 +21,6 @@
 #include "chrome/browser/extensions/unpacked_installer.h"
 #include "chrome/browser/lifetime/application_lifetime.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/ui/app_modal_dialogs/javascript_app_modal_dialog.h"
-#include "chrome/browser/ui/app_modal_dialogs/native_app_modal_dialog.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/browser_iterator.h"
@@ -34,6 +32,8 @@
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/test_switches.h"
 #include "chrome/test/base/ui_test_utils.h"
+#include "components/app_modal_dialogs/javascript_app_modal_dialog.h"
+#include "components/app_modal_dialogs/native_app_modal_dialog.h"
 #include "content/public/browser/child_process_data.h"
 #include "content/public/browser/content_browser_client.h"
 #include "content/public/browser/devtools_agent_host.h"
@@ -76,8 +76,12 @@ const char kSlowTestPage[] =
     "chunked?waitBeforeHeaders=100&waitBetweenChunks=100&chunksNumber=2";
 const char kSharedWorkerTestPage[] =
     "files/workers/workers_ui_shared_worker.html";
+const char kSharedWorkerTestWorker[] =
+    "files/workers/workers_ui_shared_worker.js";
 const char kReloadSharedWorkerTestPage[] =
     "files/workers/debug_shared_worker_initialization.html";
+const char kReloadSharedWorkerTestWorker[] =
+    "files/workers/debug_shared_worker_initialization.js";
 
 void RunTestFunction(DevToolsWindow* window, const char* test_name) {
   std::string result;
@@ -155,7 +159,7 @@ class DevToolsWindowBeforeUnloadObserver
   void Wait();
  private:
   // Invoked when the beforeunload handler fires.
-  virtual void BeforeUnloadFired(const base::TimeTicks& proceed_time) OVERRIDE;
+  void BeforeUnloadFired(const base::TimeTicks& proceed_time) override;
 
   bool m_fired;
   scoped_refptr<content::MessageLoopRunner> message_loop_runner_;
@@ -185,7 +189,7 @@ void DevToolsWindowBeforeUnloadObserver::BeforeUnloadFired(
 
 class DevToolsBeforeUnloadTest: public DevToolsSanityTest {
  public:
-  virtual void SetUpCommandLine(CommandLine* command_line) OVERRIDE {
+  void SetUpCommandLine(CommandLine* command_line) override {
     command_line->AppendSwitch(
         switches::kDisableHangMonitor);
   }
@@ -282,7 +286,7 @@ class DevToolsBeforeUnloadTest: public DevToolsSanityTest {
 
 class DevToolsUnresponsiveBeforeUnloadTest: public DevToolsBeforeUnloadTest {
  public:
-  virtual void SetUpCommandLine(CommandLine* command_line) OVERRIDE {}
+  void SetUpCommandLine(CommandLine* command_line) override {}
 };
 
 void TimeoutCallback(const std::string& timeout_message) {
@@ -364,9 +368,9 @@ class DevToolsExtensionTest : public DevToolsSanityTest,
     return true;
   }
 
-  virtual void Observe(int type,
-                       const content::NotificationSource& source,
-                       const content::NotificationDetails& details) OVERRIDE {
+  void Observe(int type,
+               const content::NotificationSource& source,
+               const content::NotificationDetails& details) override {
     switch (type) {
       case extensions::NOTIFICATION_EXTENSION_LOADED_DEPRECATED:
       case extensions::NOTIFICATION_EXTENSION_HOST_DID_STOP_LOADING:
@@ -383,7 +387,7 @@ class DevToolsExtensionTest : public DevToolsSanityTest,
 
 class DevToolsExperimentalExtensionTest : public DevToolsExtensionTest {
  public:
-  virtual void SetUpCommandLine(CommandLine* command_line) OVERRIDE {
+  void SetUpCommandLine(CommandLine* command_line) override {
     command_line->AppendSwitch(
         extensions::switches::kEnableExperimentalExtensionApis);
   }
@@ -407,18 +411,19 @@ class WorkerDevToolsSanityTest : public InProcessBrowserTest {
 
   class WorkerCreationObserver : public WorkerServiceObserver {
    public:
-    explicit WorkerCreationObserver(WorkerData* worker_data)
-        : worker_data_(worker_data) {
-    }
+    explicit WorkerCreationObserver(const std::string& path,
+                                    WorkerData* worker_data)
+        : path_(path), worker_data_(worker_data) {}
 
    private:
-    virtual ~WorkerCreationObserver() {}
+    ~WorkerCreationObserver() override {}
 
-    virtual void WorkerCreated (
-        const GURL& url,
-        const base::string16& name,
-        int process_id,
-        int route_id) OVERRIDE {
+    void WorkerCreated(const GURL& url,
+                       const base::string16& name,
+                       int process_id,
+                       int route_id) override {
+      if (url.path().rfind(path_) == std::string::npos)
+        return;
       worker_data_->worker_process_id = process_id;
       worker_data_->worker_route_id = route_id;
       WorkerService::GetInstance()->RemoveObserver(this);
@@ -426,6 +431,7 @@ class WorkerDevToolsSanityTest : public InProcessBrowserTest {
           base::MessageLoop::QuitClosure());
       delete this;
     }
+    std::string path_;
     scoped_refptr<WorkerData> worker_data_;
   };
 
@@ -436,9 +442,9 @@ class WorkerDevToolsSanityTest : public InProcessBrowserTest {
     }
 
    private:
-    virtual ~WorkerTerminationObserver() {}
+    ~WorkerTerminationObserver() override {}
 
-    virtual void WorkerDestroyed(int process_id, int route_id) OVERRIDE {
+    void WorkerDestroyed(int process_id, int route_id) override {
       ASSERT_EQ(worker_data_->worker_process_id, process_id);
       ASSERT_EQ(worker_data_->worker_route_id, route_id);
       WorkerService::GetInstance()->RemoveObserver(this);
@@ -449,12 +455,15 @@ class WorkerDevToolsSanityTest : public InProcessBrowserTest {
     scoped_refptr<WorkerData> worker_data_;
   };
 
-  void RunTest(const char* test_name, const char* test_page) {
+  void RunTest(const char* test_name,
+               const char* test_page,
+               const char* worker_path) {
     ASSERT_TRUE(test_server()->Start());
     GURL url = test_server()->GetURL(test_page);
     ui_test_utils::NavigateToURL(browser(), url);
 
-    scoped_refptr<WorkerData> worker_data = WaitForFirstSharedWorker();
+    scoped_refptr<WorkerData> worker_data =
+        WaitForFirstSharedWorker(worker_path);
     OpenDevToolsWindowForSharedWorker(worker_data.get());
     RunTestFunction(window_, test_name);
     CloseDevToolsWindow();
@@ -476,10 +485,13 @@ class WorkerDevToolsSanityTest : public InProcessBrowserTest {
   }
 
   static void WaitForFirstSharedWorkerOnIOThread(
+      const std::string& path,
       scoped_refptr<WorkerData> worker_data) {
     std::vector<WorkerService::WorkerInfo> worker_info =
         WorkerService::GetInstance()->GetWorkers();
-    if (!worker_info.empty()) {
+    for (size_t i = 0; i < worker_info.size(); i++) {
+      if (worker_info[i].url.path().rfind(path) == std::string::npos)
+        continue;
       worker_data->worker_process_id = worker_info[0].process_id;
       worker_data->worker_route_id = worker_info[0].route_id;
       BrowserThread::PostTask(BrowserThread::UI, FROM_HERE,
@@ -488,14 +500,15 @@ class WorkerDevToolsSanityTest : public InProcessBrowserTest {
     }
 
     WorkerService::GetInstance()->AddObserver(
-        new WorkerCreationObserver(worker_data.get()));
+        new WorkerCreationObserver(path, worker_data.get()));
   }
 
-  static scoped_refptr<WorkerData> WaitForFirstSharedWorker() {
+  static scoped_refptr<WorkerData> WaitForFirstSharedWorker(const char* path) {
     scoped_refptr<WorkerData> worker_data(new WorkerData());
     BrowserThread::PostTask(
-        BrowserThread::IO, FROM_HERE,
-        base::Bind(&WaitForFirstSharedWorkerOnIOThread, worker_data));
+        BrowserThread::IO,
+        FROM_HERE,
+        base::Bind(&WaitForFirstSharedWorkerOnIOThread, path, worker_data));
     content::RunMessageLoop();
     return worker_data;
   }
@@ -856,14 +869,14 @@ IN_PROC_BROWSER_TEST_F(DevToolsSanityTest, TestPageWithNoJavaScript) {
 }
 
 // Flakily fails: http://crbug.com/403007 http://crbug.com/89845
-IN_PROC_BROWSER_TEST_F(WorkerDevToolsSanityTest, DISABLED_InspectSharedWorker) {
+IN_PROC_BROWSER_TEST_F(WorkerDevToolsSanityTest, InspectSharedWorker) {
 #if defined(OS_WIN) && defined(USE_ASH)
   // Disable this test in Metro+Ash for now (http://crbug.com/262796).
   if (CommandLine::ForCurrentProcess()->HasSwitch(switches::kAshBrowserTests))
     return;
 #endif
 
-  RunTest("testSharedWorker", kSharedWorkerTestPage);
+  RunTest("testSharedWorker", kSharedWorkerTestPage, kSharedWorkerTestWorker);
 }
 
 // http://crbug.com/100538
@@ -873,7 +886,8 @@ IN_PROC_BROWSER_TEST_F(WorkerDevToolsSanityTest,
   GURL url = test_server()->GetURL(kReloadSharedWorkerTestPage);
   ui_test_utils::NavigateToURL(browser(), url);
 
-  scoped_refptr<WorkerData> worker_data = WaitForFirstSharedWorker();
+  scoped_refptr<WorkerData> worker_data =
+      WaitForFirstSharedWorker(kReloadSharedWorkerTestWorker);
   OpenDevToolsWindowForSharedWorker(worker_data.get());
 
   TerminateWorker(worker_data);
@@ -904,7 +918,7 @@ IN_PROC_BROWSER_TEST_F(DevToolsAgentHostTest, TestAgentHostReleased) {
 }
 
 class RemoteDebuggingTest: public ExtensionApiTest {
-  virtual void SetUpCommandLine(CommandLine* command_line) OVERRIDE {
+  void SetUpCommandLine(CommandLine* command_line) override {
     ExtensionApiTest::SetUpCommandLine(command_line);
     command_line->AppendSwitchASCII(switches::kRemoteDebuggingPort, "9222");
 

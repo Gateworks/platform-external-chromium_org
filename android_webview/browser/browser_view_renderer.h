@@ -12,7 +12,7 @@
 #include "base/android/scoped_java_ref.h"
 #include "base/callback.h"
 #include "base/cancelable_callback.h"
-#include "base/values.h"
+#include "base/debug/trace_event.h"
 #include "content/public/browser/android/synchronous_compositor.h"
 #include "content/public/browser/android/synchronous_compositor_client.h"
 #include "skia/ext/refptr.h"
@@ -21,11 +21,8 @@
 
 class SkCanvas;
 class SkPicture;
-struct AwDrawGLInfo;
-struct AwDrawSWFunctionTable;
 
 namespace content {
-class ContentViewCore;
 struct SynchronousCompositorMemoryPolicy;
 class WebContents;
 }
@@ -60,15 +57,17 @@ class BrowserViewRendererJavaHelper {
 class BrowserViewRenderer : public content::SynchronousCompositorClient,
                             public GlobalTileManagerClient {
  public:
-  static void CalculateTileMemoryPolicy(bool use_zero_copy);
+  static void CalculateTileMemoryPolicy();
 
   BrowserViewRenderer(
       BrowserViewRendererClient* client,
-      SharedRendererState* shared_renderer_state,
       content::WebContents* web_contents,
       const scoped_refptr<base::SingleThreadTaskRunner>& ui_task_runner);
 
   virtual ~BrowserViewRenderer();
+
+  SharedRendererState* GetSharedRendererState();
+  bool RequestDrawGL(bool wait_for_completion);
 
   // Main handler for view drawing: performs a SW draw immediately, or sets up
   // a subsequent GL Draw (via BrowserViewRendererClient::RequestDrawGL) and
@@ -118,48 +117,54 @@ class BrowserViewRenderer : public content::SynchronousCompositorClient,
 
   // SynchronousCompositorClient overrides.
   virtual void DidInitializeCompositor(
-      content::SynchronousCompositor* compositor) OVERRIDE;
+      content::SynchronousCompositor* compositor) override;
   virtual void DidDestroyCompositor(content::SynchronousCompositor* compositor)
-      OVERRIDE;
-  virtual void SetContinuousInvalidate(bool invalidate) OVERRIDE;
-  virtual void DidUpdateContent() OVERRIDE;
-  virtual gfx::Vector2dF GetTotalRootLayerScrollOffset() OVERRIDE;
+      override;
+  virtual void SetContinuousInvalidate(bool invalidate) override;
+  virtual void DidUpdateContent() override;
+  virtual gfx::Vector2dF GetTotalRootLayerScrollOffset() override;
   virtual void UpdateRootLayerState(
       const gfx::Vector2dF& total_scroll_offset_dip,
       const gfx::Vector2dF& max_scroll_offset_dip,
       const gfx::SizeF& scrollable_size_dip,
       float page_scale_factor,
       float min_page_scale_factor,
-      float max_page_scale_factor) OVERRIDE;
-  virtual bool IsExternalFlingActive() const OVERRIDE;
+      float max_page_scale_factor) override;
+  virtual bool IsExternalFlingActive() const override;
   virtual void DidOverscroll(gfx::Vector2dF accumulated_overscroll,
                              gfx::Vector2dF latest_overscroll_delta,
-                             gfx::Vector2dF current_fling_velocity) OVERRIDE;
+                             gfx::Vector2dF current_fling_velocity) override;
 
   // GlobalTileManagerClient overrides.
   virtual content::SynchronousCompositorMemoryPolicy GetMemoryPolicy()
-      const OVERRIDE;
+      const override;
   virtual void SetMemoryPolicy(
       content::SynchronousCompositorMemoryPolicy new_policy,
-      bool effective_immediately) OVERRIDE;
+      bool effective_immediately) override;
 
   void UpdateParentDrawConstraints();
+  void DidSkipCommitFrame();
 
  private:
   void SetTotalRootLayerScrollOffset(gfx::Vector2dF new_value_dip);
   // Checks the continuous invalidate and block invalidate state, and schedule
   // invalidates appropriately. If |force_invalidate| is true, then send a view
-  // invalidate regardless of compositor expectation.
-  void EnsureContinuousInvalidation(bool force_invalidate);
+  // invalidate regardless of compositor expectation. If |skip_reschedule_tick|
+  // is true and if there is already a pending fallback tick, don't reschedule
+  // them.
+  void EnsureContinuousInvalidation(bool force_invalidate,
+                                    bool skip_reschedule_tick);
   bool OnDrawSoftware(jobject java_canvas);
   bool CompositeSW(SkCanvas* canvas);
   void DidComposite();
-  scoped_ptr<base::Value> RootLayerStateAsValue(
+  void DidSkipCompositeInDraw();
+  scoped_refptr<base::debug::ConvertableToTraceFormat> RootLayerStateAsValue(
       const gfx::Vector2dF& total_scroll_offset_dip,
       const gfx::SizeF& scrollable_size_dip);
 
-  bool OnDrawHardware(jobject java_canvas);
-  void ReturnUnusedResource(scoped_ptr<DrawGLInput> input);
+  bool OnDrawHardware();
+  scoped_ptr<cc::CompositorFrame> CompositeHw();
+  void ReturnUnusedResource(scoped_ptr<cc::CompositorFrame> frame);
   void ReturnResourceFromParent();
 
   // If we call up view invalidate and OnDraw is not called before a deadline,
@@ -181,11 +186,11 @@ class BrowserViewRenderer : public content::SynchronousCompositorClient,
 
   content::SynchronousCompositorMemoryPolicy CalculateDesiredMemoryPolicy();
   // For debug tracing or logging. Return the string representation of this
-  // view renderer's state and the |draw_info| if provided.
-  std::string ToString(AwDrawGLInfo* draw_info) const;
+  // view renderer's state.
+  std::string ToString() const;
 
   BrowserViewRendererClient* client_;
-  SharedRendererState* shared_renderer_state_;
+  SharedRendererState shared_renderer_state_;
   content::WebContents* web_contents_;
   scoped_refptr<base::SingleThreadTaskRunner> ui_task_runner_;
 
@@ -214,11 +219,14 @@ class BrowserViewRenderer : public content::SynchronousCompositorClient,
   // states.
   bool compositor_needs_continuous_invalidate_;
 
+  bool invalidate_after_composite_;
+
   // Used to block additional invalidates while one is already pending.
   bool block_invalidates_;
 
   base::CancelableClosure post_fallback_tick_;
   base::CancelableClosure fallback_tick_fired_;
+  bool fallback_tick_pending_;
 
   int width_;
   int height_;

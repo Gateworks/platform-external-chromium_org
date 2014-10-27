@@ -130,9 +130,7 @@ class BookmarksObserver : public BookmarksExportObserver {
     DCHECK(loop);
   }
 
-  virtual void OnExportFinished() OVERRIDE {
-    loop_->Quit();
-  }
+  void OnExportFinished() override { loop_->Quit(); }
 
  private:
   base::RunLoop* loop_;
@@ -152,7 +150,7 @@ TEST_F(BookmarkHTMLWriterTest, Test) {
   profile.CreateBookmarkModel(true);
 
   BookmarkModel* model = BookmarkModelFactory::GetForProfile(&profile);
-  test::WaitForBookmarkModelToLoad(model);
+  bookmarks::test::WaitForBookmarkModelToLoad(model);
 
   // Create test PNG representing favicon for url1.
   SkBitmap bitmap;

@@ -8,10 +8,9 @@ module mojo {
 
 // Applications vend Services through the ServiceProvider interface. Services
 // implement Interfaces.
-[Client=Shell]
 interface Application {
   // Initialize is guaranteed to be called before any AcceptConnection calls.
-  Initialize(string[]? args);
+  Initialize(array<string>? args);
 
   AcceptConnection(string? requestor_url, ServiceProvider? provider);
 };

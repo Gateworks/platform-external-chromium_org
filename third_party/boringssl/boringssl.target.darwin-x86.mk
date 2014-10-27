@@ -6,6 +6,7 @@ LOCAL_MODULE_CLASS := STATIC_LIBRARIES
 LOCAL_MODULE := third_party_boringssl_boringssl_gyp
 LOCAL_MODULE_SUFFIX := .a
 LOCAL_MODULE_TARGET_ARCH := $(TARGET_$(GYP_VAR_PREFIX)ARCH)
+LOCAL_SDK_VERSION := 21
 gyp_intermediate_dir := $(call local-intermediates-dir,,$(GYP_VAR_PREFIX))
 gyp_shared_intermediate_dir := $(call intermediates-dir-for,GYP,shared,,,$(GYP_VAR_PREFIX))
 
@@ -147,8 +148,10 @@ LOCAL_SRC_FILES := \
 	third_party/boringssl/src/crypto/ecdsa/ecdsa_asn1.c \
 	third_party/boringssl/src/crypto/ecdsa/ecdsa_error.c \
 	third_party/boringssl/src/crypto/engine/engine.c \
+	third_party/boringssl/src/crypto/engine/engine_error.c \
 	third_party/boringssl/src/crypto/err/err.c \
 	third_party/boringssl/src/crypto/err/err_impl.c \
+	third_party/boringssl/src/crypto/evp/algorithm.c \
 	third_party/boringssl/src/crypto/evp/asn1.c \
 	third_party/boringssl/src/crypto/evp/digestsign.c \
 	third_party/boringssl/src/crypto/evp/evp.c \
@@ -324,12 +327,9 @@ LOCAL_SRC_FILES := \
 	third_party/boringssl/src/ssl/ssl_sess.c \
 	third_party/boringssl/src/ssl/ssl_stat.c \
 	third_party/boringssl/src/ssl/ssl_txt.c \
-	third_party/boringssl/src/ssl/t1_clnt.c \
 	third_party/boringssl/src/ssl/t1_enc.c \
 	third_party/boringssl/src/ssl/t1_lib.c \
-	third_party/boringssl/src/ssl/t1_meth.c \
 	third_party/boringssl/src/ssl/t1_reneg.c \
-	third_party/boringssl/src/ssl/t1_srvr.c \
 	third_party/boringssl/linux-x86/crypto/aes/aes-586.S \
 	third_party/boringssl/linux-x86/crypto/aes/aesni-x86.S \
 	third_party/boringssl/linux-x86/crypto/aes/vpaes-x86.S \
@@ -401,12 +401,6 @@ MY_DEFS_Debug := \
 	'-DCLD_VERSION=1' \
 	'-DENABLE_PRINTING=1' \
 	'-DENABLE_MANAGED_USERS=1' \
-	'-DDATA_REDUCTION_FALLBACK_HOST="http://compress.googlezip.net:80/"' \
-	'-DDATA_REDUCTION_DEV_HOST="https://proxy-dev.googlezip.net:443/"' \
-	'-DDATA_REDUCTION_DEV_FALLBACK_HOST="http://proxy-dev.googlezip.net:80/"' \
-	'-DSPDY_PROXY_AUTH_ORIGIN="https://proxy.googlezip.net:443/"' \
-	'-DDATA_REDUCTION_PROXY_PROBE_URL="http://check.googlezip.net/connect"' \
-	'-DDATA_REDUCTION_PROXY_WARMUP_URL="http://www.gstatic.com/generate_204"' \
 	'-DVIDEO_HOLE=1' \
 	'-DENABLE_LOAD_COMPLETION_HACKS=1' \
 	'-DBORINGSSL_IMPLEMENTATION' \
@@ -427,10 +421,7 @@ MY_DEFS_Debug := \
 LOCAL_C_INCLUDES_Debug := \
 	$(gyp_shared_intermediate_dir) \
 	$(LOCAL_PATH)/third_party/boringssl/src/include \
-	$(LOCAL_PATH)/third_party/boringssl/src/crypto \
-	$(PWD)/frameworks/wilhelm/include \
-	$(PWD)/bionic \
-	$(PWD)/external/stlport/stlport
+	$(LOCAL_PATH)/third_party/boringssl/src/crypto
 
 
 # Flags passed to only C++ (and not C) files.
@@ -503,12 +494,6 @@ MY_DEFS_Release := \
 	'-DCLD_VERSION=1' \
 	'-DENABLE_PRINTING=1' \
 	'-DENABLE_MANAGED_USERS=1' \
-	'-DDATA_REDUCTION_FALLBACK_HOST="http://compress.googlezip.net:80/"' \
-	'-DDATA_REDUCTION_DEV_HOST="https://proxy-dev.googlezip.net:443/"' \
-	'-DDATA_REDUCTION_DEV_FALLBACK_HOST="http://proxy-dev.googlezip.net:80/"' \
-	'-DSPDY_PROXY_AUTH_ORIGIN="https://proxy.googlezip.net:443/"' \
-	'-DDATA_REDUCTION_PROXY_PROBE_URL="http://check.googlezip.net/connect"' \
-	'-DDATA_REDUCTION_PROXY_WARMUP_URL="http://www.gstatic.com/generate_204"' \
 	'-DVIDEO_HOLE=1' \
 	'-DENABLE_LOAD_COMPLETION_HACKS=1' \
 	'-DBORINGSSL_IMPLEMENTATION' \
@@ -529,10 +514,7 @@ MY_DEFS_Release := \
 LOCAL_C_INCLUDES_Release := \
 	$(gyp_shared_intermediate_dir) \
 	$(LOCAL_PATH)/third_party/boringssl/src/include \
-	$(LOCAL_PATH)/third_party/boringssl/src/crypto \
-	$(PWD)/frameworks/wilhelm/include \
-	$(PWD)/bionic \
-	$(PWD)/external/stlport/stlport
+	$(LOCAL_PATH)/third_party/boringssl/src/crypto
 
 
 # Flags passed to only C++ (and not C) files.
@@ -555,10 +537,9 @@ LOCAL_C_INCLUDES := $(GYP_COPIED_SOURCE_ORIGIN_DIRS) $(LOCAL_C_INCLUDES_$(GYP_CO
 LOCAL_CPPFLAGS := $(LOCAL_CPPFLAGS_$(GYP_CONFIGURATION))
 LOCAL_ASFLAGS := $(LOCAL_CFLAGS)
 ### Rules for final target.
-
-LOCAL_SHARED_LIBRARIES := \
-	libstlport \
-	libdl
+### Set directly by aosp_build_settings.
+LOCAL_CLANG := false
+LOCAL_NDK_STL_VARIANT := stlport_static
 
 # Add target alias to "gyp_all_modules" target.
 .PHONY: gyp_all_modules

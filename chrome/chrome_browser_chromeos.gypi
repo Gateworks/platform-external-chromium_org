@@ -4,129 +4,9 @@
 # found in the LICENSE file.
 
 {
-  'targets': [
-    {
-      'target_name': 'browser_chromeos',
-      'type': 'static_library',
-      'variables': {
-        'conditions': [
-          ['sysroot!=""', {
-            'pkg-config': '../build/linux/pkg-config-wrapper "<(sysroot)" "<(target_arch)" "<(system_libdir)"',
-          }, {
-            'pkg-config': 'pkg-config'
-          }],
-        ],
-        # Override to dynamically link the cras (ChromeOS audio) library.
-        'use_cras%': 0,
-        'enable_wexit_time_destructors': 1,
-      },
-      'dependencies': [
-        # TODO(tbarzic): Cleanup this list.
-        'attestation_proto',
-        'browser/extensions/api/api_registration.gyp:chrome_api_registration',
-        'browser_extensions',
-        'cert_logger_proto',
-        'chrome_resources.gyp:chrome_extra_resources',
-        'chrome_resources.gyp:chrome_resources',
-        'chrome_resources.gyp:platform_locale_settings',
-        'chrome_resources.gyp:theme_resources',
-        'common',
-        'common/extensions/api/api.gyp:chrome_api',
-        'common_net',
-        'debugger',
-        'device_policy_proto',
-        'drive_proto',
-        'in_memory_url_index_cache_proto',
-        'installer_util',
-        'safe_browsing_chunk_proto',
-        'safe_browsing_proto',
-        'safe_browsing_report_proto',
-        '../breakpad/breakpad.gyp:breakpad_client',
-        '../build/linux/system.gyp:dbus',
-        '../chromeos/chromeos.gyp:chromeos',
-        '../chromeos/chromeos.gyp:cryptohome_proto',
-        # browser_chromeos #includes signed_secret.pb.h directly.
-        '../chromeos/chromeos.gyp:cryptohome_signkey_proto',
-        # browser_chromeos #includes power_supply_properties.pb.h directly.
-        '../chromeos/chromeos.gyp:power_manager_proto',
-        '../chromeos/ime/input_method.gyp:gencode',
-        '../components/components.gyp:cloud_policy_proto',
-        '../components/components.gyp:onc_component',
-        '../components/components.gyp:ownership',
-        '../components/components.gyp:pairing',
-        '../components/components.gyp:policy',
-        # This depends directly on the variations target, rather than just
-        # transitively via the common target because the proto sources need to
-        # be generated before code in this target can start building.
-        '../components/components.gyp:variations',
-        '../components/components.gyp:variations_http_provider',
-        '../components/components_strings.gyp:components_strings',
-        '../content/app/resources/content_resources.gyp:content_resources',
-        '../content/content.gyp:content_browser',
-        '../content/content.gyp:content_common',
-        '../crypto/crypto.gyp:crypto',
-        '../dbus/dbus.gyp:dbus',
-        '../device/bluetooth/bluetooth.gyp:device_bluetooth',
-        '../device/hid/hid.gyp:device_hid',
-        '../media/media.gyp:media',
-        '../net/net.gyp:net',
-        '../ppapi/ppapi_internal.gyp:ppapi_ipc',  # For PpapiMsg_LoadPlugin
-        '../skia/skia.gyp:skia',
-        '../storage/storage_browser.gyp:storage',
-        '../storage/storage_common.gyp:storage_common',
-        '../sync/sync.gyp:sync',
-        '../third_party/adobe/flash/flash_player.gyp:flapper_version_h',
-        '../third_party/cacheinvalidation/cacheinvalidation.gyp:cacheinvalidation',
-        '../third_party/cacheinvalidation/cacheinvalidation.gyp:cacheinvalidation_proto_cpp',
-        '../third_party/expat/expat.gyp:expat',
-        '../third_party/hunspell/hunspell.gyp:hunspell',
-        '../third_party/icu/icu.gyp:icui18n',
-        '../third_party/icu/icu.gyp:icuuc',
-        '../third_party/leveldatabase/leveldatabase.gyp:leveldatabase',
-        '../third_party/libevent/libevent.gyp:libevent',
-        '../third_party/libjingle/libjingle.gyp:libjingle',
-        '../third_party/libusb/libusb.gyp:libusb',
-        '../third_party/libxml/libxml.gyp:libxml',
-        '../third_party/npapi/npapi.gyp:npapi',
-        '../third_party/protobuf/protobuf.gyp:protobuf_lite',
-        '../third_party/protobuf/protobuf.gyp:protoc#host',
-        '../third_party/re2/re2.gyp:re2',
-        '../third_party/zlib/zlib.gyp:zlib',
-        '../ui/base/ui_base.gyp:ui_base',
-        '../ui/display/display.gyp:display',
-        '../ui/events/events.gyp:dom4_keycode_converter',
-        '../ui/events/platform/events_platform.gyp:events_platform',
-        '../ui/chromeos/ui_chromeos.gyp:ui_chromeos_resources',
-        '../ui/chromeos/ui_chromeos.gyp:ui_chromeos_strings',
-        '../ui/resources/ui_resources.gyp:ui_resources',
-        '../ui/strings/ui_strings.gyp:ui_strings',
-        '../ui/surface/surface.gyp:surface',
-        '../ui/views/controls/webview/webview.gyp:webview',
-        '../ui/views/controls/webview/webview.gyp:webview',
-        '../ui/web_dialogs/web_dialogs.gyp:web_dialogs',
-        '../url/url.gyp:url_lib',
-        '../v8/tools/gyp/v8.gyp:v8',
-        'chrome_resources.gyp:chrome_strings',
-      ],
-      'defines': [
-        '<@(nacl_defines)',
-      ],
-      'direct_dependent_settings': {
-        'defines': [
-          '<@(nacl_defines)',
-        ],
-      },
-      'export_dependent_settings': [
-        'browser/extensions/api/api_registration.gyp:chrome_api_registration',
-        'common/extensions/api/api.gyp:chrome_api',
-        '../sync/sync.gyp:sync',
-      ],
-      'include_dirs': [
-        # breakpad_linux.cc uses generated file_version_info_linux.h.
-        '<(SHARED_INTERMEDIATE_DIR)',
-        '../breakpad/src',
-      ],
-      'sources': [
+  'variables': {
+    # These files lists are shared with the GN build.
+    'browser_chromeos_sources': [
         # All .cc, .h, .m, and .mm files under browser/chromeos, except for tests
         # and mocks.
         'browser/chromeos/accessibility/accessibility_manager.cc',
@@ -333,8 +213,6 @@
         'browser/chromeos/extensions/device_local_account_external_policy_loader.h',
         'browser/chromeos/extensions/device_local_account_management_policy_provider.cc',
         'browser/chromeos/extensions/device_local_account_management_policy_provider.h',
-        'browser/chromeos/extensions/echo_private_api.cc',
-        'browser/chromeos/extensions/echo_private_api.h',
         'browser/chromeos/extensions/extension_system_event_observer.cc',
         'browser/chromeos/extensions/extension_system_event_observer.h',
         'browser/chromeos/extensions/external_cache.cc',
@@ -389,6 +267,8 @@
         'browser/chromeos/file_system_provider/fileapi/backend_delegate.h',
         'browser/chromeos/file_system_provider/fileapi/buffering_file_stream_reader.cc',
         'browser/chromeos/file_system_provider/fileapi/buffering_file_stream_reader.h',
+        'browser/chromeos/file_system_provider/fileapi/buffering_file_stream_writer.cc',
+        'browser/chromeos/file_system_provider/fileapi/buffering_file_stream_writer.h',
         'browser/chromeos/file_system_provider/fileapi/file_stream_reader.cc',
         'browser/chromeos/file_system_provider/fileapi/file_stream_reader.h',
         'browser/chromeos/file_system_provider/fileapi/file_stream_writer.cc',
@@ -400,6 +280,8 @@
         'browser/chromeos/file_system_provider/notification_manager.cc',
         'browser/chromeos/file_system_provider/notification_manager.h',
         'browser/chromeos/file_system_provider/notification_manager_interface.h',
+        'browser/chromeos/file_system_provider/observed_entry.cc',
+        'browser/chromeos/file_system_provider/observed_entry.h',
         'browser/chromeos/file_system_provider/observer.h',
         'browser/chromeos/file_system_provider/operations/abort.cc',
         'browser/chromeos/file_system_provider/operations/abort.h',
@@ -417,6 +299,8 @@
         'browser/chromeos/file_system_provider/operations/get_metadata.h',
         'browser/chromeos/file_system_provider/operations/move_entry.cc',
         'browser/chromeos/file_system_provider/operations/move_entry.h',
+        'browser/chromeos/file_system_provider/operations/observe_directory.cc',
+        'browser/chromeos/file_system_provider/operations/observe_directory.h',
         'browser/chromeos/file_system_provider/operations/open_file.cc',
         'browser/chromeos/file_system_provider/operations/open_file.h',
         'browser/chromeos/file_system_provider/operations/operation.cc',
@@ -429,6 +313,8 @@
         'browser/chromeos/file_system_provider/operations/truncate.h',
         'browser/chromeos/file_system_provider/operations/unmount.cc',
         'browser/chromeos/file_system_provider/operations/unmount.h',
+        'browser/chromeos/file_system_provider/operations/unobserve_entry.cc',
+        'browser/chromeos/file_system_provider/operations/unobserve_entry.h',
         'browser/chromeos/file_system_provider/operations/write_file.cc',
         'browser/chromeos/file_system_provider/operations/write_file.h',
         'browser/chromeos/file_system_provider/provided_file_system.cc',
@@ -437,6 +323,12 @@
         'browser/chromeos/file_system_provider/provided_file_system_info.h',
         'browser/chromeos/file_system_provider/provided_file_system_interface.cc',
         'browser/chromeos/file_system_provider/provided_file_system_interface.h',
+        'browser/chromeos/file_system_provider/provided_file_system_observer.cc',
+        'browser/chromeos/file_system_provider/provided_file_system_observer.h',
+        'browser/chromeos/file_system_provider/registry.cc',
+        'browser/chromeos/file_system_provider/registry.h',
+        'browser/chromeos/file_system_provider/registry_interface.cc',
+        'browser/chromeos/file_system_provider/registry_interface.h',
         'browser/chromeos/file_system_provider/request_manager.cc',
         'browser/chromeos/file_system_provider/request_manager.h',
         'browser/chromeos/file_system_provider/request_value.cc',
@@ -535,8 +427,8 @@
         'browser/chromeos/login/auth/auth_prewarmer.h',
         'browser/chromeos/login/auth/chrome_cryptohome_authenticator.cc',
         'browser/chromeos/login/auth/chrome_cryptohome_authenticator.h',
-        'browser/chromeos/login/auth/login_performer.cc',
-        'browser/chromeos/login/auth/login_performer.h',
+        'browser/chromeos/login/auth/chrome_login_performer.cc',
+        'browser/chromeos/login/auth/chrome_login_performer.h',
         'browser/chromeos/login/chrome_restart_request.cc',
         'browser/chromeos/login/chrome_restart_request.h',
         'browser/chromeos/login/default_pinned_apps_field_trial.cc',
@@ -549,10 +441,14 @@
         'browser/chromeos/login/easy_unlock/easy_unlock_get_keys_operation.h',
         'browser/chromeos/login/easy_unlock/easy_unlock_key_manager.cc',
         'browser/chromeos/login/easy_unlock/easy_unlock_key_manager.h',
+        'browser/chromeos/login/easy_unlock/easy_unlock_metrics.cc',
+        'browser/chromeos/login/easy_unlock/easy_unlock_metrics.h',
         'browser/chromeos/login/easy_unlock/easy_unlock_remove_keys_operation.cc',
         'browser/chromeos/login/easy_unlock/easy_unlock_remove_keys_operation.h',
         'browser/chromeos/login/easy_unlock/easy_unlock_types.cc',
         'browser/chromeos/login/easy_unlock/easy_unlock_types.h',
+        'browser/chromeos/login/easy_unlock/easy_unlock_user_login_flow.cc',
+        'browser/chromeos/login/easy_unlock/easy_unlock_user_login_flow.h',
         'browser/chromeos/login/enrollment/auto_enrollment_check_screen.cc',
         'browser/chromeos/login/enrollment/auto_enrollment_check_screen.h',
         'browser/chromeos/login/enrollment/auto_enrollment_check_screen_actor.h',
@@ -600,6 +496,9 @@
         'browser/chromeos/login/screens/controller_pairing_screen_actor.cc',
         'browser/chromeos/login/screens/controller_pairing_screen_actor.h',
         'browser/chromeos/login/screens/core_oobe_actor.h',
+        'browser/chromeos/login/screens/device_disabled_screen.cc',
+        'browser/chromeos/login/screens/device_disabled_screen.h',
+        'browser/chromeos/login/screens/device_disabled_screen_actor.h',
         'browser/chromeos/login/screens/error_screen.cc',
         'browser/chromeos/login/screens/error_screen.h',
         'browser/chromeos/login/screens/error_screen_actor.cc',
@@ -629,8 +528,6 @@
         'browser/chromeos/login/screens/reset_screen.cc',
         'browser/chromeos/login/screens/reset_screen.h',
         'browser/chromeos/login/screens/reset_screen_actor.h',
-        'browser/chromeos/login/screens/screen_context.cc',
-        'browser/chromeos/login/screens/screen_context.h',
         'browser/chromeos/login/screens/screen_flow.h',
         'browser/chromeos/login/screens/screen_observer.h',
         'browser/chromeos/login/screens/terms_of_service_screen.cc',
@@ -644,8 +541,6 @@
         'browser/chromeos/login/screens/user_image_screen_actor.h',
         'browser/chromeos/login/screens/user_selection_screen.cc',
         'browser/chromeos/login/screens/user_selection_screen.h',
-        'browser/chromeos/login/screens/wizard_screen.cc',
-        'browser/chromeos/login/screens/wizard_screen.h',
         'browser/chromeos/login/screens/wrong_hwid_screen.cc',
         'browser/chromeos/login/screens/wrong_hwid_screen.h',
         'browser/chromeos/login/screens/wrong_hwid_screen_actor.h',
@@ -823,6 +718,8 @@
         'browser/chromeos/policy/cloud_external_data_store.h',
         'browser/chromeos/policy/configuration_policy_handler_chromeos.cc',
         'browser/chromeos/policy/configuration_policy_handler_chromeos.h',
+        'browser/chromeos/policy/consumer_enrollment_handler.cc',
+        'browser/chromeos/policy/consumer_enrollment_handler.h',
         'browser/chromeos/policy/consumer_management_service.cc',
         'browser/chromeos/policy/consumer_management_service.h',
         'browser/chromeos/policy/device_cloud_policy_initializer.cc',
@@ -1057,16 +954,9 @@
         'browser/supervised_user/chromeos/supervised_user_password_service.h',
         'browser/supervised_user/chromeos/supervised_user_password_service_factory.cc',
         'browser/supervised_user/chromeos/supervised_user_password_service_factory.h',
-      ],
-      'conditions': [
-        ['use_athena==1', {
-          'defines': ['USE_ATHENA=1'],
-        }],
-        ['enable_extensions==1', {
-          'dependencies': [
-            '../ui/file_manager/file_manager.gyp:file_manager',
-          ],
-          'sources': [
+    ],
+    # These files lists are shared with the GN build.
+    'browser_chromeos_extension_sources': [
             # Only extension API implementations should go here.
             'browser/chromeos/extensions/echo_private_api.cc',
             'browser/chromeos/extensions/echo_private_api.h',
@@ -1115,7 +1005,142 @@
             'browser/chromeos/extensions/wallpaper_function_base.cc',
             'browser/chromeos/extensions/wallpaper_private_api.cc',
             'browser/chromeos/extensions/wallpaper_private_api.h',
+    ],
+  },
+  'targets': [
+    {
+      # GN version: //chrome/browser/chromeos
+      'target_name': 'browser_chromeos',
+      'type': 'static_library',
+      'variables': {
+        'conditions': [
+          ['sysroot!=""', {
+            'pkg-config': '../build/linux/pkg-config-wrapper "<(sysroot)" "<(target_arch)" "<(system_libdir)"',
+          }, {
+            'pkg-config': 'pkg-config'
+          }],
+        ],
+        # Override to dynamically link the cras (ChromeOS audio) library.
+        'use_cras%': 0,
+        'enable_wexit_time_destructors': 1,
+      },
+      'dependencies': [
+        # TODO(tbarzic): Cleanup this list.
+        'attestation_proto',
+        'browser/extensions/api/api_registration.gyp:chrome_api_registration',
+        'browser_extensions',
+        'cert_logger_proto',
+        'chrome_resources.gyp:chrome_extra_resources',
+        'chrome_resources.gyp:chrome_resources',
+        'chrome_resources.gyp:platform_locale_settings',
+        'chrome_resources.gyp:theme_resources',
+        'common',
+        'common/extensions/api/api.gyp:chrome_api',
+        'common_net',
+        'debugger',
+        'device_policy_proto',
+        'drive_proto',
+        'in_memory_url_index_cache_proto',
+        'installer_util',
+        'safe_browsing_chunk_proto',
+        'safe_browsing_proto',
+        'safe_browsing_report_proto',
+        '../breakpad/breakpad.gyp:breakpad_client',
+        '../build/linux/system.gyp:dbus',
+        '../chromeos/chromeos.gyp:chromeos',
+        '../chromeos/chromeos.gyp:cryptohome_proto',
+        # browser_chromeos #includes signed_secret.pb.h directly.
+        '../chromeos/chromeos.gyp:cryptohome_signkey_proto',
+        # browser_chromeos #includes power_supply_properties.pb.h directly.
+        '../chromeos/chromeos.gyp:power_manager_proto',
+        '../chromeos/ime/input_method.gyp:gencode',
+        '../components/components.gyp:cloud_policy_proto',
+        '../components/components.gyp:login',
+        '../components/components.gyp:onc_component',
+        '../components/components.gyp:ownership',
+        '../components/components.gyp:pairing',
+        '../components/components.gyp:policy',
+        # This depends directly on the variations target, rather than just
+        # transitively via the common target because the proto sources need to
+        # be generated before code in this target can start building.
+        '../components/components.gyp:variations',
+        '../components/components.gyp:variations_http_provider',
+        '../components/components_strings.gyp:components_strings',
+        '../content/app/resources/content_resources.gyp:content_resources',
+        '../content/content.gyp:content_browser',
+        '../content/content.gyp:content_common',
+        '../crypto/crypto.gyp:crypto',
+        '../dbus/dbus.gyp:dbus',
+        '../device/bluetooth/bluetooth.gyp:device_bluetooth',
+        '../device/hid/hid.gyp:device_hid',
+        '../media/media.gyp:media',
+        '../net/net.gyp:net',
+        '../ppapi/ppapi_internal.gyp:ppapi_ipc',  # For PpapiMsg_LoadPlugin
+        '../skia/skia.gyp:skia',
+        '../storage/storage_browser.gyp:storage',
+        '../storage/storage_common.gyp:storage_common',
+        '../sync/sync.gyp:sync',
+        '../third_party/adobe/flash/flash_player.gyp:flapper_version_h',
+        '../third_party/cacheinvalidation/cacheinvalidation.gyp:cacheinvalidation',
+        '../third_party/cacheinvalidation/cacheinvalidation.gyp:cacheinvalidation_proto_cpp',
+        '../third_party/expat/expat.gyp:expat',
+        '../third_party/hunspell/hunspell.gyp:hunspell',
+        '../third_party/icu/icu.gyp:icui18n',
+        '../third_party/icu/icu.gyp:icuuc',
+        '../third_party/leveldatabase/leveldatabase.gyp:leveldatabase',
+        '../third_party/libevent/libevent.gyp:libevent',
+        '../third_party/libjingle/libjingle.gyp:libjingle',
+        '../third_party/libusb/libusb.gyp:libusb',
+        '../third_party/libxml/libxml.gyp:libxml',
+        '../third_party/npapi/npapi.gyp:npapi',
+        '../third_party/protobuf/protobuf.gyp:protobuf_lite',
+        '../third_party/protobuf/protobuf.gyp:protoc#host',
+        '../third_party/re2/re2.gyp:re2',
+        '../third_party/zlib/zlib.gyp:zlib',
+        '../ui/base/ui_base.gyp:ui_base',
+        '../ui/display/display.gyp:display',
+        '../ui/events/events.gyp:dom4_keycode_converter',
+        '../ui/events/platform/events_platform.gyp:events_platform',
+        '../ui/chromeos/ui_chromeos.gyp:ui_chromeos_resources',
+        '../ui/chromeos/ui_chromeos.gyp:ui_chromeos_strings',
+        '../ui/resources/ui_resources.gyp:ui_resources',
+        '../ui/strings/ui_strings.gyp:ui_strings',
+        '../ui/surface/surface.gyp:surface',
+        '../ui/views/controls/webview/webview.gyp:webview',
+        '../ui/views/controls/webview/webview.gyp:webview',
+        '../ui/web_dialogs/web_dialogs.gyp:web_dialogs',
+        '../url/url.gyp:url_lib',
+        '../v8/tools/gyp/v8.gyp:v8',
+        'chrome_resources.gyp:chrome_strings',
+      ],
+      'defines': [
+        '<@(nacl_defines)',
+      ],
+      'direct_dependent_settings': {
+        'defines': [
+          '<@(nacl_defines)',
+        ],
+      },
+      'export_dependent_settings': [
+        'browser/extensions/api/api_registration.gyp:chrome_api_registration',
+        'common/extensions/api/api.gyp:chrome_api',
+        '../sync/sync.gyp:sync',
+      ],
+      'include_dirs': [
+        # breakpad_linux.cc uses generated file_version_info_linux.h.
+        '<(SHARED_INTERMEDIATE_DIR)',
+        '../breakpad/src',
+      ],
+      'sources': [ '<@(browser_chromeos_sources)' ],
+      'conditions': [
+        ['use_athena==1', {
+          'defines': ['USE_ATHENA=1'],
+        }],
+        ['enable_extensions==1', {
+          'dependencies': [
+            '../ui/file_manager/file_manager.gyp:file_manager',
           ],
+          'sources': [ '<@(browser_chromeos_extension_sources)' ],
         }],
         ['use_x11==0', {
           'sources!': [
@@ -1192,6 +1217,7 @@
       ],
     },
     {
+      # GN version: //chrome/browser/chromeos:drive_proto
       # Protobuf compiler / generator for the Drive protocol buffer.
       'target_name': 'drive_proto',
       'type': 'static_library',
@@ -1203,6 +1229,7 @@
       'includes': [ '../build/protoc.gypi' ]
     },
     {
+      # GN version: //chrome/browser/chromeos:device_policy_proto
       # Protobuf compiler / generator for device settings protocol buffers.
       'target_name': 'device_policy_proto',
       'type': 'static_library',
@@ -1217,6 +1244,7 @@
       'includes': [ '../build/protoc.gypi' ]
     },
     {
+      # GN version: //chrome/browser/chromeos:attestation_proto
       # Protobuf compiler / generator for attestation protocol buffers.
       'target_name': 'attestation_proto',
       'type': 'static_library',

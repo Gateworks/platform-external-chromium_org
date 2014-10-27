@@ -107,6 +107,11 @@ class ASH_EXPORT DockedWindowLayoutManager
   // Records |action| by |source| in UMA.
   void FinishDragging(DockedAction action, DockedActionSource source);
 
+  // Checks the rules and possibly updates the docked layout to match
+  // the |alignment|. May not apply the |alignment| when
+  // the current shelf alignment conflicts. Never clears the |alignment_|.
+  void MaybeSetDesiredDockedAlignment(DockedAlignment alignment);
+
   Shelf* shelf() { return shelf_; }
   void SetShelf(Shelf* shelf);
 
@@ -115,6 +120,14 @@ class ASH_EXPORT DockedWindowLayoutManager
 
   // Used to snap docked windows to the side of screen during drag.
   DockedAlignment CalculateAlignment() const;
+
+  void set_preferred_alignment(DockedAlignment preferred_alignment) {
+    preferred_alignment_ = preferred_alignment;
+  }
+
+  void set_event_source(DockedActionSource event_source) {
+    event_source_ = event_source;
+  }
 
   // Returns true when a window can be docked. Windows cannot be docked at the
   // edge used by the shelf or the edge opposite from existing dock.
@@ -135,42 +148,42 @@ class ASH_EXPORT DockedWindowLayoutManager
   void OnShelfBoundsChanged();
 
   // SnapLayoutManager:
-  virtual void OnWindowResized() OVERRIDE;
-  virtual void OnWindowAddedToLayout(aura::Window* child) OVERRIDE;
-  virtual void OnWillRemoveWindowFromLayout(aura::Window* child) OVERRIDE {}
-  virtual void OnWindowRemovedFromLayout(aura::Window* child) OVERRIDE;
+  virtual void OnWindowResized() override;
+  virtual void OnWindowAddedToLayout(aura::Window* child) override;
+  virtual void OnWillRemoveWindowFromLayout(aura::Window* child) override {}
+  virtual void OnWindowRemovedFromLayout(aura::Window* child) override;
   virtual void OnChildWindowVisibilityChanged(aura::Window* child,
-                                              bool visibile) OVERRIDE;
+                                              bool visibile) override;
   virtual void SetChildBounds(aura::Window* child,
-                              const gfx::Rect& requested_bounds) OVERRIDE;
+                              const gfx::Rect& requested_bounds) override;
 
   // ash::ShellObserver:
-  virtual void OnDisplayWorkAreaInsetsChanged() OVERRIDE;
+  virtual void OnDisplayWorkAreaInsetsChanged() override;
   virtual void OnFullscreenStateChanged(bool is_fullscreen,
-                                        aura::Window* root_window) OVERRIDE;
-  virtual void OnShelfAlignmentChanged(aura::Window* root_window) OVERRIDE;
+                                        aura::Window* root_window) override;
+  virtual void OnShelfAlignmentChanged(aura::Window* root_window) override;
 
   // ShelfLayoutManagerObserver:
   virtual void OnBackgroundUpdated(
       ShelfBackgroundType background_type,
-      BackgroundAnimatorChangeType change_type) OVERRIDE;
+      BackgroundAnimatorChangeType change_type) override;
 
   // wm::WindowStateObserver:
   virtual void OnPreWindowStateTypeChange(
       wm::WindowState* window_state,
-      wm::WindowStateType old_type) OVERRIDE;
+      wm::WindowStateType old_type) override;
 
   // aura::WindowObserver:
   virtual void OnWindowBoundsChanged(aura::Window* window,
                                      const gfx::Rect& old_bounds,
-                                     const gfx::Rect& new_bounds) OVERRIDE;
+                                     const gfx::Rect& new_bounds) override;
   virtual void OnWindowVisibilityChanging(aura::Window* window,
-                                          bool visible) OVERRIDE;
-  virtual void OnWindowDestroying(aura::Window* window) OVERRIDE;
+                                          bool visible) override;
+  virtual void OnWindowDestroying(aura::Window* window) override;
 
   // aura::client::ActivationChangeObserver:
   virtual void OnWindowActivated(aura::Window* gained_active,
-                                 aura::Window* lost_active) OVERRIDE;
+                                 aura::Window* lost_active) override;
 
  private:
   class ShelfWindowObserver;
@@ -182,6 +195,13 @@ class ASH_EXPORT DockedWindowLayoutManager
 
   // Ideal (starting) width of the dock.
   static const int kIdealWidth;
+
+  // Returns the alignment of the docked windows other than the |child|.
+  DockedAlignment CalculateAlignmentExcept(const aura::Window* child) const;
+
+  // Determines if the |alignment| is applicable taking into account
+  // the shelf alignment.
+  bool IsDockedAlignmentValid(DockedAlignment alignment) const;
 
   // Keep at most kMaxVisibleWindows visible in the dock and minimize the rest
   // (except for |child|).
@@ -247,7 +267,7 @@ class ASH_EXPORT DockedWindowLayoutManager
 
   // keyboard::KeyboardControllerObserver:
   virtual void OnKeyboardBoundsChanging(
-      const gfx::Rect& keyboard_bounds) OVERRIDE;
+      const gfx::Rect& keyboard_bounds) override;
 
   // Parent window associated with this layout manager.
   aura::Window* dock_container_;
@@ -286,6 +306,12 @@ class ASH_EXPORT DockedWindowLayoutManager
 
   // Side of the screen that the dock is positioned at.
   DockedAlignment alignment_;
+
+  // The preferred alignment of the next window to be added to docked layout.
+  DockedAlignment preferred_alignment_;
+
+  // The current event source
+  DockedActionSource event_source_;
 
   // The last active window. Used to maintain stacking order even if no windows
   // are currently focused.

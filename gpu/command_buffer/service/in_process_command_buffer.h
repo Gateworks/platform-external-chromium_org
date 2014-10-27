@@ -19,7 +19,6 @@
 #include "gpu/command_buffer/client/gpu_control.h"
 #include "gpu/command_buffer/common/command_buffer.h"
 #include "gpu/gpu_export.h"
-#include "ui/gfx/gpu_memory_buffer.h"
 #include "ui/gfx/native_widget_types.h"
 #include "ui/gl/gl_surface.h"
 #include "ui/gl/gpu_preference.h"
@@ -56,26 +55,6 @@ class CommandBufferServiceBase;
 class GpuScheduler;
 class TransferBufferManagerInterface;
 
-// TODO(reveman): Remove this interface when InProcessCommandBuffer doesn't need
-// a custom factory interface and android_webview implementation of GPU memory
-// buffers can use the same mechanism for buffer allocation as what's used for
-// out of process GPU service.
-class GPU_EXPORT InProcessGpuMemoryBufferFactory {
- public:
-  virtual scoped_ptr<gfx::GpuMemoryBuffer> AllocateGpuMemoryBuffer(
-      size_t width,
-      size_t height,
-      unsigned internalformat,
-      unsigned usage) = 0;
-  virtual scoped_refptr<gfx::GLImage> CreateImageForGpuMemoryBuffer(
-      const gfx::GpuMemoryBufferHandle& handle,
-      const gfx::Size& size,
-      unsigned internalformat) = 0;
-
- protected:
-  virtual ~InProcessGpuMemoryBufferFactory() {}
-};
-
 // This class provides a thread-safe interface to the global GPU service (for
 // example GPU thread) when being run in single process mode.
 // However, the behavior for accessing one context (i.e. one instance of this
@@ -85,10 +64,7 @@ class GPU_EXPORT InProcessCommandBuffer : public CommandBuffer,
  public:
   class Service;
   explicit InProcessCommandBuffer(const scoped_refptr<Service>& service);
-  virtual ~InProcessCommandBuffer();
-
-  static void SetGpuMemoryBufferFactory(
-      InProcessGpuMemoryBufferFactory* factory);
+  ~InProcessCommandBuffer() override;
 
   // If |surface| is not NULL, use it directly; in this case, the command
   // buffer gpu thread must be the same as the client thread. Otherwise create
@@ -104,36 +80,37 @@ class GPU_EXPORT InProcessCommandBuffer : public CommandBuffer,
   void Destroy();
 
   // CommandBuffer implementation:
-  virtual bool Initialize() OVERRIDE;
-  virtual State GetLastState() OVERRIDE;
-  virtual int32 GetLastToken() OVERRIDE;
-  virtual void Flush(int32 put_offset) OVERRIDE;
-  virtual void WaitForTokenInRange(int32 start, int32 end) OVERRIDE;
-  virtual void WaitForGetOffsetInRange(int32 start, int32 end) OVERRIDE;
-  virtual void SetGetBuffer(int32 shm_id) OVERRIDE;
-  virtual scoped_refptr<gpu::Buffer> CreateTransferBuffer(size_t size,
-                                                          int32* id) OVERRIDE;
-  virtual void DestroyTransferBuffer(int32 id) OVERRIDE;
-  virtual gpu::error::Error GetLastError() OVERRIDE;
+  bool Initialize() override;
+  State GetLastState() override;
+  int32 GetLastToken() override;
+  void Flush(int32 put_offset) override;
+  void WaitForTokenInRange(int32 start, int32 end) override;
+  void WaitForGetOffsetInRange(int32 start, int32 end) override;
+  void SetGetBuffer(int32 shm_id) override;
+  scoped_refptr<gpu::Buffer> CreateTransferBuffer(size_t size,
+                                                  int32* id) override;
+  void DestroyTransferBuffer(int32 id) override;
+  gpu::error::Error GetLastError() override;
 
   // GpuControl implementation:
-  virtual gpu::Capabilities GetCapabilities() OVERRIDE;
-  virtual gfx::GpuMemoryBuffer* CreateGpuMemoryBuffer(size_t width,
-                                                      size_t height,
-                                                      unsigned internalformat,
-                                                      unsigned usage,
-                                                      int32* id) OVERRIDE;
-  virtual void DestroyGpuMemoryBuffer(int32 id) OVERRIDE;
-  virtual uint32 InsertSyncPoint() OVERRIDE;
-  virtual uint32 InsertFutureSyncPoint() OVERRIDE;
-  virtual void RetireSyncPoint(uint32 sync_point) OVERRIDE;
-  virtual void SignalSyncPoint(uint32 sync_point,
-                               const base::Closure& callback) OVERRIDE;
-  virtual void SignalQuery(uint32 query_id,
-                           const base::Closure& callback) OVERRIDE;
-  virtual void SetSurfaceVisible(bool visible) OVERRIDE;
-  virtual void Echo(const base::Closure& callback) OVERRIDE;
-  virtual uint32 CreateStreamTexture(uint32 texture_id) OVERRIDE;
+  gpu::Capabilities GetCapabilities() override;
+  int32 CreateImage(ClientBuffer buffer,
+                    size_t width,
+                    size_t height,
+                    unsigned internalformat) override;
+  void DestroyImage(int32 id) override;
+  int32 CreateGpuMemoryBufferImage(size_t width,
+                                   size_t height,
+                                   unsigned internalformat,
+                                   unsigned usage) override;
+  uint32 InsertSyncPoint() override;
+  uint32 InsertFutureSyncPoint() override;
+  void RetireSyncPoint(uint32 sync_point) override;
+  void SignalSyncPoint(uint32 sync_point,
+                       const base::Closure& callback) override;
+  void SignalQuery(uint32 query_id, const base::Closure& callback) override;
+  void SetSurfaceVisible(bool visible) override;
+  uint32 CreateStreamTexture(uint32 texture_id) override;
 
   // The serializer interface to the GPU service (i.e. thread).
   class Service {
@@ -204,15 +181,9 @@ class GPU_EXPORT InProcessCommandBuffer : public CommandBuffer,
   void RetireSyncPointOnGpuThread(uint32 sync_point);
   void SignalSyncPointOnGpuThread(uint32 sync_point,
                                   const base::Closure& callback);
+  bool WaitSyncPointOnGpuThread(uint32 sync_point);
   void SignalQueryOnGpuThread(unsigned query_id, const base::Closure& callback);
   void DestroyTransferBufferOnGpuThread(int32 id);
-  void RegisterGpuMemoryBufferOnGpuThread(
-      int32 id,
-      const gfx::GpuMemoryBufferHandle& handle,
-      size_t width,
-      size_t height,
-      unsigned internalformat);
-  void UnregisterGpuMemoryBufferOnGpuThread(int32 id);
 
   // Callbacks:
   void OnContextLost();
@@ -238,9 +209,6 @@ class GPU_EXPORT InProcessCommandBuffer : public CommandBuffer,
   State last_state_;
   int32 last_put_offset_;
   gpu::Capabilities capabilities_;
-  typedef base::ScopedPtrHashMap<int32, gfx::GpuMemoryBuffer>
-      GpuMemoryBufferMap;
-  GpuMemoryBufferMap gpu_memory_buffers_;
 
   // Accessed on both threads:
   scoped_ptr<CommandBufferServiceBase> command_buffer_;

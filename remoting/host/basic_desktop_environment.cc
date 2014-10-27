@@ -37,15 +37,13 @@ scoped_ptr<InputInjector> BasicDesktopEnvironment::CreateInputInjector() {
 scoped_ptr<ScreenControls> BasicDesktopEnvironment::CreateScreenControls() {
   DCHECK(caller_task_runner_->BelongsToCurrentThread());
 
-  return scoped_ptr<ScreenControls>();
+  return nullptr;
 }
 
 scoped_ptr<webrtc::MouseCursorMonitor>
 BasicDesktopEnvironment::CreateMouseCursorMonitor() {
-  return scoped_ptr<webrtc::MouseCursorMonitor>(
-      webrtc::MouseCursorMonitor::CreateForScreen(
-          *desktop_capture_options_,
-          webrtc::kFullDesktopScreenId));
+  return make_scoped_ptr(webrtc::MouseCursorMonitor::CreateForScreen(
+      *desktop_capture_options_, webrtc::kFullDesktopScreenId));
 }
 
 std::string BasicDesktopEnvironment::GetCapabilities() const {
@@ -57,7 +55,7 @@ void BasicDesktopEnvironment::SetCapabilities(const std::string& capabilities) {
 
 scoped_ptr<GnubbyAuthHandler> BasicDesktopEnvironment::CreateGnubbyAuthHandler(
     protocol::ClientStub* client_stub) {
-  return scoped_ptr<GnubbyAuthHandler>();
+  return nullptr;
 }
 
 scoped_ptr<webrtc::DesktopCapturer>
@@ -66,7 +64,7 @@ BasicDesktopEnvironment::CreateVideoCapturer() {
 
   // The basic desktop environment does not use X DAMAGE, since it is
   // broken on many systems - see http://crbug.com/73423.
-  return scoped_ptr<webrtc::DesktopCapturer>(
+  return make_scoped_ptr(
       webrtc::ScreenCapturer::Create(*desktop_capture_options_));
 }
 

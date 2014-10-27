@@ -118,9 +118,9 @@ class EncryptedMediaTestBase : public MediaBrowserTest {
   void RunEncryptedMediaTestPage(
       const std::string& html_page,
       const std::string& key_system,
-      const media::QueryParams& query_params,
+      base::StringPairs& query_params,
       const std::string& expected_title) {
-    media::QueryParams new_query_params = query_params;
+    base::StringPairs new_query_params = query_params;
     StartLicenseServerIfNeeded(key_system, &new_query_params);
     RunMediaTestPage(html_page, new_query_params, expected_title, true);
   }
@@ -146,7 +146,7 @@ class EncryptedMediaTestBase : public MediaBrowserTest {
       VLOG(0) << "Skipping test - MSE not supported.";
       return;
     }
-    media::QueryParams query_params;
+    base::StringPairs query_params;
     query_params.push_back(std::make_pair("mediaFile", media_file));
     query_params.push_back(std::make_pair("mediaType", media_type));
     query_params.push_back(std::make_pair("keySystem", key_system));
@@ -193,7 +193,7 @@ class EncryptedMediaTestBase : public MediaBrowserTest {
   // Starts a license server if available for the |key_system| and adds a
   // 'licenseServerURL' query parameter to |query_params|.
   void StartLicenseServerIfNeeded(const std::string& key_system,
-                                  media::QueryParams* query_params) {
+                                  base::StringPairs* query_params) {
     scoped_ptr<TestLicenseServerConfig> config = GetServerConfig(key_system);
     if (!config)
       return;
@@ -228,13 +228,13 @@ class EncryptedMediaTestBase : public MediaBrowserTest {
   scoped_ptr<TestLicenseServer> license_server_;
 
   // We want to fail quickly when a test fails because an error is encountered.
-  virtual void AddWaitForTitles(content::TitleWatcher* title_watcher) OVERRIDE {
+  void AddWaitForTitles(content::TitleWatcher* title_watcher) override {
     MediaBrowserTest::AddWaitForTitles(title_watcher);
     title_watcher->AlsoWaitForTitle(base::ASCIIToUTF16(kEmeNotSupportedError));
     title_watcher->AlsoWaitForTitle(base::ASCIIToUTF16(kEmeKeyError));
   }
 
-  virtual void SetUpCommandLine(CommandLine* command_line) OVERRIDE {
+  void SetUpCommandLine(CommandLine* command_line) override {
 #if defined(OS_ANDROID)
     command_line->AppendSwitch(
         switches::kDisableGestureRequirementForMediaPlayback);
@@ -326,8 +326,21 @@ class ECKEncryptedMediaTest : public EncryptedMediaTestBase {
   }
 
  protected:
-  virtual void SetUpCommandLine(CommandLine* command_line) OVERRIDE {
+  void SetUpCommandLine(CommandLine* command_line) override {
     EncryptedMediaTestBase::SetUpCommandLine(command_line);
+    SetUpCommandLineForKeySystem(kExternalClearKeyKeySystem, command_line);
+  }
+};
+
+// Tests encrypted media playback using ExternalClearKey key system in
+// decrypt-and-decode mode for unprefixed EME.
+// TODO(jrummell): Merge with ECKEncryptedMediaTest once unprefixed is
+// enabled by default.
+class ECKUnprefixedEncryptedMediaTest : public EncryptedMediaTestBase {
+ protected:
+  virtual void SetUpCommandLine(CommandLine* command_line) override {
+    EncryptedMediaTestBase::SetUpCommandLine(command_line);
+    command_line->AppendSwitch(switches::kEnableEncryptedMedia);
     SetUpCommandLineForKeySystem(kExternalClearKeyKeySystem, command_line);
   }
 };
@@ -336,7 +349,7 @@ class ECKEncryptedMediaTest : public EncryptedMediaTestBase {
 // Tests encrypted media playback using Widevine key system.
 class WVEncryptedMediaTest : public EncryptedMediaTestBase {
  protected:
-  virtual void SetUpCommandLine(CommandLine* command_line) OVERRIDE {
+  virtual void SetUpCommandLine(CommandLine* command_line) override {
     EncryptedMediaTestBase::SetUpCommandLine(command_line);
     command_line->AppendSwitch(switches::kEnableEncryptedMedia);
     SetUpCommandLineForKeySystem(kWidevineKeySystem, command_line);
@@ -406,7 +419,7 @@ class EncryptedMediaTest
 
   void TestConfigChange() {
     DCHECK(IsMSESupported());
-    media::QueryParams query_params;
+    base::StringPairs query_params;
     query_params.push_back(std::make_pair("keySystem", CurrentKeySystem()));
     query_params.push_back(std::make_pair("runEncrypted", "1"));
     if (CurrentEmeVersion() == PREFIXED)
@@ -418,7 +431,7 @@ class EncryptedMediaTest
   }
 
  protected:
-  virtual void SetUpCommandLine(CommandLine* command_line) OVERRIDE {
+  void SetUpCommandLine(CommandLine* command_line) override {
     EncryptedMediaTestBase::SetUpCommandLine(command_line);
     SetUpCommandLineForKeySystem(CurrentKeySystem(), command_line);
 
@@ -662,6 +675,31 @@ IN_PROC_BROWSER_TEST_F(ECKEncryptedMediaTest, LoadUnknownSession) {
                         kExternalClearKeyKeySystem,
                         SRC,
                         PREFIXED,
+                        kUnknownSession,
+                        false,
+                        kEmeKeyError);
+}
+
+IN_PROC_BROWSER_TEST_F(ECKUnprefixedEncryptedMediaTest, LoadLoadableSession) {
+  RunEncryptedMediaTest(kDefaultEmePlayer,
+                        "bear-320x240-v_enc-v.webm",
+                        kWebMVideoOnly,
+                        kExternalClearKeyKeySystem,
+                        SRC,
+                        UNPREFIXED,
+                        kLoadableSession,
+                        false,
+                        kEnded);
+}
+
+IN_PROC_BROWSER_TEST_F(ECKUnprefixedEncryptedMediaTest, LoadUnknownSession) {
+  // TODO(xhwang): Add a specific error for this failure, e.g. kSessionNotFound.
+  RunEncryptedMediaTest(kDefaultEmePlayer,
+                        "bear-320x240-v_enc-v.webm",
+                        kWebMVideoOnly,
+                        kExternalClearKeyKeySystem,
+                        SRC,
+                        UNPREFIXED,
                         kUnknownSession,
                         false,
                         kEmeKeyError);

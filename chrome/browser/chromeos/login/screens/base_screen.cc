@@ -9,13 +9,14 @@
 
 namespace chromeos {
 
-BaseScreen::BaseScreen() {
+BaseScreen::BaseScreen(ScreenObserver* screen_observer)
+    : screen_observer_(screen_observer) {
 }
 
 BaseScreen::~BaseScreen() {
 }
 
-void BaseScreen::Initialize(ScreenContext* context) {
+void BaseScreen::Initialize(::login::ScreenContext* context) {
 }
 
 void BaseScreen::OnShow() {
@@ -43,7 +44,7 @@ void BaseScreen::Finish(const std::string& outcome) {
 
 }
 
-void BaseScreen::SetContext(ScreenContext* context) {
+void BaseScreen::SetContext(::login::ScreenContext* context) {
 }
 
 void BaseScreen::OnButtonPressed(const std::string& button_id) {

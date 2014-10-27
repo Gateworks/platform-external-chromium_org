@@ -13,7 +13,7 @@
 
 class NotificationIdleTest : public ExtensionApiTest {
  protected:
-  virtual void SetUpOnMainThread() OVERRIDE {
+  void SetUpOnMainThread() override {
     ExtensionApiTest::SetUpOnMainThread();
 
     extensions::ProcessManager::SetEventPageIdleTimeForTesting(1);

@@ -18,17 +18,15 @@ class FakeBatteryManager : public BatteryStatusManager {
   explicit FakeBatteryManager(
       const BatteryStatusService::BatteryUpdateCallback& callback)
       : callback_(callback), start_invoked_count_(0), stop_invoked_count_(0) {}
-  virtual ~FakeBatteryManager() { }
+  ~FakeBatteryManager() override {}
 
   // Methods from Battery Status Manager
-  virtual bool StartListeningBatteryChange() OVERRIDE {
+  bool StartListeningBatteryChange() override {
     start_invoked_count_++;
     return true;
   }
 
-  virtual void StopListeningBatteryChange() OVERRIDE {
-    stop_invoked_count_++;
-  }
+  void StopListeningBatteryChange() override { stop_invoked_count_++; }
 
   void InvokeUpdateCallback(const blink::WebBatteryStatus& status) {
     callback_.Run(status);
@@ -59,7 +57,7 @@ class BatteryStatusServiceTest : public testing::Test {
  protected:
   typedef BatteryStatusService::BatteryUpdateSubscription BatterySubscription;
 
-  virtual void SetUp() OVERRIDE {
+  virtual void SetUp() override {
     callback1_ = base::Bind(&BatteryStatusServiceTest::Callback1,
                             base::Unretained(this));
     callback2_ = base::Bind(&BatteryStatusServiceTest::Callback2,
@@ -70,7 +68,7 @@ class BatteryStatusServiceTest : public testing::Test {
     battery_service_->SetBatteryManagerForTesting(battery_manager_);
   }
 
-  virtual void TearDown() OVERRIDE {
+  virtual void TearDown() override {
     base::RunLoop().RunUntilIdle();
     battery_service_->SetBatteryManagerForTesting(0);
   }

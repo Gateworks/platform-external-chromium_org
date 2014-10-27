@@ -8,9 +8,9 @@ from telemetry.page import page_set as page_set_module
 class KeyMobileSitesPage(page_module.Page):
 
   def __init__(self, url, page_set, name=''):
-    super(KeyMobileSitesPage, self).__init__(url=url, page_set=page_set,
-                                             name=name)
-    self.credentials_path = 'data/credentials.json'
+    super(KeyMobileSitesPage, self).__init__(
+        url=url, page_set=page_set, name=name,
+        credentials_path='data/credentials.json')
     self.user_agent_type = 'mobile'
     self.archive_data_file = 'data/key_mobile_sites.json'
 
@@ -22,6 +22,12 @@ class KeyMobileSitesPage(page_module.Page):
 
   def RunRepaint(self, action_runner):
     action_runner.RepaintContinuously(seconds=5)
+
+  def RunTaskExecutionTime(self, action_runner):
+    interaction = action_runner.BeginGestureInteraction(
+        'ScrollAction', is_smooth=True)
+    action_runner.ScrollPage()
+    interaction.End()
 
 
 class Page1(KeyMobileSitesPage):
@@ -210,7 +216,6 @@ class Page13(KeyMobileSitesPage):
       url='http://twitter.com/katyperry',
       page_set=page_set,
       name='Twitter')
-    self.disabled = 'Forbidden (Rate Limit Exceeded)'
 
 
 class Page14(KeyMobileSitesPage):
@@ -233,7 +238,6 @@ class Page15(KeyMobileSitesPage):
       url='http://espn.go.com',
       page_set=page_set,
       name='ESPN')
-    self.disabled = 'Fails often; crbug.com/249722'
 
 
 class Page16(KeyMobileSitesPage):
@@ -328,8 +332,6 @@ class Page21(KeyMobileSitesPage):
       url='http://groupcloned.com',
       page_set=page_set)
 
-    self.disabled = ('Page behaves non-deterministically, replaced with test'
-                     'version for now')
 
   def RunNavigateSteps(self, action_runner):
     action_runner.NavigateToPage(self)
@@ -389,8 +391,6 @@ class Page23(KeyMobileSitesPage):
     super(Page23, self).__init__(
       url='http://forecast.io',
       page_set=page_set)
-
-    self.disabled = u"Doesn't scroll; crbug.com/249736"
 
 
 class Page24(KeyMobileSitesPage):
@@ -464,7 +464,6 @@ class KeyMobileSitesPageSet(page_set_module.PageSet):
 
   def __init__(self):
     super(KeyMobileSitesPageSet, self).__init__(
-      credentials_path='data/credentials.json',
       user_agent_type='mobile',
       archive_data_file='data/key_mobile_sites.json',
       bucket=page_set_module.PARTNER_BUCKET)
@@ -481,17 +480,24 @@ class KeyMobileSitesPageSet(page_set_module.PageSet):
     self.AddPage(Page10(self))
     self.AddPage(Page11(self))
     self.AddPage(Page12(self))
-#    self.AddPage(Page13(self))
+    # Forbidden (Rate Limit Exceeded)
+    # self.AddPage(Page13(self))
     self.AddPage(Page14(self))
-#    self.AddPage(Page15(self))
+    # Fails often; crbug.com/249722'
+    # self.AddPage(Page15(self))
     self.AddPage(Page16(self))
     self.AddPage(Page17(self))
     self.AddPage(Page18(self))
     self.AddPage(Page19(self))
     self.AddPage(Page20(self))
-    self.AddPage(Page21(self))
-    self.AddPage(Page22(self))
-#    self.AddPage(Page23(self))
+    # Page behaves non-deterministically, replaced with test version for now.
+    # self.AddPage(Page21(self))
+    # mean_input_event_latency cannot be tracked correctly for Page22.
+    # See crbug.com/409086.
+    # self.AddPage(Page22(self))
+    # self.AddPage(Page23(self))
+    # Doesn't scroll; crbug.com/249736
+    # self.AddPage(Page23(self))
     self.AddPage(Page24(self))
     self.AddPage(Page25(self))
     self.AddPage(Page26(self))

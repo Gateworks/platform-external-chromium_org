@@ -26,7 +26,7 @@ CONTENT_EXPORT Status GetWebCryptoUsagesFromJwkKeyOps(
 
 // Composes a JWK key_ops array from a Web Crypto usage mask.
 base::ListValue* CreateJwkKeyOpsFromWebCryptoUsages(
-    blink::WebCryptoKeyUsageMask usage_mask);
+    blink::WebCryptoKeyUsageMask usages);
 
 // Creates a WebCryptoAlgorithm without any parameters.
 CONTENT_EXPORT blink::WebCryptoAlgorithm CreateAlgorithm(
@@ -50,9 +50,6 @@ bool ContainsKeyUsages(blink::WebCryptoKeyUsageMask a,
 
 bool KeyUsageAllows(const blink::WebCryptoKey& key,
                     const blink::WebCryptoKeyUsage usage);
-
-bool IsAlgorithmRsa(blink::WebCryptoAlgorithmId alg_id);
-bool IsAlgorithmAsymmetric(blink::WebCryptoAlgorithmId alg_id);
 
 Status GetAesGcmTagLengthInBits(const blink::WebCryptoAesGcmParams* params,
                                 unsigned int* tag_length_bits);

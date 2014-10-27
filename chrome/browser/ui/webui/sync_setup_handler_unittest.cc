@@ -147,9 +147,7 @@ void CheckConfigDataTypeArguments(base::DictionaryValue* dictionary,
 // CallJavascriptFunction().
 class TestWebUI : public content::WebUI {
  public:
-  virtual ~TestWebUI() {
-    ClearTrackedCalls();
-  }
+  ~TestWebUI() override { ClearTrackedCalls(); }
 
   void ClearTrackedCalls() {
     // Manually free the arguments stored in CallData, since there's no good
@@ -163,72 +161,60 @@ class TestWebUI : public content::WebUI {
     call_data_.clear();
   }
 
-  virtual void CallJavascriptFunction(const std::string& function_name)
-      OVERRIDE {
+  void CallJavascriptFunction(const std::string& function_name) override {
     call_data_.push_back(CallData());
     call_data_.back().function_name = function_name;
   }
 
-  virtual void CallJavascriptFunction(const std::string& function_name,
-                                      const base::Value& arg1) OVERRIDE {
+  void CallJavascriptFunction(const std::string& function_name,
+                              const base::Value& arg1) override {
     call_data_.push_back(CallData());
     call_data_.back().function_name = function_name;
     call_data_.back().arg1 = arg1.DeepCopy();
   }
 
-  virtual void CallJavascriptFunction(const std::string& function_name,
-                                      const base::Value& arg1,
-                                      const base::Value& arg2) OVERRIDE {
+  void CallJavascriptFunction(const std::string& function_name,
+                              const base::Value& arg1,
+                              const base::Value& arg2) override {
     call_data_.push_back(CallData());
     call_data_.back().function_name = function_name;
     call_data_.back().arg1 = arg1.DeepCopy();
     call_data_.back().arg2 = arg2.DeepCopy();
   }
 
-  virtual content::WebContents* GetWebContents() const OVERRIDE {
-    return NULL;
-  }
-  virtual content::WebUIController* GetController() const OVERRIDE {
-    return NULL;
-  }
-  virtual void SetController(content::WebUIController* controller) OVERRIDE {}
-  virtual float GetDeviceScaleFactor() const OVERRIDE {
-    return 1.0f;
-  }
-  virtual const base::string16& GetOverriddenTitle() const OVERRIDE {
+  content::WebContents* GetWebContents() const override { return NULL; }
+  content::WebUIController* GetController() const override { return NULL; }
+  void SetController(content::WebUIController* controller) override {}
+  float GetDeviceScaleFactor() const override { return 1.0f; }
+  const base::string16& GetOverriddenTitle() const override {
     return temp_string_;
   }
-  virtual void OverrideTitle(const base::string16& title) OVERRIDE {}
-  virtual ui::PageTransition GetLinkTransitionType() const OVERRIDE {
+  void OverrideTitle(const base::string16& title) override {}
+  ui::PageTransition GetLinkTransitionType() const override {
     return ui::PAGE_TRANSITION_LINK;
   }
-  virtual void SetLinkTransitionType(ui::PageTransition type) OVERRIDE {}
-  virtual int GetBindings() const OVERRIDE {
-    return 0;
-  }
-  virtual void SetBindings(int bindings) OVERRIDE {}
-  virtual void OverrideJavaScriptFrame(
-      const std::string& frame_name) OVERRIDE {}
-  virtual void AddMessageHandler(
-      content::WebUIMessageHandler* handler) OVERRIDE {}
-  virtual void RegisterMessageCallback(
-      const std::string& message,
-      const MessageCallback& callback) OVERRIDE {}
-  virtual void ProcessWebUIMessage(const GURL& source_url,
-                                   const std::string& message,
-                                   const base::ListValue& args) OVERRIDE {}
-  virtual void CallJavascriptFunction(const std::string& function_name,
-                                      const base::Value& arg1,
-                                      const base::Value& arg2,
-                                      const base::Value& arg3) OVERRIDE {}
-  virtual void CallJavascriptFunction(const std::string& function_name,
-                                      const base::Value& arg1,
-                                      const base::Value& arg2,
-                                      const base::Value& arg3,
-                                      const base::Value& arg4) OVERRIDE {}
-  virtual void CallJavascriptFunction(
+  void SetLinkTransitionType(ui::PageTransition type) override {}
+  int GetBindings() const override { return 0; }
+  void SetBindings(int bindings) override {}
+  void OverrideJavaScriptFrame(const std::string& frame_name) override {}
+  void AddMessageHandler(content::WebUIMessageHandler* handler) override {}
+  void RegisterMessageCallback(const std::string& message,
+                               const MessageCallback& callback) override {}
+  void ProcessWebUIMessage(const GURL& source_url,
+                           const std::string& message,
+                           const base::ListValue& args) override {}
+  void CallJavascriptFunction(const std::string& function_name,
+                              const base::Value& arg1,
+                              const base::Value& arg2,
+                              const base::Value& arg3) override {}
+  void CallJavascriptFunction(const std::string& function_name,
+                              const base::Value& arg1,
+                              const base::Value& arg2,
+                              const base::Value& arg3,
+                              const base::Value& arg4) override {}
+  void CallJavascriptFunction(
       const std::string& function_name,
-      const std::vector<const base::Value*>& args) OVERRIDE {}
+      const std::vector<const base::Value*>& args) override {}
 
   class CallData {
    public:
@@ -250,19 +236,17 @@ class TestingSyncSetupHandler : public SyncSetupHandler {
         profile_(profile) {
     set_web_ui(web_ui);
   }
-  virtual ~TestingSyncSetupHandler() {
-    set_web_ui(NULL);
-  }
+  ~TestingSyncSetupHandler() override { set_web_ui(NULL); }
 
-  virtual void FocusUI() OVERRIDE {}
+  void FocusUI() override {}
 
-  virtual Profile* GetProfile() const OVERRIDE { return profile_; }
+  Profile* GetProfile() const override { return profile_; }
 
   using SyncSetupHandler::is_configuring_sync;
 
  private:
 #if !defined(OS_CHROMEOS)
-  virtual void DisplayGaiaLoginInNewTabOrWindow() OVERRIDE {}
+  void DisplayGaiaLoginInNewTabOrWindow() override {}
 #endif
 
   // Weak pointer to parent profile.
@@ -276,7 +260,7 @@ class TestingSyncSetupHandler : public SyncSetupHandler {
 class SyncSetupHandlerTest : public testing::Test {
  public:
   SyncSetupHandlerTest() : error_(GoogleServiceAuthError::NONE) {}
-  virtual void SetUp() OVERRIDE {
+  virtual void SetUp() override {
     error_ = GoogleServiceAuthError::AuthErrorNone();
 
     TestingProfile::Builder builder;
@@ -328,7 +312,7 @@ class SyncSetupHandlerTest : public testing::Test {
     // An initialized ProfileSyncService will have already completed sync setup
     // and will have an initialized sync backend.
     ASSERT_TRUE(mock_signin_->IsInitialized());
-    EXPECT_CALL(*mock_pss_, sync_initialized()).WillRepeatedly(Return(true));
+    EXPECT_CALL(*mock_pss_, backend_initialized()).WillRepeatedly(Return(true));
   }
 
   void ExpectConfig() {
@@ -387,7 +371,7 @@ class SyncSetupHandlerTest : public testing::Test {
 };
 
 class SyncSetupHandlerFirstSigninTest : public SyncSetupHandlerTest {
-  virtual std::string GetTestUser() OVERRIDE { return std::string(); }
+  std::string GetTestUser() override { return std::string(); }
 };
 
 TEST_F(SyncSetupHandlerTest, Basic) {
@@ -463,7 +447,7 @@ TEST_F(SyncSetupHandlerTest, DisplayConfigureWithBackendDisabledAndCancel) {
   EXPECT_CALL(*mock_pss_, HasSyncSetupCompleted())
       .WillRepeatedly(Return(false));
   error_ = GoogleServiceAuthError::AuthErrorNone();
-  EXPECT_CALL(*mock_pss_, sync_initialized()).WillRepeatedly(Return(false));
+  EXPECT_CALL(*mock_pss_, backend_initialized()).WillRepeatedly(Return(false));
 
   // We're simulating a user setting up sync, which would cause the backend to
   // kick off initialization, but not download user data types. The sync
@@ -491,7 +475,7 @@ TEST_F(SyncSetupHandlerTest,
       .WillRepeatedly(Return(false));
   error_ = GoogleServiceAuthError::AuthErrorNone();
   // Sync backend is stopped initially, and will start up.
-  EXPECT_CALL(*mock_pss_, sync_initialized())
+  EXPECT_CALL(*mock_pss_, backend_initialized())
       .WillRepeatedly(Return(false));
   SetDefaultExpectationsForConfigPage();
 
@@ -509,7 +493,7 @@ TEST_F(SyncSetupHandlerTest,
   Mock::VerifyAndClearExpectations(mock_pss_);
   // Now, act as if the ProfileSyncService has started up.
   SetDefaultExpectationsForConfigPage();
-  EXPECT_CALL(*mock_pss_, sync_initialized())
+  EXPECT_CALL(*mock_pss_, backend_initialized())
       .WillRepeatedly(Return(true));
   error_ = GoogleServiceAuthError::AuthErrorNone();
   EXPECT_CALL(*mock_pss_, GetAuthError()).WillRepeatedly(ReturnRef(error_));
@@ -544,7 +528,7 @@ TEST_F(SyncSetupHandlerTest,
   EXPECT_CALL(*mock_pss_, HasSyncSetupCompleted())
       .WillRepeatedly(Return(false));
   error_ = GoogleServiceAuthError::AuthErrorNone();
-  EXPECT_CALL(*mock_pss_, sync_initialized())
+  EXPECT_CALL(*mock_pss_, backend_initialized())
       .WillOnce(Return(false))
       .WillRepeatedly(Return(true));
   SetDefaultExpectationsForConfigPage();
@@ -571,7 +555,7 @@ TEST_F(SyncSetupHandlerTest,
   EXPECT_CALL(*mock_pss_, HasSyncSetupCompleted())
       .WillRepeatedly(Return(false));
   error_ = GoogleServiceAuthError::AuthErrorNone();
-  EXPECT_CALL(*mock_pss_, sync_initialized()).WillRepeatedly(Return(false));
+  EXPECT_CALL(*mock_pss_, backend_initialized()).WillRepeatedly(Return(false));
 
   handler_->OpenSyncSetup();
   const TestWebUI::CallData& data = web_ui_.call_data()[0];
@@ -887,7 +871,7 @@ TEST_F(SyncSetupHandlerTest, ShowSigninOnAuthError) {
       .WillRepeatedly(Return(false));
   EXPECT_CALL(*mock_pss_, IsUsingSecondaryPassphrase())
       .WillRepeatedly(Return(false));
-  EXPECT_CALL(*mock_pss_, sync_initialized()).WillRepeatedly(Return(false));
+  EXPECT_CALL(*mock_pss_, backend_initialized()).WillRepeatedly(Return(false));
 
 #if defined(OS_CHROMEOS)
   // On ChromeOS, auth errors are ignored - instead we just try to start the

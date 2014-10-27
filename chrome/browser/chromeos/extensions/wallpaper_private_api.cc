@@ -123,7 +123,7 @@ class WindowStateManager : public aura::WindowObserver {
   void RemoveObserverIfUnreferenced(aura::Window* window);
 
   // aura::WindowObserver overrides.
-  virtual void OnWindowDestroyed(aura::Window* window) OVERRIDE;
+  virtual void OnWindowDestroyed(aura::Window* window) override;
 
   // Map of user id hash and associated list of minimized windows.
   UserIDHashWindowListMap user_id_hash_window_list_map_;
@@ -286,6 +286,7 @@ bool WallpaperPrivateGetStringsFunction::RunSync() {
     dict->SetString("wallpaperAppName", app_name);
 
   dict->SetBoolean("isOEMDefaultWallpaper", IsOEMDefaultWallpaper());
+  dict->SetBoolean("isExperimental", false);
   dict->SetString("canceledWallpaper",
                   wallpaper_api_util::kCancelWallpaperMessage);
   return true;

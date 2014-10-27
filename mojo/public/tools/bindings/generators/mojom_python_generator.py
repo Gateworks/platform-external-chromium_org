@@ -128,7 +128,7 @@ def GetStructClass(kind):
   return '.'.join(name)
 
 def GetFieldType(kind, field=None):
-  if mojom.IsAnyArrayKind(kind):
+  if mojom.IsArrayKind(kind):
     arguments = []
     if kind.kind in _kind_to_typecode_for_native_array:
       arguments.append('%r' %_kind_to_typecode_for_native_array[kind.kind])
@@ -136,7 +136,7 @@ def GetFieldType(kind, field=None):
       arguments.append(GetFieldType(kind.kind))
     if mojom.IsNullableKind(kind):
       arguments.append('nullable=True')
-    if mojom.IsFixedArrayKind(kind):
+    if kind.length is not None:
       arguments.append('length=%d' % kind.length)
     array_type = 'GenericArrayType'
     if kind.kind == mojom.BOOL:
@@ -145,8 +145,17 @@ def GetFieldType(kind, field=None):
       array_type = 'NativeArrayType'
     return '_descriptor.%s(%s)' % (array_type, ', '.join(arguments))
 
+  if mojom.IsMapKind(kind):
+    arguments = [
+      GetFieldType(kind.key_kind),
+      GetFieldType(kind.value_kind),
+    ]
+    if mojom.IsNullableKind(kind):
+      arguments.append('nullable=True')
+    return '_descriptor.MapType(%s)' % ', '.join(arguments)
+
   if mojom.IsStructKind(kind):
-    arguments = [ GetStructClass(kind) ]
+    arguments = [ 'lambda: %s' % GetStructClass(kind) ]
     if mojom.IsNullableKind(kind):
       arguments.append('nullable=True')
     return '_descriptor.StructType(%s)' % ', '.join(arguments)
@@ -163,7 +172,8 @@ def GetFieldDescriptor(packed_field):
     class_name = 'FieldDescriptor'
   arguments = [ '%r' % field.name ]
   arguments.append(GetFieldType(field.kind, field))
-  arguments.append(str(packed_field.field.ordinal))
+  arguments.append(str(packed_field.index))
+  arguments.append(str(packed_field.ordinal))
   if field.default:
     if mojom.IsStructKind(field.kind):
       arguments.append('default_value=True')
@@ -256,6 +266,8 @@ def ComputeStaticValues(module):
 
   return module
 
+def MojomToPythonImport(mojom):
+  return mojom.replace('.mojom', '_mojom')
 
 class Generator(generator.Generator):
 
@@ -275,12 +287,13 @@ class Generator(generator.Generator):
     }
 
   def GenerateFiles(self, args):
+    import_path = MojomToPythonImport(self.module.name)
     self.Write(self.GeneratePythonModule(),
-               '%s.py' % self.module.name.replace('.mojom', '_mojom'))
+               self.MatchMojomFilePath('%s.py' % import_path))
 
   def GetImports(self):
     for each in self.module.imports:
-      each['python_module'] = each['module_name'].replace('.mojom', '_mojom')
+      each['python_module'] = MojomToPythonImport(each['module_name'])
     return self.module.imports
 
   def GetJinjaParameters(self):

@@ -47,21 +47,19 @@ class SystemInfoUIHTMLSource : public content::URLDataSource{
   SystemInfoUIHTMLSource();
 
   // content::URLDataSource implementation.
-  virtual std::string GetSource() const OVERRIDE;
-  virtual void StartDataRequest(
+  std::string GetSource() const override;
+  void StartDataRequest(
       const std::string& path,
       int render_process_id,
       int render_frame_id,
-      const content::URLDataSource::GotDataCallback& callback) OVERRIDE;
-  virtual std::string GetMimeType(const std::string&) const OVERRIDE {
+      const content::URLDataSource::GotDataCallback& callback) override;
+  std::string GetMimeType(const std::string&) const override {
     return "text/html";
   }
-  virtual bool ShouldAddContentSecurityPolicy() const OVERRIDE {
-    return false;
-  }
+  bool ShouldAddContentSecurityPolicy() const override { return false; }
 
  private:
-  virtual ~SystemInfoUIHTMLSource() {}
+  ~SystemInfoUIHTMLSource() override {}
 
   void SysInfoComplete(scoped_ptr<SystemLogsResponse> response);
   void RequestComplete();
@@ -81,10 +79,10 @@ class SystemInfoHandler : public WebUIMessageHandler,
                           public base::SupportsWeakPtr<SystemInfoHandler> {
  public:
   SystemInfoHandler();
-  virtual ~SystemInfoHandler();
+  ~SystemInfoHandler() override;
 
   // WebUIMessageHandler implementation.
-  virtual void RegisterMessages() OVERRIDE;
+  void RegisterMessages() override;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(SystemInfoHandler);
@@ -158,7 +156,6 @@ void SystemInfoUIHTMLSource::RequestComplete() {
   static const base::StringPiece systeminfo_html(
       ResourceBundle::GetSharedInstance().GetRawDataResource(
           IDR_ABOUT_SYS_HTML));
-  webui::UseVersion2 version2;
   std::string full_html = webui::GetI18nTemplateHtml(systeminfo_html, &strings);
   callback_.Run(base::RefCountedString::TakeString(&full_html));
 }

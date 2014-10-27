@@ -187,12 +187,12 @@ class LongPressAffordanceHandler::LongPressAffordanceView
 
  private:
   // Overridden from views::View.
-  virtual gfx::Size GetPreferredSize() const OVERRIDE {
+  virtual gfx::Size GetPreferredSize() const override {
     return gfx::Size(2 * (kAffordanceOuterRadius + kAffordanceGlowWidth),
         2 * (kAffordanceOuterRadius + kAffordanceGlowWidth));
   }
 
-  virtual void OnPaint(gfx::Canvas* canvas) OVERRIDE {
+  virtual void OnPaint(gfx::Canvas* canvas) override {
     gfx::Point center(GetPreferredSize().width() / 2,
                       GetPreferredSize().height() / 2);
     canvas->Save();
@@ -254,12 +254,12 @@ void LongPressAffordanceHandler::ProcessEvent(aura::Window* target,
       tap_down_location_ = event->root_location();
       SetTapDownTarget(target);
       current_animation_type_ = GROW_ANIMATION;
-      int64 timer_start_time_ms =
-          ui::GestureConfiguration::semi_long_press_time_in_seconds() * 1000;
-      timer_.Start(FROM_HERE,
-                   base::TimeDelta::FromMilliseconds(timer_start_time_ms),
-                   this,
-                   &LongPressAffordanceHandler::StartAnimation);
+      timer_.Start(
+          FROM_HERE,
+          base::TimeDelta::FromMilliseconds(
+              ui::GestureConfiguration::semi_long_press_time_in_ms()),
+          this,
+          &LongPressAffordanceHandler::StartAnimation);
       break;
     }
     case ui::ET_GESTURE_TAP:
@@ -286,9 +286,8 @@ void LongPressAffordanceHandler::StartAnimation() {
         return;
       }
       view_.reset(new LongPressAffordanceView(tap_down_location_, root_window));
-      SetDuration(
-          ui::GestureConfiguration::long_press_time_in_seconds() * 1000 -
-          ui::GestureConfiguration::semi_long_press_time_in_seconds() * 1000 -
+      SetDuration(ui::GestureConfiguration::long_press_time_in_ms() -
+          ui::GestureConfiguration::semi_long_press_time_in_ms() -
           kAffordanceDelayBeforeShrinkMs);
       Start();
       break;

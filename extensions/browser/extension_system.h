@@ -11,6 +11,10 @@
 #include "components/keyed_service/core/keyed_service.h"
 #include "extensions/common/extension.h"
 
+#if !defined(ENABLE_EXTENSIONS)
+#error "Extensions must be enabled"
+#endif
+
 class ExtensionService;
 
 #if defined(OS_CHROMEOS)
@@ -51,7 +55,7 @@ class WarningService;
 class ExtensionSystem : public KeyedService {
  public:
   ExtensionSystem();
-  virtual ~ExtensionSystem();
+  ~ExtensionSystem() override;
 
   // Returns the instance for the given browser context, or NULL if none.
   static ExtensionSystem* Get(content::BrowserContext* context);

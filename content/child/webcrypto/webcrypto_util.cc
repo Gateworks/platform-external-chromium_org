@@ -22,7 +22,6 @@ namespace {
 bool BigIntegerToUint(const uint8_t* data,
                       unsigned int data_size,
                       unsigned int* result) {
-  // TODO(eroman): Fix handling of empty biginteger. http://crbug.com/373552
   if (data_size == 0)
     return false;
 
@@ -62,12 +61,12 @@ const JwkToWebCryptoUsage kJwkWebCryptoUsageMap[] = {
     {"wrapKey", blink::WebCryptoKeyUsageWrapKey},
     {"unwrapKey", blink::WebCryptoKeyUsageUnwrapKey}};
 
-// Modifies the input usage_mask by according to the key_op value.
+// Modifies the input usages by according to the key_op value.
 bool JwkKeyOpToWebCryptoUsage(const std::string& key_op,
-                              blink::WebCryptoKeyUsageMask* usage_mask) {
+                              blink::WebCryptoKeyUsageMask* usages) {
   for (size_t i = 0; i < arraysize(kJwkWebCryptoUsageMap); ++i) {
     if (kJwkWebCryptoUsageMap[i].jwk_key_op == key_op) {
-      *usage_mask |= kJwkWebCryptoUsageMap[i].webcrypto_usage;
+      *usages |= kJwkWebCryptoUsageMap[i].webcrypto_usage;
       return true;
     }
   }
@@ -75,10 +74,9 @@ bool JwkKeyOpToWebCryptoUsage(const std::string& key_op,
 }
 
 // Composes a Web Crypto usage mask from an array of JWK key_ops values.
-Status GetWebCryptoUsagesFromJwkKeyOps(
-    const base::ListValue* jwk_key_ops_value,
-    blink::WebCryptoKeyUsageMask* usage_mask) {
-  *usage_mask = 0;
+Status GetWebCryptoUsagesFromJwkKeyOps(const base::ListValue* jwk_key_ops_value,
+                                       blink::WebCryptoKeyUsageMask* usages) {
+  *usages = 0;
   for (size_t i = 0; i < jwk_key_ops_value->GetSize(); ++i) {
     std::string key_op;
     if (!jwk_key_ops_value->GetString(i, &key_op)) {
@@ -86,7 +84,7 @@ Status GetWebCryptoUsagesFromJwkKeyOps(
           base::StringPrintf("key_ops[%d]", static_cast<int>(i)), "string");
     }
     // Unrecognized key_ops are silently skipped.
-    ignore_result(JwkKeyOpToWebCryptoUsage(key_op, usage_mask));
+    ignore_result(JwkKeyOpToWebCryptoUsage(key_op, usages));
   }
   return Status::Success();
 }
@@ -94,10 +92,10 @@ Status GetWebCryptoUsagesFromJwkKeyOps(
 // Composes a JWK key_ops List from a Web Crypto usage mask.
 // Note: Caller must assume ownership of returned instance.
 base::ListValue* CreateJwkKeyOpsFromWebCryptoUsages(
-    blink::WebCryptoKeyUsageMask usage_mask) {
+    blink::WebCryptoKeyUsageMask usages) {
   base::ListValue* jwk_key_ops = new base::ListValue();
   for (size_t i = 0; i < arraysize(kJwkWebCryptoUsageMap); ++i) {
-    if (usage_mask & kJwkWebCryptoUsageMap[i].webcrypto_usage)
+    if (usages & kJwkWebCryptoUsageMap[i].webcrypto_usage)
       jwk_key_ops->AppendString(kJwkWebCryptoUsageMap[i].jwk_key_op);
   }
   return jwk_key_ops;
@@ -119,8 +117,6 @@ blink::WebCryptoAlgorithm CreateRsaHashedImportAlgorithm(
     blink::WebCryptoAlgorithmId id,
     blink::WebCryptoAlgorithmId hash_id) {
   DCHECK(blink::WebCryptoAlgorithm::isHash(hash_id));
-  DCHECK(id == blink::WebCryptoAlgorithmIdRsaSsaPkcs1v1_5 ||
-         id == blink::WebCryptoAlgorithmIdRsaOaep);
   return blink::WebCryptoAlgorithm::adoptParamsAndCreate(
       id, new blink::WebCryptoRsaHashedImportParams(CreateAlgorithm(hash_id)));
 }
@@ -134,17 +130,6 @@ bool ContainsKeyUsages(blink::WebCryptoKeyUsageMask a,
 bool KeyUsageAllows(const blink::WebCryptoKey& key,
                     const blink::WebCryptoKeyUsage usage) {
   return ((key.usages() & usage) != 0);
-}
-
-bool IsAlgorithmRsa(blink::WebCryptoAlgorithmId alg_id) {
-  return alg_id == blink::WebCryptoAlgorithmIdRsaOaep ||
-         alg_id == blink::WebCryptoAlgorithmIdRsaSsaPkcs1v1_5;
-}
-
-bool IsAlgorithmAsymmetric(blink::WebCryptoAlgorithmId alg_id) {
-  // TODO(padolph): include all other asymmetric algorithms once they are
-  // defined, e.g. EC and DH.
-  return IsAlgorithmRsa(alg_id);
 }
 
 // The WebCrypto spec defines the default value for the tag length, as well as

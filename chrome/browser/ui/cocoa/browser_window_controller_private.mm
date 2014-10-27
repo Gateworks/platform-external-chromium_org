@@ -7,9 +7,11 @@
 #include <cmath>
 
 #include "base/command_line.h"
+#include "base/mac/bind_objc_block.h"
 #include "base/mac/mac_util.h"
 #import "base/mac/scoped_nsobject.h"
 #import "base/mac/sdk_forward_declarations.h"
+#include "base/metrics/histogram.h"
 #include "base/prefs/pref_service.h"
 #include "base/prefs/scoped_user_pref_update.h"
 #include "chrome/browser/browser_process.h"
@@ -52,8 +54,70 @@ using content::WebContents;
 
 namespace {
 
-// Space between the incognito badge and the right edge of the window.
-const CGFloat kAvatarRightOffset = 4;
+// Each time the user enters fullscreen, a single histogram enumeration is
+// recorded. There are several relevant parameters, whose values are mapped
+// directly into individual bits of the enumeration.
+//
+// + Fullscreen Mechanism: The mechanism by which the window's size is changed
+// to encompass the entire screen. Bit 0.
+//   - AppKit (value of bit: 1)
+//   - Immersive (value of bit: 0)
+//
+// + Primary Screen: Whether the window is located on the screen at index 0.
+// Depending on OSX version, this has different implications for menu bar
+// visibility. Bit 1.
+//   - Primary (value of bit: 1)
+//   - Secondary (value of bit: 0)
+//
+// + Displays have separate spaces: An option available in Mission Control in
+// OSX 10.9+. Bit 2.
+//   - On (value of bit: 1)
+//   - Off (value of bit: 0)
+//
+// + Multiple screens: Whether the user has multiple screens. If the window is
+// located on a secondary screen, then there must be multiple screens. Bit 3.
+//   - Yes (value of bit: 1)
+//   - No (value of bit: 0)
+
+enum FullscreenMechanism {
+  IMMERSIVE_FULLSCREEN_MECHANISM,
+  APPKIT_FULLSCREEN_MECHANISM,
+};
+
+enum {
+  FULLSCREEN_MECHANISM_BIT = 0,
+  PRIMARY_SCREEN_BIT = 1,
+  DISPLAYS_SEPARATE_SPACES_BIT = 2,
+  MULTIPLE_SCREENS_BIT = 3,
+  BIT_COUNT
+};
+
+// Emits a histogram entry indicating that |window| is being made fullscreen.
+void RecordFullscreenHistogram(FullscreenMechanism mechanism,
+                               NSWindow* window) {
+  NSArray* screens = [NSScreen screens];
+  bool primary_screen = ([[window screen] isEqual:[screens objectAtIndex:0]]);
+  bool displays_have_separate_spaces =
+      [NSScreen respondsToSelector:@selector(screensHaveSeparateSpaces)] &&
+      [NSScreen screensHaveSeparateSpaces];
+  bool multiple_screens = [screens count] > 1;
+
+  int output = 0;
+  if (mechanism == APPKIT_FULLSCREEN_MECHANISM)
+    output += 1 << FULLSCREEN_MECHANISM_BIT;
+
+  if (primary_screen)
+    output += 1 << PRIMARY_SCREEN_BIT;
+
+  if (displays_have_separate_spaces)
+    output += 1 << DISPLAYS_SEPARATE_SPACES_BIT;
+
+  if (multiple_screens)
+    output += 1 << MULTIPLE_SCREENS_BIT;
+
+  int max_output = 1 << BIT_COUNT;
+  UMA_HISTOGRAM_ENUMERATION("OSX.Fullscreen.Enter", output, max_output);
+}
 
 }  // namespace
 
@@ -180,91 +244,33 @@ willPositionSheet:(NSWindow*)sheet
   [toolbarController_ setDividerOpacity:[self toolbarDividerOpacity]];
 }
 
-- (CGFloat)layoutTabStripAtMaxY:(CGFloat)maxY
-                          width:(CGFloat)width
-                     fullscreen:(BOOL)fullscreen {
-  // Nothing to do if no tab strip.
-  if (![self hasTabStrip])
-    return maxY;
+- (void)applyTabStripLayout:(const chrome::TabStripLayout&)layout {
+  // Update the presence of the window controls.
+  if (layout.addCustomWindowControls)
+    [tabStripController_ addCustomWindowControls];
+  else
+    [tabStripController_ removeCustomWindowControls];
 
-  NSView* tabStripView = [self tabStripView];
-  CGFloat tabStripHeight = NSHeight([tabStripView frame]);
-  maxY -= tabStripHeight;
-  NSRect tabStripFrame = NSMakeRect(0, maxY, width, tabStripHeight);
-  BOOL requiresRelayout = !NSEqualRects(tabStripFrame, [tabStripView frame]);
+  // Update the layout of the avatar.
+  if (!NSIsEmptyRect(layout.avatarFrame)) {
+    NSView* avatarButton = [avatarButtonController_ view];
+    [avatarButton setFrame:layout.avatarFrame];
+    [avatarButton setHidden:NO];
+  }
 
-  // In Yosemite fullscreen, manually add the fullscreen controls to the tab
-  // strip.
-  BOOL addControlsInFullscreen =
-      [self isInAppKitFullscreen] && base::mac::IsOSYosemiteOrLater();
+  // Check if the tab strip's frame has changed.
+  BOOL requiresRelayout =
+      !NSEqualRects([[self tabStripView] frame], layout.frame);
 
-  // Set left indentation based on fullscreen mode status.
-  CGFloat leftIndent = 0;
-  if (!fullscreen || addControlsInFullscreen)
-    leftIndent = [[tabStripController_ class] defaultLeftIndentForControls];
-  if (leftIndent != [tabStripController_ leftIndentForControls]) {
-    [tabStripController_ setLeftIndentForControls:leftIndent];
+  // Check if the left indent has changed.
+  if (layout.leftIndent != [tabStripController_ leftIndentForControls]) {
+    [tabStripController_ setLeftIndentForControls:layout.leftIndent];
     requiresRelayout = YES;
   }
 
-  if (addControlsInFullscreen)
-    [tabStripController_ addWindowControls];
-  else
-    [tabStripController_ removeWindowControls];
-
-  // fullScreenButton is non-nil when isInAnyFullscreenMode is NO, and OS
-  // version is in the range 10.7 <= version <= 10.9. Starting with 10.10, the
-  // zoom/maximize button acts as the fullscreen button.
-  NSButton* fullScreenButton =
-      [[self window] standardWindowButton:NSWindowFullScreenButton];
-
-  // Lay out the icognito/avatar badge because calculating the indentation on
-  // the right depends on it.
-  NSView* avatarButton = [avatarButtonController_ view];
-  if ([self shouldShowAvatar]) {
-    CGFloat badgeXOffset = -kAvatarRightOffset;
-    CGFloat badgeYOffset = 0;
-    CGFloat buttonHeight = NSHeight([avatarButton frame]);
-
-    if ([self shouldUseNewAvatarButton]) {
-      // The fullscreen icon is displayed to the right of the avatar button.
-      if (![self isInAnyFullscreenMode] && fullScreenButton)
-        badgeXOffset -= width - NSMinX([fullScreenButton frame]);
-      // Center the button vertically on the tabstrip.
-      badgeYOffset = (tabStripHeight - buttonHeight) / 2;
-    } else {
-      // Actually place the badge *above* |maxY|, by +2 to miss the divider.
-      badgeYOffset = 2 * [[avatarButton superview] cr_lineWidth];
-    }
-
-    [avatarButton setFrameSize:NSMakeSize(NSWidth([avatarButton frame]),
-        std::min(buttonHeight, tabStripHeight))];
-    NSPoint origin =
-        NSMakePoint(width - NSWidth([avatarButton frame]) + badgeXOffset,
-                    maxY + badgeYOffset);
-    [avatarButton setFrameOrigin:origin];
-    [avatarButton setHidden:NO];  // Make sure it's shown.
-  }
-
-  // Calculate the right indentation.  The default indentation built into the
-  // tabstrip leaves enough room for the fullscreen button on Lion (10.7) to
-  // Mavericks (10.9).  On 10.6 and >=10.10, the right indent needs to be
-  // adjusted to make room for the new tab button when an avatar is present.
-  CGFloat rightIndent = 0;
-  if (![self isInAnyFullscreenMode] && fullScreenButton) {
-    rightIndent = width - NSMinX([fullScreenButton frame]);
-
-    if ([self shouldUseNewAvatarButton]) {
-      // The new avatar button is to the left of the fullscreen button.
-      // (The old avatar button is to the right).
-      rightIndent += NSWidth([avatarButton frame]) + kAvatarRightOffset;
-    }
-  } else if ([self shouldShowAvatar]) {
-    rightIndent += NSWidth([avatarButton frame]) + kAvatarRightOffset;
-  }
-
-  if (rightIndent != [tabStripController_ rightIndentForControls]) {
-    [tabStripController_ setRightIndentForControls:rightIndent];
+  // Check if the right indent has changed.
+  if (layout.rightIndent != [tabStripController_ rightIndentForControls]) {
+    [tabStripController_ setRightIndentForControls:layout.rightIndent];
     requiresRelayout = YES;
   }
 
@@ -274,11 +280,9 @@ willPositionSheet:(NSWindow*)sheet
   // a tab animation resulted in the tab frame being the animator's target
   // frame instead of the interrupting setFrame. (See http://crbug.com/415093)
   if (requiresRelayout) {
-    [tabStripView setFrame:tabStripFrame];
+    [[self tabStripView] setFrame:layout.frame];
     [tabStripController_ layoutTabsWithoutAnimation];
   }
-
-  return maxY;
 }
 
 - (BOOL)placeBookmarkBarBelowInfoBar {
@@ -355,13 +359,10 @@ willPositionSheet:(NSWindow*)sheet
     [tabStripView removeFromSuperview];
   }
 
-  // Ditto for the content view.
-  base::scoped_nsobject<NSView> contentView(
-      [[sourceWindow contentView] retain]);
   // Disable autoresizing of subviews while we move views around. This prevents
   // spurious renderer resizes.
-  [contentView setAutoresizesSubviews:NO];
-  [contentView removeFromSuperview];
+  [self.chromeContentView setAutoresizesSubviews:NO];
+  [self.chromeContentView removeFromSuperview];
 
   // Have to do this here, otherwise later calls can crash because the window
   // has no delegate.
@@ -373,9 +374,11 @@ willPositionSheet:(NSWindow*)sheet
   // drawOverlayRect:].  I'm pretty convinced this is an Apple bug, but there is
   // no visual impact.  I have been unable to tickle it away with other window
   // or view manipulation Cocoa calls.  Stack added to suppressions_mac.txt.
-  [contentView setAutoresizesSubviews:YES];
-  [destWindow setContentView:contentView];
-  [self moveContentViewToBack:contentView];
+  [self.chromeContentView setAutoresizesSubviews:YES];
+  [[destWindow contentView] addSubview:self.chromeContentView
+                            positioned:NSWindowBelow
+                            relativeTo:nil];
+  [self.chromeContentView setFrame:[[destWindow contentView] bounds]];
 
   // Move the incognito badge if present.
   if ([self shouldShowAvatar]) {
@@ -389,7 +392,7 @@ willPositionSheet:(NSWindow*)sheet
   // Add the tab strip after setting the content view and moving the incognito
   // badge (if any), so that the tab strip will be on top (in the z-order).
   if ([self hasTabStrip])
-    [self insertTabStripView:tabStripView intoWindow:[self window]];
+    [self insertTabStripView:tabStripView intoWindow:destWindow];
 
   [sourceWindow setWindowController:nil];
   [self setWindow:destWindow];
@@ -516,6 +519,8 @@ willPositionSheet:(NSWindow*)sheet
 }
 
 - (void)enterImmersiveFullscreen {
+  RecordFullscreenHistogram(IMMERSIVE_FULLSCREEN_MECHANISM, [self window]);
+
   // Set to NO by |-windowDidEnterFullScreen:|.
   enteringImmersiveFullscreen_ = YES;
 
@@ -668,6 +673,8 @@ willPositionSheet:(NSWindow*)sheet
 }
 
 - (void)windowWillEnterFullScreen:(NSNotification*)notification {
+  RecordFullscreenHistogram(APPKIT_FULLSCREEN_MECHANISM, [self window]);
+
   if (notification)  // For System Fullscreen when non-nil.
     [self registerForContentViewResizeNotifications];
 
@@ -676,6 +683,8 @@ willPositionSheet:(NSWindow*)sheet
   BOOL mode = enteringPresentationMode_ ||
        browser_->fullscreen_controller()->IsWindowFullscreenForTabOrPending();
   enteringAppKitFullscreen_ = YES;
+  enteringAppKitFullscreenOnPrimaryScreen_ =
+      [[[self window] screen] isEqual:[[NSScreen screens] objectAtIndex:0]];
 
   fullscreen_mac::SlidingStyle style =
       mode ? fullscreen_mac::OMNIBOX_TABS_HIDDEN
@@ -693,9 +702,35 @@ willPositionSheet:(NSWindow*)sheet
     for (NSWindow* window in [[NSApplication sharedApplication] windows]) {
       if ([window
               isKindOfClass:NSClassFromString(@"NSToolbarFullScreenWindow")]) {
-        [window.contentView setHidden:YES];
+        [[window contentView] setHidden:YES];
       }
     }
+  }
+
+  if ([self shouldUseMavericksAppKitFullscreenHack]) {
+    // Apply a hack to fix the size of the window. This is the last run of the
+    // MessageLoop where the hack will not work, so dispatch the hack to the
+    // top of the MessageLoop.
+    base::Callback<void(void)> callback = base::BindBlock(^{
+        if (![self isInAppKitFullscreen])
+          return;
+
+        // The window's frame should be exactly 22 points too short.
+        CGFloat kExpectedHeightDifference = 22;
+        NSRect currentFrame = [[self window] frame];
+        NSRect expectedFrame = [[[self window] screen] frame];
+        if (!NSEqualPoints(currentFrame.origin, expectedFrame.origin))
+          return;
+        if (currentFrame.size.width != expectedFrame.size.width)
+          return;
+        CGFloat heightDelta =
+            expectedFrame.size.height - currentFrame.size.height;
+        if (fabs(heightDelta - kExpectedHeightDifference) > 0.01)
+          return;
+
+        [[self window] setFrame:expectedFrame display:YES];
+    });
+    base::MessageLoop::current()->PostTask(FROM_HERE, callback);
   }
 
   if (notification)  // For System Fullscreen when non-nil.
@@ -848,6 +883,17 @@ willPositionSheet:(NSWindow*)sheet
       [presentationModeController_ toolbarFraction]];
 
   [layout setHasTabStrip:[self hasTabStrip]];
+  NSButton* fullScreenButton =
+      [[self window] standardWindowButton:NSWindowFullScreenButton];
+  [layout setFullscreenButtonFrame:fullScreenButton ? [fullScreenButton frame]
+                                                    : NSZeroRect];
+  if ([self shouldShowAvatar]) {
+    NSView* avatar = [avatarButtonController_ view];
+    [layout setShouldShowAvatar:YES];
+    [layout setShouldUseNewAvatar:[self shouldUseNewAvatarButton]];
+    [layout setAvatarSize:[avatar frame].size];
+    [layout setAvatarLineWidth:[[avatar superview] cr_lineWidth]];
+  }
 
   [layout setHasToolbar:[self hasToolbar]];
   [layout setToolbarHeight:NSHeight([[toolbarController_ view] bounds])];
@@ -870,17 +916,11 @@ willPositionSheet:(NSWindow*)sheet
 - (void)applyLayout:(BrowserWindowLayout*)layout {
   chrome::LayoutOutput output = [layout computeLayout];
 
-  if (!NSIsEmptyRect(output.tabStripFrame)) {
-    // Note: The fullscreen parameter passed to the method is different from
-    // the field in |parameters| with the similar name.
-    [self layoutTabStripAtMaxY:NSMaxY(output.tabStripFrame)
-                         width:NSWidth(output.tabStripFrame)
-                    fullscreen:[self isInAnyFullscreenMode]];
-  }
+  if (!NSIsEmptyRect(output.tabStripLayout.frame))
+    [self applyTabStripLayout:output.tabStripLayout];
 
-  if (!NSIsEmptyRect(output.toolbarFrame)) {
+  if (!NSIsEmptyRect(output.toolbarFrame))
     [[toolbarController_ view] setFrame:output.toolbarFrame];
-  }
 
   if (!NSIsEmptyRect(output.bookmarkFrame)) {
     NSView* bookmarkBarView = [bookmarkBarController_ view];
@@ -974,18 +1014,18 @@ willPositionSheet:(NSWindow*)sheet
 
 - (void)setContentViewSubviews:(NSArray*)subviews {
   // Subviews already match.
-  if ([[self.window.contentView subviews] isEqual:subviews])
+  if ([[self.chromeContentView subviews] isEqual:subviews])
     return;
 
   // The tabContentArea isn't a subview, so just set all the subviews.
   NSView* tabContentArea = [self tabContentArea];
-  if (![[self.window.contentView subviews] containsObject:tabContentArea]) {
-    [self.window.contentView setSubviews:subviews];
+  if (![[self.chromeContentView subviews] containsObject:tabContentArea]) {
+    [self.chromeContentView setSubviews:subviews];
     return;
   }
 
   // Remove all subviews that aren't the tabContentArea.
-  for (NSView* view in [[self.window.contentView subviews] copy]) {
+  for (NSView* view in [[self.chromeContentView subviews] copy]) {
     if (view != tabContentArea)
       [view removeFromSuperview];
   }
@@ -994,17 +1034,17 @@ willPositionSheet:(NSWindow*)sheet
   NSInteger index = [subviews indexOfObject:tabContentArea];
   for (int i = index - 1; i >= 0; --i) {
     NSView* view = [subviews objectAtIndex:i];
-    [self.window.contentView addSubview:view
-                             positioned:NSWindowBelow
-                             relativeTo:nil];
+    [self.chromeContentView addSubview:view
+                            positioned:NSWindowBelow
+                            relativeTo:nil];
   }
 
   // Add in the subviews above the tabContentArea.
   for (NSUInteger i = index + 1; i < [subviews count]; ++i) {
     NSView* view = [subviews objectAtIndex:i];
-    [self.window.contentView addSubview:view
-                             positioned:NSWindowAbove
-                             relativeTo:nil];
+    [self.chromeContentView addSubview:view
+                            positioned:NSWindowAbove
+                            relativeTo:nil];
   }
 }
 
@@ -1036,6 +1076,21 @@ willPositionSheet:(NSWindow*)sheet
   } else {
     hasAdjustedTabStripWhileEnteringAppKitFullscreen_ = NO;
   }
+}
+
+- (BOOL)shouldUseMavericksAppKitFullscreenHack {
+  if (!base::mac::IsOSMavericks())
+    return NO;
+  if (![NSScreen respondsToSelector:@selector(screensHaveSeparateSpaces)] ||
+      ![NSScreen screensHaveSeparateSpaces]) {
+    return NO;
+  }
+  if (!enteringAppKitFullscreen_)
+    return NO;
+  if (enteringAppKitFullscreenOnPrimaryScreen_)
+    return NO;
+
+  return YES;
 }
 
 @end  // @implementation BrowserWindowController(Private)

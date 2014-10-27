@@ -50,14 +50,13 @@ class SigninNotificationDelegate : public NotificationDelegate {
                              Profile* profile);
 
   // NotificationDelegate:
-  virtual void Display() OVERRIDE;
-  virtual void Error() OVERRIDE;
-  virtual void Close(bool by_user) OVERRIDE;
-  virtual bool HasClickedListener() OVERRIDE;
-  virtual void Click() OVERRIDE;
-  virtual void ButtonClick(int button_index) OVERRIDE;
-  virtual std::string id() const OVERRIDE;
-  virtual content::WebContents* GetWebContents() const OVERRIDE;
+  virtual void Display() override;
+  virtual void Error() override;
+  virtual void Close(bool by_user) override;
+  virtual bool HasClickedListener() override;
+  virtual void Click() override;
+  virtual void ButtonClick(int button_index) override;
+  virtual std::string id() const override;
 
  protected:
   virtual ~SigninNotificationDelegate();
@@ -106,10 +105,6 @@ void SigninNotificationDelegate::ButtonClick(int button_index) {
 
 std::string SigninNotificationDelegate::id() const {
   return id_;
-}
-
-content::WebContents* SigninNotificationDelegate::GetWebContents() const {
-  return NULL;
 }
 
 void SigninNotificationDelegate::FixSignIn() {
@@ -164,7 +159,8 @@ void SigninErrorNotifier::OnErrorChanged() {
     return;
 
   if (!error_controller_->HasError()) {
-    g_browser_process->notification_ui_manager()->CancelById(notification_id_);
+    g_browser_process->notification_ui_manager()->CancelById(
+        notification_id_, NotificationUIManager::GetProfileID(profile_));
     return;
   }
 
@@ -212,7 +208,8 @@ void SigninErrorNotifier::OnErrorChanged() {
       delegate);
 
   // Update or add the notification.
-  if (notification_ui_manager->FindById(notification_id_))
+  if (notification_ui_manager->FindById(
+          notification_id_, NotificationUIManager::GetProfileID(profile_)))
     notification_ui_manager->Update(notification, profile_);
   else
     notification_ui_manager->Add(notification, profile_);

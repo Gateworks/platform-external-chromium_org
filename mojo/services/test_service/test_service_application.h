@@ -21,19 +21,18 @@ class TestServiceApplication : public ApplicationDelegate,
                                public InterfaceFactory<TestTimeService> {
  public:
   TestServiceApplication();
-  virtual ~TestServiceApplication();
+  ~TestServiceApplication() override;
 
   // ApplicationDelegate implementation.
-  virtual bool ConfigureIncomingConnection(ApplicationConnection* connection)
-      MOJO_OVERRIDE;
+  bool ConfigureIncomingConnection(ApplicationConnection* connection) override;
 
   // InterfaceFactory<TestService> implementation.
-  virtual void Create(ApplicationConnection* connection,
-                      InterfaceRequest<TestService> request) MOJO_OVERRIDE;
+  void Create(ApplicationConnection* connection,
+              InterfaceRequest<TestService> request) override;
 
   // InterfaceFactory<TestTimeService> implementation.
-  virtual void Create(ApplicationConnection* connection,
-                      InterfaceRequest<TestTimeService> request) MOJO_OVERRIDE;
+  void Create(ApplicationConnection* connection,
+              InterfaceRequest<TestTimeService> request) override;
 
   void AddRef();
   void ReleaseRef();

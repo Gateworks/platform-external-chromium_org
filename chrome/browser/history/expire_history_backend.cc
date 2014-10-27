@@ -44,10 +44,10 @@ const int kEarlyExpirationAdvanceDays = 3;
 // time. This is the most general reader.
 class AllVisitsReader : public ExpiringVisitsReader {
  public:
-  virtual bool Read(base::Time end_time,
-                    HistoryDatabase* db,
-                    VisitVector* visits,
-                    int max_visits) const OVERRIDE {
+  bool Read(base::Time end_time,
+            HistoryDatabase* db,
+            VisitVector* visits,
+            int max_visits) const override {
     DCHECK(db) << "must have a database to operate upon";
     DCHECK(visits) << "visit vector has to exist in order to populate it";
 
@@ -66,10 +66,10 @@ class AllVisitsReader : public ExpiringVisitsReader {
 //   but not past the current time.
 class AutoSubframeVisitsReader : public ExpiringVisitsReader {
  public:
-  virtual bool Read(base::Time end_time,
-                    HistoryDatabase* db,
-                    VisitVector* visits,
-                    int max_visits) const OVERRIDE {
+  bool Read(base::Time end_time,
+            HistoryDatabase* db,
+            VisitVector* visits,
+            int max_visits) const override {
     DCHECK(db) << "must have a database to operate upon";
     DCHECK(visits) << "visit vector has to exist in order to populate it";
 
@@ -321,8 +321,7 @@ void ExpireHistoryBackend::BroadcastNotifications(DeleteEffects* effects,
     details->changed_urls = effects->modified_urls;
     delegate_->NotifySyncURLsModified(&details->changed_urls);
     delegate_->BroadcastNotifications(
-        chrome::NOTIFICATION_HISTORY_URLS_MODIFIED,
-        details.PassAs<HistoryDetails>());
+        chrome::NOTIFICATION_HISTORY_URLS_MODIFIED, details.Pass());
   }
   if (!effects->deleted_urls.empty()) {
     scoped_ptr<URLsDeletedDetails> details(new URLsDeletedDetails);
@@ -333,7 +332,7 @@ void ExpireHistoryBackend::BroadcastNotifications(DeleteEffects* effects,
     delegate_->NotifySyncURLsDeleted(details->all_history, details->expired,
                                      &details->rows);
     delegate_->BroadcastNotifications(chrome::NOTIFICATION_HISTORY_URLS_DELETED,
-                                      details.PassAs<HistoryDetails>());
+                                      details.Pass());
   }
 }
 

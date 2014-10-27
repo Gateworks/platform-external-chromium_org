@@ -23,16 +23,16 @@ class ResourceProvider;
 // delegate rendering to another compositor.
 class CC_EXPORT DirectRenderer : public Renderer {
  public:
-  virtual ~DirectRenderer();
+  ~DirectRenderer() override;
 
-  virtual void DecideRenderPassAllocationsForFrame(
-      const RenderPassList& render_passes_in_draw_order) OVERRIDE;
-  virtual bool HasAllocatedResourcesForTesting(RenderPassId id) const OVERRIDE;
-  virtual void DrawFrame(RenderPassList* render_passes_in_draw_order,
-                         float device_scale_factor,
-                         const gfx::Rect& device_viewport_rect,
-                         const gfx::Rect& device_clip_rect,
-                         bool disable_picture_quad_image_filtering) OVERRIDE;
+  void DecideRenderPassAllocationsForFrame(
+      const RenderPassList& render_passes_in_draw_order) override;
+  bool HasAllocatedResourcesForTesting(RenderPassId id) const override;
+  void DrawFrame(RenderPassList* render_passes_in_draw_order,
+                 float device_scale_factor,
+                 const gfx::Rect& device_viewport_rect,
+                 const gfx::Rect& device_clip_rect,
+                 bool disable_picture_quad_image_filtering) override;
 
   struct CC_EXPORT DrawingFrame {
     DrawingFrame();

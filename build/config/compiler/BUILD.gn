@@ -168,6 +168,16 @@ config("compiler") {
     } else if (cpu_arch == "x86") {
       cflags += [ "-m32" ]
       ldflags += [ "-m32" ]
+      if (is_clang) {
+        cflags += [
+          # Else building libyuv gives clang's register allocator issues,
+          # see llvm.org/PR15798 / crbug.com/233709
+          "-momit-leaf-frame-pointer",
+          # Align the stack on 16-byte boundaries, http://crbug.com/418554.
+          "-mstack-alignment=16",
+          "-mstackrealign",
+        ]
+      }
     } else if (cpu_arch == "arm") {
       # Don't set the compiler flags for the WebView build. These will come
       # from the Android build system.
@@ -253,12 +263,8 @@ config("compiler") {
       # gcc -- http://gcc.gnu.org/onlinedocs/gcc-4.8.0/gcc/Optimize-Options.html
       "-fuse-ld=gold",
 
-      # There seems to be a conflict of --icf and -pie in gold which can
-      # generate crashy binaries. As a security measure, -pie takes
-      # precedence for now.
       # TODO(brettw) common.gypi has this only for target toolset.
-      #"-Wl,--icf=safe",
-      "-Wl,--icf=none",
+      "-Wl,--icf=safe",
 
       # Experimentation found that using four linking threads
       # saved ~20% of link time.
@@ -452,30 +458,18 @@ config("runtime_library") {
     # arm-linux-androideabi-4.4.3 toolchain (circa Gingerbread) will exhibit
     # strange errors. The include ordering here is important; change with
     # caution.
-    if (use_system_stlport) {
-      cflags += [
-        # For libstdc++/include, which is used by stlport.
-        "-I" + rebase_path("$android_src/bionic", root_build_dir),
-        "-I" + rebase_path("$android_src/external/stlport/stlport",
-                           root_build_dir),
-      ]
-      libs += [
-        "stlport",
-      ]
+    android_stlport_root = "$android_ndk_root/sources/cxx-stl/stlport"
+
+    cflags += [
+      "-isystem" + rebase_path("$android_stlport_root/stlport",
+                               root_build_dir)
+    ]
+    lib_dirs += [ "$android_stlport_root/libs/$android_app_abi" ]
+
+    if (component_mode == "shared_library") {
+      libs += [ "stlport_shared" ]
     } else {
-      android_stlport_root = "$android_ndk_root/sources/cxx-stl/stlport"
-
-      cflags += [
-        "-isystem" + rebase_path("$android_stlport_root/stlport",
-                                 root_build_dir)
-      ]
-      lib_dirs += [ "$android_stlport_root/libs/$android_app_abi" ]
-
-      if (component_mode == "shared_library") {
-        libs += [ "stlport_shared" ]
-      } else {
-        libs += [ "stlport_static" ]
-      }
+      libs += [ "stlport_static" ]
     }
 
     if (cpu_arch == "mipsel") {

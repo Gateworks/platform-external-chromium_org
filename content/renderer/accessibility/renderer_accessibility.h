@@ -19,13 +19,7 @@ class RenderFrameImpl;
 enum RendererAccessibilityType {
   // Turns on Blink accessibility and provides a full accessibility
   // implementation for when assistive technology is running.
-  RendererAccessibilityTypeComplete,
-
-  // Does not turn on Blink accessibility. Only sends a minimal accessible tree
-  // to the browser whenever focus changes. This mode is currently used to
-  // support opening the on-screen keyboard in response to touch events on
-  // Windows 8 in Metro mode.
-  RendererAccessibilityTypeFocusOnly
+  RendererAccessibilityTypeComplete
 };
 
 // The browser process implement native accessibility APIs, allowing
@@ -46,22 +40,16 @@ enum RendererAccessibilityType {
 // from other processes.
 //
 // This base class just contains common code and will not do anything by itself.
-// The two subclasses are:
+// The subclass is:
 //
 //   RendererAccessibilityComplete - turns on Blink accessibility and
 //       provides a full accessibility implementation for when
 //       assistive technology is running.
 //
-//   RendererAccessibilityFocusOnly - does not turn on Blink
-//       accessibility. Only sends a minimal accessible tree to the
-//       browser whenever focus changes. This mode is currently used
-//       to support opening the on-screen keyboard in response to
-//       touch events on Windows 8 in Metro mode.
-//
 class CONTENT_EXPORT RendererAccessibility : public RenderFrameObserver {
  public:
   explicit RendererAccessibility(RenderFrameImpl* render_frame);
-  virtual ~RendererAccessibility();
+  ~RendererAccessibility() override;
 
   // Called when an accessibility notification occurs in Blink.
   virtual void HandleWebAccessibilityEvent(
@@ -71,6 +59,11 @@ class CONTENT_EXPORT RendererAccessibility : public RenderFrameObserver {
   // Gets the type of this RendererAccessibility object. Primarily intended for
   // testing.
   virtual RendererAccessibilityType GetType() = 0;
+
+  // This can be called before deleting a RendererAccessibility instance due
+  // to the accessibility mode changing, as opposed to during frame destruction
+  // (when there'd be no point).
+  virtual void DisableAccessibility() {}
 
  protected:
   // Returns the main top-level document for this page, or NULL if there's

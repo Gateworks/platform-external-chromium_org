@@ -70,6 +70,12 @@
 #include "ui/base/webui/web_ui_util.h"
 #include "url/gurl.h"
 
+#if defined(ENABLE_MANAGED_USERS)
+#include "chrome/browser/ui/webui/options/supervised_user_create_confirm_handler.h"
+#include "chrome/browser/ui/webui/options/supervised_user_import_handler.h"
+#include "chrome/browser/ui/webui/options/supervised_user_learn_more_handler.h"
+#endif
+
 #if defined(OS_CHROMEOS)
 #include "chrome/browser/browser_process_platform_part.h"
 #include "chrome/browser/chromeos/policy/browser_policy_connector_chromeos.h"
@@ -123,17 +129,17 @@ class OptionsUIHTMLSource : public content::URLDataSource {
   explicit OptionsUIHTMLSource(base::DictionaryValue* localized_strings);
 
   // content::URLDataSource implementation.
-  virtual std::string GetSource() const OVERRIDE;
-  virtual void StartDataRequest(
+  std::string GetSource() const override;
+  void StartDataRequest(
       const std::string& path,
       int render_process_id,
       int render_frame_id,
-      const content::URLDataSource::GotDataCallback& callback) OVERRIDE;
-  virtual std::string GetMimeType(const std::string&) const OVERRIDE;
-  virtual bool ShouldDenyXFrameOptions() const OVERRIDE;
+      const content::URLDataSource::GotDataCallback& callback) override;
+  std::string GetMimeType(const std::string&) const override;
+  bool ShouldDenyXFrameOptions() const override;
 
  private:
-  virtual ~OptionsUIHTMLSource();
+  ~OptionsUIHTMLSource() override;
 
   // Localized strings collection.
   scoped_ptr<base::DictionaryValue> localized_strings_;
@@ -161,7 +167,6 @@ void OptionsUIHTMLSource::StartDataRequest(
 
   if (path == kLocalizedStringsFile) {
     // Return dynamically-generated strings from memory.
-    webui::UseVersion2 version;
     std::string strings_js;
     webui::AppendJsonJS(localized_strings_.get(), &strings_js);
     response_bytes = base::RefCountedString::TakeString(&strings_js);
@@ -296,11 +301,13 @@ OptionsUI::OptionsUI(content::WebUI* web_ui)
   AddOptionsPageUIHandler(localized_strings, new SearchEngineManagerHandler());
   AddOptionsPageUIHandler(localized_strings, new ImportDataHandler());
   AddOptionsPageUIHandler(localized_strings, new StartupPagesHandler());
+#if defined(ENABLE_MANAGED_USERS)
   AddOptionsPageUIHandler(localized_strings,
                           new SupervisedUserCreateConfirmHandler());
   AddOptionsPageUIHandler(localized_strings, new SupervisedUserImportHandler());
   AddOptionsPageUIHandler(localized_strings,
                           new SupervisedUserLearnMoreHandler());
+#endif
   AddOptionsPageUIHandler(localized_strings, new SyncSetupHandler(
       g_browser_process->profile_manager()));
   AddOptionsPageUIHandler(localized_strings, new WebsiteSettingsHandler());

@@ -38,10 +38,7 @@ void SaveRegistrationCallback(
     bool* called,
     scoped_refptr<ServiceWorkerRegistration>* registration_out,
     ServiceWorkerStatusCode status,
-    ServiceWorkerRegistration* registration,
-    ServiceWorkerVersion* version) {
-  ASSERT_TRUE(!version || version->registration_id() == registration->id())
-      << version << " " << registration;
+    ServiceWorkerRegistration* registration) {
   EXPECT_EQ(expected_status, status);
   *called = true;
   *registration_out = registration;
@@ -105,11 +102,11 @@ class ServiceWorkerJobTest : public testing::Test {
       : browser_thread_bundle_(TestBrowserThreadBundle::IO_MAINLOOP),
         render_process_id_(kMockRenderProcessId) {}
 
-  virtual void SetUp() OVERRIDE {
+  virtual void SetUp() override {
     helper_.reset(new EmbeddedWorkerTestHelper(render_process_id_));
   }
 
-  virtual void TearDown() OVERRIDE {
+  virtual void TearDown() override {
     helper_.reset();
   }
 
@@ -407,11 +404,11 @@ class FailToStartWorkerTestHelper : public EmbeddedWorkerTestHelper {
   explicit FailToStartWorkerTestHelper(int mock_render_process_id)
       : EmbeddedWorkerTestHelper(mock_render_process_id) {}
 
-  virtual void OnStartWorker(int embedded_worker_id,
-                             int64 service_worker_version_id,
-                             const GURL& scope,
-                             const GURL& script_url,
-                             bool pause_after_download) OVERRIDE {
+  void OnStartWorker(int embedded_worker_id,
+                     int64 service_worker_version_id,
+                     const GURL& scope,
+                     const GURL& script_url,
+                     bool pause_after_download) override {
     EmbeddedWorkerInstance* worker = registry()->GetWorker(embedded_worker_id);
     registry()->OnWorkerStopped(worker->process_id(), embedded_worker_id);
   }
@@ -900,7 +897,7 @@ class UpdateJobTestHelper
   UpdateJobTestHelper(int mock_render_process_id)
       : EmbeddedWorkerTestHelper(mock_render_process_id),
         update_found_(false) {}
-  virtual ~UpdateJobTestHelper() {
+  ~UpdateJobTestHelper() override {
     if (registration_.get())
       registration_->RemoveListener(this);
   }
@@ -930,12 +927,13 @@ class UpdateJobTestHelper
   }
 
   // EmbeddedWorkerTestHelper overrides
-  virtual void OnStartWorker(int embedded_worker_id,
-                             int64 version_id,
-                             const GURL& scope,
-                             const GURL& script,
-                             bool pause_after_download) OVERRIDE {
+  void OnStartWorker(int embedded_worker_id,
+                     int64 version_id,
+                     const GURL& scope,
+                     const GURL& script,
+                     bool pause_after_download) override {
     const std::string kMockScriptBody = "mock_script";
+    const uint64 kMockScriptSize = 19284;
     ServiceWorkerVersion* version = context()->GetLiveVersion(version_id);
     ASSERT_TRUE(version);
     version->AddListener(this);
@@ -946,7 +944,7 @@ class UpdateJobTestHelper
       version->script_cache_map()->NotifyStartedCaching(script, resource_id);
       WriteStringResponse(storage(), resource_id, kMockScriptBody);
       version->script_cache_map()->NotifyFinishedCaching(
-          script, net::URLRequestStatus());
+          script, kMockScriptSize, net::URLRequestStatus());
     } else {
       // Spoof caching the script for the new version.
       int64 resource_id = storage()->NewResourceId();
@@ -956,17 +954,17 @@ class UpdateJobTestHelper
       else
         WriteStringResponse(storage(), resource_id, "mock_different_script");
       version->script_cache_map()->NotifyFinishedCaching(
-          script, net::URLRequestStatus());
+          script, kMockScriptSize, net::URLRequestStatus());
     }
     EmbeddedWorkerTestHelper::OnStartWorker(
         embedded_worker_id, version_id, scope, script, pause_after_download);
   }
 
   // ServiceWorkerRegistration::Listener overrides
-  virtual void OnVersionAttributesChanged(
+  void OnVersionAttributesChanged(
       ServiceWorkerRegistration* registration,
       ChangedVersionAttributesMask changed_mask,
-      const ServiceWorkerRegistrationInfo& info) OVERRIDE {
+      const ServiceWorkerRegistrationInfo& info) override {
     AttributeChangeLogEntry entry;
     entry.registration_id = registration->id();
     entry.mask = changed_mask;
@@ -974,24 +972,22 @@ class UpdateJobTestHelper
     attribute_change_log_.push_back(entry);
   }
 
-  virtual void OnRegistrationFailed(
-      ServiceWorkerRegistration* registration) OVERRIDE {
+  void OnRegistrationFailed(ServiceWorkerRegistration* registration) override {
     NOTREACHED();
   }
 
-  virtual void OnRegistrationFinishedUninstalling(
-      ServiceWorkerRegistration* registration) OVERRIDE {
+  void OnRegistrationFinishedUninstalling(
+      ServiceWorkerRegistration* registration) override {
     NOTREACHED();
   }
 
-  virtual void OnUpdateFound(
-      ServiceWorkerRegistration* registration) OVERRIDE {
+  void OnUpdateFound(ServiceWorkerRegistration* registration) override {
     ASSERT_FALSE(update_found_);
     update_found_ = true;
   }
 
   // ServiceWorkerVersion::Listener overrides
-  virtual void OnVersionStateChanged(ServiceWorkerVersion* version) OVERRIDE {
+  void OnVersionStateChanged(ServiceWorkerVersion* version) override {
     StateChangeLogEntry entry;
     entry.version_id = version->version_id();
     entry.status = version->status();

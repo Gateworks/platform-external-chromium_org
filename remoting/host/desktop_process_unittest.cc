@@ -43,7 +43,7 @@ class MockDaemonListener : public IPC::Listener {
   MockDaemonListener() {}
   virtual ~MockDaemonListener() {}
 
-  virtual bool OnMessageReceived(const IPC::Message& message) OVERRIDE;
+  virtual bool OnMessageReceived(const IPC::Message& message) override;
 
   MOCK_METHOD1(OnDesktopAttached, void(IPC::PlatformFileForTransit));
   MOCK_METHOD1(OnChannelConnected, void(int32));
@@ -58,7 +58,7 @@ class MockNetworkListener : public IPC::Listener {
   MockNetworkListener() {}
   virtual ~MockNetworkListener() {}
 
-  virtual bool OnMessageReceived(const IPC::Message& message) OVERRIDE;
+  virtual bool OnMessageReceived(const IPC::Message& message) override;
 
   MOCK_METHOD1(OnChannelConnected, void(int32));
   MOCK_METHOD0(OnChannelError, void());
@@ -98,8 +98,8 @@ class DesktopProcessTest : public testing::Test {
   virtual ~DesktopProcessTest();
 
   // testing::Test overrides
-  virtual void SetUp() OVERRIDE;
-  virtual void TearDown() OVERRIDE;
+  virtual void SetUp() override;
+  virtual void TearDown() override;
 
   // MockDaemonListener mocks
   void ConnectNetworkChannel(IPC::PlatformFileForTransit desktop_process);
@@ -262,8 +262,7 @@ void DesktopProcessTest::RunDesktopProcess() {
       .WillRepeatedly(Return(false));
 
   DesktopProcess desktop_process(ui_task_runner, io_task_runner_, channel_name);
-  EXPECT_TRUE(desktop_process.Start(
-      desktop_environment_factory.PassAs<DesktopEnvironmentFactory>()));
+  EXPECT_TRUE(desktop_process.Start(desktop_environment_factory.Pass()));
 
   ui_task_runner = NULL;
   run_loop.Run();

@@ -17,8 +17,6 @@
 #include "base/values.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/chrome_notification_types.h"
-#include "chrome/browser/content_settings/content_settings_utils.h"
-#include "chrome/browser/content_settings/host_content_settings_map.h"
 #include "chrome/browser/custom_handlers/protocol_handler_registry.h"
 #include "chrome/browser/custom_handlers/protocol_handler_registry_factory.h"
 #include "chrome/browser/extensions/extension_special_storage_policy.h"
@@ -32,6 +30,8 @@
 #include "chrome/grit/generated_resources.h"
 #include "chrome/grit/locale_settings.h"
 #include "components/content_settings/core/browser/content_settings_details.h"
+#include "components/content_settings/core/browser/content_settings_utils.h"
+#include "components/content_settings/core/browser/host_content_settings_map.h"
 #include "components/content_settings/core/common/content_settings.h"
 #include "components/content_settings/core/common/content_settings_pattern.h"
 #include "components/google/core/browser/google_util.h"
@@ -323,7 +323,7 @@ void ContentSettingsHandler::GetLocalizedValues(
     { "plugins_header", IDS_PLUGIN_HEADER },
     { "pluginsAsk", IDS_PLUGIN_ASK_RADIO },
     { "pluginsAllow", IDS_PLUGIN_LOAD_RADIO },
-    { "pluginsBlock", IDS_PLUGIN_NOLOAD_RADIO },
+    { "pluginsBlock", IDS_PLUGIN_ASK_MENU_RADIO },
     { "disableIndividualPlugins", IDS_PLUGIN_SELECTIVE_DISABLE },
     // Pop-ups filter.
     { "popupsTabLabel", IDS_POPUP_TAB_LABEL },
@@ -387,6 +387,8 @@ void ContentSettingsHandler::GetLocalizedValues(
     { "ppapiBrokerBlock", IDS_PPAPI_BROKER_BLOCK_RADIO },
     // Multiple automatic downloads
     { "multipleAutomaticDownloadsTabLabel",
+      IDS_AUTOMATIC_DOWNLOADS_TAB_LABEL },
+    { "multiple-automatic-downloads_header",
       IDS_AUTOMATIC_DOWNLOADS_TAB_LABEL },
     { "multipleAutomaticDownloadsAllow",
       IDS_AUTOMATIC_DOWNLOADS_ALLOW_RADIO },

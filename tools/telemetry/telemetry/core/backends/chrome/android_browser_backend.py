@@ -89,7 +89,7 @@ class ChromeBackendSettings(AndroidBrowserBackendSettings):
       profile_base = os.path.basename(profile_parent)
 
     saved_profile_location = '/sdcard/profile/%s' % profile_base
-    adb.device().PushChangedFiles(new_profile_dir, saved_profile_location)
+    adb.device().PushChangedFiles([(new_profile_dir, saved_profile_location)])
 
     adb.device().old_interface.EfficientDeviceDirectoryCopy(
         saved_profile_location, self.profile_dir)
@@ -133,10 +133,11 @@ class ChromeShellBackendSettings(AndroidBrowserBackendSettings):
 
 class WebviewBackendSettings(AndroidBrowserBackendSettings):
   def __init__(self, package,
-               activity='org.chromium.telemetry_shell.TelemetryActivity'):
+               activity='org.chromium.telemetry_shell.TelemetryActivity',
+               cmdline_file='/data/local/tmp/webview-command-line'):
     super(WebviewBackendSettings, self).__init__(
         activity=activity,
-        cmdline_file='/data/local/tmp/webview-command-line',
+        cmdline_file=cmdline_file,
         package=package,
         pseudo_exec_name='webview',
         supports_tab_control=False)
@@ -167,6 +168,7 @@ class WebviewShellBackendSettings(WebviewBackendSettings):
   def __init__(self, package):
     super(WebviewShellBackendSettings, self).__init__(
         activity='org.chromium.android_webview.shell.AwShellActivity',
+        cmdline_file='/data/local/tmp/android-webview-command-line',
         package=package)
 
 class AndroidBrowserBackend(chrome_browser_backend.ChromeBrowserBackend):
@@ -328,9 +330,6 @@ class AndroidBrowserBackend(chrome_browser_backend.ChromeBrowserBackend):
 
   def GetBrowserStartupArgs(self):
     args = super(AndroidBrowserBackend, self).GetBrowserStartupArgs()
-    if self.forwarder_factory.does_forwarder_override_dns:
-      args = [arg for arg in args
-              if not arg.startswith('--host-resolver-rules')]
     args.append('--enable-remote-debugging')
     args.append('--disable-fre')
     args.append('--disable-external-intent-requests')
@@ -435,9 +434,3 @@ class AndroidBrowserBackend(chrome_browser_backend.ChromeBrowserBackend):
                                         self._adb.device_serial()],
                                        stdout=subprocess.PIPE).communicate()[0])
     return ret
-
-  def AddReplayServerOptions(self, extra_wpr_args):
-    if not self.forwarder_factory.does_forwarder_override_dns:
-      extra_wpr_args.append('--no-dns_forwarding')
-    if self.browser_options.netsim:
-      extra_wpr_args.append('--net=%s' % self.browser_options.netsim)

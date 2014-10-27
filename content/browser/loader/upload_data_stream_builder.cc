@@ -7,8 +7,8 @@
 #include "base/logging.h"
 #include "content/browser/fileapi/upload_file_system_file_element_reader.h"
 #include "content/common/resource_request_body.h"
+#include "net/base/elements_upload_data_stream.h"
 #include "net/base/upload_bytes_element_reader.h"
-#include "net/base/upload_data_stream.h"
 #include "net/base/upload_file_element_reader.h"
 #include "storage/browser/blob/blob_data_handle.h"
 #include "storage/browser/blob/blob_storage_context.h"
@@ -30,7 +30,7 @@ class BytesElementReader : public net::UploadBytesElementReader {
     DCHECK_EQ(ResourceRequestBody::Element::TYPE_BYTES, element.type());
   }
 
-  virtual ~BytesElementReader() {}
+  ~BytesElementReader() override {}
 
  private:
   scoped_refptr<ResourceRequestBody> resource_request_body_;
@@ -55,7 +55,7 @@ class FileElementReader : public net::UploadFileElementReader {
     DCHECK_EQ(ResourceRequestBody::Element::TYPE_FILE, element.type());
   }
 
-  virtual ~FileElementReader() {}
+  ~FileElementReader() override {}
 
  private:
   scoped_refptr<ResourceRequestBody> resource_request_body_;
@@ -134,7 +134,8 @@ scoped_ptr<net::UploadDataStream> UploadDataStreamBuilder::Build(
   }
 
   return make_scoped_ptr(
-      new net::UploadDataStream(element_readers.Pass(), body->identifier()));
+      new net::ElementsUploadDataStream(element_readers.Pass(),
+                                        body->identifier()));
 }
 
 }  // namespace content

@@ -46,11 +46,9 @@ class PersistentTabRestoreTimeFactory : public TabRestoreService::TimeFactory {
  public:
   PersistentTabRestoreTimeFactory() : time_(base::Time::Now()) {}
 
-  virtual ~PersistentTabRestoreTimeFactory() {}
+  ~PersistentTabRestoreTimeFactory() override {}
 
-  virtual base::Time TimeNow() OVERRIDE {
-    return time_;
-  }
+  base::Time TimeNow() override { return time_; }
 
  private:
   base::Time time_;
@@ -77,13 +75,13 @@ class PersistentTabRestoreServiceTest : public ChromeRenderViewHostTestHarness {
   };
 
   // testing::Test:
-  virtual void SetUp() OVERRIDE {
+  virtual void SetUp() override {
     ChromeRenderViewHostTestHarness::SetUp();
     time_factory_ = new PersistentTabRestoreTimeFactory();
     service_.reset(new PersistentTabRestoreService(profile(), time_factory_));
   }
 
-  virtual void TearDown() OVERRIDE {
+  virtual void TearDown() override {
     service_->Shutdown();
     service_.reset();
     delete time_factory_;
@@ -181,11 +179,9 @@ class TestTabRestoreServiceObserver : public TabRestoreServiceObserver {
   bool got_loaded() const { return got_loaded_; }
 
   // TabRestoreServiceObserver:
-  virtual void TabRestoreServiceChanged(TabRestoreService* service) OVERRIDE {
-  }
-  virtual void TabRestoreServiceDestroyed(TabRestoreService* service) OVERRIDE {
-  }
-  virtual void TabRestoreServiceLoaded(TabRestoreService* service) OVERRIDE {
+  void TabRestoreServiceChanged(TabRestoreService* service) override {}
+  void TabRestoreServiceDestroyed(TabRestoreService* service) override {}
+  void TabRestoreServiceLoaded(TabRestoreService* service) override {
     got_loaded_ = true;
   }
 

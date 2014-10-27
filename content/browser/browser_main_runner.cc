@@ -24,7 +24,12 @@
 #include "base/win/windows_version.h"
 #include "net/cert/sha256_legacy_support_win.h"
 #include "sandbox/win/src/sidestep/preamble_patcher.h"
+#include "skia/ext/fontmgr_default_win.h"
+#include "third_party/skia/include/ports/SkFontMgr.h"
+#include "third_party/skia/include/ports/SkTypeface_win.h"
 #include "ui/base/win/scoped_ole_initializer.h"
+#include "ui/gfx/switches.h"
+#include "ui/gfx/win/direct_write.h"
 #endif
 
 bool g_exited_main_message_loop = false;
@@ -110,6 +115,16 @@ void InstallSha256LegacyHooks() {
 #endif  // _WIN64
 }
 
+void MaybeEnableDirectWriteFontRendering() {
+  if (gfx::win::ShouldUseDirectWrite() &&
+      CommandLine::ForCurrentProcess()->HasSwitch(
+          switches::kEnableDirectWriteForUI) &&
+      CommandLine::ForCurrentProcess()->HasSwitch(
+          switches::kEnableHarfBuzzRenderText)) {
+    SetDefaultSkiaFactory(SkFontMgr_New_DirectWrite(NULL));
+  }
+}
+
 }  // namespace
 
 #endif  // OS_WIN
@@ -119,12 +134,12 @@ class BrowserMainRunnerImpl : public BrowserMainRunner {
   BrowserMainRunnerImpl()
       : initialization_started_(false), is_shutdown_(false) {}
 
-  virtual ~BrowserMainRunnerImpl() {
+  ~BrowserMainRunnerImpl() override {
     if (initialization_started_ && !is_shutdown_)
       Shutdown();
   }
 
-  virtual int Initialize(const MainFunctionParams& parameters) OVERRIDE {
+  int Initialize(const MainFunctionParams& parameters) override {
     TRACE_EVENT0("startup", "BrowserMainRunnerImpl::Initialize");
     // On Android we normally initialize the browser in a series of UI thread
     // tasks. While this is happening a second request can come from the OS or
@@ -162,6 +177,8 @@ class BrowserMainRunnerImpl : public BrowserMainRunner {
       // (Text Services Framework) module can interact with the message pump
       // on Windows 8 Metro mode.
       ole_initializer_.reset(new ui::ScopedOleInitializer);
+      // Enable DirectWrite font rendering if needed.
+      MaybeEnableDirectWriteFontRendering();
 #endif  // OS_WIN
 
       main_loop_.reset(new BrowserMainLoop(parameters));
@@ -199,14 +216,14 @@ class BrowserMainRunnerImpl : public BrowserMainRunner {
     return -1;
   }
 
-  virtual int Run() OVERRIDE {
+  int Run() override {
     DCHECK(initialization_started_);
     DCHECK(!is_shutdown_);
     main_loop_->RunMainMessageLoopParts();
     return main_loop_->GetResultCode();
   }
 
-  virtual void Shutdown() OVERRIDE {
+  void Shutdown() override {
     DCHECK(initialization_started_);
     DCHECK(!is_shutdown_);
 #ifdef LEAK_SANITIZER

@@ -8,6 +8,7 @@
 #include <string>
 
 #include "base/callback.h"
+#include "base/memory/weak_ptr.h"
 #include "chrome/browser/supervised_user/supervised_user_service_observer.h"
 #include "content/public/browser/interstitial_page_delegate.h"
 #include "url/gurl.h"
@@ -33,18 +34,21 @@ class SupervisedUserInterstitial : public content::InterstitialPageDelegate,
   SupervisedUserInterstitial(content::WebContents* web_contents,
                              const GURL& url,
                              const base::Callback<void(bool)>& callback);
-  virtual ~SupervisedUserInterstitial();
+  ~SupervisedUserInterstitial() override;
 
   bool Init();
 
   // InterstitialPageDelegate implementation.
-  virtual std::string GetHTMLContents() OVERRIDE;
-  virtual void CommandReceived(const std::string& command) OVERRIDE;
-  virtual void OnProceed() OVERRIDE;
-  virtual void OnDontProceed() OVERRIDE;
+  std::string GetHTMLContents() override;
+  void CommandReceived(const std::string& command) override;
+  void OnProceed() override;
+  void OnDontProceed() override;
 
   // SupervisedUserServiceObserver implementation.
-  virtual void OnURLFilterChanged() OVERRIDE;
+  void OnURLFilterChanged() override;
+  // TODO(treib): Also listen to OnCustodianInfoChanged and update as required.
+
+  void OnAccessRequestAdded(bool success);
 
   // Returns whether the blocked URL is now allowed. Called initially before the
   // interstitial is shown (to catch race conditions), or when the URL filtering
@@ -63,6 +67,8 @@ class SupervisedUserInterstitial : public content::InterstitialPageDelegate,
   GURL url_;
 
   base::Callback<void(bool)> callback_;
+
+  base::WeakPtrFactory<SupervisedUserInterstitial> weak_ptr_factory_;
 
   DISALLOW_COPY_AND_ASSIGN(SupervisedUserInterstitial);
 };

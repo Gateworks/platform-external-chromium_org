@@ -58,7 +58,6 @@ content::WebUIDataSource* CreateVoiceSearchUiHtmlSource() {
   html_source->AddLocalizedString("voiceSearchLongTitle",
                                   IDS_VOICESEARCH_TITLE_MESSAGE);
 
-  html_source->SetUseJsonJSFormatV2();
   html_source->SetJsonPath("strings.js");
   html_source->AddResourcePath("about_voicesearch.js",
                                IDR_ABOUT_VOICESEARCH_JS);
@@ -94,10 +93,10 @@ class VoiceSearchDomHandler : public WebUIMessageHandler {
  public:
   explicit VoiceSearchDomHandler(Profile* profile) : profile_(profile) {}
 
-  virtual ~VoiceSearchDomHandler() {}
+  ~VoiceSearchDomHandler() override {}
 
   // WebUIMessageHandler implementation.
-  virtual void RegisterMessages() OVERRIDE {
+  void RegisterMessages() override {
     web_ui()->RegisterMessageCallback(
         "requestVoiceSearchInfo",
         base::Bind(&VoiceSearchDomHandler::HandleRequestVoiceSearchInfo,

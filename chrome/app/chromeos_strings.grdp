@@ -361,15 +361,6 @@ Press any key to continue exploring.
   <message name="IDS_FILE_BROWSER_GALLERY_IMAGE_TOO_BIG_ERROR" desc="In the Gallery, message informing that the image is too big to be displayed.">
     This file is too large to be opened.
   </message>
-  <message name="IDS_FILE_BROWSER_GALLERY_VIDEO_ERROR" desc="In the Gallery, message informing that the video could not be played.">
-    This file could not be played.
-  </message>
-  <message name="IDS_FILE_BROWSER_GALLERY_VIDEO_DECODING_ERROR" desc="In the Gallery, message informing that an error occured while playing the movie.">
-    An error occurred. Click to restart from the beginning.
-  </message>
-  <message name="IDS_FILE_BROWSER_GALLERY_VIDEO_LOOPED_MODE" desc="In the Gallery, message informing that the movie will be played in a loop.">
-    This video will keep playing until the cows come home.
-  </message>
   <message name="IDS_FILE_BROWSER_AUDIO_ERROR" desc="In the Audio Player, message informing that the file could not be played.">
     This file could not be played.
   </message>
@@ -945,17 +936,26 @@ Press any key to continue exploring.
   </message>
 
 <!-- Video Player -->
-  <message name="IDS_VIDEO_PLAYER_PLAY_THIS_COMPUTER" desc="Message of menu item which is shown at the top of the list of Chromecasts. This menuitem is to play the video on this computer (locally), intead of on TVs with Chromecast.">
+  <message name="IDS_VIDEO_PLAYER_PLAY_THIS_COMPUTER" desc="In the video player app, message of menu item which is shown at the top of the list of Chromecasts. This menuitem is to play the video on this computer (locally), intead of on TVs with Chromecast.">
     This computer
   </message>
-  <message name="IDS_VIDEO_PLAYER_PLAYING_ON" desc="Message is shown ahead of the name of the current chromecast which plays the video now. For example, if this message is 'Playing on' and the Chromecast name is 'Foocast', 'Playing on Foocast' is shown.">
+  <message name="IDS_VIDEO_PLAYER_PLAYING_ON" desc="In the video player app, message is shown ahead of the name of the current chromecast which plays the video now. For example, if this message is 'Playing on' and the Chromecast name is 'Foocast', 'Playing on Foocast' is shown.">
     Playing on
   </message>
-  <message name="IDS_VIDEO_PLAYER_PLAY_ON" desc="Message is shown above the list of cast devices. The user will select one of them to play the current video on selected device.">
+  <message name="IDS_VIDEO_PLAYER_PLAY_ON" desc="In the video player app, message is shown above the list of cast devices. The user will select one of them to play the current video on selected device.">
     Play on
+  </message>
+  <message name="IDS_VIDEO_PLAYER_VIDEO_FILE_UNSUPPORTED" desc="In the video player app, message informing that the video could not be played.">
+    This file could not be played.
   </message>
   <message name="IDS_VIDEO_PLAYER_VIDEO_FILE_UNSUPPORTED_FOR_CAST" desc="Error message which is shown when the video which an user tried to play is not supported by the current cast device.">
     Sorry, this video is not supported by your cast device.
+  </message>
+  <message name="IDS_VIDEO_PLAYER_PLAYBACK_ERROR" desc="In the video player app, message informing that an error occured while playing the movie.">
+    An error occurred. Click to restart from the beginning.
+  </message>
+  <message name="IDS_VIDEO_PLAYER_LOOPED_MODE" desc="In the video player app, message informing that the movie will be played in a loop.">
+    This video will keep playing until the cows come home.
   </message>
 
 <!-- Imageburn Strings -->
@@ -1436,8 +1436,8 @@ Press any key to continue exploring.
   <message name="IDS_LOGIN_CONFIRM_PASSWORD_ERROR_TEXT" desc="Error text to show when the password typed by the user could not be verified.">
     Sorry, your password could not be verified. Please try again.
   </message>
-  <message name="IDS_LOGIN_FATAL_ERROR_NO_EMAIL" desc="Message to show when the authentication could not be completed because the user's e-mail address could not be retrieved.">
-    Oops, couldn't sign you in. Sign-in failed because your e-mail address could not be retrieved.
+  <message name="IDS_LOGIN_FATAL_ERROR_NO_ACCOUNT_DETAILS" desc="Message to show when the authentication could not be completed because the user's account details could not be retrieved.">
+    Oops, couldn't sign you in. Sign-in failed because your account details could not be retrieved.
   </message>
   <message name="IDS_LOGIN_FATAL_ERROR_NO_PASSWORD" desc="Message to show when the authentication could not be completed because the user's password could not be retrieved.">
     Something went wrong with signing in.
@@ -2705,20 +2705,11 @@ Press any key to continue exploring.
   <message name="IDS_RESET_SCREEN_WARNING_MSG" desc="Warning text shown on reset screen above the exclamation icon.">
     Reset this <ph name="IDS_SHORT_PRODUCT_NAME">$1<ex>Chrome</ex></ph> device
   </message>
-  <message name="IDS_RESET_SCREEN_WARNING_POWERWASH_MSG" desc="Warning text shown on confirmation-form of reset screen above the exclamation icon.">
-    Powerwash your <ph name="IDS_SHORT_PRODUCT_NAME">$1<ex>Chrome</ex></ph> device
-  </message>
-  <message name="IDS_RESET_SCREEN_WARNING_POWERWASH_AND_ROLLBACK_MSG" desc="Warning text shown on confirmation-form of reset screen above the exclamation icon.">
-    Powerwash your <ph name="IDS_SHORT_PRODUCT_NAME">$1<ex>Chrome</ex></ph> device and return to the previous version
-  </message>
-  <message name="IDS_RESET_SCREEN_WARNING_DETAILS" desc="Warning text shown on reset screen below the exclamation icon.">
+  <message name="IDS_RESET_SCREEN_WARNING_POWERWASH_MSG" desc="Warning text shown on reset screen below the exclamation icon.">
     Powerwash to reset your <ph name="IDS_SHORT_PRODUCT_NAME">$1<ex>Chrome</ex></ph> device to be just like new.
   </message>
-  <message name="IDS_RESET_SCREEN_CONFIRMATION_WARNING_DETAILS" desc="Warning text shown on confirmation-form of reset screen below the exclamation icon.">
-    A Powerwash resets your <ph name="IDS_SHORT_PRODUCT_NAME">$1<ex>Chrome</ex></ph> device to be just like new.
-  </message>
-  <message name="IDS_RESET_SCREEN_CONFIRMATION_WARNING_ROLLBACK_DETAILS" desc="Warning text shown on confirmation-form of reset screen below the exclamation icon.">
-    A Powerwash resets your <ph name="IDS_SHORT_PRODUCT_NAME">$1<ex>Chrome</ex></ph> device to be just like new. Your device will also be returned to the previously installed version of <ph name="IDS_SHORT_PRODUCT_NAME">$1<ex>Chrome</ex></ph>.
+  <message name="IDS_RESET_SCREEN_WARNING_POWERWASH_AND_ROLLBACK_MSG" desc="Warning text shown on reset screen below the exclamation icon.">
+    Powerwash your <ph name="IDS_SHORT_PRODUCT_NAME">$1<ex>Chrome</ex></ph> device and return to the previous version.
   </message>
   <message name="IDS_RESET_SCREEN_WARNING_DETAILS_DATA" desc="Additional warning text shown on reset screen below the main warning.">
     All user accounts and local data will be removed.
@@ -2735,11 +2726,8 @@ Press any key to continue exploring.
   <message name="IDS_RESET_SCREEN_POWERWASH_AND_REVERT" desc="Powerwash+rollback button text">
     Powerwash and Revert
   </message>
-  <message name="IDS_RESET_SCREEN_RESET" desc="Reset button text. Button launches powerwash.">
-    Reset
-  </message>
   <message name="IDS_RESET_SCREEN_PREPARING_REVERT_PROMISE" desc="Message shown on reset screen after user initiates powerwash with version revert while revert is prepared until reboot.">
-    <ph name="IDS_SHORT_PRODUCT_NAME">$1<ex>Chrome</ex></ph> will restart and reset momentarily.
+    <ph name="IDS_SHORT_PRODUCT_NAME">$1<ex>Chrome</ex></ph> will restart and reset momentarily
   </message>
   <message name="IDS_RESET_SCREEN_PREPARING_REVERT_SPINNER_MESSAGE" desc="Spinner message shown on reset screen after user initiates powerwash with version revert while revert is prepared until reboot.">
     Reverting to the previously installed version of <ph name="IDS_SHORT_PRODUCT_NAME">$1<ex>Chrome</ex></ph>
@@ -2752,6 +2740,21 @@ Press any key to continue exploring.
   </message>
   <message name="IDS_RESET_SCREEN_REVERT_ERROR_BUTTON" desc="Reset device dialog, error page, revert error while initiating it, button title.">
     OK
+  </message>
+  <message name="IDS_RESET_SCREEN_POPUP_POWERWASH_TITLE" desc="Confirmational pop-up on top of reset device dialog. Pop-up title for powerwash.">
+    Confirm Powerwash
+  </message>
+  <message name="IDS_RESET_SCREEN_POPUP_ROLLBACK_TITLE" desc="Confirmational pop-up on top of reset device dialog. Pop-up title for rollback.">
+    Confirm Powerwash with return to previous version
+  </message>
+  <message name="IDS_RESET_SCREEN_POPUP_POWERWASH_TEXT" desc="Confirmational pop-up on top of reset device dialog. Pop-up text for powerwash.">
+    Your device will be reset and all user accounts and local data will be removed. This cannot be undone.
+  </message>
+  <message name="IDS_RESET_SCREEN_POPUP_ROLLBACK_TEXT" desc="Confirmational pop-up on top of reset device dialog. Pop-up text for rollback.">
+    Your device will be returned to the previously installed version of Chrome. All user accounts and local data will be removed. This cannot be undone.
+  </message>
+  <message name="IDS_RESET_SCREEN_POPUP_CONFIRM_BUTTON" desc="Confirmational pop-up on top of reset device dialog. Confirm button text.">
+    Continue
   </message>
 
   <message name="IDS_WRONG_HWID_SCREEN_HEADER" desc="Header of message shown on screen notifying about malformed hardware ID.">
@@ -4640,6 +4643,9 @@ Battery full
   <message name="IDS_IME_NAME_KEYBOARD_LITHUANIAN" desc="The input method name shows in system tray menu, this shows [Lithuanian keyboard].">
     Lithuanian keyboard
   </message>
+  <message name="IDS_IME_NAME_KEYBOARD_MALTESE" desc="The input method name shows in system tray menu, this shows [Maltese keyboard].">
+    Maltese keyboard
+  </message>
   <message name="IDS_IME_NAME_KEYBOARD_MONGOLIAN" desc="The input method name shows in system tray menu, this shows [Mongolian keyboard].">
     Mongolian keyboard
   </message>
@@ -4660,6 +4666,12 @@ Battery full
   </message>
   <message name="IDS_IME_NAME_KEYBOARD_RUSSIAN_PHONETIC" desc="The input method name shows in system tray menu, this shows [Russian Phonetic keyboard].">
     Russian Phonetic keyboard
+  </message>
+  <message name="IDS_IME_NAME_KEYBOARD_RUSSIAN_PHONETIC_AATSEEL" desc="The input method name shows in system tray menu, this shows [Russian Phonetic (AATSEEL) keyboard].">
+    Russian Phonetic (AATSEEL) keyboard
+  </message>
+  <message name="IDS_IME_NAME_KEYBOARD_RUSSIAN_PHONETIC_YAZHERT" desc="The input method name shows in system tray menu, this shows [Russian Phonetic (YaZHert) keyboard].">
+    Russian Phonetic (YaZHert) keyboard
   </message>
   <message name="IDS_IME_NAME_KEYBOARD_SERBIAN" desc="The input method name shows in system tray menu, this shows [Serbian keyboard].">
     Serbian keyboard
@@ -4739,6 +4751,9 @@ Battery full
   </message>
   <message name="IDS_IME_NAME_INPUTMETHOD_ZHUYIN" desc="The input method name shows in system tray menu, this is Zhuyin input method for Traditional Chinese.">
     Zhuyin input method
+  </message>
+  <message name="IDS_IME_NAME_INPUTMETHOD_HANGUL" desc="The input method name shows in system tray menu, this is Korean Hangul input method.">
+    Hangul input method
   </message>
   <message name="IDS_IME_NAME_INPUTMETHOD_HANGUL_2_SET" desc="The input method name shows in system tray menu, this is Korean Hangul input method, 2 Set mode.">
     Hangul 2 Set
@@ -5032,7 +5047,7 @@ Battery full
     Remove this user
   </message>
   <message name="IDS_LOGIN_VERSION_LABEL_FORMAT" desc="Login screen version text format.">
-    <ph name="PRODUCT_NAME">$1<ex>Google Chrome</ex></ph> <ph name="PRODUCT_VERSION">$2<ex>15.0.0.0</ex></ph> (Platform <ph name="PLATFORM_VERSION">$3<ex>900.0-11.09.01</ex></ph>)
+    <ph name="PRODUCT_NAME">$1<ex>Google Chrome</ex></ph> <ph name="PRODUCT_VERSION">$2<ex>15.0.0.0</ex></ph> (Platform <ph name="PLATFORM_VERSION">$3<ex>900.0-11.09.01</ex></ph>) <ph name="DEVICE_SERIAL_NUMBER">$4<ex>SN:123456789ABC</ex></ph>
   </message>
   <message name="IDS_DEVICE_OWNED_BY_NOTICE" desc="Text for notifications showing that this is managed device.">
     This device is managed by <ph name="DOMAIN">$1<ex>acmecorp.com</ex></ph>.
@@ -5061,6 +5076,12 @@ Battery full
   <message name="IDS_LOGIN_CONNECTING_INDICATOR_TEXT" desc="A message to show telling the user that the device is attempting to re-connect to the network.">
     Connecting and verifying<ph name="ANIMATED_ELLIPSIS">$1<ex>...</ex></ph>
   </message>
+  <message name="IDS_DEVICE_DISABLED_HEADING" desc="Heading of the message shown to the user when the device has been disabled by its owner.">
+    Locked
+  </message>
+  <message name="IDS_DEVICE_DISABLED_EXPLANATION" desc="Explanation shown to the user when the device has been disabled by its owner.">
+    This device was locked by its owner. Only an approved administrator can unlock it. Take this device to Tech Support for assistance.
+  </message>
 
   <!-- Idle warning dialog -->
   <message name="IDS_IDLE_WARNING_TITLE" desc="Title of the warning dialog shown when the user becomes idle and is about to get logged out.">
@@ -5088,22 +5109,19 @@ Battery full
     Kiosk application launch canceled.
   </message>
   <message name="IDS_KIOSK_EXTERNAL_UPDATE_IN_PROGRESS" desc="Message shown on screen when the system is updating kiosk apps from usb stick.">
-    Kiosk applications are being updated from usb stick, please wait. Do not remove the usb stick.
+    Please wait....Kiosk app is in the process of being updated. Do not remove the USB stick.
   </message>
   <message name="IDS_KIOSK_EXTERNAL_UPDATE_NO_UPDATES" desc="Error message for no external extensions to update.">
-    No kiosk apps with newer version are found on the usb stick, nothing to update. Please remove the usb stick.
-  </message>
-  <message name="IDS_KIOSK_EXTERNAL_UPDATE_NO_MANIFEST" desc="Error message for external update manifest file not found.">
-    Can't find kiosk external update manifest file on the usb stick, failed to update kiosk apps. Please remove the usb stick.
+    No Kiosk apps with newer version found. Nothing to update. Please remove the USB stick.
   </message>
   <message name="IDS_KIOSK_EXTERNAL_UPDATE_INVALID_MANIFEST" desc="Error message for invalid external update manifest file from usb stick.">
-    Found invalid kiosk external update manifest file on the usb stick, failed to update kiosk apps. Please remove the usb stick.
+    Invalid Kiosk external update manifest file found. Failed to update Kiosk app. Please remove the USB stick.
   </message>
   <message name="IDS_KIOSK_EXTERNAL_UPDATE_COMPLETE" desc="Message shown on screen when the system completes updating kiosk apps from usb stick.">
-    Kiosk app updating from usb stick is completed. Please remove the usb stick from the device.
+    Kiosk app has been updated. Please remove the USB stick.
   </message>
   <message name="IDS_KIOSK_EXTERNAL_UPDATE_SUCCESSFUL_UPDATED_APPS" desc="Message shown for successfully updated kiosk apps.">
-    The following kiosk apps have been updated, please reboot the device to complete the update process: <ph name="updated_apps">$1<ex>PrintApp</ex></ph>.
+    The following kiosk apps "<ph name="updated_apps">$1<ex>PrintApp</ex></ph>" have been updated. Please reboot the device to complete the update process.
   </message>
   <message name="IDS_KIOSK_EXTERNAL_UPDATE_FAILED_UPDATED_APPS" desc="Message shown for failed updated kiosk apps.">
     The following kiosk apps have been failed for updating:
@@ -5506,7 +5524,7 @@ All users must sign out to continue.
     Are you sure you want to set up this device as a "Shark"?
   </message>
   <message name="IDS_PAIRING_CONTROLLER_WELCOME" desc="Message shown on 'Chromebox for meetings' controller in the beginning of the setup process.">
-    Welcome to Chromebox for meeting
+    Welcome to Chromebox for meetings
   </message>
   <message name="IDS_PAIRING_CONTROLLER_SEARCHING" desc="Message shown on 'Chromebox for meetings' controller when it is searching for host devices.">
     Searching for nearby Chromeboxes...

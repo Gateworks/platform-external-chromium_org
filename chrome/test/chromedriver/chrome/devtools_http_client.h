@@ -10,7 +10,7 @@
 
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"
-#include "chrome/test/chromedriver/chrome/version.h"
+#include "chrome/test/chromedriver/chrome/browser_info.h"
 #include "chrome/test/chromedriver/net/sync_websocket_factory.h"
 
 namespace base {
@@ -29,7 +29,10 @@ struct WebViewInfo {
     kBackgroundPage,
     kPage,
     kWorker,
-    kOther
+    kWebView,
+    kIFrame,
+    kOther,
+    kServiceWorker
   };
 
   WebViewInfo(const std::string& id,
@@ -83,7 +86,6 @@ class DevToolsHttpClient {
   const DeviceMetrics* device_metrics();
 
  private:
-  Status GetVersion(std::string* browser_version, std::string* blink_version);
   Status CloseFrontends(const std::string& for_client_id);
   bool FetchUrlAndLog(const std::string& url,
                       URLRequestContextGetter* getter,
@@ -100,11 +102,8 @@ class DevToolsHttpClient {
 };
 
 namespace internal {
-Status ParseWebViewsInfo(const std::string& data,
-                         WebViewsInfo* views_info);
-Status ParseVersionInfo(const std::string& data,
-                        std::string* browser_version,
-                        std::string* blink_version);
+Status ParseWebViewsInfo(const std::string& data, WebViewsInfo* views_info);
+Status ParseType(const std::string& data, WebViewInfo::Type* type);
 }  // namespace internal
 
 #endif  // CHROME_TEST_CHROMEDRIVER_CHROME_DEVTOOLS_HTTP_CLIENT_H_

@@ -120,7 +120,14 @@
       'sources': [
         'bpf_dsl/bpf_dsl.cc',
         'bpf_dsl/bpf_dsl.h',
+        'bpf_dsl/bpf_dsl_forward.h',
+        'bpf_dsl/bpf_dsl_impl.h',
         'bpf_dsl/cons.h',
+        'bpf_dsl/policy.cc',
+        'bpf_dsl/policy.h',
+        'bpf_dsl/policy_compiler.cc',
+        'bpf_dsl/policy_compiler.h',
+        'bpf_dsl/trap_registry.h',
         'seccomp-bpf/basicblock.cc',
         'seccomp-bpf/basicblock.h',
         'seccomp-bpf/codegen.cc',
@@ -133,8 +140,6 @@
         'seccomp-bpf/linux_seccomp.h',
         'seccomp-bpf/sandbox_bpf.cc',
         'seccomp-bpf/sandbox_bpf.h',
-        'seccomp-bpf/sandbox_bpf_policy.cc',
-        'seccomp-bpf/sandbox_bpf_policy.h',
         'seccomp-bpf/syscall.cc',
         'seccomp-bpf/syscall.h',
         'seccomp-bpf/syscall_iterator.cc',
@@ -150,6 +155,11 @@
       ],
       'defines': [
         'SANDBOX_IMPLEMENTATION',
+      ],
+      'includes': [
+        # Disable LTO due to compiler bug
+        # https://gcc.gnu.org/bugzilla/show_bug.cgi?id=57703
+        '../../build/android/disable_lto.gypi',
       ],
       'include_dirs': [
         '../..',
@@ -339,7 +349,6 @@
           ],
           'includes': [
             '../../build/isolate.gypi',
-            '../sandbox_linux_unittests.isolate',
           ],
           'sources': [
             '../sandbox_linux_unittests.isolate',

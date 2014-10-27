@@ -36,6 +36,10 @@ class SequencedTaskRunner;
 class Time;
 }
 
+namespace chrome {
+class ChromeZoomLevelPrefs;
+}
+
 namespace chrome_browser_net {
 class Predictor;
 }
@@ -145,9 +149,11 @@ class Profile : public content::BrowserContext {
 
   // Key used to bind profile to the widget with which it is associated.
   static const char kProfileKey[];
+  // Value representing no hosted domain in the kProfileHostedDomain preference.
+  static const char kNoHostedDomainFound[];
 
   Profile();
-  virtual ~Profile();
+  ~Profile() override;
 
   // Profile prefs are registered as soon as the prefs are loaded for the first
   // time.
@@ -217,6 +223,11 @@ class Profile : public content::BrowserContext {
   // Retrieves a pointer to the PrefService that manages the
   // preferences for this user profile.
   virtual PrefService* GetPrefs() = 0;
+
+  // Retrieves a pointer to the PrefService that manages the default zoom
+  // level and the per-host zoom levels for this user profile.
+  // TODO(wjmaclean): Remove this when HostZoomMap migrates to StoragePartition.
+  virtual chrome::ChromeZoomLevelPrefs* GetZoomLevelPrefs();
 
   // Retrieves a pointer to the PrefService that manages the preferences
   // for OffTheRecord Profiles.  This PrefService is lazily created the first
@@ -404,18 +415,5 @@ class Profile : public content::BrowserContext {
 struct ProfileCompare {
   bool operator()(Profile* a, Profile* b) const;
 };
-
-#if defined(COMPILER_GCC)
-namespace BASE_HASH_NAMESPACE {
-
-template<>
-struct hash<Profile*> {
-  std::size_t operator()(Profile* const& p) const {
-    return reinterpret_cast<std::size_t>(p);
-  }
-};
-
-}  // namespace BASE_HASH_NAMESPACE
-#endif
 
 #endif  // CHROME_BROWSER_PROFILES_PROFILE_H_

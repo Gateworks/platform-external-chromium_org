@@ -5,10 +5,8 @@
 #ifndef DEVICE_SERIAL_SERIAL_DEVICE_ENUMERATOR_LINUX_H_
 #define DEVICE_SERIAL_SERIAL_DEVICE_ENUMERATOR_LINUX_H_
 
-#include <libudev.h>
-
-#include "base/memory/scoped_ptr.h"
 #include "device/serial/serial_device_enumerator.h"
+#include "device/udev_linux/scoped_udev.h"
 
 namespace device {
 
@@ -19,14 +17,10 @@ class SerialDeviceEnumeratorLinux : public SerialDeviceEnumerator {
   virtual ~SerialDeviceEnumeratorLinux();
 
   // Implementation for SerialDeviceEnumerator.
-  virtual mojo::Array<serial::DeviceInfoPtr> GetDevices() OVERRIDE;
+  virtual mojo::Array<serial::DeviceInfoPtr> GetDevices() override;
 
  private:
-  struct UdevDeleter {
-    void operator()(udev* handle);
-  };
-
-  scoped_ptr<udev, UdevDeleter> udev_;
+  ScopedUdevPtr udev_;
 
   DISALLOW_COPY_AND_ASSIGN(SerialDeviceEnumeratorLinux);
 };

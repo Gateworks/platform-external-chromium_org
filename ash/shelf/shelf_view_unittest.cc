@@ -7,7 +7,6 @@
 #include <algorithm>
 #include <vector>
 
-#include "ash/ash_switches.h"
 #include "ash/root_window_controller.h"
 #include "ash/shelf/app_list_button.h"
 #include "ash/shelf/overflow_bubble.h"
@@ -39,6 +38,7 @@
 #include "ui/aura/window.h"
 #include "ui/aura/window_event_dispatcher.h"
 #include "ui/base/l10n/l10n_util.h"
+#include "ui/base/ui_base_switches.h"
 #include "ui/compositor/layer.h"
 #include "ui/events/event.h"
 #include "ui/events/event_constants.h"
@@ -69,7 +69,7 @@ class TestShelfIconObserver : public ShelfIconObserver {
   }
 
   // ShelfIconObserver implementation.
-  virtual void OnShelfIconPositionsChanged() OVERRIDE {
+  virtual void OnShelfIconPositionsChanged() override {
     change_notified_ = true;
   }
 
@@ -88,7 +88,7 @@ class ShelfViewIconObserverTest : public AshTestBase {
   ShelfViewIconObserverTest() {}
   virtual ~ShelfViewIconObserverTest() {}
 
-  virtual void SetUp() OVERRIDE {
+  virtual void SetUp() override {
     AshTestBase::SetUp();
     Shelf* shelf = Shelf::ForPrimaryDisplay();
     observer_.reset(new TestShelfIconObserver(shelf));
@@ -98,7 +98,7 @@ class ShelfViewIconObserverTest : public AshTestBase {
     shelf_view_test_->SetAnimationDuration(1);
   }
 
-  virtual void TearDown() OVERRIDE {
+  virtual void TearDown() override {
     observer_.reset();
     AshTestBase::TearDown();
   }
@@ -138,7 +138,7 @@ class ShelfItemSelectionTracker : public TestShelfItemDelegate {
   }
 
   // TestShelfItemDelegate:
-  virtual bool ItemSelected(const ui::Event& event) OVERRIDE {
+  virtual bool ItemSelected(const ui::Event& event) override {
     selected_ = true;
     return false;
   }
@@ -236,37 +236,37 @@ class TestShelfDelegateForShelfView : public ShelfDelegate {
   virtual ~TestShelfDelegateForShelfView() {}
 
   // ShelfDelegate overrides:
-  virtual void OnShelfCreated(Shelf* shelf) OVERRIDE {}
+  virtual void OnShelfCreated(Shelf* shelf) override {}
 
-  virtual void OnShelfDestroyed(Shelf* shelf) OVERRIDE {}
+  virtual void OnShelfDestroyed(Shelf* shelf) override {}
 
-  virtual ShelfID GetShelfIDForAppID(const std::string& app_id) OVERRIDE {
+  virtual ShelfID GetShelfIDForAppID(const std::string& app_id) override {
     ShelfID id = 0;
     EXPECT_TRUE(base::StringToInt(app_id, &id));
     return id;
   }
 
-  virtual const std::string& GetAppIDForShelfID(ShelfID id) OVERRIDE {
+  virtual const std::string& GetAppIDForShelfID(ShelfID id) override {
     // Use |app_id_| member variable because returning a reference to local
     // variable is not allowed.
     app_id_ = base::IntToString(id);
     return app_id_;
   }
 
-  virtual void PinAppWithID(const std::string& app_id) OVERRIDE {
+  virtual void PinAppWithID(const std::string& app_id) override {
   }
 
-  virtual bool IsAppPinned(const std::string& app_id) OVERRIDE {
+  virtual bool IsAppPinned(const std::string& app_id) override {
     // Returns true for ShelfViewTest.OverflowBubbleSize. To test ripping off in
     // that test, an item is already pinned state.
     return true;
   }
 
-  virtual bool CanPin() const OVERRIDE {
+  virtual bool CanPin() const override {
     return true;
   }
 
-  virtual void UnpinAppWithID(const std::string& app_id) OVERRIDE {
+  virtual void UnpinAppWithID(const std::string& app_id) override {
     ShelfID id = 0;
     EXPECT_TRUE(base::StringToInt(app_id, &id));
     ASSERT_GT(id, 0);
@@ -295,9 +295,9 @@ class ShelfViewTest : public AshTestBase {
         item_manager_(NULL) {}
   virtual ~ShelfViewTest() {}
 
-  virtual void SetUp() OVERRIDE {
+  virtual void SetUp() override {
     CommandLine::ForCurrentProcess()->AppendSwitch(
-        switches::kAshEnableTouchViewTouchFeedback);
+        switches::kEnableTouchFeedback);
     AshTestBase::SetUp();
     test::ShellTestApi test_api(Shell::GetInstance());
     model_ = test_api.shelf_model();
@@ -317,7 +317,7 @@ class ShelfViewTest : public AshTestBase {
     AddBrowserShortcut();
   }
 
-  virtual void TearDown() OVERRIDE {
+  virtual void TearDown() override {
     test_api_.reset();
     AshTestBase::TearDown();
   }
@@ -663,11 +663,11 @@ class ShelfViewTextDirectionTest
   ShelfViewTextDirectionTest() : text_direction_change_(GetParam()) {}
   virtual ~ShelfViewTextDirectionTest() {}
 
-  virtual void SetUp() OVERRIDE {
+  virtual void SetUp() override {
     ShelfViewTest::SetUp();
   }
 
-  virtual void TearDown() OVERRIDE {
+  virtual void TearDown() override {
     ShelfViewTest::TearDown();
   }
 
@@ -1674,7 +1674,7 @@ TEST_F(ShelfViewTest, CheckDragAndDropFromOverflowBubbleToShelf) {
 }
 
 // Tests that the AppListButton renders as active in response to touches.
-TEST_F(ShelfViewTest, AppListButtonTouchFeedback) {
+TEST_F(ShelfViewTest, DISABLED_AppListButtonTouchFeedback) {
   AppListButton* app_list_button =
       static_cast<AppListButton*>(shelf_view_->GetAppListButtonView());
   EXPECT_FALSE(app_list_button->draw_background_as_active());
@@ -1694,7 +1694,7 @@ TEST_F(ShelfViewTest, AppListButtonTouchFeedback) {
 
 // Tests that a touch that slides out of the bounds of the AppListButton leads
 // to the end of rendering an active state.
-TEST_F(ShelfViewTest, AppListButtonTouchFeedbackCancellation) {
+TEST_F(ShelfViewTest, DISABLED_AppListButtonTouchFeedbackCancellation) {
   AppListButton* app_list_button =
       static_cast<AppListButton*>(shelf_view_->GetAppListButtonView());
   EXPECT_FALSE(app_list_button->draw_background_as_active());

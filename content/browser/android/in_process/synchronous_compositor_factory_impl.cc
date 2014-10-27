@@ -120,20 +120,20 @@ class SynchronousCompositorFactoryImpl::VideoContextProvider
   }
 
   virtual scoped_refptr<gfx::SurfaceTexture> GetSurfaceTexture(
-      uint32 stream_id) OVERRIDE {
+      uint32 stream_id) override {
     return gl_in_process_context_->GetSurfaceTexture(stream_id);
   }
 
-  virtual gpu::gles2::GLES2Interface* ContextGL() OVERRIDE {
+  virtual gpu::gles2::GLES2Interface* ContextGL() override {
     return context_provider_->ContextGL();
   }
 
-  virtual void AddObserver(StreamTextureFactoryContextObserver* obs) OVERRIDE {
+  virtual void AddObserver(StreamTextureFactoryContextObserver* obs) override {
     observer_list_.AddObserver(obs);
   }
 
   virtual void RemoveObserver(
-      StreamTextureFactoryContextObserver* obs) OVERRIDE {
+      StreamTextureFactoryContextObserver* obs) override {
     observer_list_.RemoveObserver(obs);
   }
 
@@ -181,7 +181,7 @@ SynchronousCompositorFactoryImpl::CreateOutputSurface(
   scoped_ptr<SynchronousCompositorOutputSurface> output_surface(
       new SynchronousCompositorOutputSurface(routing_id,
                                              frame_swap_message_queue));
-  return output_surface.PassAs<cc::OutputSurface>();
+  return output_surface.Pass();
 }
 
 InputHandlerManagerClient*
@@ -201,7 +201,7 @@ SynchronousCompositorFactoryImpl::CreateOffscreenContextProvider(
 
 scoped_refptr<cc::ContextProvider> SynchronousCompositorFactoryImpl::
     CreateOnscreenContextProviderForCompositorThread() {
-  DCHECK(service_);
+  DCHECK(service_.get());
 
   gpu::GLInProcessContextSharedMemoryLimits mem_limits;
   // This is half of what RenderWidget uses because synchronous compositor
@@ -223,7 +223,7 @@ SynchronousCompositorFactoryImpl::CreateStreamTextureFactory(int frame_id) {
   return factory;
 }
 
-webkit::gpu::WebGraphicsContext3DImpl*
+webkit::gpu::WebGraphicsContext3DInProcessCommandBufferImpl*
 SynchronousCompositorFactoryImpl::CreateOffscreenGraphicsContext3D(
     const blink::WebGraphicsContext3D::Attributes& attributes) {
   return WrapContextWithAttributes(CreateOffscreenContext(attributes),
@@ -233,7 +233,7 @@ SynchronousCompositorFactoryImpl::CreateOffscreenGraphicsContext3D(
 void SynchronousCompositorFactoryImpl::CompositorInitializedHardwareDraw() {
   base::AutoLock lock(num_hardware_compositor_lock_);
   num_hardware_compositors_++;
-  if (num_hardware_compositors_ == 1 && main_thread_proxy_) {
+  if (num_hardware_compositors_ == 1 && main_thread_proxy_.get()) {
     main_thread_proxy_->PostTask(
         FROM_HERE,
         base::Bind(
@@ -249,7 +249,7 @@ void SynchronousCompositorFactoryImpl::CompositorReleasedHardwareDraw() {
 }
 
 void SynchronousCompositorFactoryImpl::RestoreContextOnMainThread() {
-  if (CanCreateMainThreadContext() && video_context_provider_ )
+  if (CanCreateMainThreadContext() && video_context_provider_.get())
     video_context_provider_->RestoreContext();
 }
 
@@ -274,8 +274,8 @@ SynchronousCompositorFactoryImpl::TryCreateStreamTextureFactory() {
         scoped_refptr<StreamTextureFactorySynchronousImpl::ContextProvider>();
   }
 
-  if (!video_context_provider_) {
-    DCHECK(service_);
+  if (!video_context_provider_.get()) {
+    DCHECK(service_.get());
 
     video_context_provider_ = new VideoContextProvider(
         CreateContext(service_,
@@ -286,7 +286,7 @@ SynchronousCompositorFactoryImpl::TryCreateStreamTextureFactory() {
 
 void SynchronousCompositorFactoryImpl::SetDeferredGpuService(
     scoped_refptr<gpu::InProcessCommandBuffer::Service> service) {
-  DCHECK(!service_);
+  DCHECK(!service_.get());
   service_ = service;
 }
 

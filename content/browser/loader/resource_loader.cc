@@ -60,7 +60,9 @@ void PopulateResourceResponse(ResourceRequestInfoImpl* info,
           ServiceWorkerRequestHandler::GetHandler(request)) {
     handler->GetExtraResponseInfo(
         &response->head.was_fetched_via_service_worker,
+        &response->head.was_fallback_required_by_service_worker,
         &response->head.original_url_via_service_worker,
+        &response->head.response_type_via_service_worker,
         &response->head.service_worker_fetch_start,
         &response->head.service_worker_fetch_ready,
         &response->head.service_worker_fetch_end);
@@ -93,8 +95,7 @@ ResourceLoader::ResourceLoader(scoped_ptr<net::URLRequest> request,
 ResourceLoader::~ResourceLoader() {
   if (login_delegate_.get())
     login_delegate_->OnRequestCancelled();
-  if (ssl_client_auth_handler_.get())
-    ssl_client_auth_handler_->OnRequestCancelled();
+  ssl_client_auth_handler_.reset();
 
   // Run ResourceHandler destructor before we tear-down the rest of our state
   // as the ResourceHandler may want to inspect the URLRequest and other state.
@@ -193,10 +194,6 @@ void ResourceLoader::ClearLoginDelegate() {
   login_delegate_ = NULL;
 }
 
-void ResourceLoader::ClearSSLClientAuthHandler() {
-  ssl_client_auth_handler_ = NULL;
-}
-
 void ResourceLoader::OnUploadProgressACK() {
   waiting_for_upload_progress_ack_ = false;
 }
@@ -269,12 +266,14 @@ void ResourceLoader::OnCertificateRequested(
     return;
   }
 
-  DCHECK(!ssl_client_auth_handler_.get())
+  DCHECK(!ssl_client_auth_handler_)
       << "OnCertificateRequested called with ssl_client_auth_handler pending";
-  ssl_client_auth_handler_ = new SSLClientAuthHandler(
+  ssl_client_auth_handler_.reset(new SSLClientAuthHandler(
       GetRequestInfo()->GetContext()->CreateClientCertStore(),
       request_.get(),
-      cert_info);
+      cert_info,
+      base::Bind(&ResourceLoader::ContinueWithCertificate,
+                 weak_ptr_factory_.GetWeakPtr())));
   ssl_client_auth_handler_->SelectCertificate();
 }
 
@@ -290,7 +289,6 @@ void ResourceLoader::OnSSLCertificateError(net::URLRequest* request,
 
   SSLManager::OnSSLCertificateError(
       weak_ptr_factory_.GetWeakPtr(),
-      info->GetGlobalRequestID(),
       info->GetResourceType(),
       request_->url(),
       render_process_id,
@@ -385,8 +383,7 @@ void ResourceLoader::OnReadCompleted(net::URLRequest* unused, int bytes_read) {
   }
 }
 
-void ResourceLoader::CancelSSLRequest(const GlobalRequestID& id,
-                                      int error,
+void ResourceLoader::CancelSSLRequest(int error,
                                       const net::SSLInfo* ssl_info) {
   DCHECK(BrowserThread::CurrentlyOn(BrowserThread::IO));
 
@@ -403,7 +400,7 @@ void ResourceLoader::CancelSSLRequest(const GlobalRequestID& id,
   }
 }
 
-void ResourceLoader::ContinueSSLRequest(const GlobalRequestID& id) {
+void ResourceLoader::ContinueSSLRequest() {
   DCHECK(BrowserThread::CurrentlyOn(BrowserThread::IO));
 
   DVLOG(1) << "ContinueSSLRequest() url: " << request_->url().spec();
@@ -493,10 +490,7 @@ void ResourceLoader::CancelRequestInternal(int error, bool from_renderer) {
     login_delegate_->OnRequestCancelled();
     login_delegate_ = NULL;
   }
-  if (ssl_client_auth_handler_.get()) {
-    ssl_client_auth_handler_->OnRequestCancelled();
-    ssl_client_auth_handler_ = NULL;
-  }
+  ssl_client_auth_handler_.reset();
 
   request_->CancelWithError(error);
 
@@ -710,6 +704,11 @@ void ResourceLoader::RecordHistograms() {
 
     UMA_HISTOGRAM_ENUMERATION("Net.Prefetch.Pattern", status, STATUS_MAX);
   }
+}
+
+void ResourceLoader::ContinueWithCertificate(net::X509Certificate* cert) {
+  ssl_client_auth_handler_.reset();
+  request_->ContinueWithCertificate(cert);
 }
 
 }  // namespace content

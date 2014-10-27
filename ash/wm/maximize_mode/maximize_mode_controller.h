@@ -110,22 +110,22 @@ class ASH_EXPORT MaximizeModeController
 
   // AccelerometerObserver:
   virtual void OnAccelerometerUpdated(
-      const ui::AccelerometerUpdate& update) OVERRIDE;
+      const ui::AccelerometerUpdate& update) override;
 
   // ShellObserver:
-  virtual void OnAppTerminating() OVERRIDE;
-  virtual void OnMaximizeModeStarted() OVERRIDE;
-  virtual void OnMaximizeModeEnded() OVERRIDE;
+  virtual void OnAppTerminating() override;
+  virtual void OnMaximizeModeStarted() override;
+  virtual void OnMaximizeModeEnded() override;
 
   // DisplayController::Observer:
-  virtual void OnDisplayConfigurationChanged() OVERRIDE;
+  virtual void OnDisplayConfigurationChanged() override;
 
 #if defined(OS_CHROMEOS)
   // PowerManagerClient::Observer:
   virtual void LidEventReceived(bool open,
-                                const base::TimeTicks& time) OVERRIDE;
-  virtual void SuspendImminent() OVERRIDE;
-  virtual void SuspendDone(const base::TimeDelta& sleep_duration) OVERRIDE;
+                                const base::TimeTicks& time) override;
+  virtual void SuspendImminent() override;
+  virtual void SuspendDone(const base::TimeDelta& sleep_duration) override;
 #endif  // OS_CHROMEOS
 
  private:
@@ -184,6 +184,9 @@ class ASH_EXPORT MaximizeModeController
   // True when changes being applied cause OnDisplayConfigurationChanged() to be
   // called, and for which these changes should be ignored.
   bool ignore_display_configuration_updates_;
+
+  // True when the hinge angle has been detected past 180 degrees.
+  bool lid_open_past_180_;
 
   // True when Shutdown has been called. When shutting down the non maximize
   // mode state should be restored, however user preferences should not be

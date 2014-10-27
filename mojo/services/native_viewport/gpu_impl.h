@@ -6,8 +6,8 @@
 #include "base/memory/ref_counted.h"
 #include "mojo/public/cpp/bindings/interface_impl.h"
 #include "mojo/public/cpp/bindings/interface_request.h"
-#include "mojo/services/gles2/command_buffer.mojom.h"
 #include "mojo/services/public/interfaces/geometry/geometry.mojom.h"
+#include "mojo/services/public/interfaces/gpu/command_buffer.mojom.h"
 #include "mojo/services/public/interfaces/gpu/gpu.mojom.h"
 
 namespace gfx {
@@ -27,15 +27,15 @@ class GpuImpl : public InterfaceImpl<Gpu> {
   GpuImpl(const scoped_refptr<gfx::GLShareGroup>& share_group,
           const scoped_refptr<gpu::gles2::MailboxManager> mailbox_manager);
 
-  virtual ~GpuImpl();
+  ~GpuImpl() override;
 
-  virtual void CreateOnscreenGLES2Context(
+  void CreateOnscreenGLES2Context(
       uint64_t native_viewport_id,
       SizePtr size,
-      InterfaceRequest<CommandBuffer> command_buffer_request) OVERRIDE;
+      InterfaceRequest<CommandBuffer> command_buffer_request) override;
 
-  virtual void CreateOffscreenGLES2Context(
-      InterfaceRequest<CommandBuffer> command_buffer_request) OVERRIDE;
+  void CreateOffscreenGLES2Context(
+      InterfaceRequest<CommandBuffer> command_buffer_request) override;
 
  private:
   // We need to share these across all NativeViewport instances so that contexts

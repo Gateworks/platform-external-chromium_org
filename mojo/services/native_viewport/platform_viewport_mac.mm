@@ -20,14 +20,14 @@ class PlatformViewportMac : public PlatformViewport {
         window_(nil) {
   }
 
-  virtual ~PlatformViewportMac() {
+  ~PlatformViewportMac() override {
     [window_ orderOut:nil];
     [window_ close];
   }
 
  private:
   // Overridden from PlatformViewport:
-  virtual void Init(const gfx::Rect& bounds) OVERRIDE {
+  void Init(const gfx::Rect& bounds) override {
     [NSApplication sharedApplication];
 
     rect_ = bounds;
@@ -40,34 +40,22 @@ class PlatformViewportMac : public PlatformViewport {
     delegate_->OnBoundsChanged(rect_);
   }
 
-  virtual void Show() OVERRIDE {
-    [window_ orderFront:nil];
-  }
+  void Show() override { [window_ orderFront:nil]; }
 
-  virtual void Hide() OVERRIDE {
-    [window_ orderOut:nil];
-  }
+  void Hide() override { [window_ orderOut:nil]; }
 
-  virtual void Close() OVERRIDE {
+  void Close() override {
     // TODO(beng): perform this in response to NSWindow destruction.
     delegate_->OnDestroyed();
   }
 
-  virtual gfx::Size GetSize() OVERRIDE {
-    return rect_.size();
-  }
+  gfx::Size GetSize() override { return rect_.size(); }
 
-  virtual void SetBounds(const gfx::Rect& bounds) OVERRIDE {
-    NOTIMPLEMENTED();
-  }
+  void SetBounds(const gfx::Rect& bounds) override { NOTIMPLEMENTED(); }
 
-  virtual void SetCapture() OVERRIDE {
-    NOTIMPLEMENTED();
-  }
+  void SetCapture() override { NOTIMPLEMENTED(); }
 
-  virtual void ReleaseCapture() OVERRIDE {
-    NOTIMPLEMENTED();
-  }
+  void ReleaseCapture() override { NOTIMPLEMENTED(); }
 
   Delegate* delegate_;
   NSWindow* window_;

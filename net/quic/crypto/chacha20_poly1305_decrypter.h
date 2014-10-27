@@ -24,7 +24,7 @@ class NET_EXPORT_PRIVATE ChaCha20Poly1305Decrypter : public AeadBaseDecrypter {
   };
 
   ChaCha20Poly1305Decrypter();
-  virtual ~ChaCha20Poly1305Decrypter();
+  ~ChaCha20Poly1305Decrypter() override;
 
   // Returns true if the underlying crypto library supports ChaCha20+Poly1305.
   static bool IsSupported();
@@ -35,7 +35,7 @@ class NET_EXPORT_PRIVATE ChaCha20Poly1305Decrypter : public AeadBaseDecrypter {
   virtual void FillAeadParams(base::StringPiece nonce,
                               base::StringPiece associated_data,
                               size_t auth_tag_size,
-                              AeadParams* aead_params) const OVERRIDE;
+                              AeadParams* aead_params) const override;
 #endif
 
  private:

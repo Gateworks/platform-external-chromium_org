@@ -59,7 +59,7 @@ class RendererAccessibilityTest : public RenderViewTest {
     const IPC::Message* message =
         sink_->GetUniqueMessageMatching(AccessibilityHostMsg_Events::ID);
     ASSERT_TRUE(message);
-    Tuple1<std::vector<AccessibilityHostMsg_EventParams> > param;
+    Tuple2<std::vector<AccessibilityHostMsg_EventParams>, int> param;
     AccessibilityHostMsg_Events::Read(message, &param);
     ASSERT_GE(param.a.size(), 1U);
     *params = param.a[0];
@@ -77,150 +77,6 @@ class RendererAccessibilityTest : public RenderViewTest {
   DISALLOW_COPY_AND_ASSIGN(RendererAccessibilityTest);
 
 };
-
-TEST_F(RendererAccessibilityTest, EditableTextModeFocusEvents) {
-  // This is not a test of true web accessibility, it's a test of
-  // a mode used on Windows 8 in Metro mode where an extremely simplified
-  // accessibility tree containing only the current focused node is
-  // generated.
-  SetMode(AccessibilityModeEditableTextOnly);
-
-  // Set a minimum size and give focus so simulated events work.
-  view()->webwidget()->resize(blink::WebSize(500, 500));
-  view()->webwidget()->setFocus(true);
-
-  std::string html =
-      "<body>"
-      "  <input>"
-      "  <textarea></textarea>"
-      "  <p contentEditable>Editable</p>"
-      "  <div tabindex=0 role=textbox>Textbox</div>"
-      "  <button>Button</button>"
-      "  <a href=#>Link</a>"
-      "</body>";
-
-  // Load the test page.
-  LoadHTML(html.c_str());
-
-  // We should have sent a message to the browser with the initial focus
-  // on the document.
-  {
-    SCOPED_TRACE("Initial focus on document");
-    AccessibilityHostMsg_EventParams event;
-    GetLastAccEvent(&event);
-    EXPECT_EQ(event.event_type,
-              ui::AX_EVENT_LAYOUT_COMPLETE);
-    EXPECT_EQ(event.id, 1);
-    EXPECT_EQ(event.update.nodes.size(), 2U);
-    EXPECT_EQ(event.update.nodes[0].id, 1);
-    EXPECT_EQ(event.update.nodes[0].role,
-              ui::AX_ROLE_ROOT_WEB_AREA);
-    EXPECT_EQ(event.update.nodes[0].state,
-              (1U << ui::AX_STATE_READ_ONLY) |
-              (1U << ui::AX_STATE_FOCUSABLE) |
-              (1U << ui::AX_STATE_FOCUSED));
-    EXPECT_EQ(event.update.nodes[0].child_ids.size(), 1U);
-  }
-
-  // Now focus the input element, and check everything again.
-  {
-    SCOPED_TRACE("input");
-    sink_->ClearMessages();
-    ExecuteJavaScript("document.querySelector('input').focus();");
-    AccessibilityHostMsg_EventParams event;
-    GetLastAccEvent(&event);
-    EXPECT_EQ(event.event_type,
-              ui::AX_EVENT_FOCUS);
-    EXPECT_EQ(event.id, 3);
-    EXPECT_EQ(event.update.nodes[0].id, 1);
-    EXPECT_EQ(event.update.nodes[0].role,
-              ui::AX_ROLE_ROOT_WEB_AREA);
-    EXPECT_EQ(event.update.nodes[0].state,
-              (1U << ui::AX_STATE_READ_ONLY) |
-              (1U << ui::AX_STATE_FOCUSABLE));
-    EXPECT_EQ(event.update.nodes[0].child_ids.size(), 1U);
-    EXPECT_EQ(event.update.nodes[1].id, 3);
-    EXPECT_EQ(event.update.nodes[1].role,
-              ui::AX_ROLE_GROUP);
-    EXPECT_EQ(event.update.nodes[1].state,
-              (1U << ui::AX_STATE_FOCUSABLE) |
-              (1U << ui::AX_STATE_FOCUSED));
-  }
-
-  // Check other editable text nodes.
-  {
-    SCOPED_TRACE("textarea");
-    sink_->ClearMessages();
-    ExecuteJavaScript("document.querySelector('textarea').focus();");
-    AccessibilityHostMsg_EventParams event;
-    GetLastAccEvent(&event);
-    EXPECT_EQ(event.id, 4);
-    EXPECT_EQ(event.update.nodes[1].state,
-              (1U << ui::AX_STATE_FOCUSABLE) |
-              (1U << ui::AX_STATE_FOCUSED));
-  }
-
-  {
-    SCOPED_TRACE("contentEditable");
-    sink_->ClearMessages();
-    ExecuteJavaScript("document.querySelector('p').focus();");
-    AccessibilityHostMsg_EventParams event;
-    GetLastAccEvent(&event);
-    EXPECT_EQ(event.id, 5);
-    EXPECT_EQ(event.update.nodes[1].state,
-              (1U << ui::AX_STATE_FOCUSABLE) |
-              (1U << ui::AX_STATE_FOCUSED));
-  }
-
-  {
-    SCOPED_TRACE("role=textarea");
-    sink_->ClearMessages();
-    ExecuteJavaScript("document.querySelector('div').focus();");
-    AccessibilityHostMsg_EventParams event;
-    GetLastAccEvent(&event);
-    EXPECT_EQ(event.id, 6);
-    EXPECT_EQ(event.update.nodes[1].state,
-              (1U << ui::AX_STATE_FOCUSABLE) |
-              (1U << ui::AX_STATE_FOCUSED));
-  }
-
-  // Try focusing things that aren't editable text.
-  {
-    SCOPED_TRACE("button");
-    sink_->ClearMessages();
-    ExecuteJavaScript("document.querySelector('button').focus();");
-    AccessibilityHostMsg_EventParams event;
-    GetLastAccEvent(&event);
-    EXPECT_EQ(event.id, 7);
-    EXPECT_EQ(event.update.nodes[1].state,
-              (1U << ui::AX_STATE_FOCUSABLE) |
-              (1U << ui::AX_STATE_FOCUSED) |
-              (1U << ui::AX_STATE_READ_ONLY));
-  }
-
-  {
-    SCOPED_TRACE("link");
-    sink_->ClearMessages();
-    ExecuteJavaScript("document.querySelector('a').focus();");
-    AccessibilityHostMsg_EventParams event;
-    GetLastAccEvent(&event);
-    EXPECT_EQ(event.id, 8);
-    EXPECT_EQ(event.update.nodes[1].state,
-              (1U << ui::AX_STATE_FOCUSABLE) |
-              (1U << ui::AX_STATE_FOCUSED) |
-              (1U << ui::AX_STATE_READ_ONLY));
-  }
-
-  // Clear focus.
-  {
-    SCOPED_TRACE("Back to document.");
-    sink_->ClearMessages();
-    ExecuteJavaScript("document.activeElement.blur()");
-    AccessibilityHostMsg_EventParams event;
-    GetLastAccEvent(&event);
-    EXPECT_EQ(event.id, 1);
-  }
-}
 
 TEST_F(RendererAccessibilityTest, SendFullAccessibilityTreeOnReload) {
   // The job of RendererAccessibilityComplete is to serialize the
@@ -335,14 +191,15 @@ TEST_F(RendererAccessibilityTest,
   // because the element it was referring to no longer exists,
   // so the event here is from loading this new page.
   FrameMsg_Navigate_Params nav_params;
-  nav_params.url = GURL("data:text/html,<p>Hello, again.</p>");
-  nav_params.navigation_type = FrameMsg_Navigate_Type::NORMAL;
-  nav_params.transition = ui::PAGE_TRANSITION_TYPED;
+  nav_params.common_params.url = GURL("data:text/html,<p>Hello, again.</p>");
+  nav_params.common_params.navigation_type = FrameMsg_Navigate_Type::NORMAL;
+  nav_params.common_params.transition = ui::PAGE_TRANSITION_TYPED;
   nav_params.current_history_list_length = 1;
   nav_params.current_history_list_offset = 0;
   nav_params.pending_history_list_offset = 1;
   nav_params.page_id = -1;
-  nav_params.browser_navigation_start = base::TimeTicks::FromInternalValue(1);
+  nav_params.commit_params.browser_navigation_start =
+      base::TimeTicks::FromInternalValue(1);
   frame()->OnNavigate(nav_params);
   accessibility->SendPendingAccessibilityEvents();
   EXPECT_TRUE(sink_->GetUniqueMessageMatching(
@@ -549,7 +406,7 @@ TEST_F(RendererAccessibilityTest, EventOnObjectNotInTree) {
   const IPC::Message* message =
       sink_->GetUniqueMessageMatching(AccessibilityHostMsg_Events::ID);
   ASSERT_TRUE(message);
-  Tuple1<std::vector<AccessibilityHostMsg_EventParams> > param;
+  Tuple2<std::vector<AccessibilityHostMsg_EventParams>, int> param;
   AccessibilityHostMsg_Events::Read(message, &param);
   ASSERT_EQ(0U, param.a.size());
 }

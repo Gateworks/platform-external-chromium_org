@@ -19,7 +19,10 @@ static_library("ui") {
   defines = []
   libs = []
 
-  configs += [ "//build/config/compiler:wexit_time_destructors" ]
+  configs += [
+    "//build/config/compiler:wexit_time_destructors",
+    "//third_party/WebKit/public:debug_devtools",
+  ]
 
   # Since browser and browser_ui actually depend on each other,
   # we must omit the dependency from browser_ui to browser.
@@ -43,6 +46,7 @@ static_library("ui") {
     "//chrome/browser/net:cert_logger_proto",
     "//chrome/common",
     "//chrome/common/net",
+    "//components/app_modal_dialogs",
     "//components/auto_login_parser",
     "//components/dom_distiller/webui",
     "//components/feedback/proto",
@@ -86,7 +90,7 @@ static_library("ui") {
       "//device/bluetooth",
       "//device/nfc",
       "//media",
-      "//mojo/system",
+      "//mojo/edk/system",
       "//net:net_with_v8",
       "//storage/browser",
       "//storage/common",
@@ -142,9 +146,6 @@ static_library("ui") {
       #"//native_client/src/trusted/service_runtime/service_runtime.gyp:sel",  TODO(GYP)
     ]
   }
-  if (debug_devtools) {
-    defines += [ "DEBUG_DEVTOOLS=1" ]
-  }
   if (enable_configuration_policy) {
     sources += rebase_path(gypi_values.chrome_browser_ui_policy_sources,
                            ".", "//chrome")
@@ -167,7 +168,7 @@ static_library("ui") {
     sources += rebase_path(gypi_values.chrome_browser_ui_chromeos_sources,
                            ".", "//chrome")
     deps += [
-      #"browser_chromeos",  TODO(GYP)
+      "//chrome/browser/chromeos",
     ]
   } else {
     sources += rebase_path(gypi_values.chrome_browser_ui_non_chromeos_sources,
@@ -193,6 +194,21 @@ static_library("ui") {
     sources += rebase_path(gypi_values.chrome_browser_ui_non_ash_sources,
                            ".", "//chrome")
   }
+  if (use_athena) {
+    sources += rebase_path(gypi_values.chrome_browser_ui_athena_sources,
+                           ".", "//chrome")
+  } else {  # Not athena.
+    if (!is_android) {
+      sources += rebase_path(
+          gypi_values.chrome_browser_ui_non_athena_non_android_sources,
+          ".", "//chrome")
+    }
+    if (use_ash) {
+      sources += rebase_path(
+          gypi_values.chrome_browser_ui_ash_non_athena_sources,
+          ".", "//chrome")
+    }
+  }
   if (toolkit_views) {
     sources += rebase_path(gypi_values.chrome_browser_ui_views_sources,
                            ".", "//chrome")
@@ -205,11 +221,15 @@ static_library("ui") {
       sources += rebase_path(
           gypi_values.chrome_browser_ui_views_non_mac_sources,
           ".", "//chrome")
+      deps += [
+        "//components/constrained_window",
+        "//extensions/components/native_app_window",
+      ]
     }
     if (use_ash) {
       sources += rebase_path(gypi_values.chrome_browser_ui_ash_views_sources,
                              ".", "//chrome")
-      }
+    }
   }
   if (use_aura && !use_ozone && is_desktop_linux) {
     deps += [
@@ -439,10 +459,15 @@ source_set("test_support") {
     "pdf/pdf_browsertest_base.h",
     "test/test_confirm_bubble_model.cc",
     "test/test_confirm_bubble_model.h",
-    "views/find_bar_host_unittest_util_views.cc",
     "website_settings/mock_permission_bubble_request.cc",
     "website_settings/mock_permission_bubble_request.h",
   ]
+
+  if (toolkit_views) {
+    sources += [
+      "views/find_bar_host_unittest_util_views.cc",
+    ]
+  }
 
   public_deps = [
     ":ui",

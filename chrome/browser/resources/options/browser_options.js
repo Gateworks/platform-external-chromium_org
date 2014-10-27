@@ -13,13 +13,17 @@ cr.exportPath('options');
  *            setupInProgress: (boolean|undefined),
  *            signedIn: (boolean|undefined),
  *            signinAllowed: (boolean|undefined),
- *            signinAllowed: boolean,
  *            signoutAllowed: (boolean|undefined),
  *            statusText: (string|undefined),
  *            syncSystemEnabled: (boolean|undefined)}}
  * @see chrome/browser/ui/webui/options/browser_options_handler.cc
  */
 options.SyncStatus;
+
+/**
+ * @typedef {{id: string, name: string}}
+ */
+options.ExtensionData;
 
 cr.define('options', function() {
   var OptionsPage = options.OptionsPage;
@@ -142,9 +146,9 @@ cr.define('options', function() {
       $('advanced-settings').addEventListener('webkitTransitionEnd',
           this.updateAdvancedSettingsExpander_.bind(this));
 
-      if (loadTimeData.getBoolean('showVersion')) {
-        $('version-button').hidden = false;
-        $('version-button').addEventListener('click', function() {
+      if (loadTimeData.getBoolean('showAbout')) {
+        $('about-button').hidden = false;
+        $('about-button').addEventListener('click', function() {
           PageManager.showPageByName('help');
           chrome.send('coreOptionsUserMetricsAction',
                       ['Options_About']);
@@ -1504,16 +1508,15 @@ cr.define('options', function() {
      * @param {boolean} managed
      */
     setWallpaperManaged_: function(managed) {
-      var button = $('set-wallpaper');
-      button.disabled = !!managed;
+      if (managed)
+        $('set-wallpaper').disabled = true;
+      else
+        this.enableElementIfPossible_(getRequiredElement('set-wallpaper'));
 
       // Create a synthetic pref change event decorated as
       // CoreOptionsHandler::CreateValueForPref() does.
       var event = new Event('wallpaper');
-      if (managed)
-        event.value = { controlledBy: 'policy' };
-      else
-        event.value = {};
+      event.value = managed ? { controlledBy: 'policy' } : {};
       $('wallpaper-indicator').handlePrefChange(event);
     },
 
@@ -1791,8 +1794,12 @@ cr.define('options', function() {
     /**
      * Toggles the warning boxes that show which extension is controlling
      * various settings of Chrome.
-     * @param {object} details A dictionary of ID+name pairs for each of the
-     *     settings controlled by an extension.
+     * @param {{searchEngine: options.ExtensionData,
+     *          homePage: options.ExtensionData,
+     *          startUpPage: options.ExtensionData,
+     *          newTabPage: options.ExtensionData,
+     *          proxy: options.ExtensionData}} details A dictionary of ID+name
+     *     pairs for each of the settings controlled by an extension.
      * @private
      */
     toggleExtensionIndicators_: function(details) {
@@ -1959,6 +1966,18 @@ cr.define('options', function() {
      */
     handleSetTime_: function() {
       chrome.send('showSetTime');
+    },
+
+    /**
+     * Enables the given element if possible; on Chrome OS, it won't enable
+     * an element that must stay disabled for the session type.
+     * @param {!Element} element Element to enable.
+     */
+    enableElementIfPossible_: function(element) {
+      if (cr.isChromeOS)
+        UIAccountTweaks.enableElementIfPossible(element);
+      else
+        element.disabled = false;
     },
   };
 

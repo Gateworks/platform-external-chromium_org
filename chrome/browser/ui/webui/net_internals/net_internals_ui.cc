@@ -203,7 +203,6 @@ content::WebUIDataSource* CreateNetInternalsHTMLSource() {
   content::WebUIDataSource* source =
       content::WebUIDataSource::Create(chrome::kChromeUINetInternalsHost);
 
-  source->SetUseJsonJSFormatV2();
   source->SetDefaultResource(IDR_NET_INTERNALS_INDEX_HTML);
   source->AddResourcePath("index.js", IDR_NET_INTERNALS_INDEX_JS);
   source->SetJsonPath("strings.js");
@@ -224,10 +223,10 @@ class NetInternalsMessageHandler
       public base::SupportsWeakPtr<NetInternalsMessageHandler> {
  public:
   NetInternalsMessageHandler();
-  virtual ~NetInternalsMessageHandler();
+  ~NetInternalsMessageHandler() override;
 
   // WebUIMessageHandler implementation.
-  virtual void RegisterMessages() OVERRIDE;
+  void RegisterMessages() override;
 
   // Calls g_browser.receive in the renderer, passing in |command| and |arg|.
   // Takes ownership of |arg|.  If the renderer is displaying a log file, the
@@ -411,16 +410,16 @@ class NetInternalsMessageHandler::IOThreadImpl
   void OnSetLogLevel(const base::ListValue* list);
 
   // ChromeNetLog::ThreadSafeObserver implementation:
-  virtual void OnAddEntry(const net::NetLog::Entry& entry) OVERRIDE;
+  void OnAddEntry(const net::NetLog::Entry& entry) override;
 
   // ConnectionTester::Delegate implementation:
-  virtual void OnStartConnectionTestSuite() OVERRIDE;
-  virtual void OnStartConnectionTestExperiment(
-      const ConnectionTester::Experiment& experiment) OVERRIDE;
-  virtual void OnCompletedConnectionTestExperiment(
+  void OnStartConnectionTestSuite() override;
+  void OnStartConnectionTestExperiment(
+      const ConnectionTester::Experiment& experiment) override;
+  void OnCompletedConnectionTestExperiment(
       const ConnectionTester::Experiment& experiment,
-      int result) OVERRIDE;
-  virtual void OnCompletedConnectionTestSuite() OVERRIDE;
+      int result) override;
+  void OnCompletedConnectionTestSuite() override;
 
   // Helper that calls g_browser.receive in the renderer, passing in |command|
   // and |arg|.  Takes ownership of |arg|.  If the renderer is displaying a log
@@ -435,7 +434,7 @@ class NetInternalsMessageHandler::IOThreadImpl
   typedef std::list<scoped_refptr<net::URLRequestContextGetter> >
       ContextGetterList;
 
-  virtual ~IOThreadImpl();
+  ~IOThreadImpl() override;
 
   // Adds |entry| to the queue of pending log entries to be sent to the page via
   // Javascript.  Must be called on the IO Thread.  Also creates a delayed task
@@ -1706,22 +1705,17 @@ base::Value* NetInternalsUI::GetConstants() {
 
     chrome::VersionInfo version_info;
 
-    if (!version_info.is_valid()) {
-      DLOG(ERROR) << "Unable to create chrome::VersionInfo";
-    } else {
-      // We have everything we need to send the right values.
-      dict->SetString("name", version_info.Name());
-      dict->SetString("version", version_info.Version());
-      dict->SetString("cl", version_info.LastChange());
-      dict->SetString("version_mod",
-                      chrome::VersionInfo::GetVersionStringModifier());
-      dict->SetString("official",
-                      version_info.IsOfficialBuild() ? "official" :
-                                                       "unofficial");
-      dict->SetString("os_type", version_info.OSType());
-      dict->SetString("command_line",
-                      CommandLine::ForCurrentProcess()->GetCommandLineString());
-    }
+    // We have everything we need to send the right values.
+    dict->SetString("name", version_info.Name());
+    dict->SetString("version", version_info.Version());
+    dict->SetString("cl", version_info.LastChange());
+    dict->SetString("version_mod",
+                    chrome::VersionInfo::GetVersionStringModifier());
+    dict->SetString("official",
+                    version_info.IsOfficialBuild() ? "official" : "unofficial");
+    dict->SetString("os_type", version_info.OSType());
+    dict->SetString("command_line",
+                    CommandLine::ForCurrentProcess()->GetCommandLineString());
 
     constants_dict->Set("clientInfo", dict);
   }

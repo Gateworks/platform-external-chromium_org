@@ -47,13 +47,13 @@ class MOJO_APPLICATION_MANAGER_EXPORT ApplicationLoader {
       : public LoadCallbacks {
    public:
     SimpleLoadCallbacks(ScopedMessagePipeHandle shell_handle);
-    virtual ScopedMessagePipeHandle RegisterApplication() OVERRIDE;
-    virtual void LoadWithContentHandler(const GURL& content_handler_url,
-                                        URLResponsePtr response) OVERRIDE;
+    ScopedMessagePipeHandle RegisterApplication() override;
+    void LoadWithContentHandler(const GURL& content_handler_url,
+                                URLResponsePtr response) override;
 
    private:
     ScopedMessagePipeHandle shell_handle_;
-    virtual ~SimpleLoadCallbacks();
+    ~SimpleLoadCallbacks() override;
   };
 
   virtual ~ApplicationLoader() {}

@@ -6,6 +6,7 @@ LOCAL_MODULE_CLASS := STATIC_LIBRARIES
 LOCAL_MODULE := base_base_gyp
 LOCAL_MODULE_SUFFIX := .a
 LOCAL_MODULE_TARGET_ARCH := $(TARGET_$(GYP_VAR_PREFIX)ARCH)
+LOCAL_SDK_VERSION := 21
 gyp_intermediate_dir := $(call local-intermediates-dir,,$(GYP_VAR_PREFIX))
 gyp_shared_intermediate_dir := $(call intermediates-dir-for,GYP,shared,,,$(GYP_VAR_PREFIX))
 
@@ -50,6 +51,7 @@ LOCAL_SRC_FILES := \
 	base/android/field_trial_list.cc \
 	base/android/fifo_utils.cc \
 	base/android/important_file_writer_android.cc \
+	base/android/locale_utils.cc \
 	base/android/scoped_java_ref.cc \
 	base/android/jni_android.cc \
 	base/android/jni_array.cc \
@@ -131,8 +133,10 @@ LOCAL_SRC_FILES := \
 	base/memory/discardable_memory.cc \
 	base/memory/discardable_memory_android.cc \
 	base/memory/discardable_memory_emulated.cc \
-	base/memory/discardable_memory_malloc.cc \
 	base/memory/discardable_memory_manager.cc \
+	base/memory/discardable_memory_shmem.cc \
+	base/memory/discardable_memory_shmem_allocator.cc \
+	base/memory/discardable_shared_memory.cc \
 	base/memory/memory_pressure_listener.cc \
 	base/memory/ref_counted.cc \
 	base/memory/ref_counted_memory.cc \
@@ -321,12 +325,6 @@ MY_DEFS_Debug := \
 	'-DCLD_VERSION=1' \
 	'-DENABLE_PRINTING=1' \
 	'-DENABLE_MANAGED_USERS=1' \
-	'-DDATA_REDUCTION_FALLBACK_HOST="http://compress.googlezip.net:80/"' \
-	'-DDATA_REDUCTION_DEV_HOST="https://proxy-dev.googlezip.net:443/"' \
-	'-DDATA_REDUCTION_DEV_FALLBACK_HOST="http://proxy-dev.googlezip.net:80/"' \
-	'-DSPDY_PROXY_AUTH_ORIGIN="https://proxy.googlezip.net:443/"' \
-	'-DDATA_REDUCTION_PROXY_PROBE_URL="http://check.googlezip.net/connect"' \
-	'-DDATA_REDUCTION_PROXY_WARMUP_URL="http://www.gstatic.com/generate_204"' \
 	'-DVIDEO_HOLE=1' \
 	'-DENABLE_LOAD_COMPLETION_HACKS=1' \
 	'-DUSE_OPENSSL=1' \
@@ -349,10 +347,7 @@ MY_DEFS_Debug := \
 LOCAL_C_INCLUDES_Debug := \
 	$(gyp_shared_intermediate_dir) \
 	$(gyp_shared_intermediate_dir)/base \
-	$(LOCAL_PATH) \
-	$(PWD)/frameworks/wilhelm/include \
-	$(PWD)/bionic \
-	$(PWD)/external/stlport/stlport
+	$(LOCAL_PATH)
 
 
 # Flags passed to only C++ (and not C) files.
@@ -427,12 +422,6 @@ MY_DEFS_Release := \
 	'-DCLD_VERSION=1' \
 	'-DENABLE_PRINTING=1' \
 	'-DENABLE_MANAGED_USERS=1' \
-	'-DDATA_REDUCTION_FALLBACK_HOST="http://compress.googlezip.net:80/"' \
-	'-DDATA_REDUCTION_DEV_HOST="https://proxy-dev.googlezip.net:443/"' \
-	'-DDATA_REDUCTION_DEV_FALLBACK_HOST="http://proxy-dev.googlezip.net:80/"' \
-	'-DSPDY_PROXY_AUTH_ORIGIN="https://proxy.googlezip.net:443/"' \
-	'-DDATA_REDUCTION_PROXY_PROBE_URL="http://check.googlezip.net/connect"' \
-	'-DDATA_REDUCTION_PROXY_WARMUP_URL="http://www.gstatic.com/generate_204"' \
 	'-DVIDEO_HOLE=1' \
 	'-DENABLE_LOAD_COMPLETION_HACKS=1' \
 	'-DUSE_OPENSSL=1' \
@@ -456,10 +445,7 @@ MY_DEFS_Release := \
 LOCAL_C_INCLUDES_Release := \
 	$(gyp_shared_intermediate_dir) \
 	$(gyp_shared_intermediate_dir)/base \
-	$(LOCAL_PATH) \
-	$(PWD)/frameworks/wilhelm/include \
-	$(PWD)/bionic \
-	$(PWD)/external/stlport/stlport
+	$(LOCAL_PATH)
 
 
 # Flags passed to only C++ (and not C) files.
@@ -488,10 +474,9 @@ LOCAL_STATIC_LIBRARIES := \
 
 # Enable grouping to fix circular references
 LOCAL_GROUP_STATIC_LIBRARIES := true
-
-LOCAL_SHARED_LIBRARIES := \
-	libstlport \
-	libdl
+### Set directly by aosp_build_settings.
+LOCAL_CLANG := false
+LOCAL_NDK_STL_VARIANT := stlport_static
 
 # Add target alias to "gyp_all_modules" target.
 .PHONY: gyp_all_modules

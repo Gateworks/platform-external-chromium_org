@@ -19,12 +19,12 @@ void AddMetricsExtraParts(ChromeBrowserMainParts* main_parts);
 class ChromeBrowserMainExtraPartsMetrics : public ChromeBrowserMainExtraParts {
  public:
   ChromeBrowserMainExtraPartsMetrics();
-  virtual ~ChromeBrowserMainExtraPartsMetrics();
+  ~ChromeBrowserMainExtraPartsMetrics() override;
 
   // Overridden from ChromeBrowserMainExtraParts:
-  virtual void PreProfileInit() OVERRIDE;
-  virtual void PreBrowserStart() OVERRIDE;
-  virtual void PostBrowserStart() OVERRIDE;
+  void PreProfileInit() override;
+  void PreBrowserStart() override;
+  void PostBrowserStart() override;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(ChromeBrowserMainExtraPartsMetrics);

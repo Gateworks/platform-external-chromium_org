@@ -6,6 +6,7 @@ LOCAL_MODULE_CLASS := STATIC_LIBRARIES
 LOCAL_MODULE := content_content_renderer_gyp
 LOCAL_MODULE_SUFFIX := .a
 LOCAL_MODULE_TARGET_ARCH := $(TARGET_$(GYP_VAR_PREFIX)ARCH)
+LOCAL_SDK_VERSION := 21
 gyp_intermediate_dir := $(call local-intermediates-dir,,$(GYP_VAR_PREFIX))
 gyp_shared_intermediate_dir := $(call intermediates-dir-for,GYP,shared,,,$(GYP_VAR_PREFIX))
 
@@ -14,12 +15,10 @@ GYP_TARGET_DEPENDENCIES := \
 	$(call intermediates-dir-for,GYP,content_content_resources_gyp,,,$(GYP_VAR_PREFIX))/content_resources.stamp \
 	$(call intermediates-dir-for,STATIC_LIBRARIES,content_content_common_mojo_bindings_gyp,,,$(GYP_VAR_PREFIX))/content_content_common_mojo_bindings_gyp.a \
 	$(call intermediates-dir-for,GYP,gpu_gpu_gyp,,,$(GYP_VAR_PREFIX))/gpu.stamp \
-	$(call intermediates-dir-for,STATIC_LIBRARIES,mojo_mojo_application_bindings_gyp,,,$(GYP_VAR_PREFIX))/mojo_mojo_application_bindings_gyp.a \
+	$(call intermediates-dir-for,STATIC_LIBRARIES,mojo_public_mojo_application_bindings_gyp,,,$(GYP_VAR_PREFIX))/mojo_public_mojo_application_bindings_gyp.a \
 	$(call intermediates-dir-for,GYP,skia_skia_gyp,,,$(GYP_VAR_PREFIX))/skia.stamp \
 	$(call intermediates-dir-for,STATIC_LIBRARIES,skia_skia_library_gyp,,,$(GYP_VAR_PREFIX))/skia_skia_library_gyp.a \
 	$(call intermediates-dir-for,GYP,third_party_WebKit_public_blink_gyp,,,$(GYP_VAR_PREFIX))/blink.stamp \
-	$(call intermediates-dir-for,GYP,third_party_icu_icui18n_gyp,,,$(GYP_VAR_PREFIX))/icui18n.stamp \
-	$(call intermediates-dir-for,GYP,third_party_icu_icuuc_gyp,,,$(GYP_VAR_PREFIX))/icuuc.stamp \
 	$(call intermediates-dir-for,GYP,third_party_npapi_npapi_gyp,,,$(GYP_VAR_PREFIX))/npapi.stamp \
 	$(call intermediates-dir-for,GYP,third_party_widevine_cdm_widevine_cdm_version_h_gyp,,,$(GYP_VAR_PREFIX))/widevine_cdm_version_h.stamp \
 	$(call intermediates-dir-for,STATIC_LIBRARIES,ui_accessibility_accessibility_gyp,,,$(GYP_VAR_PREFIX))/ui_accessibility_accessibility_gyp.a \
@@ -41,7 +40,6 @@ LOCAL_SRC_FILES := \
 	content/public/renderer/android_content_detection_prefixes.cc \
 	content/public/renderer/content_renderer_client.cc \
 	content/public/renderer/document_state.cc \
-	content/public/renderer/key_system_info.cc \
 	content/public/renderer/navigation_state.cc \
 	content/public/renderer/render_frame_observer.cc \
 	content/public/renderer/render_process_observer.cc \
@@ -60,10 +58,10 @@ LOCAL_SRC_FILES := \
 	content/renderer/android/synchronous_compositor_factory.cc \
 	content/renderer/battery_status/battery_status_dispatcher.cc \
 	content/renderer/browser_plugin/browser_plugin.cc \
-	content/renderer/browser_plugin/browser_plugin_manager_impl.cc \
 	content/renderer/browser_plugin/browser_plugin_manager.cc \
 	content/renderer/clipboard_utils.cc \
 	content/renderer/child_frame_compositing_helper.cc \
+	content/renderer/chrome_object_extensions_utils.cc \
 	content/renderer/context_menu_params_builder.cc \
 	content/renderer/cursor_utils.cc \
 	content/renderer/date_time_suggestion_builder.cc \
@@ -114,6 +112,7 @@ LOCAL_SRC_FILES := \
 	content/renderer/java/gin_java_bridge_value_converter.cc \
 	content/renderer/manifest/manifest_manager.cc \
 	content/renderer/manifest/manifest_parser.cc \
+	content/renderer/manifest/manifest_uma_util.cc \
 	content/renderer/media/aec_dump_message_filter.cc \
 	content/renderer/media/android/audio_decoder_android.cc \
 	content/renderer/media/android/media_info_loader.cc \
@@ -127,12 +126,11 @@ LOCAL_SRC_FILES := \
 	content/renderer/media/audio_input_message_filter.cc \
 	content/renderer/media/audio_message_filter.cc \
 	content/renderer/media/audio_renderer_mixer_manager.cc \
-	content/renderer/media/cdm_result_promise.cc \
 	content/renderer/media/cdm_session_adapter.cc \
-	content/renderer/media/crypto/content_decryption_module_factory.cc \
 	content/renderer/media/crypto/key_systems.cc \
 	content/renderer/media/crypto/key_systems_support_uma.cc \
 	content/renderer/media/crypto/proxy_decryptor.cc \
+	content/renderer/media/crypto/render_cdm_factory.cc \
 	content/renderer/media/media_stream_audio_level_calculator.cc \
 	content/renderer/media/media_stream_audio_renderer.cc \
 	content/renderer/media/media_stream_constraints_util.cc \
@@ -156,6 +154,7 @@ LOCAL_SRC_FILES := \
 	content/renderer/mojo/service_registry_js_wrapper.cc \
 	content/renderer/mouse_lock_dispatcher.cc \
 	content/renderer/net_info_helper.cc \
+	content/renderer/notification_icon_loader.cc \
 	content/renderer/notification_permission_dispatcher.cc \
 	content/renderer/push_messaging_dispatcher.cc \
 	content/renderer/render_frame_impl.cc \
@@ -169,16 +168,17 @@ LOCAL_SRC_FILES := \
 	content/renderer/render_view_mouse_lock_dispatcher.cc \
 	content/renderer/render_widget.cc \
 	content/renderer/render_widget_fullscreen.cc \
+	content/renderer/renderer_blink_platform_impl.cc \
 	content/renderer/renderer_clipboard_client.cc \
 	content/renderer/renderer_main.cc \
 	content/renderer/renderer_main_platform_delegate_android.cc \
 	content/renderer/renderer_webapplicationcachehost_impl.cc \
 	content/renderer/renderer_webcolorchooser_impl.cc \
 	content/renderer/renderer_webcookiejar_impl.cc \
-	content/renderer/renderer_webkitplatformsupport_impl.cc \
 	content/renderer/resizing_mode_selector.cc \
 	content/renderer/sad_plugin.cc \
 	content/renderer/savable_resources.cc \
+	content/renderer/scheduler/task_queue_manager.cc \
 	content/renderer/screen_orientation/screen_orientation_dispatcher.cc \
 	content/renderer/screen_orientation/screen_orientation_observer.cc \
 	content/renderer/scoped_clipboard_writer_glue.cc \
@@ -237,6 +237,7 @@ LOCAL_SRC_FILES := \
 	content/renderer/media/rtc_video_encoder.cc \
 	content/renderer/media/rtc_video_encoder_factory.cc \
 	content/renderer/media/rtc_video_renderer.cc \
+	content/renderer/media/speech_recognition_audio_sink.cc \
 	content/renderer/media/user_media_client_impl.cc \
 	content/renderer/media/video_source_handler.cc \
 	content/renderer/media/video_track_adapter.cc \
@@ -328,12 +329,6 @@ MY_DEFS_Debug := \
 	'-DCLD_VERSION=1' \
 	'-DENABLE_PRINTING=1' \
 	'-DENABLE_MANAGED_USERS=1' \
-	'-DDATA_REDUCTION_FALLBACK_HOST="http://compress.googlezip.net:80/"' \
-	'-DDATA_REDUCTION_DEV_HOST="https://proxy-dev.googlezip.net:443/"' \
-	'-DDATA_REDUCTION_DEV_FALLBACK_HOST="http://proxy-dev.googlezip.net:80/"' \
-	'-DSPDY_PROXY_AUTH_ORIGIN="https://proxy.googlezip.net:443/"' \
-	'-DDATA_REDUCTION_PROXY_PROBE_URL="http://check.googlezip.net/connect"' \
-	'-DDATA_REDUCTION_PROXY_WARMUP_URL="http://www.gstatic.com/generate_204"' \
 	'-DVIDEO_HOLE=1' \
 	'-DENABLE_LOAD_COMPLETION_HACKS=1' \
 	'-DMOJO_USE_SYSTEM_IMPL' \
@@ -347,15 +342,17 @@ MY_DEFS_Debug := \
 	'-DSK_ATTR_DEPRECATED=SK_NOTHING_ARG1' \
 	'-DGR_GL_IGNORE_ES3_MSAA=0' \
 	'-DSK_WILL_NEVER_DRAW_PERSPECTIVE_TEXT' \
+	'-DSK_FM_NEW_MATCH_FAMILY_STYLE_CHARACTER=1' \
 	'-DSK_SUPPORT_LEGACY_TEXTRENDERMODE' \
+	'-DSK_LEGACY_NO_DISTANCE_FIELD_PATHS' \
 	'-DSK_BUILD_FOR_ANDROID' \
 	'-DSK_USE_POSIX_THREADS' \
-	'-DSK_DEFERRED_CANVAS_USES_FACTORIES=1' \
 	'-DCHROME_PNG_WRITE_SUPPORT' \
 	'-DPNG_USER_CONFIG' \
 	'-DCHROME_PNG_READ_PACK_SUPPORT' \
 	'-DU_USING_ICU_NAMESPACE=0' \
 	'-DU_ENABLE_DYLOAD=0' \
+	'-DU_STATIC_IMPLEMENTATION' \
 	'-DFEATURE_ENABLE_SSL' \
 	'-DFEATURE_ENABLE_VOICEMAIL' \
 	'-DEXPAT_RELATIVE_PATH' \
@@ -389,8 +386,6 @@ MY_DEFS_Debug := \
 
 # Include paths placed before CFLAGS/CPPFLAGS
 LOCAL_C_INCLUDES_Debug := \
-	$(gyp_shared_intermediate_dir)/shim_headers/icuuc/target \
-	$(gyp_shared_intermediate_dir)/shim_headers/icui18n/target \
 	$(gyp_shared_intermediate_dir) \
 	$(LOCAL_PATH) \
 	$(LOCAL_PATH)/skia/config \
@@ -417,8 +412,8 @@ LOCAL_C_INCLUDES_Debug := \
 	$(LOCAL_PATH)/third_party/qcms/src \
 	$(LOCAL_PATH)/third_party/iccjpeg \
 	$(LOCAL_PATH)/third_party/libjpeg_turbo \
-	$(PWD)/external/icu/icu4c/source/common \
-	$(PWD)/external/icu/icu4c/source/i18n \
+	$(LOCAL_PATH)/third_party/icu/source/i18n \
+	$(LOCAL_PATH)/third_party/icu/source/common \
 	$(LOCAL_PATH)/third_party/webrtc/overrides \
 	$(LOCAL_PATH)/third_party/libjingle/overrides \
 	$(LOCAL_PATH)/third_party/libjingle/source \
@@ -436,10 +431,7 @@ LOCAL_C_INCLUDES_Debug := \
 	$(LOCAL_PATH)/third_party/libyuv/include \
 	$(LOCAL_PATH)/third_party/libyuv \
 	$(LOCAL_PATH)/third_party/webrtc/modules/interface \
-	$(LOCAL_PATH)/third_party/webrtc/modules/audio_device/include \
-	$(PWD)/frameworks/wilhelm/include \
-	$(PWD)/bionic \
-	$(PWD)/external/stlport/stlport
+	$(LOCAL_PATH)/third_party/webrtc/modules/audio_device/include
 
 
 # Flags passed to only C++ (and not C) files.
@@ -515,12 +507,6 @@ MY_DEFS_Release := \
 	'-DCLD_VERSION=1' \
 	'-DENABLE_PRINTING=1' \
 	'-DENABLE_MANAGED_USERS=1' \
-	'-DDATA_REDUCTION_FALLBACK_HOST="http://compress.googlezip.net:80/"' \
-	'-DDATA_REDUCTION_DEV_HOST="https://proxy-dev.googlezip.net:443/"' \
-	'-DDATA_REDUCTION_DEV_FALLBACK_HOST="http://proxy-dev.googlezip.net:80/"' \
-	'-DSPDY_PROXY_AUTH_ORIGIN="https://proxy.googlezip.net:443/"' \
-	'-DDATA_REDUCTION_PROXY_PROBE_URL="http://check.googlezip.net/connect"' \
-	'-DDATA_REDUCTION_PROXY_WARMUP_URL="http://www.gstatic.com/generate_204"' \
 	'-DVIDEO_HOLE=1' \
 	'-DENABLE_LOAD_COMPLETION_HACKS=1' \
 	'-DMOJO_USE_SYSTEM_IMPL' \
@@ -534,15 +520,17 @@ MY_DEFS_Release := \
 	'-DSK_ATTR_DEPRECATED=SK_NOTHING_ARG1' \
 	'-DGR_GL_IGNORE_ES3_MSAA=0' \
 	'-DSK_WILL_NEVER_DRAW_PERSPECTIVE_TEXT' \
+	'-DSK_FM_NEW_MATCH_FAMILY_STYLE_CHARACTER=1' \
 	'-DSK_SUPPORT_LEGACY_TEXTRENDERMODE' \
+	'-DSK_LEGACY_NO_DISTANCE_FIELD_PATHS' \
 	'-DSK_BUILD_FOR_ANDROID' \
 	'-DSK_USE_POSIX_THREADS' \
-	'-DSK_DEFERRED_CANVAS_USES_FACTORIES=1' \
 	'-DCHROME_PNG_WRITE_SUPPORT' \
 	'-DPNG_USER_CONFIG' \
 	'-DCHROME_PNG_READ_PACK_SUPPORT' \
 	'-DU_USING_ICU_NAMESPACE=0' \
 	'-DU_ENABLE_DYLOAD=0' \
+	'-DU_STATIC_IMPLEMENTATION' \
 	'-DFEATURE_ENABLE_SSL' \
 	'-DFEATURE_ENABLE_VOICEMAIL' \
 	'-DEXPAT_RELATIVE_PATH' \
@@ -577,8 +565,6 @@ MY_DEFS_Release := \
 
 # Include paths placed before CFLAGS/CPPFLAGS
 LOCAL_C_INCLUDES_Release := \
-	$(gyp_shared_intermediate_dir)/shim_headers/icuuc/target \
-	$(gyp_shared_intermediate_dir)/shim_headers/icui18n/target \
 	$(gyp_shared_intermediate_dir) \
 	$(LOCAL_PATH) \
 	$(LOCAL_PATH)/skia/config \
@@ -605,8 +591,8 @@ LOCAL_C_INCLUDES_Release := \
 	$(LOCAL_PATH)/third_party/qcms/src \
 	$(LOCAL_PATH)/third_party/iccjpeg \
 	$(LOCAL_PATH)/third_party/libjpeg_turbo \
-	$(PWD)/external/icu/icu4c/source/common \
-	$(PWD)/external/icu/icu4c/source/i18n \
+	$(LOCAL_PATH)/third_party/icu/source/i18n \
+	$(LOCAL_PATH)/third_party/icu/source/common \
 	$(LOCAL_PATH)/third_party/webrtc/overrides \
 	$(LOCAL_PATH)/third_party/libjingle/overrides \
 	$(LOCAL_PATH)/third_party/libjingle/source \
@@ -624,10 +610,7 @@ LOCAL_C_INCLUDES_Release := \
 	$(LOCAL_PATH)/third_party/libyuv/include \
 	$(LOCAL_PATH)/third_party/libyuv \
 	$(LOCAL_PATH)/third_party/webrtc/modules/interface \
-	$(LOCAL_PATH)/third_party/webrtc/modules/audio_device/include \
-	$(PWD)/frameworks/wilhelm/include \
-	$(PWD)/bionic \
-	$(PWD)/external/stlport/stlport
+	$(LOCAL_PATH)/third_party/webrtc/modules/audio_device/include
 
 
 # Flags passed to only C++ (and not C) files.
@@ -656,10 +639,9 @@ LOCAL_STATIC_LIBRARIES := \
 
 # Enable grouping to fix circular references
 LOCAL_GROUP_STATIC_LIBRARIES := true
-
-LOCAL_SHARED_LIBRARIES := \
-	libstlport \
-	libdl
+### Set directly by aosp_build_settings.
+LOCAL_CLANG := false
+LOCAL_NDK_STL_VARIANT := stlport_static
 
 # Add target alias to "gyp_all_modules" target.
 .PHONY: gyp_all_modules

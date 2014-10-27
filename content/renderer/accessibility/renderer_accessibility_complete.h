@@ -27,8 +27,7 @@ namespace content {
 class RenderViewImpl;
 
 // This is the subclass of RendererAccessibility that implements
-// complete accessibility support for assistive technology (as opposed to
-// partial support - see RendererAccessibilityFocusOnly).
+// complete accessibility support for assistive technology.
 //
 // This version turns on Blink's accessibility code and sends
 // a serialized representation of that tree whenever it changes. It also
@@ -38,16 +37,17 @@ class CONTENT_EXPORT RendererAccessibilityComplete
     : public RendererAccessibility {
  public:
   explicit RendererAccessibilityComplete(RenderFrameImpl* render_frame);
-  virtual ~RendererAccessibilityComplete();
+  ~RendererAccessibilityComplete() override;
 
   // RenderFrameObserver implementation.
-  virtual bool OnMessageReceived(const IPC::Message& message) OVERRIDE;
+  bool OnMessageReceived(const IPC::Message& message) override;
 
   // RendererAccessibility.
-  virtual void HandleWebAccessibilityEvent(
-      const blink::WebAXObject& obj, blink::WebAXEvent event) OVERRIDE;
-  virtual RendererAccessibilityType GetType() OVERRIDE;
-  virtual void FocusedNodeChanged(const blink::WebNode& node) OVERRIDE;
+  void HandleWebAccessibilityEvent(const blink::WebAXObject& obj,
+                                   blink::WebAXEvent event) override;
+  RendererAccessibilityType GetType() override;
+  void FocusedNodeChanged(const blink::WebNode& node) override;
+  virtual void DisableAccessibility() override;
 
   void HandleAXEvent(const blink::WebAXObject& obj, ui::AXEvent event);
 
@@ -70,6 +70,7 @@ class CONTENT_EXPORT RendererAccessibilityComplete
   void OnSetFocus(int acc_obj_id);
   void OnSetTextSelection(int acc_obj_id, int start_offset, int end_offset);
   void OnHitTest(gfx::Point point);
+  void OnReset(int reset_token);
   void OnFatalError();
 
   // Events from Blink are collected until they are ready to be
@@ -92,6 +93,10 @@ class CONTENT_EXPORT RendererAccessibilityComplete
 
   // Set if we are waiting for an accessibility event ack.
   bool ack_pending_;
+
+  // Nonzero if the browser requested we reset the accessibility state.
+  // We need to return this token in the next IPC.
+  int reset_token_;
 
   // So we can queue up tasks to be executed later.
   base::WeakPtrFactory<RendererAccessibilityComplete> weak_factory_;

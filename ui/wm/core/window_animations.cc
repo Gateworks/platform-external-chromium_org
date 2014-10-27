@@ -29,11 +29,11 @@
 #include "ui/compositor/scoped_animation_duration_scale_mode.h"
 #include "ui/compositor/scoped_layer_animation_settings.h"
 #include "ui/gfx/animation/animation.h"
+#include "ui/gfx/geometry/vector3d_f.h"
 #include "ui/gfx/interpolated_transform.h"
 #include "ui/gfx/rect_conversions.h"
 #include "ui/gfx/screen.h"
 #include "ui/gfx/vector2d.h"
-#include "ui/gfx/vector3d_f.h"
 #include "ui/wm/core/window_util.h"
 #include "ui/wm/core/wm_core_switches.h"
 #include "ui/wm/public/animation_host.h"
@@ -69,12 +69,12 @@ class HidingWindowAnimationObserverBase : public aura::WindowObserver {
   }
 
   // aura::WindowObserver:
-  virtual void OnWindowDestroying(aura::Window* window) OVERRIDE {
+  virtual void OnWindowDestroying(aura::Window* window) override {
     DCHECK_EQ(window, window_);
     WindowInvalid();
   }
 
-  virtual void OnWindowDestroyed(aura::Window* window) OVERRIDE {
+  virtual void OnWindowDestroyed(aura::Window* window) override {
     DCHECK_EQ(window, window_);
     WindowInvalid();
   }
@@ -168,7 +168,7 @@ class ImplicitHidingWindowAnimationObserver
   virtual ~ImplicitHidingWindowAnimationObserver() {}
 
   // ui::ImplicitAnimationObserver:
-  virtual void OnImplicitAnimationsCompleted() OVERRIDE;
+  virtual void OnImplicitAnimationsCompleted() override;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(ImplicitHidingWindowAnimationObserver);
@@ -410,15 +410,15 @@ class RotateHidingWindowAnimationObserver
 
   // ui::LayerAnimationObserver:
   virtual void OnLayerAnimationEnded(
-      ui::LayerAnimationSequence* sequence) OVERRIDE {
+      ui::LayerAnimationSequence* sequence) override {
     OnAnimationCompleted();
   }
   virtual void OnLayerAnimationAborted(
-      ui::LayerAnimationSequence* sequence) OVERRIDE {
+      ui::LayerAnimationSequence* sequence) override {
     OnAnimationCompleted();
   }
   virtual void OnLayerAnimationScheduled(
-      ui::LayerAnimationSequence* sequence) OVERRIDE {}
+      ui::LayerAnimationSequence* sequence) override {}
 
  private:
   DISALLOW_COPY_AND_ASSIGN(RotateHidingWindowAnimationObserver);

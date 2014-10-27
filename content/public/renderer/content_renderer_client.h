@@ -49,13 +49,16 @@ struct WebPluginParams;
 struct WebURLError;
 }
 
+namespace media {
+struct KeySystemInfo;
+}
+
 namespace content {
 class BrowserPluginDelegate;
 class DocumentState;
 class RenderFrame;
 class RenderView;
 class SynchronousCompositor;
-struct KeySystemInfo;
 struct WebPluginInfo;
 
 // Embedder API for participating in renderer logic.
@@ -83,9 +86,6 @@ class CONTENT_EXPORT ContentRendererClient {
   // Returns the bitmap to show when a <webview> guest has crashed, or NULL for
   // none.
   virtual SkBitmap* GetSadWebViewBitmap();
-
-  // Returns the default text encoding.
-  virtual std::string GetDefaultEncoding();
 
   // Allows the embedder to override creating a plugin. If it returns true, then
   // |plugin| will contain the created plugin, although it could be NULL. If it
@@ -246,7 +246,7 @@ class CONTENT_EXPORT ContentRendererClient {
 
   // Gives the embedder a chance to register the key system(s) it supports by
   // populating |key_systems|.
-  virtual void AddKeySystems(std::vector<KeySystemInfo>* key_systems);
+  virtual void AddKeySystems(std::vector<media::KeySystemInfo>* key_systems);
 
   // Returns true if we should report a detailed message (including a stack
   // trace) for console [logs|errors|exceptions]. |source| is the WebKit-
@@ -273,6 +273,10 @@ class CONTENT_EXPORT ContentRendererClient {
 
   // Returns true if dev channel APIs are available for plugins.
   virtual bool IsPluginAllowedToUseDevChannelAPIs();
+
+  // Returns a user agent override specific for |url|, or empty string if
+  // default user agent should be used.
+  virtual std::string GetUserAgentOverrideForURL(const GURL& url);
 };
 
 }  // namespace content

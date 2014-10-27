@@ -46,15 +46,13 @@ const char kSupervisedUserToken[] = "supervisedusertoken";
 class MockChangeProcessor : public SyncChangeProcessor {
  public:
   MockChangeProcessor() {}
-  virtual ~MockChangeProcessor() {}
+  ~MockChangeProcessor() override {}
 
   // SyncChangeProcessor implementation:
-  virtual SyncError ProcessSyncChanges(
-      const tracked_objects::Location& from_here,
-      const SyncChangeList& change_list) OVERRIDE;
+  SyncError ProcessSyncChanges(const tracked_objects::Location& from_here,
+                               const SyncChangeList& change_list) override;
 
-  virtual SyncDataList GetAllSyncData(syncer::ModelType type) const
-      OVERRIDE {
+  SyncDataList GetAllSyncData(syncer::ModelType type) const override {
     return SyncDataList();
   }
 
@@ -75,12 +73,12 @@ class MockSupervisedUserRefreshTokenFetcher
     : public SupervisedUserRefreshTokenFetcher {
  public:
   MockSupervisedUserRefreshTokenFetcher() {}
-  virtual ~MockSupervisedUserRefreshTokenFetcher() {}
+  ~MockSupervisedUserRefreshTokenFetcher() override {}
 
   // SupervisedUserRefreshTokenFetcher implementation:
-  virtual void Start(const std::string& supervised_user_id,
-                     const std::string& device_name,
-                     const TokenCallback& callback) OVERRIDE {
+  void Start(const std::string& supervised_user_id,
+             const std::string& device_name,
+             const TokenCallback& callback) override {
     GoogleServiceAuthError error(GoogleServiceAuthError::NONE);
     callback.Run(error, kSupervisedUserToken);
   }
@@ -93,7 +91,7 @@ class SupervisedUserRegistrationUtilityTest : public ::testing::Test {
   SupervisedUserRegistrationUtilityTest();
   virtual ~SupervisedUserRegistrationUtilityTest();
 
-  virtual void TearDown() OVERRIDE;
+  virtual void TearDown() override;
 
  protected:
   scoped_ptr<SyncChangeProcessor> CreateChangeProcessor();
@@ -215,11 +213,10 @@ SupervisedUserRegistrationUtilityTest::GetRegistrationUtility() {
 
 void SupervisedUserRegistrationUtilityTest::Acknowledge() {
   SyncChangeList new_changes;
-  const SyncChangeList& changes = change_processor()->changes();
-  for (SyncChangeList::const_iterator it = changes.begin(); it != changes.end();
-       ++it) {
-    EXPECT_EQ(SyncChange::ACTION_ADD, it->change_type());
-    ::sync_pb::EntitySpecifics specifics = it->sync_data().GetSpecifics();
+  for (const SyncChange& sync_change : change_processor()->changes()) {
+    EXPECT_EQ(SyncChange::ACTION_ADD, sync_change.change_type());
+    ::sync_pb::EntitySpecifics specifics =
+        sync_change.sync_data().GetSpecifics();
     EXPECT_FALSE(specifics.managed_user().acknowledged());
     specifics.mutable_managed_user()->set_acknowledged(true);
     new_changes.push_back(

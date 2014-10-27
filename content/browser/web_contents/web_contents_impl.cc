@@ -23,7 +23,7 @@
 #include "content/browser/browser_plugin/browser_plugin_embedder.h"
 #include "content/browser/browser_plugin/browser_plugin_guest.h"
 #include "content/browser/child_process_security_policy_impl.h"
-#include "content/browser/devtools/render_view_devtools_agent_host.h"
+#include "content/browser/devtools/devtools_manager.h"
 #include "content/browser/dom_storage/dom_storage_context_wrapper.h"
 #include "content/browser/dom_storage/session_storage_namespace_impl.h"
 #include "content/browser/download/download_stats.h"
@@ -114,57 +114,6 @@
 #if defined(OS_MACOSX)
 #include "base/mac/foundation_util.h"
 #endif
-
-// Cross-Site Navigations
-//
-// If a WebContentsImpl is told to navigate to a different web site (as
-// determined by SiteInstance), it will replace its current RenderViewHost with
-// a new RenderViewHost dedicated to the new SiteInstance.  This works as
-// follows:
-//
-// - RVHM::Navigate determines whether the destination is cross-site, and if so,
-//   it creates a pending_render_view_host_.
-// - The pending RVH is "suspended," so that no navigation messages are sent to
-//   its renderer until the beforeunload JavaScript handler has a chance to
-//   run in the current RVH.
-// - The pending RVH tells CrossSiteRequestManager (a thread-safe singleton)
-//   that it has a pending cross-site request.  We will check this on the IO
-//   thread when deciding how to handle the response.
-// - The current RVH runs its beforeunload handler.  If it returns false, we
-//   cancel all the pending logic.  Otherwise we allow the pending RVH to send
-//   the navigation request to its renderer.
-// - ResourceDispatcherHost receives a ResourceRequest on the IO thread for the
-//   main resource load on the pending RVH.  It creates a
-//   CrossSiteResourceHandler to check whether a process swap is needed when
-//   the request is ready to commit.
-// - When RDH receives a response, the BufferedResourceHandler determines
-//   whether it is a download.  If so, it sends a message to the new renderer
-//   causing it to cancel the request, and the download proceeds. For now, the
-//   pending RVH remains until the next DidNavigate event for this
-//   WebContentsImpl. This isn't ideal, but it doesn't affect any functionality.
-// - After RDH receives a response and determines that it is safe and not a
-//   download, the CrossSiteResourceHandler checks whether a process swap is
-//   needed (either because CrossSiteRequestManager has state for it or because
-//   a transfer was needed for a redirect).
-// - If so, CrossSiteResourceHandler pauses the response to first run the old
-//   page's unload handler.  It does this by asynchronously calling the
-//   OnCrossSiteResponse method of RenderFrameHostManager on the UI thread,
-//   which sends a SwapOut message to the current RVH.
-// - Once the unload handler is finished, RVHM::SwappedOut checks if a transfer
-//   to a new process is needed, based on the stored pending_nav_params_.  (This
-//   is independent of whether we started out with a cross-process navigation.)
-//   - If not, it just tells the ResourceDispatcherHost to resume the response
-//     to its current RenderViewHost.
-//   - If so, it cancels the current pending RenderViewHost and sets up a new
-//     navigation using RequestTransferURL.  When the transferred request
-//     arrives in the ResourceDispatcherHost, we transfer the response and
-//     resume it.
-// - The pending renderer sends a FrameNavigate message that invokes the
-//   DidNavigate method.  This replaces the current RVH with the
-//   pending RVH.
-// - The previous renderer is kept swapped out in RenderFrameHostManager in case
-//   the user goes back.  The process only stays live if another tab is using
-//   it, but if so, the existing frame relationships will be maintained.
 
 namespace content {
 namespace {
@@ -309,7 +258,7 @@ class WebContentsImpl::DestructionObserver : public WebContentsObserver {
   }
 
   // WebContentsObserver:
-  virtual void WebContentsDestroyed() OVERRIDE {
+  void WebContentsDestroyed() override {
     owner_->OnWebContentsDestroyed(
         static_cast<WebContentsImpl*>(web_contents()));
   }
@@ -894,14 +843,15 @@ void WebContentsImpl::CopyMaxPageIDsFrom(WebContents* web_contents) {
   max_page_ids_ = contents->max_page_ids_;
 }
 
-SiteInstance* WebContentsImpl::GetSiteInstance() const {
+SiteInstanceImpl* WebContentsImpl::GetSiteInstance() const {
   return GetRenderManager()->current_host()->GetSiteInstance();
 }
 
-SiteInstance* WebContentsImpl::GetPendingSiteInstance() const {
-  RenderViewHost* dest_rvh = GetRenderManager()->pending_render_view_host() ?
-      GetRenderManager()->pending_render_view_host() :
-      GetRenderManager()->current_host();
+SiteInstanceImpl* WebContentsImpl::GetPendingSiteInstance() const {
+  RenderViewHostImpl* dest_rvh =
+      GetRenderManager()->pending_render_view_host() ?
+          GetRenderManager()->pending_render_view_host() :
+          GetRenderManager()->current_host();
   return dest_rvh->GetSiteInstance();
 }
 
@@ -1336,6 +1286,15 @@ void WebContentsImpl::RenderWidgetDeleted(
   }
 }
 
+void WebContentsImpl::RenderWidgetGotFocus(
+    RenderWidgetHostImpl* render_widget_host) {
+  // Notify the delegate if an embedded fullscreen widget was focused.
+  if (delegate_ && render_widget_host &&
+      delegate_->EmbedsFullscreenWidget() &&
+      render_widget_host->GetView() == GetFullscreenRenderWidgetHostView())
+    delegate_->WebContentsFocused(this);
+}
+
 bool WebContentsImpl::PreHandleKeyboardEvent(
     const NativeWebKeyboardEvent& event,
     bool* is_keyboard_shortcut) {
@@ -1581,7 +1540,7 @@ void WebContentsImpl::CreateNewWindow(
 
       // TODO(brettw): It seems bogus that we have to call this function on the
       // newly created object and give it one of its own member variables.
-      new_view->CreateViewForWidget(new_contents->GetRenderViewHost());
+      new_view->CreateViewForWidget(new_contents->GetRenderViewHost(), false);
     }
     // Save the created window associated with the route so we can show it
     // later.
@@ -2150,35 +2109,19 @@ DropData* WebContentsImpl::GetDropData() {
 }
 
 void WebContentsImpl::Focus() {
-  RenderWidgetHostView* const fullscreen_view =
-      GetFullscreenRenderWidgetHostView();
-  if (fullscreen_view)
-    fullscreen_view->Focus();
-  else
-    view_->Focus();
+  view_->Focus();
 }
 
 void WebContentsImpl::SetInitialFocus() {
-  RenderWidgetHostView* const fullscreen_view =
-      GetFullscreenRenderWidgetHostView();
-  if (fullscreen_view)
-    fullscreen_view->Focus();
-  else
-    view_->SetInitialFocus();
+  view_->SetInitialFocus();
 }
 
 void WebContentsImpl::StoreFocus() {
-  if (!GetFullscreenRenderWidgetHostView())
-    view_->StoreFocus();
+  view_->StoreFocus();
 }
 
 void WebContentsImpl::RestoreFocus() {
-  RenderWidgetHostView* const fullscreen_view =
-      GetFullscreenRenderWidgetHostView();
-  if (fullscreen_view)
-    fullscreen_view->Focus();
-  else
-    view_->RestoreFocus();
+  view_->RestoreFocus();
 }
 
 void WebContentsImpl::FocusThroughTabTraversal(bool reverse) {
@@ -2451,6 +2394,11 @@ bool WebContentsImpl::IsSubframe() const {
 void WebContentsImpl::Find(int request_id,
                            const base::string16& search_text,
                            const blink::WebFindOptions& options) {
+  // See if a top level browser plugin handles the find request first.
+  if (browser_plugin_embedder_ &&
+      browser_plugin_embedder_->Find(request_id, search_text, options)) {
+    return;
+  }
   Send(new ViewMsg_Find(GetRoutingID(), request_id, search_text, options));
 }
 
@@ -2646,7 +2594,7 @@ void WebContentsImpl::DidNavigateAnyFramePostCommit(
 
   // Notify observers about navigation.
   FOR_EACH_OBSERVER(WebContentsObserver, observers_,
-                    DidNavigateAnyFrame(details, params));
+                    DidNavigateAnyFrame(render_frame_host, details, params));
 }
 
 void WebContentsImpl::SetMainFrameMimeType(const std::string& mime_type) {
@@ -3104,7 +3052,12 @@ void WebContentsImpl::MaybeReleasePowerSaveBlockers() {
 
 void WebContentsImpl::OnMediaPlayingNotification(int64 player_cookie,
                                                  bool has_video,
-                                                 bool has_audio) {
+                                                 bool has_audio,
+                                                 bool is_remote) {
+  // Ignore the videos playing remotely and don't hold the wake lock for the
+  // screen.
+  if (is_remote) return;
+
   if (has_audio) {
     AddMediaPlayerEntry(player_cookie, &active_audio_players_);
 
@@ -3413,8 +3366,7 @@ void WebContentsImpl::RunJavaScriptMessage(
   // showing an interstitial as it's shown over the previous page and we don't
   // want the hidden page's dialogs to interfere with the interstitial.
   bool suppress_this_message =
-      static_cast<RenderViewHostImpl*>(render_frame_host->GetRenderViewHost())->
-          IsSwappedOut() ||
+      static_cast<RenderFrameHostImpl*>(render_frame_host)->is_swapped_out() ||
       ShowingInterstitialPage() ||
       !delegate_ ||
       delegate_->ShouldSuppressDialogs() ||
@@ -3459,13 +3411,11 @@ void WebContentsImpl::RunBeforeUnloadConfirm(
     IPC::Message* reply_msg) {
   RenderFrameHostImpl* rfhi =
       static_cast<RenderFrameHostImpl*>(render_frame_host);
-  RenderViewHostImpl* rvhi =
-      static_cast<RenderViewHostImpl*>(render_frame_host->GetRenderViewHost());
   if (delegate_)
     delegate_->WillRunBeforeUnloadConfirm();
 
   bool suppress_this_message =
-      rvhi->rvh_state() != RenderViewHostImpl::STATE_DEFAULT ||
+      rfhi->rfh_state() != RenderFrameHostImpl::STATE_DEFAULT ||
       !delegate_ ||
       delegate_->ShouldSuppressDialogs() ||
       !delegate_->GetJavaScriptDialogManager();
@@ -3524,7 +3474,7 @@ void WebContentsImpl::RenderViewCreated(RenderViewHost* render_view_host) {
   // Don't send notifications if we are just creating a swapped-out RVH for
   // the opener chain.  These won't be used for view-source or WebUI, so it's
   // ok to return early.
-  if (static_cast<RenderViewHostImpl*>(render_view_host)->IsSwappedOut())
+  if (!static_cast<RenderViewHostImpl*>(render_view_host)->is_active())
     return;
 
   if (delegate_)
@@ -3559,6 +3509,8 @@ void WebContentsImpl::RenderViewCreated(RenderViewHost* render_view_host) {
   FOR_EACH_OBSERVER(
       WebContentsObserver, observers_, RenderFrameCreated(main_frame));
   SetAccessibilityModeOnFrame(accessibility_mode_, main_frame);
+
+  DevToolsManager::GetInstance()->RenderViewCreated(this, render_view_host);
 }
 
 void WebContentsImpl::RenderViewReady(RenderViewHost* rvh) {
@@ -3943,14 +3895,14 @@ void WebContentsImpl::OnIgnoredUIEvent() {
   FOR_EACH_OBSERVER(WebContentsObserver, observers_, DidGetIgnoredUIEvent());
 }
 
-void WebContentsImpl::RendererUnresponsive(RenderViewHost* rvh,
-                                           bool is_during_beforeunload,
-                                           bool is_during_unload) {
+void WebContentsImpl::RendererUnresponsive(RenderViewHost* render_view_host) {
   // Don't show hung renderer dialog for a swapped out RVH.
-  if (rvh != GetRenderViewHost())
+  if (render_view_host != GetRenderViewHost())
     return;
 
-  RenderViewHostImpl* rvhi = static_cast<RenderViewHostImpl*>(rvh);
+  RenderViewHostImpl* rvhi = static_cast<RenderViewHostImpl*>(render_view_host);
+  RenderFrameHostImpl* rfhi =
+      static_cast<RenderFrameHostImpl*>(rvhi->GetMainFrame());
 
   // Ignore renderer unresponsive event if debugger is attached to the tab
   // since the event may be a result of the renderer sitting on a breakpoint.
@@ -3958,7 +3910,8 @@ void WebContentsImpl::RendererUnresponsive(RenderViewHost* rvh,
   if (DevToolsAgentHost::IsDebuggerAttached(this))
     return;
 
-  if (is_during_beforeunload || is_during_unload) {
+  if (rfhi->is_waiting_for_beforeunload_ack() ||
+      rfhi->IsWaitingForUnloadACK()) {
     // Hang occurred while firing the beforeunload/unload handler.
     // Pretend the handler fired so tab closing continues as if it had.
     rvhi->set_sudden_termination_allowed(true);
@@ -3973,11 +3926,11 @@ void WebContentsImpl::RendererUnresponsive(RenderViewHost* rvh,
     // close. Otherwise, pretend the unload listeners have all fired and close
     // the tab.
     bool close = true;
-    if (is_during_beforeunload && delegate_) {
+    if (rfhi->is_waiting_for_beforeunload_ack() && delegate_) {
       delegate_->BeforeUnloadFired(this, true, &close);
     }
     if (close)
-      Close(rvh);
+      Close(rvhi);
     return;
   }
 
@@ -4132,7 +4085,7 @@ bool WebContentsImpl::CreateRenderViewForRenderManager(
         new RenderWidgetHostViewChildFrame(render_view_host);
     rwh_view = rwh_view_child;
   } else {
-    rwh_view = view_->CreateViewForWidget(render_view_host);
+    rwh_view = view_->CreateViewForWidget(render_view_host, false);
   }
 
   // Now that the RenderView has been created, we need to tell it its size.
@@ -4258,13 +4211,6 @@ void WebContentsImpl::SetEncoding(const std::string& encoding) {
 
   canonical_encoding_ = GetContentClient()->browser()->
       GetCanonicalEncodingNameByAliasName(encoding);
-}
-
-void WebContentsImpl::CreateViewAndSetSizeForRVH(RenderViewHost* rvh) {
-  RenderWidgetHostViewBase* rwh_view = view_->CreateViewForWidget(rvh);
-  // Can be NULL during tests.
-  if (rwh_view)
-    rwh_view->SetSize(GetContainerBounds().size());
 }
 
 bool WebContentsImpl::IsHidden() {

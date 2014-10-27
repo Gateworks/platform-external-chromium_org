@@ -95,7 +95,7 @@ class MockAudioManager : public AudioManagerAnyPlatform {
   MockAudioManager() : AudioManagerAnyPlatform(&fake_audio_log_factory_) {}
   virtual ~MockAudioManager() {}
 
-  virtual scoped_refptr<base::SingleThreadTaskRunner> GetTaskRunner() OVERRIDE {
+  virtual scoped_refptr<base::SingleThreadTaskRunner> GetTaskRunner() override {
     return base::MessageLoop::current()->message_loop_proxy();
   }
 
@@ -194,7 +194,7 @@ class FullDuplexAudioSinkSource
   virtual void OnData(AudioInputStream* stream,
                       const AudioBus* src,
                       uint32 hardware_delay_bytes,
-                      double volume) OVERRIDE {
+                      double volume) override {
     base::AutoLock lock(lock_);
 
     // Update three components in the AudioDelayState for this recorded
@@ -222,27 +222,18 @@ class FullDuplexAudioSinkSource
     // }
   }
 
-  virtual void OnError(AudioInputStream* stream) OVERRIDE {}
+  virtual void OnError(AudioInputStream* stream) override {}
 
   // AudioOutputStream::AudioSourceCallback.
   virtual int OnMoreData(AudioBus* audio_bus,
-                         AudioBuffersState buffers_state) OVERRIDE {
+                         uint32 total_bytes_delay) override {
     base::AutoLock lock(lock_);
 
     // Update one component in the AudioDelayState for the packet
     // which is about to be played out.
     if (output_elements_to_write_ < kMaxDelayMeasurements) {
-      int output_delay_bytes = buffers_state.hardware_delay_bytes;
-#if defined(OS_WIN)
-      // Special fix for Windows in combination with Wave where the
-      // pending bytes field of the audio buffer state is used to
-      // report the delay.
-      if (!CoreAudioUtil::IsSupported()) {
-        output_delay_bytes = buffers_state.pending_bytes;
-      }
-#endif
       delay_states_[output_elements_to_write_].output_delay_ms =
-          BytesToMilliseconds(output_delay_bytes);
+          BytesToMilliseconds(total_bytes_delay);
       ++output_elements_to_write_;
     }
 
@@ -263,7 +254,7 @@ class FullDuplexAudioSinkSource
     return 0;
   }
 
-  virtual void OnError(AudioOutputStream* stream) OVERRIDE {}
+  virtual void OnError(AudioOutputStream* stream) override {}
 
  protected:
   // Converts from bytes to milliseconds taking the sample rate and size

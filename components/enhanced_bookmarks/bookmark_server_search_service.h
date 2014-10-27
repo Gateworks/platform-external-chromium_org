@@ -8,7 +8,6 @@
 #include <string>
 #include <vector>
 
-#include "components/bookmarks/browser/base_bookmark_model_observer.h"
 #include "components/enhanced_bookmarks/bookmark_server_service.h"
 #include "net/url_request/url_fetcher.h"
 
@@ -25,7 +24,7 @@ class BookmarkServerSearchService : public BookmarkServerService {
       ProfileOAuth2TokenService* token_service,
       SigninManagerBase* signin_manager,
       EnhancedBookmarkModel* bookmark_model);
-  virtual ~BookmarkServerSearchService();
+  ~BookmarkServerSearchService() override;
 
   // Triggers a search. The query must not be empty. A call to this method
   // cancels any previous searches. OnChange() is garanteed to be called once
@@ -38,23 +37,21 @@ class BookmarkServerSearchService : public BookmarkServerService {
   std::vector<const BookmarkNode*> ResultForQuery(const std::string& query);
 
  protected:
+  scoped_ptr<net::URLFetcher> CreateFetcher() override;
 
-  virtual net::URLFetcher* CreateFetcher() OVERRIDE;
+  bool ProcessResponse(const std::string& response,
+                       bool* should_notify) override;
 
-  virtual bool ProcessResponse(const std::string& response,
-                               bool* should_notify) OVERRIDE;
-
-  virtual void CleanAfterFailure() OVERRIDE;
+  void CleanAfterFailure() override;
 
   // EnhancedBookmarkModelObserver methods.
-  virtual void EnhancedBookmarkModelLoaded() OVERRIDE{};
-  virtual void EnhancedBookmarkAdded(const BookmarkNode* node) OVERRIDE;
-  virtual void EnhancedBookmarkRemoved(const BookmarkNode* node) OVERRIDE{};
-  virtual void EnhancedBookmarkAllUserNodesRemoved() OVERRIDE;
-  virtual void EnhancedBookmarkRemoteIdChanged(
-      const BookmarkNode* node,
-      const std::string& old_remote_id,
-      const std::string& remote_id) OVERRIDE;
+  void EnhancedBookmarkModelLoaded() override{};
+  void EnhancedBookmarkAdded(const BookmarkNode* node) override;
+  void EnhancedBookmarkRemoved(const BookmarkNode* node) override{};
+  void EnhancedBookmarkAllUserNodesRemoved() override;
+  void EnhancedBookmarkRemoteIdChanged(const BookmarkNode* node,
+                                       const std::string& old_remote_id,
+                                       const std::string& remote_id) override;
 
  private:
   // The search data, a map from query to a vector of stars.id.

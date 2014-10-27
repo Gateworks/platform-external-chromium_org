@@ -5,6 +5,7 @@
 #ifndef MOJO_SERVICES_NATIVE_VIEWPORT_IMPL_H_
 #define MOJO_SERVICES_NATIVE_VIEWPORT_IMPL_H_
 
+#include "base/macros.h"
 #include "base/memory/weak_ptr.h"
 #include "cc/surfaces/surface_id.h"
 #include "mojo/services/native_viewport/platform_viewport.h"
@@ -25,35 +26,37 @@ class NativeViewportImpl : public InterfaceImpl<NativeViewport>,
                            public PlatformViewport::Delegate {
  public:
   NativeViewportImpl(ApplicationImpl* app, bool is_headless);
-  virtual ~NativeViewportImpl();
+  ~NativeViewportImpl() override;
 
   // InterfaceImpl<NativeViewport> implementation.
-  virtual void Create(SizePtr bounds) OVERRIDE;
-  virtual void Show() OVERRIDE;
-  virtual void Hide() OVERRIDE;
-  virtual void Close() OVERRIDE;
-  virtual void SetBounds(SizePtr bounds) OVERRIDE;
-  virtual void SubmittedFrame(SurfaceIdPtr surface_id) OVERRIDE;
+  void Create(SizePtr size, const Callback<void(uint64_t)>& callback) override;
+  void Show() override;
+  void Hide() override;
+  void Close() override;
+  void SetSize(SizePtr size) override;
+  void SubmittedFrame(SurfaceIdPtr surface_id) override;
 
   // PlatformViewport::Delegate implementation.
-  virtual void OnBoundsChanged(const gfx::Rect& bounds) OVERRIDE;
-  virtual void OnAcceleratedWidgetAvailable(
-      gfx::AcceleratedWidget widget) OVERRIDE;
-  virtual bool OnEvent(ui::Event* ui_event) OVERRIDE;
-  virtual void OnDestroyed() OVERRIDE;
+  void OnBoundsChanged(const gfx::Rect& bounds) override;
+  void OnAcceleratedWidgetAvailable(gfx::AcceleratedWidget widget) override;
+  bool OnEvent(ui::Event* ui_event) override;
+  void OnDestroyed() override;
 
   void AckEvent();
 
  private:
+  void ProcessOnBoundsChanged();
+
   bool is_headless_;
   scoped_ptr<PlatformViewport> platform_viewport_;
   scoped_ptr<ViewportSurface> viewport_surface_;
   uint64_t widget_id_;
-  gfx::Rect bounds_;
+  gfx::Size size_;
   GpuPtr gpu_service_;
   SurfacesServicePtr surfaces_service_;
   cc::SurfaceId child_surface_id_;
   bool waiting_for_event_ack_;
+  Callback<void(uint64_t)> create_callback_;
   base::WeakPtrFactory<NativeViewportImpl> weak_factory_;
 
   DISALLOW_COPY_AND_ASSIGN(NativeViewportImpl);

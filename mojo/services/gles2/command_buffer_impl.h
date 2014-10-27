@@ -5,10 +5,11 @@
 #ifndef MOJO_SERVICES_GLES2_COMMAND_BUFFER_IMPL_H_
 #define MOJO_SERVICES_GLES2_COMMAND_BUFFER_IMPL_H_
 
+#include "base/macros.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/timer/timer.h"
 #include "mojo/public/cpp/system/core.h"
-#include "mojo/services/gles2/command_buffer.mojom.h"
+#include "mojo/services/public/interfaces/gpu/command_buffer.mojom.h"
 #include "ui/gfx/native_widget_types.h"
 #include "ui/gfx/size.h"
 
@@ -40,19 +41,18 @@ class CommandBufferImpl : public InterfaceImpl<CommandBuffer> {
                     const gfx::Size& size,
                     gfx::GLShareGroup* share_group,
                     gpu::gles2::MailboxManager* mailbox_manager);
-  virtual ~CommandBufferImpl();
+  ~CommandBufferImpl() override;
 
-  virtual void Initialize(CommandBufferSyncClientPtr sync_client,
-                          mojo::ScopedSharedBufferHandle shared_state) OVERRIDE;
-  virtual void SetGetBuffer(int32_t buffer) OVERRIDE;
-  virtual void Flush(int32_t put_offset) OVERRIDE;
-  virtual void MakeProgress(int32_t last_get_offset) OVERRIDE;
-  virtual void RegisterTransferBuffer(
-      int32_t id,
-      mojo::ScopedSharedBufferHandle transfer_buffer,
-      uint32_t size) OVERRIDE;
-  virtual void DestroyTransferBuffer(int32_t id) OVERRIDE;
-  virtual void Echo(const Callback<void()>& callback) OVERRIDE;
+  void Initialize(CommandBufferSyncClientPtr sync_client,
+                  mojo::ScopedSharedBufferHandle shared_state) override;
+  void SetGetBuffer(int32_t buffer) override;
+  void Flush(int32_t put_offset) override;
+  void MakeProgress(int32_t last_get_offset) override;
+  void RegisterTransferBuffer(int32_t id,
+                              mojo::ScopedSharedBufferHandle transfer_buffer,
+                              uint32_t size) override;
+  void DestroyTransferBuffer(int32_t id) override;
+  void Echo(const Callback<void()>& callback) override;
 
  private:
   bool DoInitialize(mojo::ScopedSharedBufferHandle shared_state);

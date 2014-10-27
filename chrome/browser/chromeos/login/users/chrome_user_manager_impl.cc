@@ -38,6 +38,7 @@
 #include "chrome/browser/chromeos/profiles/profile_helper.h"
 #include "chrome/browser/chromeos/session_length_limiter.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/signin/easy_unlock_service.h"
 #include "chrome/browser/supervised_user/chromeos/manager_password_service_factory.h"
 #include "chrome/browser/supervised_user/chromeos/supervised_user_password_service_factory.h"
 #include "chrome/common/chrome_constants.h"
@@ -192,7 +193,7 @@ SupervisedUserManager* ChromeUserManagerImpl::GetSupervisedUserManager() {
   return supervised_user_manager_.get();
 }
 
-user_manager::UserList ChromeUserManagerImpl::GetUsersAdmittedForMultiProfile()
+user_manager::UserList ChromeUserManagerImpl::GetUsersAllowedForMultiProfile()
     const {
   // Supervised users are not allowed to use multi-profiles.
   if (GetLoggedInUsers().size() == 1 &&
@@ -799,6 +800,8 @@ void ChromeUserManagerImpl::RemoveNonCryptohomeData(
   supervised_user_manager_->RemoveNonCryptohomeData(user_id);
 
   multi_profile_user_controller_->RemoveCachedValues(user_id);
+
+  EasyUnlockService::ResetLocalStateForUser(user_id);
 }
 
 void
@@ -1028,7 +1031,7 @@ void ChromeUserManagerImpl::UpdateNumberOfUsers() {
   size_t users = GetLoggedInUsers().size();
   if (users) {
     // Write the user number as UMA stat when a multi user session is possible.
-    if ((users + GetUsersAdmittedForMultiProfile().size()) > 1)
+    if ((users + GetUsersAllowedForMultiProfile().size()) > 1)
       ash::MultiProfileUMA::RecordUserCount(users);
   }
 

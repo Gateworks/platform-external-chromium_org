@@ -24,6 +24,7 @@
 #include "chrome/browser/prefs/session_startup_pref.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/profiles/profile_manager.h"
+#include "chrome/browser/sessions/base_session_service_delegate_impl.h"
 #include "chrome/browser/sessions/session_backend.h"
 #include "chrome/browser/sessions/session_command.h"
 #include "chrome/browser/sessions/session_data_deleter.h"
@@ -37,6 +38,7 @@
 #include "chrome/browser/ui/host_desktop.h"
 #include "chrome/browser/ui/startup/startup_browser_creator.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
+#include "components/sessions/content/content_serialized_navigation_builder.h"
 #include "components/startup_metric_utils/startup_metric_utils.h"
 #include "content/public/browser/navigation_details.h"
 #include "content/public/browser/navigation_entry.h"
@@ -53,6 +55,7 @@
 using base::Time;
 using content::NavigationEntry;
 using content::WebContents;
+using sessions::ContentSerializedNavigationBuilder;
 using sessions::SerializedNavigationEntry;
 
 // Identifier for commands written to file.
@@ -60,10 +63,9 @@ static const SessionCommand::id_type kCommandSetTabWindow = 0;
 // OBSOLETE Superseded by kCommandSetWindowBounds3.
 // static const SessionCommand::id_type kCommandSetWindowBounds = 1;
 static const SessionCommand::id_type kCommandSetTabIndexInWindow = 2;
-// Original kCommandTabClosed/kCommandWindowClosed. See comment in
-// MigrateClosedPayload for details on why they were replaced.
-static const SessionCommand::id_type kCommandTabClosedObsolete = 3;
-static const SessionCommand::id_type kCommandWindowClosedObsolete = 4;
+// OBSOLETE Superseded kCommandTabClosed/kCommandWindowClosed commands.
+// static const SessionCommand::id_type kCommandTabClosedObsolete = 3;
+// static const SessionCommand::id_type kCommandWindowClosedObsolete = 4;
 static const SessionCommand::id_type
     kCommandTabNavigationPathPrunedFromBack = 5;
 static const SessionCommand::id_type kCommandUpdateTabNavigation = 6;
@@ -198,37 +200,17 @@ ui::WindowShowState PersistedShowStateToShowState(int state) {
   return ui::SHOW_STATE_NORMAL;
 }
 
-// Migrates a |ClosedPayload|, returning true on success (migration was
-// necessary and happened), or false (migration was not necessary or was not
-// successful).
-bool MigrateClosedPayload(const SessionCommand& command,
-                          ClosedPayload* payload) {
-#if defined(OS_CHROMEOS)
-  // Pre M17 versions of chromeos were 32bit. Post M17 is 64 bit. Apparently the
-  // 32 bit versions of chrome on pre M17 resulted in a sizeof 12 for the
-  // ClosedPayload, where as post M17 64-bit gives a sizeof 16 (presumably the
-  // struct is padded).
-  if ((command.id() == kCommandWindowClosedObsolete ||
-       command.id() == kCommandTabClosedObsolete) &&
-      command.size() == 12 && sizeof(payload->id) == 4 &&
-      sizeof(payload->close_time) == 8) {
-    memcpy(&payload->id, command.contents(), 4);
-    memcpy(&payload->close_time, command.contents() + 4, 8);
-    return true;
-  } else {
-    return false;
-  }
-#else
-  return false;
-#endif
-}
-
 }  // namespace
 
 // SessionService -------------------------------------------------------------
 
 SessionService::SessionService(Profile* profile)
-    : BaseSessionService(SESSION_RESTORE, profile, base::FilePath()),
+    : BaseSessionService(
+        SESSION_RESTORE,
+        profile->GetPath(),
+        scoped_ptr<BaseSessionServiceDelegate>(
+            new BaseSessionServiceDelegateImpl(true))),
+      profile_(profile),
       has_open_trackable_browsers_(false),
       move_on_new_browser_(false),
       save_delay_in_millis_(base::TimeDelta::FromMilliseconds(2500)),
@@ -236,11 +218,18 @@ SessionService::SessionService(Profile* profile)
       save_delay_in_hrs_(base::TimeDelta::FromHours(8)),
       force_browser_not_alive_with_no_windows_(false),
       weak_factory_(this) {
+  // We should never be created when incognito.
+  DCHECK(!profile->IsOffTheRecord());
   Init();
 }
 
 SessionService::SessionService(const base::FilePath& save_path)
-    : BaseSessionService(SESSION_RESTORE, NULL, save_path),
+    : BaseSessionService(
+        SESSION_RESTORE,
+        save_path,
+        scoped_ptr<BaseSessionServiceDelegate>(
+            new BaseSessionServiceDelegateImpl(false))),
+      profile_(NULL),
       has_open_trackable_browsers_(false),
       move_on_new_browser_(false),
       save_delay_in_millis_(base::TimeDelta::FromMilliseconds(2500)),
@@ -695,7 +684,7 @@ void SessionService::Observe(int type,
         return;
       content::Details<content::EntryChangedDetails> changed(details);
       const SerializedNavigationEntry navigation =
-          SerializedNavigationEntry::FromNavigationEntry(
+          ContentSerializedNavigationBuilder::FromNavigationEntry(
               changed->index, *changed->changed_entry);
       UpdateTabNavigation(session_tab_helper->window_id(),
                           session_tab_helper->session_id(),
@@ -718,7 +707,7 @@ void SessionService::Observe(int type,
           session_tab_helper->session_id(),
           current_entry_index);
       const SerializedNavigationEntry navigation =
-          SerializedNavigationEntry::FromNavigationEntry(
+          ContentSerializedNavigationBuilder::FromNavigationEntry(
               current_entry_index,
               *web_contents->GetController().GetEntryAtIndex(
                   current_entry_index));
@@ -1143,18 +1132,14 @@ bool SessionService::CreateTabsAndWindows(
         break;
       }
 
-      case kCommandTabClosedObsolete:
-      case kCommandWindowClosedObsolete:
       case kCommandTabClosed:
       case kCommandWindowClosed: {
         ClosedPayload payload;
-        if (!command->GetPayload(&payload, sizeof(payload)) &&
-            !MigrateClosedPayload(*command, &payload)) {
+        if (!command->GetPayload(&payload, sizeof(payload))) {
           VLOG(1) << "Failed reading command " << command->id();
           return true;
         }
-        if (command->id() == kCommandTabClosed ||
-            command->id() == kCommandTabClosedObsolete) {
+        if (command->id() == kCommandTabClosed) {
           delete GetTab(payload.id, tabs);
           tabs->erase(payload.id);
         } else {
@@ -1382,7 +1367,7 @@ void SessionService::BuildCommandsForTab(const SessionID& window_id,
     DCHECK(entry);
     if (ShouldTrackEntry(entry->GetVirtualURL())) {
       const SerializedNavigationEntry navigation =
-          SerializedNavigationEntry::FromNavigationEntry(i, *entry);
+          ContentSerializedNavigationBuilder::FromNavigationEntry(i, *entry);
       commands->push_back(
           CreateUpdateTabNavigationCommand(
               kCommandUpdateTabNavigation, session_id.id(), navigation));

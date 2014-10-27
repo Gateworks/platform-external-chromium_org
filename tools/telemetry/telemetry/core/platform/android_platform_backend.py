@@ -68,8 +68,6 @@ class AndroidPlatformBackend(
         power_controller, self._device)
     self._video_recorder = None
     self._installed_applications = None
-    if self._enable_performance_mode:
-      logging.warning('CPU governor will not be set!')
 
   @classmethod
   def SupportsDevice(cls, device):
@@ -109,6 +107,7 @@ class AndroidPlatformBackend(
 
   def SetFullPerformanceModeEnabled(self, enabled):
     if not self._enable_performance_mode:
+      logging.warning('CPU governor will not be set!')
       return
     if enabled:
       self._perf_tests_setup.SetHighPerfMode()
@@ -184,6 +183,10 @@ class AndroidPlatformBackend(
     if not ps:
       raise exceptions.ProcessGoneException()
     return ps[0][1]
+
+  @decorators.Cache
+  def GetArchName(self):
+    return self._device.GetABI()
 
   def GetOSName(self):
     return 'android'

@@ -39,6 +39,7 @@
 #include "components/signin/core/browser/signin_error_controller.h"
 #include "components/signin/core/browser/signin_manager.h"
 #include "components/signin/core/common/profile_management_switches.h"
+#include "content/public/browser/render_widget_host_view.h"
 #include "grit/theme_resources.h"
 #include "third_party/skia/include/core/SkColor.h"
 #include "ui/base/l10n/l10n_util.h"
@@ -152,10 +153,9 @@ class BackgroundColorHoverButton : public views::LabelButton {
 
  private:
   // views::LabelButton:
-  virtual void OnPaint(gfx::Canvas* canvas) OVERRIDE {
+  virtual void OnPaint(gfx::Canvas* canvas) override {
     if ((state() == STATE_PRESSED) ||
-        (state() == STATE_HOVERED) ||
-        HasFocus()) {
+        (state() == STATE_HOVERED)) {
       canvas->DrawColor(GetNativeTheme()->GetSystemColor(
           ui::NativeTheme::kColorId_ButtonHoverBackgroundColor));
     }
@@ -173,7 +173,7 @@ class SizedContainer : public views::View {
   explicit SizedContainer(const gfx::Size& preferred_size)
       : preferred_size_(preferred_size) {}
 
-  virtual gfx::Size GetPreferredSize() const OVERRIDE {
+  virtual gfx::Size GetPreferredSize() const override {
     return preferred_size_;
   }
 
@@ -194,7 +194,7 @@ class RightAlignedIconLabelButton : public views::LabelButton {
   }
 
  protected:
-  virtual void Layout() OVERRIDE {
+  virtual void Layout() override {
     // This layout trick keeps the text left-aligned and the icon right-aligned.
     SetHorizontalAlignment(gfx::ALIGN_RIGHT);
     views::LabelButton::Layout();
@@ -232,7 +232,6 @@ class EditableProfilePhoto : public views::LabelButton {
       return;
     }
 
-    SetFocusable(true);
     set_notify_enter_exit_on_child(true);
 
     // Photo overlay that appears when hovering over the button.
@@ -249,14 +248,14 @@ class EditableProfilePhoto : public views::LabelButton {
     AddChildView(photo_overlay_);
   }
 
-  virtual void OnPaint(gfx::Canvas* canvas) OVERRIDE {
+  virtual void OnPaint(gfx::Canvas* canvas) override {
     // Display the profile picture as a circle.
     canvas->ClipPath(circular_mask_, true);
     views::LabelButton::OnPaint(canvas);
   }
 
   virtual void PaintChildren(gfx::Canvas* canvas,
-                             const views::CullSet& cull_set) OVERRIDE {
+                             const views::CullSet& cull_set) override {
     // Display any children (the "change photo" overlay) as a circle.
     canvas->ClipPath(circular_mask_, true);
     View::PaintChildren(canvas, cull_set);
@@ -264,20 +263,20 @@ class EditableProfilePhoto : public views::LabelButton {
 
  private:
   // views::CustomButton:
-  virtual void StateChanged() OVERRIDE {
+  virtual void StateChanged() override {
     bool show_overlay =
         (state() == STATE_PRESSED || state() == STATE_HOVERED || HasFocus());
     if (photo_overlay_)
       photo_overlay_->SetVisible(show_overlay);
   }
 
-  virtual void OnFocus() OVERRIDE {
+  virtual void OnFocus() override {
     views::LabelButton::OnFocus();
     if (photo_overlay_)
       photo_overlay_->SetVisible(true);
   }
 
-  virtual void OnBlur() OVERRIDE {
+  virtual void OnBlur() override {
     views::LabelButton::OnBlur();
     // Don't hide the overlay if it's being shown as a result of a mouseover.
     if (photo_overlay_ && state() != STATE_HOVERED)
@@ -315,7 +314,6 @@ class EditableProfileName : public RightAlignedIconLabelButton,
       return;
     }
 
-    SetFocusable(true);
     // Show an "edit" pencil icon when hovering over. In the default state,
     // we need to create an empty placeholder of the correct size, so that
     // the text doesn't jump around when the hovered icon appears.
@@ -355,7 +353,7 @@ class EditableProfileName : public RightAlignedIconLabelButton,
  private:
   // views::ButtonListener:
   virtual void ButtonPressed(views::Button* sender,
-                            const ui::Event& event) OVERRIDE {
+                            const ui::Event& event) override {
     if (profile_name_textfield_) {
       profile_name_textfield_->SetVisible(true);
       profile_name_textfield_->SetText(GetText());
@@ -365,25 +363,25 @@ class EditableProfileName : public RightAlignedIconLabelButton,
   }
 
   // views::LabelButton:
-  virtual bool OnKeyReleased(const ui::KeyEvent& event) OVERRIDE {
+  virtual bool OnKeyReleased(const ui::KeyEvent& event) override {
     // Override CustomButton's implementation, which presses the button when
     // you press space and clicks it when you release space, as the space can be
     // part of the new profile name typed in the textfield.
     return false;
   }
 
-  virtual void Layout() OVERRIDE {
+  virtual void Layout() override {
     if (profile_name_textfield_)
       profile_name_textfield_->SetBounds(0, 0, width(), height());
     RightAlignedIconLabelButton::Layout();
   }
 
-  virtual void OnFocus() OVERRIDE {
+  virtual void OnFocus() override {
     RightAlignedIconLabelButton::OnFocus();
     SetState(STATE_HOVERED);
   }
 
-  virtual void OnBlur() OVERRIDE {
+  virtual void OnBlur() override {
     RightAlignedIconLabelButton::OnBlur();
     SetState(STATE_NORMAL);
   }
@@ -458,7 +456,7 @@ class TitleCard : public views::View {
   }
 
  private:
-  virtual void Layout() OVERRIDE {
+  virtual void Layout() override {
     int back_button_width = back_button_->GetPreferredSize().width();
     back_button_->SetBounds(0, 0, back_button_width, height());
     int label_padding = back_button_width + views::kButtonHEdgeMarginNew;
@@ -467,7 +465,7 @@ class TitleCard : public views::View {
     title_label_->SetBounds(label_padding, 0, label_width, height());
   }
 
-  virtual gfx::Size GetPreferredSize() const OVERRIDE {
+  virtual gfx::Size GetPreferredSize() const override {
     int height = std::max(title_label_->GetPreferredSize().height(),
         back_button_->GetPreferredSize().height());
     return gfx::Size(width(), height);
@@ -714,12 +712,6 @@ bool ProfileChooserView::AcceleratorPressed(
 
 void ProfileChooserView::ButtonPressed(views::Button* sender,
                                        const ui::Event& event) {
-  // Disable button after clicking so that it doesn't get clicked twice and
-  // start a second action... which can crash Chrome.  But don't disable if it
-  // has no parent (like in tests) because that will also crash.
-  if (sender->parent())
-    sender->SetEnabled(false);
-
   if (sender == users_button_) {
     // If this is a guest session, close all the guest browser windows.
     if (browser_->profile()->IsGuestSession()) {
@@ -908,7 +900,7 @@ views::View* ProfileChooserView::CreateProfileChooserView(
     const AvatarMenu::Item& item = avatar_menu->GetItemAt(i);
     if (item.active) {
       option_buttons_view = CreateOptionsView(
-          switches::IsNewProfileManagement() && item.signed_in);
+          item.signed_in && profiles::IsLockAvailable(browser_->profile()));
       current_profile_view = CreateCurrentProfileView(item, false);
       if (view_mode_ == profiles::BUBBLE_VIEW_MODE_PROFILE_CHOOSER) {
         switch (tutorial_mode_) {
@@ -1455,7 +1447,10 @@ views::View* ProfileChooserView::CreateGaiaSigninView() {
   web_view->LoadInitialURL(url);
   web_view->SetPreferredSize(
       gfx::Size(kFixedGaiaViewWidth, kFixedGaiaViewHeight));
-
+  content::RenderWidgetHostView* rwhv =
+      web_view->GetWebContents()->GetRenderWidgetHostView();
+  if (rwhv)
+    rwhv->SetBackgroundColor(profiles::kAvatarBubbleGaiaBackgroundColor);
   TitleCard* title_card = new TitleCard(l10n_util::GetStringUTF16(message_id),
                                         this,
                                         &gaia_signin_cancel_button_);

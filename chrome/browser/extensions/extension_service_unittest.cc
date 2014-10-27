@@ -60,8 +60,6 @@
 #include "chrome/browser/extensions/unpacked_installer.h"
 #include "chrome/browser/extensions/updater/extension_updater.h"
 #include "chrome/browser/prefs/pref_service_syncable.h"
-#include "chrome/browser/supervised_user/supervised_user_service.h"
-#include "chrome/browser/supervised_user/supervised_user_service_factory.h"
 #include "chrome/browser/sync/profile_sync_service.h"
 #include "chrome/browser/sync/profile_sync_service_factory.h"
 #include "chrome/common/chrome_constants.h"
@@ -69,7 +67,6 @@
 #include "chrome/common/extensions/api/plugins/plugins_handler.h"
 #include "chrome/common/extensions/manifest_handlers/app_launch_info.h"
 #include "chrome/common/extensions/manifest_handlers/content_scripts_handler.h"
-#include "chrome/common/extensions/manifest_url_handler.h"
 #include "chrome/common/pref_names.h"
 #include "chrome/common/url_constants.h"
 #include "chrome/test/base/scoped_browser_locale.h"
@@ -102,6 +99,7 @@
 #include "extensions/common/feature_switch.h"
 #include "extensions/common/manifest_constants.h"
 #include "extensions/common/manifest_handlers/background_info.h"
+#include "extensions/common/manifest_url_handlers.h"
 #include "extensions/common/permissions/permission_set.h"
 #include "extensions/common/permissions/permissions_data.h"
 #include "extensions/common/switches.h"
@@ -129,6 +127,11 @@
 #include "testing/gtest/include/gtest/gtest.h"
 #include "testing/platform_test.h"
 #include "url/gurl.h"
+
+#if defined(ENABLE_MANAGED_USERS)
+#include "chrome/browser/supervised_user/supervised_user_service.h"
+#include "chrome/browser/supervised_user/supervised_user_service_factory.h"
+#endif
 
 #if defined(OS_CHROMEOS)
 #include "chrome/browser/chromeos/login/users/scoped_test_user_manager.h"
@@ -239,7 +242,7 @@ class MockExtensionProvider : public extensions::ExternalProviderInterface {
     : location_(location), visitor_(visitor), visit_count_(0) {
   }
 
-  virtual ~MockExtensionProvider() {}
+  ~MockExtensionProvider() override {}
 
   void UpdateOrAddExtension(const std::string& id,
                             const std::string& version,
@@ -252,7 +255,7 @@ class MockExtensionProvider : public extensions::ExternalProviderInterface {
   }
 
   // ExternalProvider implementation:
-  virtual void VisitRegisteredExtension() OVERRIDE {
+  void VisitRegisteredExtension() override {
     visit_count_++;
     for (DataMap::const_iterator i = extension_map_.begin();
          i != extension_map_.end(); ++i) {
@@ -265,14 +268,13 @@ class MockExtensionProvider : public extensions::ExternalProviderInterface {
     visitor_->OnExternalProviderReady(this);
   }
 
-  virtual bool HasExtension(const std::string& id) const OVERRIDE {
+  bool HasExtension(const std::string& id) const override {
     return extension_map_.find(id) != extension_map_.end();
   }
 
-  virtual bool GetExtensionDetails(
-      const std::string& id,
-      Manifest::Location* location,
-      scoped_ptr<Version>* version) const OVERRIDE {
+  bool GetExtensionDetails(const std::string& id,
+                           Manifest::Location* location,
+                           scoped_ptr<Version>* version) const override {
     DataMap::const_iterator it = extension_map_.find(id);
     if (it == extension_map_.end())
       return false;
@@ -286,12 +288,9 @@ class MockExtensionProvider : public extensions::ExternalProviderInterface {
     return true;
   }
 
-  virtual bool IsReady() const OVERRIDE {
-    return true;
-  }
+  bool IsReady() const override { return true; }
 
-  virtual void ServiceShutdown() OVERRIDE {
-  }
+  void ServiceShutdown() override {}
 
   int visit_count() const { return visit_count_; }
   void set_visit_count(int visit_count) {
@@ -366,12 +365,12 @@ class MockProviderVisitor
     return ids_found_;
   }
 
-  virtual bool OnExternalExtensionFileFound(const std::string& id,
-                                            const Version* version,
-                                            const base::FilePath& path,
-                                            Manifest::Location unused,
-                                            int creation_flags,
-                                            bool mark_acknowledged) OVERRIDE {
+  bool OnExternalExtensionFileFound(const std::string& id,
+                                    const Version* version,
+                                    const base::FilePath& path,
+                                    Manifest::Location unused,
+                                    int creation_flags,
+                                    bool mark_acknowledged) override {
     EXPECT_EQ(expected_creation_flags_, creation_flags);
 
     ++ids_found_;
@@ -409,13 +408,12 @@ class MockProviderVisitor
     return true;
   }
 
-  virtual bool OnExternalExtensionUpdateUrlFound(
-      const std::string& id,
-      const std::string& install_parameter,
-      const GURL& update_url,
-      Manifest::Location location,
-      int creation_flags,
-      bool mark_acknowledged) OVERRIDE {
+  bool OnExternalExtensionUpdateUrlFound(const std::string& id,
+                                         const std::string& install_parameter,
+                                         const GURL& update_url,
+                                         Manifest::Location location,
+                                         int creation_flags,
+                                         bool mark_acknowledged) override {
     ++ids_found_;
     base::DictionaryValue* pref;
     // This tests is to make sure that the provider only notifies us of the
@@ -445,8 +443,8 @@ class MockProviderVisitor
     return true;
   }
 
-  virtual void OnExternalProviderReady(
-      const extensions::ExternalProviderInterface* provider) OVERRIDE {
+  void OnExternalProviderReady(
+      const extensions::ExternalProviderInterface* provider) override {
     EXPECT_EQ(provider, provider_.get());
     EXPECT_TRUE(provider->IsReady());
   }
@@ -485,9 +483,9 @@ class ExtensionServiceTest : public extensions::ExtensionServiceTestBase,
         content::NotificationService::AllSources());
   }
 
-  virtual void Observe(int type,
-                       const content::NotificationSource& source,
-                       const content::NotificationDetails& details) OVERRIDE {
+  void Observe(int type,
+               const content::NotificationSource& source,
+               const content::NotificationDetails& details) override {
     switch (type) {
       case extensions::NOTIFICATION_EXTENSION_LOADED_DEPRECATED: {
         const Extension* extension =
@@ -1151,10 +1149,10 @@ class PackExtensionTestClient : public extensions::PackExtensionJob::Client {
  public:
   PackExtensionTestClient(const base::FilePath& expected_crx_path,
                           const base::FilePath& expected_private_key_path);
-  virtual void OnPackSuccess(const base::FilePath& crx_path,
-                             const base::FilePath& private_key_path) OVERRIDE;
-  virtual void OnPackFailure(const std::string& error_message,
-                             ExtensionCreator::ErrorType type) OVERRIDE;
+  void OnPackSuccess(const base::FilePath& crx_path,
+                     const base::FilePath& private_key_path) override;
+  void OnPackFailure(const std::string& error_message,
+                     ExtensionCreator::ErrorType type) override;
 
  private:
   const base::FilePath expected_crx_path_;
@@ -1458,19 +1456,17 @@ TEST_F(ExtensionServiceTest, InstallExtension) {
 
 struct MockExtensionRegistryObserver
     : public extensions::ExtensionRegistryObserver {
-  virtual void OnExtensionWillBeInstalled(
-      content::BrowserContext* browser_context,
-      const Extension* extension,
-      bool is_update,
-      bool from_ephemeral,
-      const std::string& old_name) OVERRIDE {
+  void OnExtensionWillBeInstalled(content::BrowserContext* browser_context,
+                                  const Extension* extension,
+                                  bool is_update,
+                                  bool from_ephemeral,
+                                  const std::string& old_name) override {
     last_extension_installed = extension->id();
   }
 
-  virtual void OnExtensionUninstalled(
-      content::BrowserContext* browser_context,
-      const Extension* extension,
-      extensions::UninstallReason reason) OVERRIDE {
+  void OnExtensionUninstalled(content::BrowserContext* browser_context,
+                              const Extension* extension,
+                              extensions::UninstallReason reason) override {
     last_extension_uninstalled = extension->id();
   }
 
@@ -2913,7 +2909,6 @@ TEST_F(ExtensionServiceTest, AddPendingExtensionFromSync) {
 
   const std::string kFakeId(all_zero);
   const GURL kFakeUpdateURL("http:://fake.update/url");
-  const bool kFakeInstallSilently(true);
   const bool kFakeRemoteInstall(false);
   const bool kFakeInstalledByCustodian(false);
 
@@ -2922,7 +2917,6 @@ TEST_F(ExtensionServiceTest, AddPendingExtensionFromSync) {
           kFakeId,
           kFakeUpdateURL,
           &IsExtension,
-          kFakeInstallSilently,
           kFakeRemoteInstall,
           kFakeInstalledByCustodian));
 
@@ -2931,7 +2925,6 @@ TEST_F(ExtensionServiceTest, AddPendingExtensionFromSync) {
                    service()->pending_extension_manager()->GetById(kFakeId)));
   EXPECT_EQ(kFakeUpdateURL, pending_extension_info->update_url());
   EXPECT_EQ(&IsExtension, pending_extension_info->should_allow_install_);
-  EXPECT_EQ(kFakeInstallSilently, pending_extension_info->install_silently());
   // Use
   // EXPECT_TRUE(kFakeRemoteInstall == pending_extension_info->remote_install())
   // instead of
@@ -2948,7 +2941,6 @@ namespace {
 const char kGoodId[] = "ldnnhddmnhbkjipkidpdiheffobcpfmf";
 const char kGoodUpdateURL[] = "http://good.update/url";
 const bool kGoodIsFromSync = true;
-const bool kGoodInstallSilently = true;
 const bool kGoodRemoteInstall = false;
 const bool kGoodInstalledByCustodian = false;
 }  // namespace
@@ -2961,7 +2953,6 @@ TEST_F(ExtensionServiceTest, UpdatePendingExtension) {
           kGoodId,
           GURL(kGoodUpdateURL),
           &IsExtension,
-          kGoodInstallSilently,
           kGoodRemoteInstall,
           kGoodInstalledByCustodian));
   EXPECT_TRUE(service()->pending_extension_manager()->IsIdPending(kGoodId));
@@ -2988,7 +2979,7 @@ bool IsTheme(const Extension* extension) {
 TEST_F(ExtensionServiceTest, DISABLED_UpdatePendingTheme) {
   InitializeEmptyExtensionService();
   EXPECT_TRUE(service()->pending_extension_manager()->AddFromSync(
-      theme_crx, GURL(), &IsTheme, false, false, false));
+      theme_crx, GURL(), &IsTheme, false, false));
   EXPECT_TRUE(service()->pending_extension_manager()->IsIdPending(theme_crx));
 
   base::FilePath path = data_dir().AppendASCII("theme.crx");
@@ -3052,7 +3043,6 @@ TEST_F(ExtensionServiceTest, UpdatePendingExternalCrxWinsOverSync) {
           kGoodId,
           GURL(kGoodUpdateURL),
           &IsExtension,
-          kGoodInstallSilently,
           kGoodRemoteInstall,
           kGoodInstalledByCustodian));
 
@@ -3084,7 +3074,6 @@ TEST_F(ExtensionServiceTest, UpdatePendingExternalCrxWinsOverSync) {
           kGoodId,
           GURL(kGoodUpdateURL),
           &IsExtension,
-          kGoodInstallSilently,
           kGoodRemoteInstall,
           kGoodInstalledByCustodian));
 
@@ -3101,7 +3090,7 @@ TEST_F(ExtensionServiceTest, UpdatePendingExternalCrxWinsOverSync) {
 TEST_F(ExtensionServiceTest, UpdatePendingCrxThemeMismatch) {
   InitializeEmptyExtensionService();
   EXPECT_TRUE(service()->pending_extension_manager()->AddFromSync(
-      theme_crx, GURL(), &IsExtension, true, false, false));
+      theme_crx, GURL(), &IsExtension, false, false));
 
   EXPECT_TRUE(service()->pending_extension_manager()->IsIdPending(theme_crx));
 
@@ -3127,7 +3116,6 @@ TEST_F(ExtensionServiceTest, UpdatePendingExtensionFailedShouldInstallTest) {
           kGoodId,
           GURL(kGoodUpdateURL),
           &IsTheme,
-          kGoodInstallSilently,
           kGoodRemoteInstall,
           kGoodInstalledByCustodian));
   EXPECT_TRUE(service()->pending_extension_manager()->IsIdPending(kGoodId));
@@ -3173,7 +3161,6 @@ TEST_F(ExtensionServiceTest, UpdatePendingExtensionAlreadyInstalled) {
       Version(),
       &IsExtension,
       kGoodIsFromSync,
-      kGoodInstallSilently,
       Manifest::INTERNAL,
       Extension::NO_FLAGS,
       false,
@@ -5129,9 +5116,9 @@ class ExtensionsReadyRecorder : public content::NotificationObserver {
   bool ready() { return ready_; }
 
  private:
-  virtual void Observe(int type,
-                       const content::NotificationSource& source,
-                       const content::NotificationDetails& details) OVERRIDE {
+  void Observe(int type,
+               const content::NotificationSource& source,
+               const content::NotificationDetails& details) override {
     switch (type) {
       case extensions::NOTIFICATION_EXTENSIONS_READY_DEPRECATED:
         ready_ = true;
@@ -6106,11 +6093,11 @@ TEST_F(ExtensionServiceTest, ProcessSyncDataNotInstalled) {
       (info = service()->pending_extension_manager()->GetById(good_crx)));
   EXPECT_EQ(ext_specifics->update_url(), info->update_url().spec());
   EXPECT_TRUE(info->is_from_sync());
-  EXPECT_TRUE(info->install_silently());
   EXPECT_EQ(Manifest::INTERNAL, info->install_source());
   // TODO(akalin): Figure out a way to test |info.ShouldAllowInstall()|.
 }
 
+#if defined(ENABLE_MANAGED_USERS)
 TEST_F(ExtensionServiceTest, SupervisedUser_InstallOnlyAllowedByCustodian) {
   ExtensionServiceInitParams params = CreateDefaultInitParams();
   params.profile_is_supervised = true;
@@ -6265,6 +6252,7 @@ TEST_F(ExtensionServiceTest,
   EXPECT_FALSE(
       registry()->GenerateInstalledExtensionsSet()->Contains(extension_ids[1]));
 }
+#endif // defined(ENABLE_MANAGED_USERS)
 
 TEST_F(ExtensionServiceTest, InstallPriorityExternalUpdateUrl) {
   InitializeEmptyExtensionService();
@@ -6670,7 +6658,6 @@ class ExtensionSourcePriorityTest : public ExtensionServiceTest {
         crx_id_,
         GURL(kGoodUpdateURL),
         &IsExtension,
-        kGoodInstallSilently,
         kGoodRemoteInstall,
         kGoodInstalledByCustodian);
   }

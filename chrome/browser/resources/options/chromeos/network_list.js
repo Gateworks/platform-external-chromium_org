@@ -75,7 +75,7 @@ cr.define('options.network', function() {
 
   /**
    * Indicates the current SIM lock type of the cellular device.
-   * @type {boolean}
+   * @type {string}
    * @private
    */
   var cellularSimLockType_ = '';
@@ -511,7 +511,14 @@ cr.define('options.network', function() {
           };
         }
         addendum.push(entry);
+      } else if (this.data_.key == 'VPN') {
+        addendum.push({
+          label: loadTimeData.getString('joinOtherNetwork'),
+          command: createAddConnectionCallback_('VPN'),
+          data: {}
+        });
       }
+
       var list = this.data.rememberedNetworks;
       if (list && list.length > 0) {
         var callback = function(list) {
@@ -531,23 +538,28 @@ cr.define('options.network', function() {
       list = this.data.networkList;
       var empty = !list || list.length == 0;
       if (list) {
+        var connectedVpnServicePath = '';
         for (var i = 0; i < list.length; i++) {
           var data = list[i];
           this.createNetworkOptionsCallback_(networkGroup, data);
-          if (data.ConnectionState == 'Connected') {
-            if (data.Type == 'VPN') {
-              var disconnectCallback = function() {
-                sendChromeMetricsAction('Options_NetworkDisconnectVPN');
-                // TODO(stevenjb): chrome.networkingPrivate.startDisconnect
-                chrome.send('startDisconnect', [data.servicePath]);
-              };
-              // Add separator
-              addendum.push({});
-              addendum.push({label: loadTimeData.getString('disconnectNetwork'),
-                             command: disconnectCallback,
-                             data: data});
-            }
+          // For VPN only, append a 'Disconnect' item to the dropdown menu.
+          if (!connectedVpnServicePath && data.Type == 'VPN' &&
+              (data.ConnectionState == 'Connected' ||
+               data.ConnectionState == 'Connecting')) {
+            connectedVpnServicePath = data.servicePath;
           }
+        }
+        if (connectedVpnServicePath) {
+          var disconnectCallback = function() {
+            sendChromeMetricsAction('Options_NetworkDisconnectVPN');
+            // TODO(stevenjb): chrome.networkingPrivate.startDisconnect
+            chrome.send('startDisconnect', [connectedVpnServicePath]);
+          };
+          // Add separator
+          addendum.push({});
+          addendum.push({label: loadTimeData.getString('disconnectNetwork'),
+                         command: disconnectCallback,
+                         data: data});
         }
       }
       if (this.data_.key == 'WiFi' || this.data_.key == 'WiMAX' ||
@@ -949,7 +961,7 @@ cr.define('options.network', function() {
                 entry));
       if (entry.menu)
         return new NetworkMenuItem(entry);
-      return undefined;
+      assertNotReached();
     },
 
     /**
@@ -989,12 +1001,20 @@ cr.define('options.network', function() {
 
   /**
    * Chrome callback for updating network controls.
-   * @param {{wiredList: Array.<NetworkInfo>, wirelessList: Array.<NetworkInfo>,
-   *     vpnList: Array.<NetworkInfo>, rememberedList: Array.<NetworkInfo>,
-   *     wifiAvailable: boolean, wifiEnabled: boolean, wimaxAvailable: boolean,
-   *     wimaxEnabled: boolean, cellularAvailable: boolean,
-   *     cellularEnabled: boolean, cellularSupportsScan: boolean}} data
-   *     Description of available network devices and their corresponding state.
+   * @param {{cellularAvailable: boolean,
+   *          cellularEnabled: boolean,
+   *          cellularSimAbsent: boolean,
+   *          cellularSimLockType: string,
+   *          cellularSupportsScan: boolean,
+   *          rememberedList: Array.<NetworkInfo>,
+   *          vpnList: Array.<NetworkInfo>,
+   *          wifiAvailable: boolean,
+   *          wifiEnabled: boolean,
+   *          wimaxAvailable: boolean,
+   *          wimaxEnabled: boolean,
+   *          wiredList: Array.<NetworkInfo>,
+   *          wirelessList: Array.<NetworkInfo>}} data Description of available
+   *     network devices and their corresponding state.
    */
   NetworkList.refreshNetworkData = function(data) {
     var networkList = $('network-list');

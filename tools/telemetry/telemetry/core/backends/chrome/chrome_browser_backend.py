@@ -19,7 +19,6 @@ from telemetry.core import user_agent
 from telemetry.core import util
 from telemetry.core import web_contents
 from telemetry.core import wpr_modes
-from telemetry.core import wpr_server
 from telemetry.core.backends import browser_backend
 from telemetry.core.backends.chrome import extension_backend
 from telemetry.core.backends.chrome import system_info_backend
@@ -67,12 +66,6 @@ class ChromeBrowserBackend(browser_backend.BrowserBackend):
                        'such as about:flags settings, cookies, and '
                        'extensions.\n')
 
-  def AddReplayServerOptions(self, extra_wpr_args):
-    if self.browser_options.netsim:
-      extra_wpr_args.append('--net=%s' % self.browser_options.netsim)
-    else:
-      extra_wpr_args.append('--no-dns_forwarding')
-
   @property
   @decorators.Cache
   def extension_backend(self):
@@ -102,12 +95,7 @@ class ChromeBrowserBackend(browser_backend.BrowserBackend):
 
     if self.browser_options.disable_background_networking:
       args.append('--disable-background-networking')
-
-    if self.browser_options.netsim:
-      args.append('--ignore-certificate-errors')
-    elif self.browser_options.wpr_mode != wpr_modes.WPR_OFF:
-      args.extend(wpr_server.GetChromeFlags(self.forwarder_factory.host_ip,
-                                            self.wpr_port_pairs))
+    args.extend(self.GetReplayBrowserStartupArgs())
     args.extend(user_agent.GetChromeUserAgentArgumentFromType(
         self.browser_options.browser_user_agent_type))
 
@@ -132,6 +120,50 @@ class ChromeBrowserBackend(browser_backend.BrowserBackend):
       args.append('--disable-component-extensions-with-background-pages')
 
     return args
+
+  @property
+  def _use_host_resolver_rules(self):
+    """Returns True if need --host-resolver-rules to send requests to replay."""
+    if self.browser_options.netsim:
+      # Avoid --host-resolver-rules with netsim because it causes Chrome to
+      # skip DNS requests. With netsim, we want to exercise DNS requests.
+      return False
+    if self.forwarder_factory.does_forwarder_override_dns:
+      # Avoid --host-resolver-rules when the forwarder can map DNS requests
+      # from devices to the replay DNS port on the host running Telemetry.
+      # This allows the browser to exercise DNS requests.
+      return False
+    return True
+
+  def GetReplayBrowserStartupArgs(self):
+    if self.browser_options.wpr_mode == wpr_modes.WPR_OFF:
+      return []
+    # Use Chrome's --host-resolver-rules flag if the forwarder does not send
+    # the HTTP requests directly to Replay. Also use --host-resolver-rules
+    # without netsim. With netsim, DNS requests should be sent (to get the
+    # simulated latency), however, the flag causes DNS requests to be skipped.
+    http_remote_port = self.wpr_port_pairs.http.remote_port
+    https_remote_port = self.wpr_port_pairs.https.remote_port
+    replay_args = []
+    if not self.wpr_ca_cert_path:
+      # Ignore certificate errors if the browser backend has not created
+      # and installed a root certificate. When |self.wpr_ca_cert_path| is
+      # set, Web Page Replay uses it to sign HTTPS responses.
+      replay_args.append('--ignore-certificate-errors')
+    if self._use_host_resolver_rules:
+      replay_args.append('--host-resolver-rules=MAP * %s,EXCLUDE localhost' %
+                         self.forwarder_factory.host_ip)  # replay's host_ip
+    # Force the browser to send HTTP/HTTPS requests to fixed ports if they
+    # are not the standard defaults.
+    # Backstory:
+    #     That allows Telemetry to pick ports that do not require sudo
+    #     and leaves room for multiple instances running simultaneously.
+    #     The default ports are required for network simulation.
+    if http_remote_port != 80:
+      replay_args.append('--testing-fixed-http-port=%s' % http_remote_port)
+    if https_remote_port != 443:  # check if using the default HTTPS port
+      replay_args.append('--testing-fixed-https-port=%s' % https_remote_port)
+    return replay_args
 
   def HasBrowserFinishedLaunching(self):
     try:

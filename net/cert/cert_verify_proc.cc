@@ -262,6 +262,9 @@ int CertVerifyProc::Verify(X509Certificate* cert,
       rv = MapCertStatusToNetError(verify_result->cert_status);
   }
 
+  if (verify_result->has_sha1)
+    verify_result->cert_status |= CERT_STATUS_SHA1_SIGNATURE_PRESENT;
+
   // Flag certificates from publicly-trusted CAs that are issued to intranet
   // hosts. While the CA/Browser Forum Baseline Requirements (v1.1) permit
   // these to be issued until 1 November 2015, they represent a real risk for
@@ -413,10 +416,6 @@ bool CertVerifyProc::IsPublicKeyBlacklisted(
     // Win32/Sirefef.gen!C generates fake certificates with this public key.
     {0xa4, 0xf5, 0x6e, 0x9e, 0x1d, 0x9a, 0x3b, 0x7b, 0x1a, 0xc3,
      0x31, 0xcf, 0x64, 0xfc, 0x76, 0x2c, 0xd0, 0x51, 0xfb, 0xa4},
-    // ANSSI certificate under which a MITM proxy was mistakenly operated.
-    // Expires: Jul 18 10:05:28 2014 GMT
-    {0x3e, 0xcf, 0x4b, 0xbb, 0xe4, 0x60, 0x96, 0xd5, 0x14, 0xbb,
-     0x53, 0x9b, 0xb9, 0x13, 0xd7, 0x7a, 0xa4, 0xef, 0x31, 0xbf},
     // Three retired intermediate certificates from Symantec. No compromise;
     // just for robustness. All expire May 17 23:59:59 2018.
     // See https://bugzilla.mozilla.org/show_bug.cgi?id=966060
@@ -441,6 +440,13 @@ bool CertVerifyProc::IsPublicKeyBlacklisted(
     // Expires: March 5th, 2024.
     {0xe5, 0x8e, 0x31, 0x5b, 0xaa, 0xee, 0xaa, 0xc6, 0xe7, 0x2e,
      0xc9, 0x57, 0x36, 0x70, 0xca, 0x2f, 0x25, 0x4e, 0xc3, 0x47},
+    // C=DE, O=Fraunhofer, OU=Fraunhofer Corporate PKI,
+    // CN=Fraunhofer Service CA 2007.
+    // Expires: Jun 30 2019.
+    // No compromise, just for robustness. See
+    // https://bugzilla.mozilla.org/show_bug.cgi?id=1076940
+    {0x38, 0x4d, 0x0c, 0x1d, 0xc4, 0x77, 0xa7, 0xb3, 0xf8, 0x67,
+     0x86, 0xd0, 0x18, 0x51, 0x9f, 0x58, 0x9f, 0x1e, 0x9e, 0x25},
   };
 
   for (unsigned i = 0; i < kNumHashes; i++) {
@@ -581,8 +587,8 @@ bool CertVerifyProc::HasNameConstraintsViolation(
     // Not a real certificate - just for testing. This is the SPKI hash of
     // the keys used in net/data/ssl/certificates/name_constraint_*.crt.
     {
-      {0x15, 0x45, 0xd7, 0x3b, 0x58, 0x6b, 0x47, 0xcf, 0xc1, 0x44,
-       0xa2, 0xc9, 0xaa, 0xab, 0x98, 0x3d, 0x21, 0xcc, 0x42, 0xde},
+      {0x61, 0xec, 0x82, 0x8b, 0xdb, 0x5c, 0x78, 0x2a, 0x8f, 0xcc,
+       0x4f, 0x0f, 0x14, 0xbb, 0x85, 0x31, 0x93, 0x9f, 0xf7, 0x3d},
       kDomainsTest,
     },
   };

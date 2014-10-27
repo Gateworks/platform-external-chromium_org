@@ -16,6 +16,7 @@
 #include "chrome/browser/extensions/extension_service.h"
 #include "chrome/browser/extensions/extension_service_test_base.h"
 #include "chrome/browser/extensions/updater/extension_cache_fake.h"
+#include "chrome/browser/extensions/updater/extension_updater.h"
 #include "chrome/common/chrome_paths.h"
 #include "chrome/common/chrome_switches.h"
 #include "chrome/common/extensions/extension_constants.h"
@@ -33,13 +34,13 @@
 #include "chrome/browser/chromeos/customization_document.h"
 #include "chrome/browser/chromeos/login/users/fake_user_manager.h"
 #include "chrome/browser/chromeos/login/users/scoped_user_manager_enabler.h"
-#include "chromeos/system/mock_statistics_provider.h"
+#include "chromeos/system/fake_statistics_provider.h"
 #include "chromeos/system/statistics_provider.h"
 #endif
 
-using ::testing::_;
 using ::testing::NotNull;
 using ::testing::Return;
+using ::testing::_;
 
 namespace extensions {
 
@@ -62,6 +63,9 @@ class ExternalProviderImplTest : public ExtensionServiceTestBase {
 #endif
     InitializeExtensionServiceWithUpdater();
 
+    service()->updater()->SetExtensionCacheForTesting(
+        test_extension_cache_.get());
+
     // Don't install default apps. Some of the default apps are downloaded from
     // the webstore, ignoring the url we pass to kAppsGalleryUpdateURL, which
     // would cause the external updates to never finish install.
@@ -79,7 +83,7 @@ class ExternalProviderImplTest : public ExtensionServiceTestBase {
   }
 
   // ExtensionServiceTestBase overrides:
-  virtual void SetUp() OVERRIDE {
+  virtual void SetUp() override {
     ExtensionServiceTestBase::SetUp();
     test_server_.reset(new EmbeddedTestServer());
 
@@ -99,19 +103,10 @@ class ExternalProviderImplTest : public ExtensionServiceTestBase {
     CommandLine* cmdline = CommandLine::ForCurrentProcess();
     cmdline->AppendSwitchASCII(switches::kAppsGalleryUpdateURL,
                                test_server_->GetURL(kManifestPath).spec());
-#if defined(OS_CHROMEOS)
-    chromeos::system::StatisticsProvider::SetTestProvider(
-        &mock_statistics_provider_);
-    EXPECT_CALL(mock_statistics_provider_, GetMachineStatistic(_, NotNull()))
-        .WillRepeatedly(Return(false));
-#endif
   }
 
-  virtual void TearDown() OVERRIDE {
-#if defined(OS_CHROMEOS)
-    chromeos::system::StatisticsProvider::SetTestProvider(NULL);
+  virtual void TearDown() override {
     TestingBrowserProcess::GetGlobal()->SetLocalState(NULL);
-#endif
   }
 
  private:
@@ -131,7 +126,7 @@ class ExternalProviderImplTest : public ExtensionServiceTestBase {
           extension_misc::kInAppPaymentsSupportAppId,
           test_server_->GetURL(kAppPath).spec().c_str()));
       response->set_content_type("text/xml");
-      return response.PassAs<HttpResponse>();
+      return response.Pass();
     }
     if (url.path() == kAppPath) {
       base::FilePath test_data_dir;
@@ -143,16 +138,19 @@ class ExternalProviderImplTest : public ExtensionServiceTestBase {
       scoped_ptr<BasicHttpResponse> response(new BasicHttpResponse);
       response->set_code(net::HTTP_OK);
       response->set_content(contents);
-      return response.PassAs<HttpResponse>();
+      return response.Pass();
     }
 
-    return scoped_ptr<HttpResponse>();
+    return nullptr;
   }
 
   scoped_ptr<EmbeddedTestServer> test_server_;
   scoped_ptr<ExtensionCacheFake> test_extension_cache_;
+
 #if defined(OS_CHROMEOS)
-  chromeos::system::MockStatisticsProvider mock_statistics_provider_;
+  // chromeos::ServicesCustomizationExternalLoader is hooked up as an
+  // extensions::ExternalLoader and depends on a functioning StatisticsProvider.
+  chromeos::system::ScopedFakeStatisticsProvider fake_statistics_provider_;
   TestingPrefServiceSimple local_state_;
 #endif
 

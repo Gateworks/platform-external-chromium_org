@@ -80,16 +80,16 @@ class It2MeHost : public base::RefCountedThreadSafe<It2MeHost>,
   virtual void RequestNatPolicy();
 
   // remoting::HostStatusObserver implementation.
-  virtual void OnAccessDenied(const std::string& jid) OVERRIDE;
-  virtual void OnClientAuthenticated(const std::string& jid) OVERRIDE;
-  virtual void OnClientDisconnected(const std::string& jid) OVERRIDE;
+  void OnAccessDenied(const std::string& jid) override;
+  void OnClientAuthenticated(const std::string& jid) override;
+  void OnClientDisconnected(const std::string& jid) override;
 
   void SetStateForTesting(It2MeHostState state) { SetState(state); }
 
  protected:
   friend class base::RefCountedThreadSafe<It2MeHost>;
 
-  virtual ~It2MeHost();
+  ~It2MeHost() override;
 
   ChromotingHostContext* host_context() { return host_context_; }
   scoped_refptr<base::SingleThreadTaskRunner> task_runner() {

@@ -22,19 +22,23 @@ class ServiceWorkerRegistrationTest : public testing::Test {
   ServiceWorkerRegistrationTest()
       : io_thread_(BrowserThread::IO, &message_loop_) {}
 
-  virtual void SetUp() OVERRIDE {
+  virtual void SetUp() override {
+    scoped_ptr<ServiceWorkerDatabaseTaskManager> database_task_manager(
+        new MockServiceWorkerDatabaseTaskManager(
+            base::ThreadTaskRunnerHandle::Get()));
     context_.reset(
         new ServiceWorkerContextCore(base::FilePath(),
                                      base::ThreadTaskRunnerHandle::Get(),
+                                     database_task_manager.Pass(),
                                      base::ThreadTaskRunnerHandle::Get(),
-                                     base::ThreadTaskRunnerHandle::Get(),
+                                     NULL,
                                      NULL,
                                      NULL,
                                      NULL));
     context_ptr_ = context_->AsWeakPtr();
   }
 
-  virtual void TearDown() OVERRIDE {
+  virtual void TearDown() override {
     context_.reset();
     base::RunLoop().RunUntilIdle();
   }
@@ -47,27 +51,26 @@ class ServiceWorkerRegistrationTest : public testing::Test {
         observed_registration_->RemoveListener(this);
     }
 
-    virtual void OnVersionAttributesChanged(
+    void OnVersionAttributesChanged(
         ServiceWorkerRegistration* registration,
         ChangedVersionAttributesMask changed_mask,
-        const ServiceWorkerRegistrationInfo& info) OVERRIDE {
+        const ServiceWorkerRegistrationInfo& info) override {
       observed_registration_ = registration;
       observed_changed_mask_ = changed_mask;
       observed_info_ = info;
     }
 
-    virtual void OnRegistrationFailed(
-        ServiceWorkerRegistration* registration) OVERRIDE {
+    void OnRegistrationFailed(
+        ServiceWorkerRegistration* registration) override {
       NOTREACHED();
     }
 
-    virtual void OnRegistrationFinishedUninstalling(
-        ServiceWorkerRegistration* registration) OVERRIDE {
+    void OnRegistrationFinishedUninstalling(
+        ServiceWorkerRegistration* registration) override {
       NOTREACHED();
     }
 
-    virtual void OnUpdateFound(
-        ServiceWorkerRegistration* registration) OVERRIDE {
+    void OnUpdateFound(ServiceWorkerRegistration* registration) override {
       NOTREACHED();
     }
 

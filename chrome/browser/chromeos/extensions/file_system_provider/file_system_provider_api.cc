@@ -18,12 +18,64 @@
 #include "chrome/common/extensions/api/file_system_provider.h"
 #include "chrome/common/extensions/api/file_system_provider_internal.h"
 
+using chromeos::file_system_provider::MountOptions;
 using chromeos::file_system_provider::ProvidedFileSystemInfo;
 using chromeos::file_system_provider::ProvidedFileSystemInterface;
+using chromeos::file_system_provider::ProvidedFileSystemObserver;
 using chromeos::file_system_provider::RequestValue;
 using chromeos::file_system_provider::Service;
 
 namespace extensions {
+namespace {
+
+typedef std::vector<linked_ptr<api::file_system_provider::ChildChange>>
+    IDLChildChanges;
+
+const char kNotifyFailedErrorMessage[] =
+    "Sending a response for the request failed.";
+const char kInvalidNotificationErrorMessage[] = "The notification is invalid.";
+
+// Converts the change type from the IDL type to a native type. |changed_type|
+// must be specified (not CHANGE_TYPE_NONE).
+ProvidedFileSystemObserver::ChangeType ParseChangeType(
+    const api::file_system_provider::ChangeType& change_type) {
+  switch (change_type) {
+    case api::file_system_provider::CHANGE_TYPE_CHANGED:
+      return ProvidedFileSystemObserver::CHANGED;
+    case api::file_system_provider::CHANGE_TYPE_DELETED:
+      return ProvidedFileSystemObserver::DELETED;
+    default:
+      break;
+  }
+  NOTREACHED();
+  return ProvidedFileSystemObserver::CHANGED;
+}
+
+// Convert the child change from the IDL type to a native type. The reason IDL
+// types are not used is since they are imperfect, eg. paths are stored as
+// strings.
+ProvidedFileSystemObserver::ChildChange ParseChildChange(
+    const api::file_system_provider::ChildChange& child_change) {
+  ProvidedFileSystemObserver::ChildChange result;
+  result.entry_path = base::FilePath::FromUTF8Unsafe(child_change.entry_path);
+  result.change_type = ParseChangeType(child_change.change_type);
+  return result;
+}
+
+// Converts a list of child changes from the IDL type to a native type.
+scoped_ptr<ProvidedFileSystemObserver::ChildChanges> ParseChildChanges(
+    const IDLChildChanges& child_changes) {
+  scoped_ptr<ProvidedFileSystemObserver::ChildChanges> results(
+      new ProvidedFileSystemObserver::ChildChanges);
+  for (IDLChildChanges::const_iterator it = child_changes.begin();
+       it != child_changes.end();
+       ++it) {
+    results->push_back(ParseChildChange(*it->get()));
+  }
+  return results;
+}
+
+}  // namespace
 
 bool FileSystemProviderMountFunction::RunSync() {
   using api::file_system_provider::Mount::Params;
@@ -52,11 +104,14 @@ bool FileSystemProviderMountFunction::RunSync() {
   if (!service)
     return false;
 
+  MountOptions options;
+  options.file_system_id = params->options.file_system_id;
+  options.display_name = params->options.display_name;
+  options.writable = params->options.writable;
+  options.supports_notify_tag = params->options.supports_notify_tag;
+
   // TODO(mtomasz): Pass more detailed errors, rather than just a bool.
-  if (!service->MountFileSystem(extension_id(),
-                                params->options.file_system_id,
-                                params->options.display_name,
-                                params->options.writable)) {
+  if (!service->MountFileSystem(extension_id(), options)) {
     base::ListValue* const result = new base::ListValue();
     result->Append(CreateError(kSecurityErrorName, kMountFailedErrorMessage));
     SetResult(result);
@@ -105,14 +160,55 @@ bool FileSystemProviderGetAllFunction::RunSync() {
   std::vector<linked_ptr<FileSystemInfo> > items;
 
   for (size_t i = 0; i < file_systems.size(); ++i) {
-    linked_ptr<FileSystemInfo> item(new FileSystemInfo);
-    item->file_system_id = file_systems[i].file_system_id();
-    item->display_name = file_systems[i].display_name();
-    item->writable = file_systems[i].writable();
-    items.push_back(item);
+    if (file_systems[i].extension_id() == extension_id()) {
+      linked_ptr<FileSystemInfo> item(new FileSystemInfo);
+      item->file_system_id = file_systems[i].file_system_id();
+      item->display_name = file_systems[i].display_name();
+      item->writable = file_systems[i].writable();
+      items.push_back(item);
+    }
   }
 
   SetResultList(api::file_system_provider::GetAll::Results::Create(items));
+  return true;
+}
+
+bool FileSystemProviderNotifyFunction::RunSync() {
+  using api::file_system_provider::Notify::Params;
+  scoped_ptr<Params> params(Params::Create(*args_));
+  EXTENSION_FUNCTION_VALIDATE(params);
+
+  Service* const service = Service::Get(GetProfile());
+  DCHECK(service);
+  if (!service)
+    return false;
+
+  ProvidedFileSystemInterface* const file_system =
+      service->GetProvidedFileSystem(extension_id(),
+                                     params->options.file_system_id);
+  if (!file_system) {
+    base::ListValue* const result = new base::ListValue();
+    result->Append(CreateError(kNotFoundErrorName, kNotifyFailedErrorMessage));
+    SetResult(result);
+    return true;
+  }
+
+  if (!file_system->Notify(
+          base::FilePath::FromUTF8Unsafe(params->options.observed_path),
+          ParseChangeType(params->options.change_type),
+          params->options.child_changes.get()
+              ? ParseChildChanges(*params->options.child_changes.get())
+              : make_scoped_ptr(new ProvidedFileSystemObserver::ChildChanges),
+          params->options.tag.get() ? *params->options.tag.get() : "")) {
+    base::ListValue* const result = new base::ListValue();
+    result->Append(
+        CreateError(kSecurityErrorName, kInvalidNotificationErrorMessage));
+    SetResult(result);
+    return true;
+  }
+
+  base::ListValue* const result = new base::ListValue();
+  SetResult(result);
   return true;
 }
 

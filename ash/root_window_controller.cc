@@ -44,6 +44,7 @@
 #include "ash/wm/status_area_layout_manager.h"
 #include "ash/wm/system_background_controller.h"
 #include "ash/wm/system_modal_container_layout_manager.h"
+#include "ash/wm/virtual_keyboard_container_layout_manager.h"
 #include "ash/wm/window_properties.h"
 #include "ash/wm/window_state.h"
 #include "ash/wm/window_util.h"
@@ -215,47 +216,47 @@ class EmptyWindowDelegate : public aura::WindowDelegate {
   virtual ~EmptyWindowDelegate() {}
 
   // aura::WindowDelegate overrides:
-  virtual gfx::Size GetMinimumSize() const OVERRIDE {
+  virtual gfx::Size GetMinimumSize() const override {
     return gfx::Size();
   }
-  virtual gfx::Size GetMaximumSize() const OVERRIDE {
+  virtual gfx::Size GetMaximumSize() const override {
     return gfx::Size();
   }
   virtual void OnBoundsChanged(const gfx::Rect& old_bounds,
-                               const gfx::Rect& new_bounds) OVERRIDE {
+                               const gfx::Rect& new_bounds) override {
   }
-  virtual gfx::NativeCursor GetCursor(const gfx::Point& point) OVERRIDE {
+  virtual gfx::NativeCursor GetCursor(const gfx::Point& point) override {
     return gfx::kNullCursor;
   }
   virtual int GetNonClientComponent(
-      const gfx::Point& point) const OVERRIDE {
+      const gfx::Point& point) const override {
     return HTNOWHERE;
   }
   virtual bool ShouldDescendIntoChildForEventHandling(
       aura::Window* child,
-      const gfx::Point& location) OVERRIDE {
+      const gfx::Point& location) override {
     return false;
   }
-  virtual bool CanFocus() OVERRIDE {
+  virtual bool CanFocus() override {
     return false;
   }
-  virtual void OnCaptureLost() OVERRIDE {
+  virtual void OnCaptureLost() override {
   }
-  virtual void OnPaint(gfx::Canvas* canvas) OVERRIDE {
+  virtual void OnPaint(gfx::Canvas* canvas) override {
   }
   virtual void OnDeviceScaleFactorChanged(
-      float device_scale_factor) OVERRIDE {
+      float device_scale_factor) override {
   }
-  virtual void OnWindowDestroying(aura::Window* window) OVERRIDE {}
-  virtual void OnWindowDestroyed(aura::Window* window) OVERRIDE {
+  virtual void OnWindowDestroying(aura::Window* window) override {}
+  virtual void OnWindowDestroyed(aura::Window* window) override {
     delete this;
   }
-  virtual void OnWindowTargetVisibilityChanged(bool visible) OVERRIDE {
+  virtual void OnWindowTargetVisibilityChanged(bool visible) override {
   }
-  virtual bool HasHitTestMask() const OVERRIDE {
+  virtual bool HasHitTestMask() const override {
     return false;
   }
-  virtual void GetHitTestMask(gfx::Path* mask) const OVERRIDE {}
+  virtual void GetHitTestMask(gfx::Path* mask) const override {}
 
  private:
   DISALLOW_COPY_AND_ASSIGN(EmptyWindowDelegate);
@@ -641,8 +642,7 @@ void RootWindowController::ActivateKeyboard(
   keyboard_controller->AddObserver(docked_layout_manager_);
   keyboard_controller->AddObserver(workspace_controller_->layout_manager());
   Shell::GetInstance()->delegate()->VirtualKeyboardActivated(true);
-  aura::Window* parent = GetContainer(
-      kShellWindowId_VirtualKeyboardParentContainer);
+  aura::Window* parent = GetContainer(kShellWindowId_ImeWindowParentContainer);
   DCHECK(parent);
   aura::Window* keyboard_container =
       keyboard_controller->GetContainerWindow();
@@ -662,8 +662,8 @@ void RootWindowController::DeactivateKeyboard(
   aura::Window* keyboard_container =
       keyboard_controller->GetContainerWindow();
   if (keyboard_container->GetRootWindow() == GetRootWindow()) {
-    aura::Window* parent = GetContainer(
-        kShellWindowId_VirtualKeyboardParentContainer);
+    aura::Window* parent =
+        GetContainer(kShellWindowId_ImeWindowParentContainer);
     DCHECK(parent);
     parent->RemoveChild(keyboard_container);
     // Virtual keyboard may be deactivated while still showing, notify all
@@ -679,8 +679,7 @@ void RootWindowController::DeactivateKeyboard(
 }
 
 bool RootWindowController::IsVirtualKeyboardWindow(aura::Window* window) {
-  aura::Window* parent = GetContainer(
-      kShellWindowId_VirtualKeyboardParentContainer);
+  aura::Window* parent = GetContainer(kShellWindowId_ImeWindowParentContainer);
   return parent ? parent->Contains(window) : false;
 }
 
@@ -1002,11 +1001,14 @@ void RootWindowController::CreateContainersInRootWindow(
   DescendantShouldStayInSameRootWindow(settings_bubble_container);
 
   aura::Window* virtual_keyboard_parent_container =
-      CreateContainer(kShellWindowId_VirtualKeyboardParentContainer,
+      CreateContainer(kShellWindowId_ImeWindowParentContainer,
                       "VirtualKeyboardParentContainer",
                       lock_screen_related_containers);
   wm::SetSnapsChildrenToPhysicalPixelBoundary(
       virtual_keyboard_parent_container);
+  virtual_keyboard_parent_container->SetLayoutManager(
+      new VirtualKeyboardContainerLayoutManager(
+          virtual_keyboard_parent_container));
   SetUsesScreenCoordinates(virtual_keyboard_parent_container);
 
   aura::Window* menu_container = CreateContainer(

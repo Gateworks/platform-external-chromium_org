@@ -9,6 +9,7 @@
 #include "base/json/json_writer.h"
 #include "base/logging.h"
 #include "base/memory/scoped_ptr.h"
+#include "base/metrics/field_trial.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/values.h"
 #include "net/base/address_family.h"
@@ -57,7 +58,9 @@ namespace net {
 static const int kLogFormatVersion = 1;
 
 NetLogLogger::NetLogLogger(FILE* file, const base::Value& constants)
-    : file_(file), log_level_(NetLog::LOG_ALL_BUT_BYTES), added_events_(false) {
+    : file_(file),
+      log_level_(NetLog::LOG_STRIP_PRIVATE_DATA),
+      added_events_(false) {
   DCHECK(file);
 
   // Write constants to the output file.  This allows loading files that have
@@ -115,7 +118,7 @@ base::DictionaryValue* NetLogLogger::GetConstants() {
   {
     base::DictionaryValue* dict = new base::DictionaryValue();
 
-    for (size_t i = 0; i < ARRAYSIZE_UNSAFE(kCertStatusFlags); i++)
+    for (size_t i = 0; i < arraysize(kCertStatusFlags); i++)
       dict->SetInteger(kCertStatusFlags[i].name, kCertStatusFlags[i].constant);
 
     constants_dict->Set("certStatusFlag", dict);
@@ -126,7 +129,7 @@ base::DictionaryValue* NetLogLogger::GetConstants() {
   {
     base::DictionaryValue* dict = new base::DictionaryValue();
 
-    for (size_t i = 0; i < ARRAYSIZE_UNSAFE(kLoadFlags); i++)
+    for (size_t i = 0; i < arraysize(kLoadFlags); i++)
       dict->SetInteger(kLoadFlags[i].name, kLoadFlags[i].constant);
 
     constants_dict->Set("loadFlag", dict);
@@ -137,7 +140,7 @@ base::DictionaryValue* NetLogLogger::GetConstants() {
   {
     base::DictionaryValue* dict = new base::DictionaryValue();
 
-    for (size_t i = 0; i < ARRAYSIZE_UNSAFE(kLoadStateTable); i++)
+    for (size_t i = 0; i < arraysize(kLoadStateTable); i++)
       dict->SetInteger(kLoadStateTable[i].name, kLoadStateTable[i].constant);
 
     constants_dict->Set("loadState", dict);
@@ -148,7 +151,7 @@ base::DictionaryValue* NetLogLogger::GetConstants() {
   {
     base::DictionaryValue* dict = new base::DictionaryValue();
 
-    for (size_t i = 0; i < ARRAYSIZE_UNSAFE(kNetErrors); i++)
+    for (size_t i = 0; i < arraysize(kNetErrors); i++)
       dict->SetInteger(ErrorToShortString(kNetErrors[i]), kNetErrors[i]);
 
     constants_dict->Set("netError", dict);
@@ -255,6 +258,20 @@ base::DictionaryValue* NetLogLogger::GetConstants() {
   // "clientInfo" key is required for some NetLogLogger log readers.
   // Provide a default empty value for compatibility.
   constants_dict->Set("clientInfo", new base::DictionaryValue());
+
+  // Add a list of active field experiments.
+  {
+    base::FieldTrial::ActiveGroups active_groups;
+    base::FieldTrialList::GetActiveFieldTrialGroups(&active_groups);
+    base::ListValue* field_trial_groups = new base::ListValue();
+    for (base::FieldTrial::ActiveGroups::const_iterator it =
+             active_groups.begin();
+         it != active_groups.end(); ++it) {
+      field_trial_groups->AppendString(it->trial_name + ":" +
+                                       it->group_name);
+    }
+    constants_dict->Set("activeFieldTrialGroups", field_trial_groups);
+  }
 
   return constants_dict;
 }

@@ -58,6 +58,7 @@
 #include "content/public/browser/user_metrics.h"
 #include "content/public/browser/web_contents.h"
 #include "skia/ext/platform_canvas.h"
+#include "skia/ext/skia_utils_mac.h"
 #include "third_party/WebKit/public/platform/WebScreenInfo.h"
 #include "third_party/WebKit/public/web/WebInputEvent.h"
 #include "third_party/WebKit/public/web/mac/WebInputEventFactory.h"
@@ -501,14 +502,6 @@ void RenderWidgetHostViewMac::BrowserCompositorViewFrameSwapped(
   }
 }
 
-NSView* RenderWidgetHostViewMac::BrowserCompositorSuperview() {
-  return cocoa_view_;
-}
-
-ui::Layer* RenderWidgetHostViewMac::BrowserCompositorRootLayer() {
-  return root_layer_.get();
-}
-
 ///////////////////////////////////////////////////////////////////////////////
 // RenderWidgetHostViewBase, public:
 
@@ -521,7 +514,8 @@ void RenderWidgetHostViewBase::GetDefaultScreenInfo(
 ///////////////////////////////////////////////////////////////////////////////
 // RenderWidgetHostViewMac, public:
 
-RenderWidgetHostViewMac::RenderWidgetHostViewMac(RenderWidgetHost* widget)
+RenderWidgetHostViewMac::RenderWidgetHostViewMac(RenderWidgetHost* widget,
+                                                 bool is_guest_view_hack)
     : render_widget_host_(RenderWidgetHostImpl::From(widget)),
       text_input_type_(ui::TEXT_INPUT_TYPE_NONE),
       can_compose_inline_(true),
@@ -529,6 +523,7 @@ RenderWidgetHostViewMac::RenderWidgetHostViewMac(RenderWidgetHost* widget)
           new BrowserCompositorViewPlaceholderMac),
       is_loading_(false),
       allow_pause_for_resize_or_repaint_(true),
+      is_guest_view_hack_(is_guest_view_hack),
       weak_factory_(this),
       fullscreen_parent_host_view_(NULL) {
   // |cocoa_view_| owns us and we will be deleted when |cocoa_view_|
@@ -537,22 +532,23 @@ RenderWidgetHostViewMac::RenderWidgetHostViewMac(RenderWidgetHost* widget)
   cocoa_view_ = [[[RenderWidgetHostViewCocoa alloc]
                   initWithRenderWidgetHostViewMac:this] autorelease];
 
-  // Make this view host a solid white layer when there is no content ready to
-  // draw.
+  // Paint this view host with |background_color_| when there is no content
+  // ready to draw.
   background_layer_.reset([[CALayer alloc] init]);
   [background_layer_
-      setBackgroundColor:CGColorGetConstantColor(kCGColorWhite)];
+      setBackgroundColor:gfx::CGColorCreateFromSkColor(background_color_)];
   [cocoa_view_ setLayer:background_layer_];
   [cocoa_view_ setWantsLayer:YES];
 
   if (IsDelegatedRendererEnabled()) {
-    root_layer_.reset(new ui::Layer(ui::LAYER_TEXTURED));
+    root_layer_.reset(new ui::Layer(ui::LAYER_SOLID_COLOR));
     delegated_frame_host_.reset(new DelegatedFrameHost(this));
   }
 
   gfx::Screen::GetScreenFor(cocoa_view_)->AddObserver(this);
 
-  render_widget_host_->SetView(this);
+  if (!is_guest_view_hack_)
+    render_widget_host_->SetView(this);
 }
 
 RenderWidgetHostViewMac::~RenderWidgetHostViewMac() {
@@ -570,8 +566,13 @@ RenderWidgetHostViewMac::~RenderWidgetHostViewMac() {
   // We are owned by RenderWidgetHostViewCocoa, so if we go away before the
   // RenderWidgetHost does we need to tell it not to hold a stale pointer to
   // us.
-  if (render_widget_host_)
-    render_widget_host_->SetView(NULL);
+  if (render_widget_host_) {
+    // If this is a RenderWidgetHostViewGuest's platform_view_, we're not the
+    // RWH's view, the RenderWidgetHostViewGuest is. So don't reset the RWH's
+    // view, the RenderWidgetHostViewGuest will do it.
+    if (!is_guest_view_hack_)
+      render_widget_host_->SetView(NULL);
+  }
 }
 
 void RenderWidgetHostViewMac::SetDelegate(
@@ -593,7 +594,8 @@ void RenderWidgetHostViewMac::EnsureBrowserCompositorView() {
   TRACE_EVENT0("browser",
                "RenderWidgetHostViewMac::EnsureBrowserCompositorView");
 
-  browser_compositor_view_.reset(new BrowserCompositorViewMac(this));
+  browser_compositor_view_.reset(
+      new BrowserCompositorViewMac(this, cocoa_view_, root_layer_.get()));
   delegated_frame_host_->AddedToWindow();
   delegated_frame_host_->WasShown(ui::LatencyInfo());
 }
@@ -940,12 +942,15 @@ void RenderWidgetHostViewMac::SetIsLoading(bool is_loading) {
   // like Chrome does on Windows, call |UpdateCursor()| here.
 }
 
-void RenderWidgetHostViewMac::TextInputStateChanged(
-    const ViewHostMsg_TextInputState_Params& params) {
-  if (text_input_type_ != params.type ||
-      can_compose_inline_ != params.can_compose_inline) {
-    text_input_type_ = params.type;
-    can_compose_inline_ = params.can_compose_inline;
+void RenderWidgetHostViewMac::TextInputTypeChanged(
+    ui::TextInputType type,
+    ui::TextInputMode input_mode,
+    bool can_compose_inline,
+    int flags) {
+  if (text_input_type_ != type
+      || can_compose_inline_ != can_compose_inline) {
+    text_input_type_ = type;
+    can_compose_inline_ = can_compose_inline;
     if (HasFocus()) {
       SetTextInputActive(true);
 
@@ -1187,11 +1192,6 @@ void RenderWidgetHostViewMac::EndFrameSubscription() {
     delegated_frame_host_->EndFrameSubscription();
 }
 
-// Sets whether or not to accept first responder status.
-void RenderWidgetHostViewMac::SetTakesFocusOnlyOnMouseDown(bool flag) {
-  [cocoa_view_ setTakesFocusOnlyOnMouseDown:flag];
-}
-
 void RenderWidgetHostViewMac::ForwardMouseEvent(const WebMouseEvent& event) {
   if (render_widget_host_)
     render_widget_host_->ForwardMouseEvent(event);
@@ -1365,22 +1365,6 @@ bool RenderWidgetHostViewMac::GetCachedFirstRectForCharacterRange(
   return true;
 }
 
-void RenderWidgetHostViewMac::AcceleratedSurfaceBuffersSwapped(
-    const GpuHostMsg_AcceleratedSurfaceBuffersSwapped_Params& params,
-    int gpu_host_id) {
-}
-
-void RenderWidgetHostViewMac::AcceleratedSurfacePostSubBuffer(
-    const GpuHostMsg_AcceleratedSurfacePostSubBuffer_Params& params,
-    int gpu_host_id) {
-}
-
-void RenderWidgetHostViewMac::AcceleratedSurfaceSuspend() {
-}
-
-void RenderWidgetHostViewMac::AcceleratedSurfaceRelease() {
-}
-
 bool RenderWidgetHostViewMac::HasAcceleratedSurface(
       const gfx::Size& desired_size) {
   if (browser_compositor_view_)
@@ -1425,10 +1409,6 @@ void RenderWidgetHostViewMac::OnSwapCompositorFrame(
   }
 }
 
-void RenderWidgetHostViewMac::AcceleratedSurfaceInitialized(int host_id,
-                                                            int route_id) {
-}
-
 void RenderWidgetHostViewMac::GetScreenInfo(blink::WebScreenInfo* results) {
   *results = GetWebScreenInfo(GetNativeView());
 }
@@ -1448,7 +1428,7 @@ gfx::Rect RenderWidgetHostViewMac::GetBoundsInRootWindow() {
 gfx::GLSurfaceHandle RenderWidgetHostViewMac::GetCompositingSurface() {
   // TODO(kbr): may be able to eliminate PluginWindowHandle argument
   // completely on Mac OS.
-  return gfx::GLSurfaceHandle(gfx::kNullPluginWindow, gfx::NATIVE_TRANSPORT);
+  return gfx::GLSurfaceHandle(gfx::kNullPluginWindow, gfx::NULL_TRANSPORT);
 }
 
 bool RenderWidgetHostViewMac::LockMouse() {
@@ -1548,10 +1528,15 @@ void RenderWidgetHostViewMac::ShowDefinitionForSelection() {
   helper.ShowDefinitionForSelection();
 }
 
-void RenderWidgetHostViewMac::SetBackgroundOpaque(bool opaque) {
-  RenderWidgetHostViewBase::SetBackgroundOpaque(opaque);
+void RenderWidgetHostViewMac::SetBackgroundColor(SkColor color) {
+  RenderWidgetHostViewBase::SetBackgroundColor(color);
   if (render_widget_host_)
-    render_widget_host_->SetBackgroundOpaque(opaque);
+    render_widget_host_->SetBackgroundOpaque(GetBackgroundOpaque());
+
+  if (background_layer_) {
+    [background_layer_
+        setBackgroundColor:gfx::CGColorCreateFromSkColor(background_color_)];
+  }
 }
 
 BrowserAccessibilityManager*
@@ -1692,13 +1677,6 @@ void RenderWidgetHostViewMac::OnDisplayMetricsChanged(
 }
 
 - (void)dealloc {
-  // Unbind the GL context from this view. If this is not done before super's
-  // dealloc is called then the GL context will crash when it reaches into
-  // the view in its destructor.
-  // http://crbug.com/255608
-  if (renderWidgetHostView_)
-    renderWidgetHostView_->AcceleratedSurfaceRelease();
-
   if (responderDelegate_ &&
       [responderDelegate_ respondsToSelector:@selector(viewGone:)])
     [responderDelegate_ viewGone:self];
@@ -1764,10 +1742,6 @@ void RenderWidgetHostViewMac::OnDisplayMetricsChanged(
 
 - (BOOL)acceptsFirstMouse:(NSEvent*)theEvent {
   return [self acceptsMouseEventsWhenInactive];
-}
-
-- (void)setTakesFocusOnlyOnMouseDown:(BOOL)b {
-  takesFocusOnlyOnMouseDown_ = b;
 }
 
 - (void)setCloseOnDeactivate:(BOOL)b {
@@ -1849,16 +1823,6 @@ void RenderWidgetHostViewMac::OnDisplayMetricsChanged(
     }
   }
   mouseEventWasIgnored_ = NO;
-
-  // TODO(rohitrao): Probably need to handle other mouse down events here.
-  if ([theEvent type] == NSLeftMouseDown && takesFocusOnlyOnMouseDown_) {
-    if (renderWidgetHostView_->render_widget_host_)
-      renderWidgetHostView_->render_widget_host_->OnPointerEventActivate();
-
-    // Manually take focus after the click but before forwarding it to the
-    // renderer.
-    [[self window] makeFirstResponder:self];
-  }
 
   // Don't cancel child popups; killing them on a mouse click would prevent the
   // user from positioning the insertion point in the text field spawning the
@@ -2418,7 +2382,7 @@ void RenderWidgetHostViewMac::OnDisplayMetricsChanged(
   if (!renderWidgetHostView_->render_widget_host_)
     return NO;
 
-  return canBeKeyView_ && !takesFocusOnlyOnMouseDown_;
+  return canBeKeyView_;
 }
 
 - (BOOL)becomeFirstResponder {

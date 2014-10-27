@@ -5,6 +5,7 @@
 #ifndef CHROME_BROWSER_SIGNIN_EASY_UNLOCK_SERVICE_H_
 #define CHROME_BROWSER_SIGNIN_EASY_UNLOCK_SERVICE_H_
 
+#include <set>
 #include <string>
 
 #include "base/macros.h"
@@ -14,9 +15,17 @@
 #include "chrome/browser/signin/easy_unlock_screenlock_state_handler.h"
 #include "components/keyed_service/core/keyed_service.h"
 
+#if defined(OS_CHROMEOS)
+#include "chrome/browser/chromeos/login/easy_unlock/easy_unlock_types.h"
+#endif
+
 namespace base {
 class DictionaryValue;
 class ListValue;
+}
+
+namespace user_manager {
+class User;
 }
 
 namespace user_prefs {
@@ -26,6 +35,7 @@ class PrefRegistrySyncable;
 class EasyUnlockAuthAttempt;
 class EasyUnlockServiceObserver;
 class Profile;
+class PrefRegistrySimple;
 
 class EasyUnlockService : public KeyedService {
  public:
@@ -43,8 +53,21 @@ class EasyUnlockService : public KeyedService {
   // Gets EasyUnlockService instance.
   static EasyUnlockService* Get(Profile* profile);
 
+  // Gets EasyUnlockService instance associated with a user if the user is
+  // logged in and his profile is initialized.
+  static EasyUnlockService* GetForUser(const user_manager::User& user);
+
   // Registers Easy Unlock profile preferences.
   static void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry);
+
+  // Registers Easy Unlock local state entries.
+  static void RegisterPrefs(PrefRegistrySimple* registry);
+
+  // Removes the hardlock state for the given user.
+  static void ResetLocalStateForUser(const std::string& user_id);
+
+  // Returns true if Easy sign-in is enabled.
+  static bool IsSignInEnabled();
 
   // Returns the EasyUnlockService type.
   virtual Type GetType() const = 0;
@@ -84,10 +107,27 @@ class EasyUnlockService : public KeyedService {
   // for the user, returns an empty string.
   virtual std::string GetWrappedSecret() const = 0;
 
+  // Records metrics for Easy sign-in outcome for the given user.
+  virtual void RecordEasySignInOutcome(const std::string& user_id,
+                                       bool success) const = 0;
+
+  // Records metrics for password based flow for the given user.
+  virtual void RecordPasswordLoginEvent(const std::string& user_id) const = 0;
+
   // Whether easy unlock is allowed to be used. If the controlling preference
   // is set (from policy), this returns the preference value. Otherwise, it is
   // permitted either the flag is enabled or its field trial is enabled.
   bool IsAllowed();
+
+  // Sets the hardlock state for the associated user.
+  void SetHardlockState(EasyUnlockScreenlockStateHandler::HardlockState state);
+
+  // Returns the hardlock state for the associated user.
+  EasyUnlockScreenlockStateHandler::HardlockState GetHardlockState() const;
+
+  // Ensures the hardlock state is visible even when there is no cryptohome
+  // keys and no state update from the app.
+  void MaybeShowHardlockUI();
 
   // Updates the user pod on the signin/lock screen for the user associated with
   // the service to reflect the provided screenlock state.
@@ -107,12 +147,23 @@ class EasyUnlockService : public KeyedService {
   // exists.
   void FinalizeSignin(const std::string& secret);
 
+  // Handles Easy Unlock auth failure for the user.
+  void HandleAuthFailure(const std::string& user_id);
+
+  // Checks the consistency between pairing data and cryptohome keys. Set
+  // hardlock state if the two do not match.
+  void CheckCryptohomeKeysAndMaybeHardlock();
+
+  // Marks the Easy Unlock screen lock state as the one associated with the
+  // trial run initiated by Easy Unlock app.
+  void SetTrialRun();
+
   void AddObserver(EasyUnlockServiceObserver* observer);
   void RemoveObserver(EasyUnlockServiceObserver* observer);
 
  protected:
   explicit EasyUnlockService(Profile* profile);
-  virtual ~EasyUnlockService();
+  ~EasyUnlockService() override;
 
   // Does a service type specific initialization.
   virtual void InitializeInternal() = 0;
@@ -126,7 +177,7 @@ class EasyUnlockService : public KeyedService {
   virtual bool IsAllowedInternal() = 0;
 
   // KeyedService override:
-  virtual void Shutdown() OVERRIDE;
+  void Shutdown() override;
 
   // Exposes the profile to which the service is attached to subclasses.
   Profile* profile() const { return profile_; }
@@ -156,6 +207,14 @@ class EasyUnlockService : public KeyedService {
   // Resets the screenlock state set by this service.
   void ResetScreenlockState();
 
+  // Updates |screenlock_state_handler_|'s hardlocked state.
+  void SetScreenlockHardlockedState(
+      EasyUnlockScreenlockStateHandler::HardlockState state);
+
+  const EasyUnlockScreenlockStateHandler* screenlock_state_handler() const {
+    return screenlock_state_handler_.get();
+  }
+
  private:
   // A class to detect whether a bluetooth adapter is present.
   class BluetoothDetector;
@@ -171,6 +230,24 @@ class EasyUnlockService : public KeyedService {
 
   // Callback when Bluetooth adapter present state changes.
   void OnBluetoothAdapterPresentChanged();
+
+  // Saves hardlock state for the given user. Update UI if the currently
+  // associated user is the same.
+  void SetHardlockStateForUser(
+      const std::string& user_id,
+      EasyUnlockScreenlockStateHandler::HardlockState state);
+
+#if defined(OS_CHROMEOS)
+  // Callback for get key operation from CheckCryptohomeKeysAndMaybeHardlock.
+  void OnCryptohomeKeysFetchedForChecking(
+      const std::string& user_id,
+      const std::set<std::string> paired_devices,
+      bool success,
+      const chromeos::EasyUnlockDeviceKeyDataList& key_data_list);
+#endif
+
+  // Updates the service to state for handling system suspend.
+  void PrepareForSuspend();
 
   Profile* profile_;
 

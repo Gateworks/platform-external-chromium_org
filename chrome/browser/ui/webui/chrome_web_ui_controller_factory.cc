@@ -88,9 +88,7 @@
 #include "chrome/browser/ui/webui/print_preview/print_preview_ui.h"
 #endif
 
-#if defined(OS_ANDROID)
-#include "chrome/browser/ui/webui/welcome_ui_android.h"
-#else
+#if !defined(OS_ANDROID)
 #include "chrome/browser/ui/webui/ntp/new_tab_ui.h"
 #include "chrome/browser/ui/webui/quota_internals/quota_internals_ui.h"
 #include "chrome/browser/ui/webui/suggestions_internals/suggestions_internals_ui.h"
@@ -346,10 +344,7 @@ WebUIFactoryFunction GetWebUIFactoryFunction(WebUI* web_ui,
   /****************************************************************************
    * OS Specific #defines
    ***************************************************************************/
-#if defined(OS_ANDROID)
-  if (url.host() == chrome::kChromeUIWelcomeHost)
-    return &NewWebUI<WelcomeUI>;
-#else
+#if !defined(OS_ANDROID)
   // AppLauncherPage is not needed on Android.
   if (url.host() == chrome::kChromeUIAppLauncherPageHost &&
       profile && extensions::ExtensionSystem::Get(profile)->
@@ -506,8 +501,10 @@ WebUIFactoryFunction GetWebUIFactoryFunction(WebUI* web_ui,
       url.host() == chrome::kChromeUIDNSHost ||
       url.host() == chrome::kChromeUIMemoryHost ||
       url.host() == chrome::kChromeUIMemoryRedirectHost ||
-      url.host() == chrome::kChromeUIStatsHost ||
-      url.host() == chrome::kChromeUITermsHost
+      url.host() == chrome::kChromeUIStatsHost
+#if !defined(OS_ANDROID)
+      || url.host() == chrome::kChromeUITermsHost
+#endif
 #if defined(OS_LINUX) || defined(OS_OPENBSD)
       || url.host() == chrome::kChromeUILinuxProxyConfigHost
       || url.host() == chrome::kChromeUISandboxHost

@@ -15,6 +15,7 @@
 #include "base/observer_list.h"
 #include "base/process/process_handle.h"
 #include "content/common/accessibility_mode_enums.h"
+#include "content/common/frame_message_enums.h"
 #include "content/common/mojo/service_registry_impl.h"
 #include "content/public/common/javascript_message_type.h"
 #include "content/public/common/referrer.h"
@@ -33,12 +34,14 @@
 #include "content/renderer/media/android/renderer_media_player_manager.h"
 #endif
 
+class GURL;
 class TransportDIB;
+struct FrameHostMsg_AddNavigationTransitionData_Params;
 struct FrameMsg_Navigate_Params;
+struct FrameMsg_RequestNavigation_Params;
 
 namespace blink {
 class WebGeolocationClient;
-class WebInputEvent;
 class WebMouseEvent;
 class WebContentDecryptionModule;
 class WebMediaPlayer;
@@ -67,6 +70,7 @@ class MediaStreamRendererFactory;
 class MidiDispatcher;
 class NotificationPermissionDispatcher;
 class NotificationProvider;
+class PageState;
 class PepperPluginInstanceImpl;
 class PushMessagingDispatcher;
 class RendererAccessibility;
@@ -79,7 +83,11 @@ class RenderWidget;
 class RenderWidgetFullscreenPepper;
 class ScreenOrientationDispatcher;
 class UserMediaClientImpl;
+struct CommitNavigationParams;
+struct CommonNavigationParams;
 struct CustomContextMenuContext;
+struct RequestNavigationParams;
+struct ResourceResponseHead;
 
 class CONTENT_EXPORT RenderFrameImpl
     : public RenderFrame,
@@ -242,32 +250,36 @@ class CONTENT_EXPORT RenderFrameImpl
 #endif
 
   // IPC::Sender
-  virtual bool Send(IPC::Message* msg) OVERRIDE;
+  bool Send(IPC::Message* msg) override;
 
   // IPC::Listener
-  virtual bool OnMessageReceived(const IPC::Message& msg) OVERRIDE;
+  bool OnMessageReceived(const IPC::Message& msg) override;
 
   // RenderFrame implementation:
-  virtual RenderView* GetRenderView() OVERRIDE;
-  virtual int GetRoutingID() OVERRIDE;
-  virtual blink::WebLocalFrame* GetWebFrame() OVERRIDE;
-  virtual WebPreferences& GetWebkitPreferences() OVERRIDE;
-  virtual int ShowContextMenu(ContextMenuClient* client,
-                              const ContextMenuParams& params) OVERRIDE;
-  virtual void CancelContextMenu(int request_id) OVERRIDE;
-  virtual blink::WebNode GetContextMenuNode() const OVERRIDE;
-  virtual blink::WebPlugin* CreatePlugin(
-      blink::WebFrame* frame,
-      const WebPluginInfo& info,
-      const blink::WebPluginParams& params) OVERRIDE;
-  virtual void LoadURLExternally(blink::WebLocalFrame* frame,
-                                 const blink::WebURLRequest& request,
-                                 blink::WebNavigationPolicy policy) OVERRIDE;
-  virtual void ExecuteJavaScript(const base::string16& javascript) OVERRIDE;
-  virtual bool IsHidden() OVERRIDE;
-  virtual ServiceRegistry* GetServiceRegistry() OVERRIDE;
-  virtual bool IsFTPDirectoryListing() OVERRIDE;
-  virtual void AttachGuest(int element_instance_id) OVERRIDE;
+  RenderView* GetRenderView() override;
+  int GetRoutingID() override;
+  blink::WebLocalFrame* GetWebFrame() override;
+  WebPreferences& GetWebkitPreferences() override;
+  int ShowContextMenu(ContextMenuClient* client,
+                      const ContextMenuParams& params) override;
+  void CancelContextMenu(int request_id) override;
+  blink::WebNode GetContextMenuNode() const override;
+  blink::WebPlugin* CreatePlugin(blink::WebFrame* frame,
+                                 const WebPluginInfo& info,
+                                 const blink::WebPluginParams& params) override;
+  void LoadURLExternally(blink::WebLocalFrame* frame,
+                         const blink::WebURLRequest& request,
+                         blink::WebNavigationPolicy policy) override;
+  void ExecuteJavaScript(const base::string16& javascript) override;
+  bool IsHidden() override;
+  ServiceRegistry* GetServiceRegistry() override;
+  bool IsFTPDirectoryListing() override;
+  void AttachGuest(int element_instance_id) override;
+  void SetSelectedText(const base::string16& selection_text,
+                       size_t offset,
+                       const gfx::Range& range) override;
+  void EnsureMojoBuiltinsAreAvailable(v8::Isolate* isolate,
+                                      v8::Handle<v8::Context> context) override;
 
   // blink::WebFrameClient implementation:
   virtual blink::WebPlugin* createPlugin(blink::WebLocalFrame* frame,
@@ -359,9 +371,15 @@ class CONTENT_EXPORT RenderFrameImpl
                                      blink::WebHistoryCommitType commit_type);
   virtual void didUpdateCurrentHistoryItem(blink::WebLocalFrame* frame);
   virtual void addNavigationTransitionData(
+        const blink::WebString& allowedDestinationOrigin,
+        const blink::WebString& selector,
+        const blink::WebString& markup);
+  virtual void addNavigationTransitionData(
       const blink::WebString& allowedDestinationOrigin,
       const blink::WebString& selector,
-      const blink::WebString& markup);
+      const blink::WebString& markup,
+      const blink::WebVector<blink::WebString>& web_names,
+      const blink::WebVector<blink::WebRect>& web_rects);
   virtual void didChangeThemeColor();
   virtual void requestNotificationPermission(
       const blink::WebSecurityOrigin& origin,
@@ -419,8 +437,6 @@ class CONTENT_EXPORT RenderFrameImpl
                                    blink::WebStorageQuotaType type,
                                    unsigned long long requested_size,
                                    blink::WebStorageQuotaCallbacks callbacks);
-  virtual void willOpenSocketStream(
-      blink::WebSocketStreamHandle* handle);
   virtual void willOpenWebSocket(blink::WebSocketHandle* handle);
   virtual blink::WebGeolocationClient* geolocationClient();
   virtual blink::WebPushClient* pushClient();
@@ -440,17 +456,16 @@ class CONTENT_EXPORT RenderFrameImpl
   virtual bool allowWebGL(blink::WebLocalFrame* frame, bool default_value);
   virtual void didLoseWebGLContext(blink::WebLocalFrame* frame,
                                    int arb_robustness_status_code);
-  virtual void forwardInputEvent(const blink::WebInputEvent* event);
   virtual blink::WebScreenOrientationClient* webScreenOrientationClient();
-  virtual bool isControlledByServiceWorker();
+  virtual bool isControlledByServiceWorker(blink::WebDataSource&);
   virtual void postAccessibilityEvent(const blink::WebAXObject& obj,
                                       blink::WebAXEvent event);
   virtual void didChangeManifest(blink::WebLocalFrame*);
 
   // WebMediaPlayerDelegate implementation:
-  virtual void DidPlay(blink::WebMediaPlayer* player) OVERRIDE;
-  virtual void DidPause(blink::WebMediaPlayer* player) OVERRIDE;
-  virtual void PlayerGone(blink::WebMediaPlayer* player) OVERRIDE;
+  void DidPlay(blink::WebMediaPlayer* player) override;
+  void DidPause(blink::WebMediaPlayer* player) override;
+  void PlayerGone(blink::WebMediaPlayer* player) override;
 
   // TODO(nasko): Make all tests in RenderViewImplTest friends and then move
   // this back to private member.
@@ -460,6 +475,8 @@ class CONTENT_EXPORT RenderFrameImpl
   // service registry.
   void BindServiceRegistry(
       mojo::ScopedMessagePipeHandle service_provider_handle);
+
+  ManifestManager* manifest_manager();
 
  protected:
   RenderFrameImpl(RenderViewImpl* render_view, int32 routing_id);
@@ -473,8 +490,6 @@ class CONTENT_EXPORT RenderFrameImpl
   FRIEND_TEST_ALL_PREFIXES(ExternalPopupMenuTest, ShowPopupThenNavigate);
   FRIEND_TEST_ALL_PREFIXES(RendererAccessibilityTest,
                            AccessibilityMessagesQueueWhileSwappedOut);
-  FRIEND_TEST_ALL_PREFIXES(RenderFrameImplTest,
-                           ShouldUpdateSelectionTextFromContextMenuParams);
   FRIEND_TEST_ALL_PREFIXES(RenderViewImplTest,
                            OnExtendSelectionAndDelete);
   FRIEND_TEST_ALL_PREFIXES(RenderViewImplTest, ReloadWhileSwappedOut);
@@ -547,6 +562,14 @@ class CONTENT_EXPORT RenderFrameImpl
   void OnCopyToFindPboard();
 #endif
 
+  // PlzNavigate
+  void OnRequestNavigation(const CommonNavigationParams& common_params,
+                           const RequestNavigationParams& request_params);
+  void OnCommitNavigation(const ResourceResponseHead& response,
+                          const GURL& stream_url,
+                          const CommonNavigationParams& common_params,
+                          const CommitNavigationParams& commit_params);
+
   // Virtual since overridden by WebTestProxy for layout tests.
   virtual blink::WebNavigationPolicy DecidePolicyForNavigation(
       RenderFrame* render_frame,
@@ -578,14 +601,6 @@ class CONTENT_EXPORT RenderFrameImpl
   // selection handles in sync with the webpage.
   void SyncSelectionIfRequired();
 
-  // Returns whether |params.selection_text| should be synchronized to the
-  // browser before bringing up the context menu. Static for testing.
-  static bool ShouldUpdateSelectionTextFromContextMenuParams(
-      const base::string16& selection_text,
-      size_t selection_text_offset,
-      const gfx::Range& selection_range,
-      const ContextMenuParams& params);
-
   bool RunJavaScriptMessage(JavaScriptMessageType type,
                             const base::string16& message,
                             const base::string16& default_value,
@@ -614,6 +629,18 @@ class CONTENT_EXPORT RenderFrameImpl
   // Creates a factory object used for creating audio and video renderers.
   // The method is virtual so that layouttests can override it.
   virtual scoped_ptr<MediaStreamRendererFactory> CreateRendererFactory();
+
+  // Checks that the RenderView is ready to display the navigation to |url|. If
+  // the return value is false, the navigation should be abandonned.
+  bool PrepareRenderViewForNavigation(
+      const GURL& url,
+      FrameMsg_Navigate_Type::Value navigate_type,
+      const PageState& state,
+      bool check_history,
+      int pending_history_list_offset,
+      int32 page_id,
+      bool* is_reload,
+      blink::WebURLRequest::CachePolicy* cache_policy);
 
   // Returns the URL being loaded by the |frame_|'s request.
   GURL GetLoadingUrl() const;

@@ -51,7 +51,7 @@ class ScreenTypeDelegateDesktop : public gfx::ScreenTypeDelegate {
   ScreenTypeDelegateDesktop() {}
   virtual ~ScreenTypeDelegateDesktop() {}
   virtual gfx::ScreenType GetScreenTypeForNativeView(
-      gfx::NativeView view) OVERRIDE {
+      gfx::NativeView view) override {
     return chrome::IsNativeViewInAsh(view) ?
         gfx::SCREEN_TYPE_ALTERNATE :
         gfx::SCREEN_TYPE_NATIVE;
@@ -78,10 +78,10 @@ class FakeLoginUI : public LoginUIService::LoginUI {
 
  private:
   // LoginUIService::LoginUI:
-  virtual void FocusUI() OVERRIDE {
+  virtual void FocusUI() override {
     ++focus_ui_call_count_;
   }
-  virtual void CloseUI() OVERRIDE {}
+  virtual void CloseUI() override {}
 
   int focus_ui_call_count_;
 };
@@ -96,7 +96,7 @@ class SyncErrorNotifierTest : public AshTestBase  {
   SyncErrorNotifierTest() {}
   virtual ~SyncErrorNotifierTest() {}
 
-  virtual void SetUp() OVERRIDE {
+  virtual void SetUp() override {
     profile_manager_.reset(
         new TestingProfileManager(TestingBrowserProcess::GetGlobal()));
     ASSERT_TRUE(profile_manager_->SetUp());
@@ -128,7 +128,7 @@ class SyncErrorNotifierTest : public AshTestBase  {
     notification_ui_manager_ = g_browser_process->notification_ui_manager();
   }
 
-  virtual void TearDown() OVERRIDE {
+  virtual void TearDown() override {
     error_notifier_->Shutdown();
     service_.reset();
 #if defined(OS_WIN)
@@ -156,8 +156,8 @@ class SyncErrorNotifierTest : public AshTestBase  {
     EXPECT_EQ(is_error, error_controller_->HasError());
 
     // If there is an error we should see a notification.
-    const Notification* notification = notification_ui_manager_->
-        FindById(kNotificationId);
+    const Notification* notification = notification_ui_manager_->FindById(
+        kNotificationId, NotificationUIManager::GetProfileID(profile_));
     if (is_error) {
       ASSERT_TRUE(notification);
       ASSERT_FALSE(notification->title().empty());
@@ -193,7 +193,8 @@ class SyncErrorNotifierTest : public AshTestBase  {
 #define MAYBE_PassphraseNotification PassphraseNotification
 #endif
 TEST_F(SyncErrorNotifierTest, MAYBE_PassphraseNotification) {
-  ASSERT_FALSE(notification_ui_manager_->FindById(kNotificationId));
+  ASSERT_FALSE(notification_ui_manager_->FindById(
+      kNotificationId, NotificationUIManager::GetProfileID(profile_)));
 
   browser_sync::SyncBackendHost::Status status;
   EXPECT_CALL(*service_, QueryDetailedSyncStatus(_))

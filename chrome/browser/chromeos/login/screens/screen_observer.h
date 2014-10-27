@@ -10,7 +10,7 @@
 namespace chromeos {
 
 class ErrorScreen;
-class WizardScreen;
+class BaseScreen;
 
 // Interface that handles notifications received from any of login wizard
 // screens.
@@ -49,6 +49,7 @@ class ScreenObserver {
     WRONG_HWID_WARNING_SKIPPED = 20,
     CONTROLLER_PAIRING_FINISHED = 21,
     HOST_PAIRING_FINISHED = 22,
+    DEVICE_NOT_DISABLED = 23,
     EXIT_CODES_COUNT  // not a real code, must be the last
   };
 
@@ -63,13 +64,17 @@ class ScreenObserver {
   virtual void OnSetUserNamePassword(const std::string& username,
                                      const std::string& password) = 0;
 
-  // Whether usage statistics reporting is enabled on EULA screen.
-  virtual void SetUsageStatisticsReporting(bool val) = 0;
-  virtual bool GetUsageStatisticsReporting() const = 0;
+  // Set remora configuration from shark.
+  virtual void SetHostConfiguration() = 0;
+  virtual void ConfigureHost(bool accepted_eula,
+                             const std::string& lang,
+                             const std::string& timezone,
+                             bool send_reports,
+                             const std::string& keyboard_layout) = 0;
 
   virtual ErrorScreen* GetErrorScreen() = 0;
   virtual void ShowErrorScreen() = 0;
-  virtual void HideErrorScreen(WizardScreen* parent_screen) = 0;
+  virtual void HideErrorScreen(BaseScreen* parent_screen) = 0;
 
  protected:
   virtual ~ScreenObserver() {}

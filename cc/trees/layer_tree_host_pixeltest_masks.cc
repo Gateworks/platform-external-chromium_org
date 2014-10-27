@@ -3,9 +3,9 @@
 // found in the LICENSE file.
 
 #include "build/build_config.h"
-#include "cc/layers/content_layer.h"
 #include "cc/layers/content_layer_client.h"
-#include "cc/layers/image_layer.h"
+#include "cc/layers/picture_image_layer.h"
+#include "cc/layers/picture_layer.h"
 #include "cc/layers/solid_color_layer.h"
 #include "cc/test/layer_tree_pixel_test.h"
 #include "cc/test/pixel_comparator.h"
@@ -19,24 +19,24 @@ class LayerTreeHostMasksPixelTest : public LayerTreePixelTest {};
 
 class MaskContentLayerClient : public ContentLayerClient {
  public:
-  MaskContentLayerClient() {}
-  virtual ~MaskContentLayerClient() {}
+  explicit MaskContentLayerClient(const gfx::Size& bounds) : bounds_(bounds) {}
+  ~MaskContentLayerClient() override {}
 
-  virtual void DidChangeLayerCanUseLCDText() OVERRIDE {}
+  void DidChangeLayerCanUseLCDText() override {}
 
-  virtual bool FillsBoundsCompletely() const OVERRIDE { return false; }
+  bool FillsBoundsCompletely() const override { return false; }
 
-  virtual void PaintContents(
+  void PaintContents(
       SkCanvas* canvas,
       const gfx::Rect& rect,
-      ContentLayerClient::GraphicsContextStatus gc_status) OVERRIDE {
+      ContentLayerClient::GraphicsContextStatus gc_status) override {
     SkPaint paint;
     paint.setStyle(SkPaint::kStroke_Style);
     paint.setStrokeWidth(SkIntToScalar(2));
     paint.setColor(SK_ColorWHITE);
 
     canvas->clear(SK_ColorTRANSPARENT);
-    gfx::Rect inset_rect(rect);
+    gfx::Rect inset_rect(bounds_);
     while (!inset_rect.IsEmpty()) {
       inset_rect.Inset(3, 3, 2, 2);
       canvas->drawRect(
@@ -46,6 +46,9 @@ class MaskContentLayerClient : public ContentLayerClient {
       inset_rect.Inset(3, 3, 2, 2);
     }
   }
+
+ private:
+  gfx::Size bounds_;
 };
 
 TEST_F(LayerTreeHostMasksPixelTest, MaskOfLayer) {
@@ -56,15 +59,15 @@ TEST_F(LayerTreeHostMasksPixelTest, MaskOfLayer) {
       gfx::Rect(50, 50, 100, 100), kCSSGreen, 1, SK_ColorBLACK);
   background->AddChild(green);
 
-  MaskContentLayerClient client;
-  scoped_refptr<ContentLayer> mask = ContentLayer::Create(&client);
-  mask->SetBounds(gfx::Size(100, 100));
+  gfx::Size mask_bounds(100, 100);
+  MaskContentLayerClient client(mask_bounds);
+  scoped_refptr<PictureLayer> mask = PictureLayer::Create(&client);
+  mask->SetBounds(mask_bounds);
   mask->SetIsDrawable(true);
   mask->SetIsMask(true);
   green->SetMaskLayer(mask.get());
 
-  this->impl_side_painting_ = false;
-  RunPixelTest(GL_WITH_BITMAP,
+  RunPixelTest(PIXEL_TEST_GL,
                background,
                base::FilePath(FILE_PATH_LITERAL("mask_of_layer.png")));
 }
@@ -73,18 +76,20 @@ TEST_F(LayerTreeHostMasksPixelTest, ImageMaskOfLayer) {
   scoped_refptr<SolidColorLayer> background = CreateSolidColorLayer(
       gfx::Rect(200, 200), SK_ColorWHITE);
 
-  scoped_refptr<ImageLayer> mask = ImageLayer::Create();
+  gfx::Size mask_bounds(100, 100);
+
+  scoped_refptr<PictureImageLayer> mask = PictureImageLayer::Create();
   mask->SetIsDrawable(true);
   mask->SetIsMask(true);
-  mask->SetBounds(gfx::Size(100, 100));
+  mask->SetBounds(mask_bounds);
 
   SkBitmap bitmap;
   bitmap.allocN32Pixels(400, 400);
   SkCanvas canvas(bitmap);
   canvas.scale(SkIntToScalar(4), SkIntToScalar(4));
-  MaskContentLayerClient client;
+  MaskContentLayerClient client(mask_bounds);
   client.PaintContents(&canvas,
-                       gfx::Rect(100, 100),
+                       gfx::Rect(mask_bounds),
                        ContentLayerClient::GRAPHICS_CONTEXT_ENABLED);
   mask->SetBitmap(bitmap);
 
@@ -93,8 +98,7 @@ TEST_F(LayerTreeHostMasksPixelTest, ImageMaskOfLayer) {
   green->SetMaskLayer(mask.get());
   background->AddChild(green);
 
-  this->impl_side_painting_ = false;
-  RunPixelTest(GL_WITH_BITMAP,
+  RunPixelTest(PIXEL_TEST_GL,
                background,
                base::FilePath(FILE_PATH_LITERAL("image_mask_of_layer.png")));
 }
@@ -114,15 +118,15 @@ TEST_F(LayerTreeHostMasksPixelTest, MaskOfClippedLayer) {
       gfx::Rect(50, 50, 100, 100), kCSSGreen, 1, SK_ColorBLACK);
   clip->AddChild(green);
 
-  MaskContentLayerClient client;
-  scoped_refptr<ContentLayer> mask = ContentLayer::Create(&client);
-  mask->SetBounds(gfx::Size(100, 100));
+  gfx::Size mask_bounds(100, 100);
+  MaskContentLayerClient client(mask_bounds);
+  scoped_refptr<PictureLayer> mask = PictureLayer::Create(&client);
+  mask->SetBounds(mask_bounds);
   mask->SetIsDrawable(true);
   mask->SetIsMask(true);
   green->SetMaskLayer(mask.get());
 
-  this->impl_side_painting_ = false;
-  RunPixelTest(GL_WITH_BITMAP,
+  RunPixelTest(PIXEL_TEST_GL,
                background,
                base::FilePath(FILE_PATH_LITERAL("mask_of_clipped_layer.png")));
 }
@@ -131,9 +135,10 @@ TEST_F(LayerTreeHostMasksPixelTest, MaskWithReplica) {
   scoped_refptr<SolidColorLayer> background = CreateSolidColorLayer(
       gfx::Rect(200, 200), SK_ColorWHITE);
 
-  MaskContentLayerClient client;
-  scoped_refptr<ContentLayer> mask = ContentLayer::Create(&client);
-  mask->SetBounds(gfx::Size(100, 100));
+  gfx::Size mask_bounds(100, 100);
+  MaskContentLayerClient client(mask_bounds);
+  scoped_refptr<PictureLayer> mask = PictureLayer::Create(&client);
+  mask->SetBounds(mask_bounds);
   mask->SetIsDrawable(true);
   mask->SetIsMask(true);
 
@@ -151,8 +156,7 @@ TEST_F(LayerTreeHostMasksPixelTest, MaskWithReplica) {
   replica->SetTransform(replica_transform);
   green->SetReplicaLayer(replica.get());
 
-  this->impl_side_painting_ = false;
-  RunPixelTest(GL_WITH_BITMAP,
+  RunPixelTest(PIXEL_TEST_GL,
                background,
                base::FilePath(FILE_PATH_LITERAL("mask_with_replica.png")));
 }
@@ -161,9 +165,10 @@ TEST_F(LayerTreeHostMasksPixelTest, MaskWithReplicaOfClippedLayer) {
   scoped_refptr<SolidColorLayer> background = CreateSolidColorLayer(
       gfx::Rect(200, 200), SK_ColorWHITE);
 
-  MaskContentLayerClient client;
-  scoped_refptr<ContentLayer> mask = ContentLayer::Create(&client);
-  mask->SetBounds(gfx::Size(100, 100));
+  gfx::Size mask_bounds(100, 100);
+  MaskContentLayerClient client(mask_bounds);
+  scoped_refptr<PictureLayer> mask = PictureLayer::Create(&client);
+  mask->SetBounds(mask_bounds);
   mask->SetIsDrawable(true);
   mask->SetIsMask(true);
 
@@ -189,8 +194,7 @@ TEST_F(LayerTreeHostMasksPixelTest, MaskWithReplicaOfClippedLayer) {
   replica->SetTransform(replica_transform);
   green->SetReplicaLayer(replica.get());
 
-  this->impl_side_painting_ = false;
-  RunPixelTest(GL_WITH_BITMAP,
+  RunPixelTest(PIXEL_TEST_GL,
                background,
                base::FilePath(FILE_PATH_LITERAL(
                    "mask_with_replica_of_clipped_layer.png")));
@@ -200,9 +204,10 @@ TEST_F(LayerTreeHostMasksPixelTest, MaskOfReplica) {
   scoped_refptr<SolidColorLayer> background = CreateSolidColorLayer(
       gfx::Rect(200, 200), SK_ColorWHITE);
 
-  MaskContentLayerClient client;
-  scoped_refptr<ContentLayer> mask = ContentLayer::Create(&client);
-  mask->SetBounds(gfx::Size(100, 100));
+  gfx::Size mask_bounds(100, 100);
+  MaskContentLayerClient client(mask_bounds);
+  scoped_refptr<PictureLayer> mask = PictureLayer::Create(&client);
+  mask->SetBounds(mask_bounds);
   mask->SetIsDrawable(true);
   mask->SetIsMask(true);
 
@@ -225,8 +230,7 @@ TEST_F(LayerTreeHostMasksPixelTest, MaskOfReplica) {
   replica->SetMaskLayer(mask.get());
   green->SetReplicaLayer(replica.get());
 
-  this->impl_side_painting_ = false;
-  RunPixelTest(GL_WITH_BITMAP,
+  RunPixelTest(PIXEL_TEST_GL,
                background,
                base::FilePath(FILE_PATH_LITERAL("mask_of_replica.png")));
 }
@@ -235,9 +239,10 @@ TEST_F(LayerTreeHostMasksPixelTest, MaskOfReplicaOfClippedLayer) {
   scoped_refptr<SolidColorLayer> background = CreateSolidColorLayer(
       gfx::Rect(200, 200), SK_ColorWHITE);
 
-  MaskContentLayerClient client;
-  scoped_refptr<ContentLayer> mask = ContentLayer::Create(&client);
-  mask->SetBounds(gfx::Size(100, 100));
+  gfx::Size mask_bounds(100, 100);
+  MaskContentLayerClient client(mask_bounds);
+  scoped_refptr<PictureLayer> mask = PictureLayer::Create(&client);
+  mask->SetBounds(mask_bounds);
   mask->SetIsDrawable(true);
   mask->SetIsMask(true);
 
@@ -267,11 +272,10 @@ TEST_F(LayerTreeHostMasksPixelTest, MaskOfReplicaOfClippedLayer) {
   replica->SetMaskLayer(mask.get());
   green->SetReplicaLayer(replica.get());
 
-  this->impl_side_painting_ = false;
-  RunPixelTest(GL_WITH_BITMAP,
+  RunPixelTest(PIXEL_TEST_GL,
                background,
-               base::FilePath(FILE_PATH_LITERAL(
-                   "mask_of_replica_of_clipped_layer.png")));
+               base::FilePath(
+                   FILE_PATH_LITERAL("mask_of_replica_of_clipped_layer.png")));
 }
 
 }  // namespace

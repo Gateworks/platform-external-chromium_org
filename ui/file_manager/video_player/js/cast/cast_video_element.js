@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-'use strict';
-
 /**
  * Interval for updating media info (in ms).
  * @type {number}
@@ -224,8 +222,12 @@ CastVideoElement.prototype = {
       return;
 
     var play = function() {
+      // If the casted media is already playing and a pause request is not in
+      // progress, we can skip this play request.
       if (this.castMedia_.playerState ===
-              chrome.cast.media.PlayerState.PLAYING) {
+              chrome.cast.media.PlayerState.PLAYING &&
+          !this.pauseInProgress_) {
+        this.playInProgress_ = false;
         return;
       }
 

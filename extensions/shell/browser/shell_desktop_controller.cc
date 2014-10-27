@@ -4,6 +4,7 @@
 
 #include "extensions/shell/browser/shell_desktop_controller.h"
 
+#include <algorithm>
 #include <string>
 #include <vector>
 
@@ -52,9 +53,9 @@ class FillLayout : public aura::LayoutManager {
 
  private:
   // aura::LayoutManager:
-  virtual void OnWindowResized() OVERRIDE {}
+  virtual void OnWindowResized() override {}
 
-  virtual void OnWindowAddedToLayout(aura::Window* child) OVERRIDE {
+  virtual void OnWindowAddedToLayout(aura::Window* child) override {
     if (!child->parent())
       return;
 
@@ -63,15 +64,15 @@ class FillLayout : public aura::LayoutManager {
     child->SetBounds(gfx::Rect(parent_size));
   }
 
-  virtual void OnWillRemoveWindowFromLayout(aura::Window* child) OVERRIDE {}
+  virtual void OnWillRemoveWindowFromLayout(aura::Window* child) override {}
 
-  virtual void OnWindowRemovedFromLayout(aura::Window* child) OVERRIDE {}
+  virtual void OnWindowRemovedFromLayout(aura::Window* child) override {}
 
   virtual void OnChildWindowVisibilityChanged(aura::Window* child,
-                                              bool visible) OVERRIDE {}
+                                              bool visible) override {}
 
   virtual void SetChildBounds(aura::Window* child,
-                              const gfx::Rect& requested_bounds) OVERRIDE {
+                              const gfx::Rect& requested_bounds) override {
     SetChildBoundsDirect(child, requested_bounds);
   }
 
@@ -88,13 +89,13 @@ class ShellNativeCursorManager : public wm::NativeCursorManager {
 
   // wm::NativeCursorManager overrides.
   virtual void SetDisplay(const gfx::Display& display,
-                          wm::NativeCursorManagerDelegate* delegate) OVERRIDE {
+                          wm::NativeCursorManagerDelegate* delegate) override {
     if (image_cursors_->SetDisplay(display, display.device_scale_factor()))
       SetCursor(delegate->GetCursor(), delegate);
   }
 
   virtual void SetCursor(gfx::NativeCursor cursor,
-                         wm::NativeCursorManagerDelegate* delegate) OVERRIDE {
+                         wm::NativeCursorManagerDelegate* delegate) override {
     image_cursors_->SetPlatformCursor(&cursor);
     cursor.set_device_scale_factor(image_cursors_->GetScale());
     delegate->CommitCursor(cursor);
@@ -105,7 +106,7 @@ class ShellNativeCursorManager : public wm::NativeCursorManager {
 
   virtual void SetVisibility(
       bool visible,
-      wm::NativeCursorManagerDelegate* delegate) OVERRIDE {
+      wm::NativeCursorManagerDelegate* delegate) override {
     delegate->CommitVisibility(visible);
 
     if (visible) {
@@ -119,7 +120,7 @@ class ShellNativeCursorManager : public wm::NativeCursorManager {
 
   virtual void SetCursorSet(
       ui::CursorSetType cursor_set,
-      wm::NativeCursorManagerDelegate* delegate) OVERRIDE {
+      wm::NativeCursorManagerDelegate* delegate) override {
     image_cursors_->SetCursorSet(cursor_set);
     delegate->CommitCursorSet(cursor_set);
     if (delegate->IsCursorVisible())
@@ -128,7 +129,7 @@ class ShellNativeCursorManager : public wm::NativeCursorManager {
 
   virtual void SetMouseEventsEnabled(
       bool enabled,
-      wm::NativeCursorManagerDelegate* delegate) OVERRIDE {
+      wm::NativeCursorManagerDelegate* delegate) override {
     delegate->CommitMouseEventsEnabled(enabled);
     SetVisibility(delegate->IsCursorVisible(), delegate);
   }
@@ -149,7 +150,7 @@ class AppsFocusRules : public wm::BaseFocusRules {
   AppsFocusRules() {}
   virtual ~AppsFocusRules() {}
 
-  virtual bool SupportsChildActivation(aura::Window* window) const OVERRIDE {
+  virtual bool SupportsChildActivation(aura::Window* window) const override {
     return true;
   }
 
@@ -160,7 +161,7 @@ class AppsFocusRules : public wm::BaseFocusRules {
 }  // namespace
 
 ShellDesktopController::ShellDesktopController()
-    : app_window_client_(new ShellAppWindowClient), app_window_(NULL) {
+    : app_window_client_(new ShellAppWindowClient) {
   extensions::AppWindowClient::Set(app_window_client_.get());
 
 #if defined(OS_CHROMEOS)
@@ -191,8 +192,9 @@ aura::WindowTreeHost* ShellDesktopController::GetHost() {
 AppWindow* ShellDesktopController::CreateAppWindow(
     content::BrowserContext* context,
     const Extension* extension) {
-  app_window_ = new AppWindow(context, new ShellAppDelegate, extension);
-  return app_window_;
+  app_windows_.push_back(
+      new AppWindow(context, new ShellAppDelegate, extension));
+  return app_windows_.back();
 }
 
 void ShellDesktopController::AddAppWindow(aura::Window* window) {
@@ -200,11 +202,20 @@ void ShellDesktopController::AddAppWindow(aura::Window* window) {
   root_window->AddChild(window);
 }
 
+void ShellDesktopController::RemoveAppWindow(AppWindow* window) {
+  auto iter = std::find(app_windows_.begin(), app_windows_.end(), window);
+  DCHECK(iter != app_windows_.end());
+  app_windows_.erase(iter);
+}
+
 void ShellDesktopController::CloseAppWindows() {
-  if (app_window_) {
-    app_window_->GetBaseWindow()->Close();  // Close() deletes |app_window_|.
-    app_window_ = NULL;
-  }
+  // Create a copy of the window vector, because closing the windows will
+  // trigger RemoveAppWindow, which will invalidate the iterator.
+  // This vector should be small enough that this should not be an issue.
+  std::vector<AppWindow*> app_windows(app_windows_);
+  for (AppWindow* app_window : app_windows)
+    app_window->GetBaseWindow()->Close();  // Close() deletes |app_window|.
+  app_windows_.clear();
 }
 
 aura::Window* ShellDesktopController::GetDefaultParent(

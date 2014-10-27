@@ -84,7 +84,7 @@ class ProxyPolicyTest : public testing::Test {
   ProxyPolicyTest()
       : command_line_(CommandLine::NO_PROGRAM) {}
 
-  virtual void SetUp() OVERRIDE {
+  virtual void SetUp() override {
     EXPECT_CALL(provider_, IsInitializationComplete(_))
         .WillRepeatedly(Return(true));
 
@@ -94,7 +94,7 @@ class ProxyPolicyTest : public testing::Test {
     provider_.Init();
   }
 
-  virtual void TearDown() OVERRIDE {
+  virtual void TearDown() override {
     provider_.Shutdown();
   }
 
@@ -108,7 +108,7 @@ class ProxyPolicyTest : public testing::Test {
     scoped_ptr<PrefServiceSyncable> prefs =
         factory.CreateSyncable(registry.get());
     chrome::RegisterUserProfilePrefs(registry.get());
-    return prefs.PassAs<PrefService>();
+    return prefs.Pass();
   }
 
   base::MessageLoop loop_;

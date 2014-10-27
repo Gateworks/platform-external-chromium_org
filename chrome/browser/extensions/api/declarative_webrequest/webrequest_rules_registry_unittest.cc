@@ -70,11 +70,9 @@ class TestWebRequestRulesRegistry : public WebRequestRulesRegistry {
   }
 
  protected:
-  virtual ~TestWebRequestRulesRegistry() {}
+  ~TestWebRequestRulesRegistry() override {}
 
-  virtual void ClearCacheOnNavigation() OVERRIDE {
-    ++num_clear_cache_calls_;
-  }
+  void ClearCacheOnNavigation() override { ++num_clear_cache_calls_; }
 
  private:
   int num_clear_cache_calls_;
@@ -88,9 +86,9 @@ class WebRequestRulesRegistryTest : public testing::Test {
 
   virtual ~WebRequestRulesRegistryTest() {}
 
-  virtual void SetUp() OVERRIDE;
+  virtual void SetUp() override;
 
-  virtual void TearDown() OVERRIDE {
+  virtual void TearDown() override {
     // Make sure that deletion traits of all registries are executed.
     message_loop_.RunUntilIdle();
   }

@@ -20,35 +20,33 @@ namespace ui {
 class SimpleMenuModel;
 }  // namespace ui
 
-class ChromeWebViewGuestDelegate : public extensions::WebViewGuestDelegate,
+namespace extensions {
+
+class ChromeWebViewGuestDelegate : public WebViewGuestDelegate,
                                    public ZoomObserver {
  public :
-  explicit ChromeWebViewGuestDelegate(
-      extensions::WebViewGuest* web_view_guest);
-  virtual ~ChromeWebViewGuestDelegate();
+  explicit ChromeWebViewGuestDelegate(WebViewGuest* web_view_guest);
+  ~ChromeWebViewGuestDelegate() override;
 
   // WebViewGuestDelegate implementation.
-  virtual double GetZoom() OVERRIDE;
-  virtual bool HandleContextMenu(
-      const content::ContextMenuParams& params) OVERRIDE;
-  virtual void OnAttachWebViewHelpers(content::WebContents* contents) OVERRIDE;
-  virtual void OnEmbedderDestroyed() OVERRIDE;
-  virtual void OnDidAttachToEmbedder() OVERRIDE;
-  virtual void OnDidCommitProvisionalLoadForFrame(bool is_main_frame) OVERRIDE;
-  virtual void OnDidInitialize() OVERRIDE;
-  virtual void OnDocumentLoadedInFrame(
-      content::RenderFrameHost* render_frame_host) OVERRIDE;
-  virtual void OnGuestDestroyed() OVERRIDE;
-  virtual void OnSetZoom(double zoom_factor) OVERRIDE;
-  virtual void OnShowContextMenu(
-      int request_id,
-      const MenuItemVector* items) OVERRIDE;
+  double GetZoom() override;
+  bool HandleContextMenu(const content::ContextMenuParams& params) override;
+  void OnAttachWebViewHelpers(content::WebContents* contents) override;
+  void OnDidAttachToEmbedder() override;
+  void OnDidCommitProvisionalLoadForFrame(bool is_main_frame) override;
+  void OnDidInitialize() override;
+  void OnDocumentLoadedInFrame(
+      content::RenderFrameHost* render_frame_host) override;
+  void OnGuestReady() override;
+  void OnEmbedderWillBeDestroyed() override;
+  void OnGuestDestroyed() override;
+  void OnSetZoom(double zoom_factor) override;
+  void OnShowContextMenu(int request_id, const MenuItemVector* items) override;
 
   // ZoomObserver implementation.
-  virtual void OnZoomChanged(
-      const ZoomController::ZoomChangedEventData& data) OVERRIDE;
+  void OnZoomChanged(const ZoomController::ZoomChangedEventData& data) override;
 
-  extensions::WebViewGuest* web_view_guest() const { return web_view_guest_; }
+  WebViewGuest* web_view_guest() const { return web_view_guest_; }
 
  private:
   content::WebContents* guest_web_contents() const {
@@ -87,10 +85,16 @@ class ChromeWebViewGuestDelegate : public extensions::WebViewGuestDelegate,
       accessibility_subscription_;
 #endif
 
-  extensions::WebViewGuest* const web_view_guest_;
+  WebViewGuest* const web_view_guest_;
+
+  // This is used to ensure pending tasks will not fire after this object is
+  // destroyed.
+  base::WeakPtrFactory<ChromeWebViewGuestDelegate> weak_ptr_factory_;
 
   DISALLOW_COPY_AND_ASSIGN(ChromeWebViewGuestDelegate);
 };
+
+}  // namespace extensions
 
 #endif  // CHROME_BROWSER_GUEST_VIEW_WEB_VIEW_CHROME_WEB_VIEW_GUEST_DELEGATE_H_
 

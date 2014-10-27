@@ -5,7 +5,6 @@
 #include "base/auto_reset.h"
 #include "base/command_line.h"
 #include "base/strings/utf_string_conversions.h"
-#include "chrome/browser/content_settings/host_content_settings_map.h"
 #include "chrome/browser/content_settings/tab_specific_content_settings.h"
 #include "chrome/browser/custom_handlers/protocol_handler_registry.h"
 #include "chrome/browser/infobars/infobar_service.h"
@@ -17,6 +16,7 @@
 #include "chrome/grit/generated_resources.h"
 #include "chrome/test/base/chrome_render_view_host_test_harness.h"
 #include "chrome/test/base/testing_profile.h"
+#include "components/content_settings/core/browser/host_content_settings_map.h"
 #include "components/content_settings/core/common/content_settings.h"
 #include "components/infobars/core/infobar_delegate.h"
 #include "content/public/browser/web_contents.h"
@@ -28,7 +28,7 @@ using content::WebContentsTester;
 
 class ContentSettingBubbleModelTest : public ChromeRenderViewHostTestHarness {
  protected:
-  virtual void SetUp() OVERRIDE {
+  virtual void SetUp() override {
     ChromeRenderViewHostTestHarness::SetUp();
     TabSpecificContentSettings::CreateForWebContents(web_contents());
     InfoBarService::CreateForWebContents(web_contents());
@@ -814,27 +814,27 @@ TEST_F(ContentSettingBubbleModelTest, RegisterProtocolHandler) {
 
 class FakeDelegate : public ProtocolHandlerRegistry::Delegate {
  public:
-  virtual void RegisterExternalHandler(const std::string& protocol) OVERRIDE {
+  void RegisterExternalHandler(const std::string& protocol) override {
     // Overrides in order to not register the handler with the
     // ChildProcessSecurityPolicy. That has persistent and unalterable
     // side effects on other tests.
   }
 
-  virtual ShellIntegration::DefaultProtocolClientWorker* CreateShellWorker(
+  ShellIntegration::DefaultProtocolClientWorker* CreateShellWorker(
       ShellIntegration::DefaultWebClientObserver* observer,
-      const std::string& protocol) OVERRIDE {
+      const std::string& protocol) override {
     VLOG(1) << "CreateShellWorker";
     return NULL;
   }
 
-  virtual ProtocolHandlerRegistry::DefaultClientObserver* CreateShellObserver(
-      ProtocolHandlerRegistry* registry) OVERRIDE {
+  ProtocolHandlerRegistry::DefaultClientObserver* CreateShellObserver(
+      ProtocolHandlerRegistry* registry) override {
     return NULL;
   }
 
-  virtual void RegisterWithOSAsDefaultClient(
+  void RegisterWithOSAsDefaultClient(
       const std::string& protocol,
-      ProtocolHandlerRegistry* registry) OVERRIDE {
+      ProtocolHandlerRegistry* registry) override {
     VLOG(1) << "Register With OS";
   }
 };

@@ -25,6 +25,9 @@ void FakeGCMDriver::RemoveAppHandler(const std::string& app_id) {
 void FakeGCMDriver::OnSignedIn() {
 }
 
+void FakeGCMDriver::OnSignedOut() {
+}
+
 void FakeGCMDriver::Purge() {
 }
 
@@ -74,6 +77,10 @@ void FakeGCMDriver::UnregisterImpl(const std::string& app_id) {
 void FakeGCMDriver::SendImpl(const std::string& app_id,
                              const std::string& receiver_id,
                              const GCMClient::OutgoingMessage& message) {
+}
+
+void FakeGCMDriver::SetAccountTokens(
+    const std::vector<GCMClient::AccountTokenInfo>& account_tokens) {
 }
 
 void FakeGCMDriver::UpdateAccountMapping(

@@ -24,20 +24,19 @@ class ConfirmInfoBar : public InfoBarView,
                        public views::LinkListener {
  public:
   explicit ConfirmInfoBar(scoped_ptr<ConfirmInfoBarDelegate> delegate);
-
- private:
   virtual ~ConfirmInfoBar();
 
+ private:
   // InfoBarView:
-  virtual void Layout() OVERRIDE;
+  virtual void Layout() override;
   virtual void ViewHierarchyChanged(
-      const ViewHierarchyChangedDetails& details) OVERRIDE;
+      const ViewHierarchyChangedDetails& details) override;
   virtual void ButtonPressed(views::Button* sender,
-                             const ui::Event& event) OVERRIDE;
-  virtual int ContentMinimumWidth() const OVERRIDE;
+                             const ui::Event& event) override;
+  virtual int ContentMinimumWidth() const override;
 
   // views::LinkListener:
-  virtual void LinkClicked(views::Link* source, int event_flags) OVERRIDE;
+  virtual void LinkClicked(views::Link* source, int event_flags) override;
 
   ConfirmInfoBarDelegate* GetDelegate();
 

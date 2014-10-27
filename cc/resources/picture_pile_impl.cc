@@ -12,10 +12,7 @@
 #include "skia/ext/analysis_canvas.h"
 #include "third_party/skia/include/core/SkCanvas.h"
 #include "third_party/skia/include/core/SkPictureRecorder.h"
-#include "third_party/skia/include/core/SkSize.h"
-#include "ui/gfx/rect_conversions.h"
-#include "ui/gfx/size_conversions.h"
-#include "ui/gfx/skia_util.h"
+#include "ui/gfx/geometry/rect_conversions.h"
 
 namespace cc {
 
@@ -28,11 +25,13 @@ scoped_refptr<PicturePileImpl> PicturePileImpl::CreateFromOther(
   return make_scoped_refptr(new PicturePileImpl(other));
 }
 
-PicturePileImpl::PicturePileImpl() {
+PicturePileImpl::PicturePileImpl()
+    : likely_to_be_used_for_transform_animation_(false) {
 }
 
 PicturePileImpl::PicturePileImpl(const PicturePileBase* other)
-    : PicturePileBase(other) {
+    : PicturePileBase(other),
+      likely_to_be_used_for_transform_animation_(false) {
 }
 
 PicturePileImpl::~PicturePileImpl() {

@@ -72,7 +72,10 @@ class SessionService : public BaseSessionService,
   // For testing.
   explicit SessionService(const base::FilePath& save_path);
 
-  virtual ~SessionService();
+  ~SessionService() override;
+
+  // This may be NULL during testing.
+  Profile* profile() const { return profile_; }
 
   // Returns true if a new window opening should really be treated like the
   // start of a session (with potential session restore, startup URLs, etc.).
@@ -200,7 +203,7 @@ class SessionService : public BaseSessionService,
 
   // Overridden from BaseSessionService because we want some UMA reporting on
   // session update activities.
-  virtual void Save() OVERRIDE;
+  void Save() override;
 
  private:
   // Allow tests to access our innards for testing purposes.
@@ -233,14 +236,14 @@ class SessionService : public BaseSessionService,
   bool RestoreIfNecessary(const std::vector<GURL>& urls_to_open,
                           Browser* browser);
 
-  virtual void Observe(int type,
-                       const content::NotificationSource& source,
-                       const content::NotificationDetails& details) OVERRIDE;
+  void Observe(int type,
+               const content::NotificationSource& source,
+               const content::NotificationDetails& details) override;
 
   // chrome::BrowserListObserver
-  virtual void OnBrowserAdded(Browser* browser) OVERRIDE {}
-  virtual void OnBrowserRemoved(Browser* browser) OVERRIDE {}
-  virtual void OnBrowserSetLastActive(Browser* browser) OVERRIDE;
+  void OnBrowserAdded(Browser* browser) override {}
+  void OnBrowserRemoved(Browser* browser) override {}
+  void OnBrowserSetLastActive(Browser* browser) override;
 
   // Sets the application extension id of the specified tab.
   void SetTabExtensionAppID(const SessionID& window_id,
@@ -389,7 +392,7 @@ class SessionService : public BaseSessionService,
 
   // Schedules the specified command. This method takes ownership of the
   // command.
-  virtual void ScheduleCommand(SessionCommand* command) OVERRIDE;
+  void ScheduleCommand(SessionCommand* command) override;
 
   // Converts all pending tab/window closes to commands and schedules them.
   void CommitPendingCloses();
@@ -438,6 +441,9 @@ class SessionService : public BaseSessionService,
   // types.
   static WindowType WindowTypeForBrowserType(Browser::Type type);
   static Browser::Type BrowserTypeForWindowType(WindowType type);
+
+  // The profile. This may be null during testing.
+  Profile* profile_;
 
   content::NotificationRegistrar registrar_;
 

@@ -11,13 +11,13 @@
 #include "chrome/browser/extensions/extension_service.h"
 #include "chrome/browser/extensions/lazy_background_page_test_util.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/ui/app_modal_dialogs/app_modal_dialog.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/location_bar/location_bar.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/common/url_constants.h"
 #include "chrome/test/base/ui_test_utils.h"
+#include "components/app_modal_dialogs/app_modal_dialog.h"
 #include "components/bookmarks/browser/bookmark_model.h"
 #include "components/bookmarks/browser/bookmark_utils.h"
 #include "components/bookmarks/test/bookmark_test_helpers.h"
@@ -61,10 +61,10 @@ class LoadedIncognitoObserver : public extensions::ExtensionRegistryObserver {
   }
 
  private:
-  virtual void OnExtensionUnloaded(
+  void OnExtensionUnloaded(
       content::BrowserContext* browser_context,
       const Extension* extension,
-      extensions::UnloadedExtensionInfo::Reason reason) OVERRIDE {
+      extensions::UnloadedExtensionInfo::Reason reason) override {
     original_complete_.reset(new LazyBackgroundObserver(profile_));
     incognito_complete_.reset(
         new LazyBackgroundObserver(profile_->GetOffTheRecordProfile()));
@@ -85,7 +85,7 @@ class LazyBackgroundPageApiTest : public ExtensionApiTest {
   LazyBackgroundPageApiTest() {}
   virtual ~LazyBackgroundPageApiTest() {}
 
-  virtual void SetUpOnMainThread() OVERRIDE {
+  void SetUpOnMainThread() override {
     ExtensionApiTest::SetUpOnMainThread();
     // Set shorter delays to prevent test timeouts.
     extensions::ProcessManager::SetEventPageIdleTimeForTesting(1);
@@ -385,7 +385,7 @@ IN_PROC_BROWSER_TEST_F(LazyBackgroundPageApiTest, DISABLED_IncognitoSplitMode) {
                            page2_complete(incognito_browser->profile());
     BookmarkModel* bookmark_model =
         BookmarkModelFactory::GetForProfile(browser()->profile());
-    test::WaitForBookmarkModelToLoad(bookmark_model);
+    bookmarks::test::WaitForBookmarkModelToLoad(bookmark_model);
     const BookmarkNode* parent = bookmark_model->bookmark_bar_node();
     bookmark_model->AddURL(
         parent, 0, base::ASCIIToUTF16("Title"), GURL("about:blank"));
@@ -503,7 +503,7 @@ IN_PROC_BROWSER_TEST_F(LazyBackgroundPageApiTest, EventDispatchToTab) {
   // Send an event by making a bookmark.
   BookmarkModel* bookmark_model =
       BookmarkModelFactory::GetForProfile(browser()->profile());
-  test::WaitForBookmarkModelToLoad(bookmark_model);
+  bookmarks::test::WaitForBookmarkModelToLoad(bookmark_model);
   bookmarks::AddIfNotBookmarked(bookmark_model,
                                 GURL("http://www.google.com"),
                                 base::UTF8ToUTF16("Google"));

@@ -6,7 +6,7 @@
 
 #include "base/command_line.h"
 #include "base/message_loop/message_loop.h"
-#include "mojo/services/public/cpp/input_events/lib/mojo_extended_key_event_data.h"
+#include "mojo/converters/input_events/mojo_extended_key_event_data.h"
 #include "ui/events/event.h"
 #include "ui/events/event_utils.h"
 #include "ui/events/platform/platform_event_dispatcher.h"
@@ -24,14 +24,14 @@ class PlatformViewportX11 : public PlatformViewport,
   explicit PlatformViewportX11(Delegate* delegate) : delegate_(delegate) {
   }
 
-  virtual ~PlatformViewportX11() {
+  ~PlatformViewportX11() override {
     // Destroy the platform-window while |this| is still alive.
     platform_window_.reset();
   }
 
  private:
   // Overridden from PlatformViewport:
-  virtual void Init(const gfx::Rect& bounds) OVERRIDE {
+  void Init(const gfx::Rect& bounds) override {
     CHECK(!event_source_);
     CHECK(!platform_window_);
 
@@ -41,44 +41,31 @@ class PlatformViewportX11 : public PlatformViewport,
     platform_window_->SetBounds(bounds);
   }
 
-  virtual void Show() OVERRIDE {
-    platform_window_->Show();
-  }
+  void Show() override { platform_window_->Show(); }
 
-  virtual void Hide() OVERRIDE {
-    platform_window_->Hide();
-  }
+  void Hide() override { platform_window_->Hide(); }
 
-  virtual void Close() OVERRIDE {
-    platform_window_->Close();
-  }
+  void Close() override { platform_window_->Close(); }
 
-  virtual gfx::Size GetSize() OVERRIDE {
-    return bounds_.size();
-  }
+  gfx::Size GetSize() override { return bounds_.size(); }
 
-  virtual void SetBounds(const gfx::Rect& bounds) OVERRIDE {
+  void SetBounds(const gfx::Rect& bounds) override {
     platform_window_->SetBounds(bounds);
   }
 
-  virtual void SetCapture() OVERRIDE {
-    platform_window_->SetCapture();
-  }
+  void SetCapture() override { platform_window_->SetCapture(); }
 
-  virtual void ReleaseCapture() OVERRIDE {
-    platform_window_->ReleaseCapture();
-  }
+  void ReleaseCapture() override { platform_window_->ReleaseCapture(); }
 
   // ui::PlatformWindowDelegate:
-  virtual void OnBoundsChanged(const gfx::Rect& new_bounds) OVERRIDE {
+  void OnBoundsChanged(const gfx::Rect& new_bounds) override {
     bounds_ = new_bounds;
     delegate_->OnBoundsChanged(new_bounds);
   }
 
-  virtual void OnDamageRect(const gfx::Rect& damaged_region) OVERRIDE {
-  }
+  void OnDamageRect(const gfx::Rect& damaged_region) override {}
 
-  virtual void DispatchEvent(ui::Event* event) OVERRIDE {
+  void DispatchEvent(ui::Event* event) override {
     delegate_->OnEvent(event);
 
     // We want to emulate the WM_CHAR generation behaviour of Windows.
@@ -113,26 +100,19 @@ class PlatformViewportX11 : public PlatformViewport,
     }
   }
 
-  virtual void OnCloseRequest() OVERRIDE {
-    platform_window_->Close();
-  }
+  void OnCloseRequest() override { platform_window_->Close(); }
 
-  virtual void OnClosed() OVERRIDE {
-    delegate_->OnDestroyed();
-  }
+  void OnClosed() override { delegate_->OnDestroyed(); }
 
-  virtual void OnWindowStateChanged(ui::PlatformWindowState state) OVERRIDE {
-  }
+  void OnWindowStateChanged(ui::PlatformWindowState state) override {}
 
-  virtual void OnLostCapture() OVERRIDE {
-  }
+  void OnLostCapture() override {}
 
-  virtual void OnAcceleratedWidgetAvailable(
-      gfx::AcceleratedWidget widget) OVERRIDE {
+  void OnAcceleratedWidgetAvailable(gfx::AcceleratedWidget widget) override {
     delegate_->OnAcceleratedWidgetAvailable(widget);
   }
 
-  virtual void OnActivationChanged(bool active) OVERRIDE {}
+  void OnActivationChanged(bool active) override {}
 
   scoped_ptr<ui::PlatformEventSource> event_source_;
   scoped_ptr<ui::PlatformWindow> platform_window_;

@@ -19,6 +19,9 @@
 #include "net/test/cert_test_util.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+// http://crbug.com/418369
+#ifdef NDEBUG
+
 namespace chromeos {
 namespace {
 
@@ -50,7 +53,7 @@ class CertLoaderTest : public testing::Test,
 
   virtual ~CertLoaderTest() {}
 
-  virtual void SetUp() OVERRIDE {
+  virtual void SetUp() override {
     ASSERT_TRUE(primary_user_.constructed_successfully());
     ASSERT_TRUE(
         crypto::GetPublicSlotForChromeOSUser(primary_user_.username_hash()));
@@ -77,7 +80,7 @@ class CertLoaderTest : public testing::Test,
   // CertLoader::Observer:
   // The test keeps count of times the observer method was called.
   virtual void OnCertificatesLoaded(const net::CertificateList& cert_list,
-                                    bool initial_load) OVERRIDE {
+                                    bool initial_load) override {
     EXPECT_TRUE(certificates_loaded_events_count_ == 0 || !initial_load);
     certificates_loaded_events_count_++;
   }
@@ -315,3 +318,6 @@ TEST_F(CertLoaderTest, UpdatedOnCACertTrustChange) {
 
 }  // namespace
 }  // namespace chromeos
+
+#endif
+

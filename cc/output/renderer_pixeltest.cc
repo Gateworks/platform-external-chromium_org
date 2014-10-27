@@ -103,11 +103,12 @@ void CreateTestRenderPassDrawQuad(const SharedQuadState* shared_state,
                rect,
                rect,
                pass_id,
-               0,                     // mask_resource_id
-               gfx::RectF(1.f, 1.f),  // mask_uv_rect
-               FilterOperations(),    // foreground filters
-               gfx::Vector2dF(),      // filters scale
-               FilterOperations());   // background filters
+               0,                    // mask_resource_id
+               gfx::Vector2dF(),     // mask_uv_scale
+               gfx::Size(),          // mask_texture_size
+               FilterOperations(),   // foreground filters
+               gfx::Vector2dF(),     // filters scale
+               FilterOperations());  // background filters
 }
 
 void CreateTestTextureDrawQuad(const gfx::Rect& rect,
@@ -525,7 +526,7 @@ class VideoGLRendererPixelTest : public GLRendererPixelTest {
                      color_space);
   }
 
-  virtual void SetUp() OVERRIDE {
+  virtual void SetUp() override {
     GLRendererPixelTest::SetUp();
     video_resource_updater_.reset(new VideoResourceUpdater(
         output_surface_->context_provider(), resource_provider_.get()));
@@ -798,7 +799,8 @@ TYPED_TEST(RendererPixelTest, FastPassColorFilterAlpha) {
                            pass_rect,
                            child_pass_id,
                            0,
-                           gfx::RectF(),
+                           gfx::Vector2dF(),
+                           gfx::Size(),
                            filters,
                            gfx::Vector2dF(),
                            FilterOperations());
@@ -869,7 +871,8 @@ TYPED_TEST(RendererPixelTest, FastPassSaturateFilter) {
                            pass_rect,
                            child_pass_id,
                            0,
-                           gfx::RectF(),
+                           gfx::Vector2dF(),
+                           gfx::Size(),
                            filters,
                            gfx::Vector2dF(),
                            FilterOperations());
@@ -939,7 +942,8 @@ TYPED_TEST(RendererPixelTest, FastPassFilterChain) {
                            pass_rect,
                            child_pass_id,
                            0,
-                           gfx::RectF(),
+                           gfx::Vector2dF(),
+                           gfx::Size(),
                            filters,
                            gfx::Vector2dF(),
                            FilterOperations());
@@ -1031,7 +1035,8 @@ TYPED_TEST(RendererPixelTest, FastPassColorFilterAlphaTranslation) {
                            pass_rect,
                            child_pass_id,
                            0,
-                           gfx::RectF(),
+                           gfx::Vector2dF(),
+                           gfx::Size(),
                            filters,
                            gfx::Vector2dF(),
                            FilterOperations());
@@ -1223,12 +1228,11 @@ TYPED_TEST(RendererPixelTest, RenderPassAndMaskWithPartialQuad) {
 
   // This RenderPassDrawQuad does not include the full |viewport_rect| which is
   // the size of the child render pass.
-  gfx::Rect sub_rect = gfx::Rect(50, 50, 100, 100);
+  gfx::Rect sub_rect = gfx::Rect(50, 50, 200, 100);
   EXPECT_NE(sub_rect.x(), child_pass->output_rect.x());
   EXPECT_NE(sub_rect.y(), child_pass->output_rect.y());
   EXPECT_NE(sub_rect.right(), child_pass->output_rect.right());
   EXPECT_NE(sub_rect.bottom(), child_pass->output_rect.bottom());
-  EXPECT_TRUE(child_pass->output_rect.Contains(sub_rect));
 
   // Set up a mask on the RenderPassDrawQuad.
   RenderPassDrawQuad* mask_quad =
@@ -1238,10 +1242,11 @@ TYPED_TEST(RendererPixelTest, RenderPassAndMaskWithPartialQuad) {
                     sub_rect,
                     child_pass_id,
                     mask_resource_id,
-                    gfx::RectF(1.f, 1.f),  // mask_uv_rect
-                    FilterOperations(),    // foreground filters
-                    gfx::Vector2dF(),      // filters scale
-                    FilterOperations());   // background filters
+                    gfx::Vector2dF(2.f, 1.f),     // mask_uv_scale
+                    gfx::Size(mask_rect.size()),  // mask_texture_size
+                    FilterOperations(),           // foreground filters
+                    gfx::Vector2dF(),             // filters scale
+                    FilterOperations());          // background filters
 
   // White background behind the masked render pass.
   SolidColorDrawQuad* white =
@@ -1258,7 +1263,7 @@ TYPED_TEST(RendererPixelTest, RenderPassAndMaskWithPartialQuad) {
 
   EXPECT_TRUE(this->RunPixelTest(
       &pass_list,
-      base::FilePath(FILE_PATH_LITERAL("image_mask_of_layer.png")),
+      base::FilePath(FILE_PATH_LITERAL("mask_bottom_right.png")),
       ExactPixelComparator(true)));
 }
 
@@ -1305,16 +1310,16 @@ class RendererPixelTestWithBackgroundFilter
                                     filter_pass.get());
       RenderPassDrawQuad* filter_pass_quad =
           root_pass->CreateAndAppendDrawQuad<RenderPassDrawQuad>();
-      filter_pass_quad->SetNew(
-          shared_state,
-          filter_pass_content_rect_,
-          filter_pass_content_rect_,
-          filter_pass_id,
-          0,                          // mask_resource_id
-          gfx::RectF(),               // mask_uv_rect
-          FilterOperations(),         // filters
-          gfx::Vector2dF(),           // filters_scale
-          this->background_filters_);
+      filter_pass_quad->SetNew(shared_state,
+                               filter_pass_content_rect_,
+                               filter_pass_content_rect_,
+                               filter_pass_id,
+                               0,                   // mask_resource_id
+                               gfx::Vector2dF(),    // mask_uv_scale
+                               gfx::Size(),         // mask_texture_size
+                               FilterOperations(),  // filters
+                               gfx::Vector2dF(),    // filters_scale
+                               this->background_filters_);
     }
 
     const int kColumnWidth = device_viewport_rect.width() / 3;

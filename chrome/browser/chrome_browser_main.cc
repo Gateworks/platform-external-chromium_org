@@ -110,7 +110,7 @@
 #include "components/startup_metric_utils/startup_metric_utils.h"
 #include "components/translate/content/common/cld_data_source.h"
 #include "components/translate/core/browser/translate_download_manager.h"
-#include "components/variations/variations_http_header_provider.h"
+#include "components/variations/net/variations_http_header_provider.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/notification_observer.h"
 #include "content/public/browser/notification_registrar.h"
@@ -402,9 +402,16 @@ void RegisterComponentsForUpdate() {
   RegisterPepperFlashComponent(cus);
   RegisterSwiftShaderComponent(cus);
   RegisterWidevineCdmComponent(cus);
-#if !defined(DISABLE_NACL)
-  g_browser_process->pnacl_component_installer()->RegisterPnaclComponent(cus);
 #endif
+
+#if !defined(DISABLE_NACL) && !defined(OS_ANDROID)
+#if defined(OS_CHROMEOS)
+  // PNaCl on Chrome OS is on rootfs and there is no need to download it. But
+  // Chrome4ChromeOS on Linux doesn't contain PNaCl so enable component
+  // installer when ruining on Linux. See crbug.com/422121 for more details.
+  if (!base::SysInfo::IsRunningOnChromeOS())
+#endif
+    g_browser_process->pnacl_component_installer()->RegisterPnaclComponent(cus);
 #endif
 
   if (translate::CldDataSource::ShouldRegisterForComponentUpdates()) {
@@ -502,12 +509,12 @@ class LoadCompleteListener : public content::NotificationObserver {
                    content::NOTIFICATION_LOAD_COMPLETED_MAIN_FRAME,
                    content::NotificationService::AllSources());
   }
-  virtual ~LoadCompleteListener() {}
+  ~LoadCompleteListener() override {}
 
   // content::NotificationObserver implementation.
-  virtual void Observe(int type,
-                       const content::NotificationSource& source,
-                       const content::NotificationDetails& details) OVERRIDE {
+  void Observe(int type,
+               const content::NotificationSource& source,
+               const content::NotificationDetails& details) override {
     DCHECK_EQ(content::NOTIFICATION_LOAD_COMPLETED_MAIN_FRAME, type);
     startup_metric_utils::OnInitialPageLoadComplete();
     delete this;
@@ -1082,9 +1089,11 @@ int ChromeBrowserMainParts::PreMainMessageLoopRunImpl() {
   StartMetricsRecording();
 #endif
 
-  // Create watchdog thread after creating all other threads because it will
-  // watch the other threads and they must be running.
-  browser_process_->watchdog_thread();
+  if (!base::debug::BeingDebugged()) {
+    // Create watchdog thread after creating all other threads because it will
+    // watch the other threads and they must be running.
+    browser_process_->watchdog_thread();
+  }
 
   // Do any initializating in the browser process that requires all threads
   // running.

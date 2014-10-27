@@ -223,28 +223,29 @@ class CONTENT_EXPORT ServiceWorkerVersion
   friend class base::RefCounted<ServiceWorkerVersion>;
   FRIEND_TEST_ALL_PREFIXES(ServiceWorkerControlleeRequestHandlerTest,
                            ActivateWaitingVersion);
+  FRIEND_TEST_ALL_PREFIXES(ServiceWorkerVersionTest, ScheduleStopWorker);
+  FRIEND_TEST_ALL_PREFIXES(ServiceWorkerVersionTest, ListenerAvailability);
   typedef ServiceWorkerVersion self;
   typedef std::map<ServiceWorkerProviderHost*, int> ControlleeMap;
   typedef IDMap<ServiceWorkerProviderHost> ControlleeByIDMap;
-  FRIEND_TEST_ALL_PREFIXES(ServiceWorkerVersionTest, ScheduleStopWorker);
 
-  virtual ~ServiceWorkerVersion();
+  ~ServiceWorkerVersion() override;
 
   // EmbeddedWorkerInstance::Listener overrides:
-  virtual void OnStarted() OVERRIDE;
-  virtual void OnStopped() OVERRIDE;
-  virtual void OnReportException(const base::string16& error_message,
-                                 int line_number,
-                                 int column_number,
-                                 const GURL& source_url) OVERRIDE;
-  virtual void OnReportConsoleMessage(int source_identifier,
-                                      int message_level,
-                                      const base::string16& message,
-                                      int line_number,
-                                      const GURL& source_url) OVERRIDE;
-  virtual bool OnMessageReceived(const IPC::Message& message) OVERRIDE;
+  void OnStarted() override;
+  void OnStopped() override;
+  void OnReportException(const base::string16& error_message,
+                         int line_number,
+                         int column_number,
+                         const GURL& source_url) override;
+  void OnReportConsoleMessage(int source_identifier,
+                              int message_level,
+                              const base::string16& message,
+                              int line_number,
+                              const GURL& source_url) override;
+  bool OnMessageReceived(const IPC::Message& message) override;
 
-  void RunStartWorkerCallbacksOnError(ServiceWorkerStatusCode status);
+  void OnStartMessageSent(ServiceWorkerStatusCode status);
 
   void DispatchInstallEventAfterStartWorker(int active_version_id,
                                             const StatusCallback& callback);

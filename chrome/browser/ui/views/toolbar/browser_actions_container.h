@@ -8,9 +8,9 @@
 #include "base/observer_list.h"
 #include "chrome/browser/extensions/extension_keybinding_registry.h"
 #include "chrome/browser/extensions/extension_toolbar_model.h"
-#include "chrome/browser/ui/views/extensions/browser_action_overflow_menu_controller.h"
 #include "chrome/browser/ui/views/extensions/extension_keybinding_registry_views.h"
 #include "chrome/browser/ui/views/toolbar/browser_action_view.h"
+#include "chrome/browser/ui/views/toolbar/chevron_menu_button.h"
 #include "ui/gfx/animation/animation_delegate.h"
 #include "ui/gfx/animation/tween.h"
 #include "ui/views/controls/button/menu_button_listener.h"
@@ -123,11 +123,9 @@ class ResizeArea;
 ////////////////////////////////////////////////////////////////////////////////
 class BrowserActionsContainer
     : public views::View,
-      public views::MenuButtonListener,
       public views::ResizeAreaDelegate,
       public gfx::AnimationDelegate,
       public extensions::ExtensionToolbarModel::Observer,
-      public BrowserActionOverflowMenuController::Observer,
       public BrowserActionView::Delegate,
       public extensions::ExtensionKeybindingRegistry::Delegate {
  public:
@@ -135,11 +133,9 @@ class BrowserActionsContainer
   // the last item or chevron (if visible).
   static const int kItemSpacing;
 
-  // Constructs a BrowserActionContainer for a particular |browser| object, and
-  // specifies which view is the |owner_view|. For documentation of
-  // |main_container|, see class comments.
+  // Constructs a BrowserActionContainer for a particular |browser| object. For
+  // documentation of |main_container|, see class comments.
   BrowserActionsContainer(Browser* browser,
-                          views::View* owner_view,
                           BrowserActionsContainer* main_container);
   virtual ~BrowserActionsContainer();
 
@@ -167,6 +163,9 @@ class BrowserActionsContainer
   BrowserActionView* GetBrowserActionViewAt(int index) {
     return browser_action_views_[index];
   }
+
+  // Returns the ID of the action represented by the view at |index|.
+  const std::string& GetIdAt(size_t index);
 
   // Returns the BrowserActionView* associated with the given |extension|, or
   // NULL if none exists.
@@ -205,64 +204,52 @@ class BrowserActionsContainer
   void RemoveObserver(BrowserActionsContainerObserver* observer);
 
   // Overridden from views::View:
-  virtual gfx::Size GetPreferredSize() const OVERRIDE;
-  virtual int GetHeightForWidth(int width) const OVERRIDE;
-  virtual gfx::Size GetMinimumSize() const OVERRIDE;
-  virtual void Layout() OVERRIDE;
+  virtual gfx::Size GetPreferredSize() const override;
+  virtual int GetHeightForWidth(int width) const override;
+  virtual gfx::Size GetMinimumSize() const override;
+  virtual void Layout() override;
   virtual bool GetDropFormats(int* formats,
-      std::set<ui::OSExchangeData::CustomFormat>* custom_formats) OVERRIDE;
-  virtual bool AreDropTypesRequired() OVERRIDE;
-  virtual bool CanDrop(const ui::OSExchangeData& data) OVERRIDE;
-  virtual int OnDragUpdated(const ui::DropTargetEvent& event) OVERRIDE;
-  virtual void OnDragExited() OVERRIDE;
-  virtual int OnPerformDrop(const ui::DropTargetEvent& event) OVERRIDE;
-  virtual void GetAccessibleState(ui::AXViewState* state) OVERRIDE;
-
-  // Overridden from views::MenuButtonListener:
-  virtual void OnMenuButtonClicked(views::View* source,
-                                   const gfx::Point& point) OVERRIDE;
+      std::set<ui::OSExchangeData::CustomFormat>* custom_formats) override;
+  virtual bool AreDropTypesRequired() override;
+  virtual bool CanDrop(const ui::OSExchangeData& data) override;
+  virtual int OnDragUpdated(const ui::DropTargetEvent& event) override;
+  virtual void OnDragExited() override;
+  virtual int OnPerformDrop(const ui::DropTargetEvent& event) override;
+  virtual void GetAccessibleState(ui::AXViewState* state) override;
 
   // Overridden from views::DragController:
   virtual void WriteDragDataForView(View* sender,
                                     const gfx::Point& press_pt,
-                                    ui::OSExchangeData* data) OVERRIDE;
+                                    ui::OSExchangeData* data) override;
   virtual int GetDragOperationsForView(View* sender,
-                                       const gfx::Point& p) OVERRIDE;
+                                       const gfx::Point& p) override;
   virtual bool CanStartDragForView(View* sender,
                                    const gfx::Point& press_pt,
-                                   const gfx::Point& p) OVERRIDE;
+                                   const gfx::Point& p) override;
 
   // Overridden from views::ResizeAreaDelegate:
-  virtual void OnResize(int resize_amount, bool done_resizing) OVERRIDE;
+  virtual void OnResize(int resize_amount, bool done_resizing) override;
 
   // Overridden from gfx::AnimationDelegate:
-  virtual void AnimationProgressed(const gfx::Animation* animation) OVERRIDE;
-  virtual void AnimationEnded(const gfx::Animation* animation) OVERRIDE;
-
-  // Overridden from BrowserActionOverflowMenuController::Observer:
-  virtual void NotifyMenuDeleted(
-      BrowserActionOverflowMenuController* controller) OVERRIDE;
+  virtual void AnimationProgressed(const gfx::Animation* animation) override;
+  virtual void AnimationEnded(const gfx::Animation* animation) override;
 
   // Overridden from BrowserActionView::Delegate:
-  virtual content::WebContents* GetCurrentWebContents() OVERRIDE;
-  virtual bool ShownInsideMenu() const OVERRIDE;
-  virtual void OnBrowserActionViewDragDone() OVERRIDE;
-  virtual views::MenuButton* GetOverflowReferenceView() OVERRIDE;
-  virtual void SetPopupOwner(BrowserActionView* popup_owner) OVERRIDE;
-  virtual void HideActivePopup() OVERRIDE;
-  virtual BrowserActionView* GetMainViewForExtension(
-      const extensions::Extension* extension) OVERRIDE;
+  virtual content::WebContents* GetCurrentWebContents() override;
+  virtual bool ShownInsideMenu() const override;
+  virtual void OnBrowserActionViewDragDone() override;
+  virtual views::MenuButton* GetOverflowReferenceView() override;
+  virtual void SetPopupOwner(BrowserActionView* popup_owner) override;
+  virtual void HideActivePopup() override;
+  virtual BrowserActionView* GetMainViewForAction(
+      BrowserActionView* view) override;
 
   // Overridden from extension::ExtensionKeybindingRegistry::Delegate:
   virtual extensions::ActiveTabPermissionGranter*
-      GetActiveTabPermissionGranter() OVERRIDE;
+      GetActiveTabPermissionGranter() override;
 
   // Retrieve the current popup.  This should only be used by unit tests.
-  ExtensionPopup* TestGetPopup();
-
-  // Set how many icons the container should show. This should only be used by
-  // unit tests.
-  void TestSetIconVisibilityCount(size_t icons);
+  gfx::NativeView TestGetPopup();
 
   // Returns the width of an icon, optionally with its padding.
   static int IconWidth(bool include_padding);
@@ -278,9 +265,9 @@ class BrowserActionsContainer
  protected:
   // Overridden from views::View:
   virtual void ViewHierarchyChanged(
-      const ViewHierarchyChangedDetails& details) OVERRIDE;
-  virtual void OnPaint(gfx::Canvas* canvas) OVERRIDE;
-  virtual void OnThemeChanged() OVERRIDE;
+      const ViewHierarchyChangedDetails& details) override;
+  virtual void OnPaint(gfx::Canvas* canvas) override;
+  virtual void OnThemeChanged() override;
 
  private:
   // A struct representing the position at which an action will be dropped.
@@ -290,19 +277,19 @@ class BrowserActionsContainer
 
   // extensions::ExtensionToolbarModel::Observer implementation.
   virtual void ToolbarExtensionAdded(const extensions::Extension* extension,
-                                     int index) OVERRIDE;
+                                     int index) override;
   virtual void ToolbarExtensionRemoved(
-      const extensions::Extension* extension) OVERRIDE;
+      const extensions::Extension* extension) override;
   virtual void ToolbarExtensionMoved(const extensions::Extension* extension,
-                                     int index) OVERRIDE;
+                                     int index) override;
   virtual void ToolbarExtensionUpdated(
-      const extensions::Extension* extension) OVERRIDE;
+      const extensions::Extension* extension) override;
   virtual bool ShowExtensionActionPopup(
       const extensions::Extension* extension,
-      bool grant_active_tab) OVERRIDE;
-  virtual void ToolbarVisibleCountChanged() OVERRIDE;
-  virtual void ToolbarHighlightModeChanged(bool is_highlighting) OVERRIDE;
-  virtual Browser* GetBrowser() OVERRIDE;
+      bool grant_active_tab) override;
+  virtual void ToolbarVisibleCountChanged() override;
+  virtual void ToolbarHighlightModeChanged(bool is_highlighting) override;
+  virtual Browser* GetBrowser() override;
 
   void LoadImages();
 
@@ -317,22 +304,11 @@ class BrowserActionsContainer
   // are displayed.
   void SetChevronVisibility();
 
-  // Closes the overflow menu if open.
-  void CloseOverflowMenu();
-
-  // Cancels the timer for showing the drop down menu.
-  void StopShowFolderDropMenuTimer();
-
-  // Show the drop down folder after a slight delay.
-  void StartShowFolderDropMenuTimer();
-
-  // Show the overflow menu.
-  void ShowDropFolder();
-
-  // Given a number of |icons| and whether to |display_chevron|, returns the
-  // amount of pixels needed to draw the entire container.  For convenience,
+  // Given a number of |icons|, returns the pixels needed to draw the entire
+  // container (including the chevron if the number of icons is not all the
+  // icons and there's not a separate overflow container). For convenience,
   // callers can set |icons| to -1 to mean "all icons".
-  int IconCountToWidth(int icons, bool display_chevron) const;
+  int IconCountToWidth(int icons) const;
 
   // Given a pixel width, returns the number of icons that fit.  (This
   // automatically determines whether a chevron will be needed and includes it
@@ -340,19 +316,16 @@ class BrowserActionsContainer
   size_t WidthToIconCount(int pixels) const;
 
   // Returns the absolute minimum size you can shrink the container down to and
-  // still show it.  This assumes a visible chevron because the only way we
-  // would not have a chevron when shrinking down this far is if there were no
-  // icons, in which case the container wouldn't be shown at all.
+  // still show it. If there's no chevron (i.e., there's a separate overflow
+  // container), this leaves only enough room for the resize area; otherwise,
+  // this assumes a visible chevron because the only way we would not have a
+  // chevron when shrinking down this far is if there were no icons, in which
+  // case the container wouldn't be shown at all.
   int MinimumNonemptyWidth() const;
 
   // Animate to the target size (unless testing, in which case we go straight to
   // the target size).
   void Animate(gfx::Tween::Type type, size_t num_visible_icons);
-
-  // Returns true if this extension should be shown in this toolbar. This can
-  // return false if we are in an incognito window and the extension is disabled
-  // for incognito.
-  bool ShouldDisplayBrowserAction(const extensions::Extension* extension) const;
 
   // Returns the number of icons that this container should draw. This differs
   // from the model's GetVisibleIconCount if this container is for the overflow.
@@ -375,9 +348,6 @@ class BrowserActionsContainer
   // The Browser object the container is associated with.
   Browser* browser_;
 
-  // The view that owns us.
-  views::View* owner_view_;
-
   // The main container we are serving as overflow for, or NULL if this
   // class is the the main container. See class comments for details on
   // the difference between main and overflow.
@@ -398,14 +368,10 @@ class BrowserActionsContainer
 
   // The chevron for accessing the overflow items. Can be NULL when in overflow
   // mode or if the toolbar is permanently suppressing the chevron menu.
-  views::MenuButton* chevron_;
+  ChevronMenuButton* chevron_;
 
   // The painter used when we are highlighting a subset of extensions.
   scoped_ptr<views::Painter> highlight_painter_;
-
-  // The menu to show for the overflow button (chevron). This class manages its
-  // own lifetime so that it can stay alive during drag and drop operations.
-  BrowserActionOverflowMenuController* overflow_menu_;
 
   // The animation that happens when the container snaps to place.
   scoped_ptr<gfx::SlideAnimation> resize_animation_;
@@ -434,9 +400,6 @@ class BrowserActionsContainer
   // The maximum number of icons to show per row when in overflow mode (showing
   // icons in the application menu).
   static int icons_per_overflow_menu_row_;
-
-  // Handles delayed showing of the overflow menu when hovering.
-  base::WeakPtrFactory<BrowserActionsContainer> show_menu_task_factory_;
 
   DISALLOW_COPY_AND_ASSIGN(BrowserActionsContainer);
 };

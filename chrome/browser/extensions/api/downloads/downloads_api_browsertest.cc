@@ -85,7 +85,7 @@ class DownloadsEventsListener : public content::NotificationObserver {
                    content::NotificationService::AllSources());
   }
 
-  virtual ~DownloadsEventsListener() {
+  ~DownloadsEventsListener() override {
     registrar_.Remove(this,
                       extensions::NOTIFICATION_EXTENSION_DOWNLOADS_EVENT,
                       content::NotificationService::AllSources());
@@ -174,9 +174,9 @@ class DownloadsEventsListener : public content::NotificationObserver {
   typedef ExtensionDownloadsEventRouter::DownloadsNotificationSource
     DownloadsNotificationSource;
 
-  virtual void Observe(int type,
-                       const content::NotificationSource& source,
-                       const content::NotificationDetails& details) OVERRIDE {
+  void Observe(int type,
+               const content::NotificationSource& source,
+               const content::NotificationDetails& details) override {
     switch (type) {
       case extensions::NOTIFICATION_EXTENSION_DOWNLOADS_EVENT: {
           DownloadsNotificationSource* dns =
@@ -312,7 +312,7 @@ class DownloadExtensionTest : public ExtensionApiTest {
   Browser* current_browser() { return current_browser_; }
 
   // InProcessBrowserTest
-  virtual void SetUpOnMainThread() OVERRIDE {
+  void SetUpOnMainThread() override {
     ExtensionApiTest::SetUpOnMainThread();
     BrowserThread::PostTask(
         BrowserThread::IO, FROM_HERE,
@@ -617,12 +617,12 @@ class MockIconExtractorImpl : public DownloadFileIconExtractor {
         expected_icon_size_(icon_size),
         response_(response) {
   }
-  virtual ~MockIconExtractorImpl() {}
+  ~MockIconExtractorImpl() override {}
 
-  virtual bool ExtractIconURLForPath(const base::FilePath& path,
-                                     float scale,
-                                     IconLoader::IconSize icon_size,
-                                     IconURLCallback callback) OVERRIDE {
+  bool ExtractIconURLForPath(const base::FilePath& path,
+                             float scale,
+                             IconLoader::IconSize icon_size,
+                             IconURLCallback callback) override {
     EXPECT_STREQ(expected_path_.value().c_str(), path.value().c_str());
     EXPECT_EQ(expected_icon_size_, icon_size);
     if (expected_path_ == path &&
@@ -758,10 +758,10 @@ class JustInProgressDownloadObserver
       : content::DownloadTestObserverInProgress(download_manager, wait_count) {
   }
 
-  virtual ~JustInProgressDownloadObserver() {}
+  ~JustInProgressDownloadObserver() override {}
 
  private:
-  virtual bool IsDownloadInFinalState(DownloadItem* item) OVERRIDE {
+  bool IsDownloadInFinalState(DownloadItem* item) override {
     return item->GetState() == DownloadItem::IN_PROGRESS;
   }
 
@@ -4024,9 +4024,9 @@ void OnDangerPromptCreated(DownloadDangerPrompt* prompt) {
 #if defined(OS_MACOSX)
 // Flakily triggers and assert on Mac.
 // http://crbug.com/180759
-#define MAYBE_DownloadExtensionTest_AcceptDanger DownloadExtensionTest_AcceptDanger
-#else
 #define MAYBE_DownloadExtensionTest_AcceptDanger DISABLED_DownloadExtensionTest_AcceptDanger
+#else
+#define MAYBE_DownloadExtensionTest_AcceptDanger DownloadExtensionTest_AcceptDanger
 #endif
 IN_PROC_BROWSER_TEST_F(DownloadExtensionTest,
                        MAYBE_DownloadExtensionTest_AcceptDanger) {

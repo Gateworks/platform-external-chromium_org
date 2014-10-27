@@ -62,7 +62,7 @@
       ],
     },
     {
-      # GN version: //components/variations_http_provider
+      # GN version: //components/variations/net/variations_http_provider
       'target_name': 'variations_http_provider',
       'type': 'static_library',
       'include_dirs': [
@@ -74,8 +74,8 @@
         'variations',
       ],
       'sources': [
-        'variations/variations_http_header_provider.cc',
-        'variations/variations_http_header_provider.h',
+        'variations/net/variations_http_header_provider.cc',
+        'variations/net/variations_http_header_provider.h',
       ],
     },
   ],
@@ -83,6 +83,7 @@
     ['OS=="android"', {
       'targets': [
         {
+          # GN version: //components/variations/android:variations_java
           'target_name': 'variations_java',
           'type': 'none',
           'dependencies': [
@@ -94,7 +95,7 @@
           'includes': [ '../build/java.gypi' ],
         },
         {
-          # GN version: //components/variations:variations_java
+          # GN version: //components/variations:jni
           'target_name': 'variations_jni_headers',
           'type': 'none',
           'sources': [

@@ -54,8 +54,7 @@ std::vector<VisitedLinkSlave*> g_slaves;
 
 class TestVisitedLinkDelegate : public VisitedLinkDelegate {
  public:
-  virtual void RebuildTable(
-      const scoped_refptr<URLEnumerator>& enumerator) OVERRIDE;
+  void RebuildTable(const scoped_refptr<URLEnumerator>& enumerator) override;
 
   void AddURLForRebuild(const GURL& url);
 
@@ -80,8 +79,8 @@ class TestURLIterator : public VisitedLinkMaster::URLIterator {
  public:
   explicit TestURLIterator(const URLs& urls);
 
-  virtual const GURL& NextURL() OVERRIDE;
-  virtual bool HasNextURL() const OVERRIDE;
+  const GURL& NextURL() override;
+  bool HasNextURL() const override;
 
  private:
   URLs::const_iterator iterator_;
@@ -109,7 +108,7 @@ class TrackingVisitedLinkEventListener : public VisitedLinkMaster::Listener {
       : reset_count_(0),
         add_count_(0) {}
 
-  virtual void NewTable(base::SharedMemory* table) OVERRIDE {
+  void NewTable(base::SharedMemory* table) override {
     if (table) {
       for (std::vector<VisitedLinkSlave>::size_type i = 0;
            i < g_slaves.size(); i++) {
@@ -119,8 +118,8 @@ class TrackingVisitedLinkEventListener : public VisitedLinkMaster::Listener {
       }
     }
   }
-  virtual void Add(VisitedLinkCommon::Fingerprint) OVERRIDE { add_count_++; }
-  virtual void Reset() OVERRIDE { reset_count_++; }
+  void Add(VisitedLinkCommon::Fingerprint) override { add_count_++; }
+  void Reset() override { reset_count_++; }
 
   void SetUp() {
     reset_count_ = 0;
@@ -536,18 +535,18 @@ class VisitRelayingRenderProcessHost : public MockRenderProcessHost {
         content::Source<RenderProcessHost>(this),
         content::NotificationService::NoDetails());
   }
-  virtual ~VisitRelayingRenderProcessHost() {
+  ~VisitRelayingRenderProcessHost() override {
     content::NotificationService::current()->Notify(
         content::NOTIFICATION_RENDERER_PROCESS_TERMINATED,
         content::Source<content::RenderProcessHost>(this),
         content::NotificationService::NoDetails());
   }
 
-  virtual void WidgetRestored() OVERRIDE { widgets_++; }
-  virtual void WidgetHidden() OVERRIDE { widgets_--; }
-  virtual int VisibleWidgetCount() const OVERRIDE { return widgets_; }
+  void WidgetRestored() override { widgets_++; }
+  void WidgetHidden() override { widgets_--; }
+  int VisibleWidgetCount() const override { return widgets_; }
 
-  virtual bool Send(IPC::Message* msg) OVERRIDE {
+  bool Send(IPC::Message* msg) override {
     VisitCountingContext* counting_context =
         static_cast<VisitCountingContext*>(
             GetBrowserContext());
@@ -578,9 +577,9 @@ class VisitedLinkRenderProcessHostFactory
  public:
   VisitedLinkRenderProcessHostFactory()
       : content::RenderProcessHostFactory() {}
-  virtual content::RenderProcessHost* CreateRenderProcessHost(
+  content::RenderProcessHost* CreateRenderProcessHost(
       content::BrowserContext* browser_context,
-      content::SiteInstance* site_instance) const OVERRIDE {
+      content::SiteInstance* site_instance) const override {
     return new VisitRelayingRenderProcessHost(browser_context);
   }
 
@@ -595,7 +594,7 @@ class VisitedLinkEventsTest : public content::RenderViewHostTestHarness {
     content::RenderViewHostTestHarness::SetUp();
   }
 
-  virtual content::BrowserContext* CreateBrowserContext() OVERRIDE {
+  content::BrowserContext* CreateBrowserContext() override {
     VisitCountingContext* context = new VisitCountingContext();
     master_.reset(new VisitedLinkMaster(context, &delegate_, true));
     master_->Init();

@@ -34,7 +34,7 @@ class CONTENT_EXPORT ZygoteHostImpl : public ZygoteHost {
   // Returns its pid on success, otherwise
   // base::kNullProcessHandle;
   pid_t ForkRequest(const std::vector<std::string>& command_line,
-                    const std::vector<FileDescriptorInfo>& mapping,
+                    scoped_ptr<FileDescriptorInfo> mapping,
                     const std::string& process_type);
   void EnsureProcessTerminated(pid_t process);
 
@@ -54,10 +54,10 @@ class CONTENT_EXPORT ZygoteHostImpl : public ZygoteHost {
                                                int* exit_code);
 
   // ZygoteHost implementation:
-  virtual pid_t GetPid() const OVERRIDE;
-  virtual int GetSandboxStatus() const OVERRIDE;
+  virtual pid_t GetPid() const override;
+  virtual int GetSandboxStatus() const override;
   virtual void AdjustRendererOOMScore(base::ProcessHandle process_handle,
-                                      int score) OVERRIDE;
+                                      int score) override;
 
  private:
   friend struct DefaultSingletonTraits<ZygoteHostImpl>;

@@ -16,7 +16,6 @@
 #include "athena/screen/public/screen_manager.h"
 #include "athena/util/container_priorities.h"
 #include "athena/wm/public/window_manager.h"
-#include "ui/app_list/search_provider.h"
 #include "ui/app_list/views/app_list_main_view.h"
 #include "ui/app_list/views/contents_view.h"
 #include "ui/aura/layout_manager.h"
@@ -29,12 +28,11 @@
 #include "ui/views/widget/widget_delegate.h"
 #include "ui/wm/core/shadow_types.h"
 #include "ui/wm/core/visibility_controller.h"
-#include "ui/wm/public/activation_client.h"
 
 namespace athena {
 namespace {
 
-HomeCard* instance = NULL;
+HomeCard* instance = nullptr;
 
 gfx::Rect GetBoundsForState(const gfx::Rect& screen_bounds,
                             HomeCard::State state) {
@@ -69,11 +67,9 @@ gfx::Rect GetBoundsForState(const gfx::Rect& screen_bounds,
 // vertically.
 class HomeCardLayoutManager : public aura::LayoutManager {
  public:
-  HomeCardLayoutManager()
-      : home_card_(NULL),
-        minimized_layer_(NULL) {}
+  HomeCardLayoutManager() : home_card_(nullptr), minimized_layer_(nullptr) {}
 
-  virtual ~HomeCardLayoutManager() {}
+  ~HomeCardLayoutManager() override {}
 
   void Layout(bool animate, gfx::Tween::Type tween_type) {
     // |home_card| could be detached from the root window (e.g. when it is being
@@ -106,29 +102,28 @@ class HomeCardLayoutManager : public aura::LayoutManager {
   }
 
   // aura::LayoutManager:
-  virtual void OnWindowResized() OVERRIDE {
+  void OnWindowResized() override {
     Layout(false, gfx::Tween::LINEAR);
     UpdateMinimizedHomeBounds();
   }
-  virtual void OnWindowAddedToLayout(aura::Window* child) OVERRIDE {
+  void OnWindowAddedToLayout(aura::Window* child) override {
     if (!home_card_) {
       home_card_ = child;
       Layout(false, gfx::Tween::LINEAR);
     }
   }
-  virtual void OnWillRemoveWindowFromLayout(aura::Window* child) OVERRIDE {
+  void OnWillRemoveWindowFromLayout(aura::Window* child) override {
     if (home_card_ == child)
-      home_card_ = NULL;
+      home_card_ = nullptr;
   }
-  virtual void OnWindowRemovedFromLayout(aura::Window* child) OVERRIDE {
-  }
-  virtual void OnChildWindowVisibilityChanged(aura::Window* child,
-                                              bool visible) OVERRIDE {
+  void OnWindowRemovedFromLayout(aura::Window* child) override {}
+  void OnChildWindowVisibilityChanged(aura::Window* child,
+                                      bool visible) override {
     if (home_card_ == child)
       Layout(false, gfx::Tween::LINEAR);
   }
-  virtual void SetChildBounds(aura::Window* child,
-                              const gfx::Rect& requested_bounds) OVERRIDE {
+  void SetChildBounds(aura::Window* child,
+                      const gfx::Rect& requested_bounds) override {
     SetChildBoundsDirect(child, requested_bounds);
   }
 
@@ -139,7 +134,8 @@ class HomeCardLayoutManager : public aura::LayoutManager {
 };
 
 // The container view of home card contents of each state.
-class HomeCardView : public views::WidgetDelegateView {
+class HomeCardView : public views::WidgetDelegateView,
+                     public AthenaStartPageView::Observer {
  public:
   HomeCardView(app_list::AppListViewDelegate* view_delegate,
                aura::Window* container,
@@ -151,8 +147,11 @@ class HomeCardView : public views::WidgetDelegateView {
     // the home card.
     // TODO(mukai): make it so after the detailed UI has been fixed.
     main_view_ = new AthenaStartPageView(view_delegate);
+    main_view_->AddObserver(this);
     AddChildView(main_view_);
   }
+
+  ~HomeCardView() override { main_view_->RemoveObserver(this); }
 
   void SetStateProgress(HomeCard::State from_state,
                         HomeCard::State to_state,
@@ -183,7 +182,7 @@ class HomeCardView : public views::WidgetDelegateView {
   }
 
   // views::View:
-  virtual void OnGestureEvent(ui::GestureEvent* event) OVERRIDE {
+  void OnGestureEvent(ui::GestureEvent* event) override {
     if (!gesture_manager_ &&
         event->type() == ui::ET_GESTURE_SCROLL_BEGIN) {
       gesture_manager_.reset(new HomeCardGestureManager(
@@ -194,10 +193,10 @@ class HomeCardView : public views::WidgetDelegateView {
     if (gesture_manager_)
       gesture_manager_->ProcessGestureEvent(event);
   }
-  virtual bool OnMousePressed(const ui::MouseEvent& event) OVERRIDE {
+  bool OnMousePressed(const ui::MouseEvent& event) override {
     if (HomeCard::Get()->GetState() == HomeCard::VISIBLE_MINIMIZED &&
         event.IsLeftMouseButton() && event.GetClickCount() == 1) {
-      athena::WindowManager::Get()->ToggleOverview();
+      athena::WindowManager::Get()->EnterOverview();
       return true;
     }
     return false;
@@ -211,8 +210,12 @@ class HomeCardView : public views::WidgetDelegateView {
   }
 
   // views::WidgetDelegate:
-  virtual views::View* GetContentsView() OVERRIDE {
-    return this;
+  views::View* GetContentsView() override { return this; }
+
+  // AthenaStartPageView::Observer:
+  void OnLayoutStateChanged(float new_state) override {
+    if (new_state == 1.0f)
+      HomeCard::Get()->SetState(HomeCard::VISIBLE_CENTERED);
   }
 
   AthenaStartPageView* main_view_;
@@ -222,14 +225,15 @@ class HomeCardView : public views::WidgetDelegateView {
   DISALLOW_COPY_AND_ASSIGN(HomeCardView);
 };
 
-HomeCardImpl::HomeCardImpl(AppModelBuilder* model_builder)
-    : model_builder_(model_builder),
+HomeCardImpl::HomeCardImpl(scoped_ptr<AppModelBuilder> model_builder,
+                           scoped_ptr<SearchControllerFactory> search_factory)
+    : model_builder_(model_builder.Pass()),
+      search_factory_(search_factory.Pass()),
       state_(HIDDEN),
       original_state_(VISIBLE_MINIMIZED),
-      home_card_widget_(NULL),
-      home_card_view_(NULL),
-      layout_manager_(NULL),
-      activation_client_(NULL) {
+      home_card_widget_(nullptr),
+      home_card_view_(nullptr),
+      layout_manager_(nullptr) {
   DCHECK(!instance);
   instance = this;
   WindowManager::Get()->AddObserver(this);
@@ -238,15 +242,12 @@ HomeCardImpl::HomeCardImpl(AppModelBuilder* model_builder)
 HomeCardImpl::~HomeCardImpl() {
   DCHECK(instance);
   WindowManager::Get()->RemoveObserver(this);
-  if (activation_client_)
-    activation_client_->RemoveObserver(this);
   home_card_widget_->CloseNow();
 
   // Reset the view delegate first as it access search provider during
   // shutdown.
   view_delegate_.reset();
-  search_provider_.reset();
-  instance = NULL;
+  instance = nullptr;
 }
 
 void HomeCardImpl::Init() {
@@ -259,9 +260,8 @@ void HomeCardImpl::Init() {
   container->SetLayoutManager(layout_manager_);
   wm::SetChildWindowVisibilityChangesAnimated(container);
 
-  view_delegate_.reset(new AppListViewDelegate(model_builder_.get()));
-  if (search_provider_)
-    view_delegate_->RegisterSearchProvider(search_provider_.get());
+  view_delegate_.reset(
+      new AppListViewDelegate(model_builder_.get(), search_factory_.get()));
 
   home_card_view_ = new HomeCardView(view_delegate_.get(), container, this);
   home_card_widget_ = new views::Widget();
@@ -280,17 +280,12 @@ void HomeCardImpl::Init() {
   SetState(VISIBLE_MINIMIZED);
   home_card_view_->Layout();
 
-  activation_client_ =
-      aura::client::GetActivationClient(container->GetRootWindow());
-  if (activation_client_)
-    activation_client_->AddObserver(this);
-
   AthenaEnv::Get()->SetDisplayWorkAreaInsets(
       gfx::Insets(0, 0, kHomeCardMinimizedHeight, 0));
 }
 
 aura::Window* HomeCardImpl::GetHomeCardWindowForTest() const {
-  return home_card_widget_ ? home_card_widget_->GetNativeWindow() : NULL;
+  return home_card_widget_ ? home_card_widget_->GetNativeWindow() : nullptr;
 }
 
 void HomeCardImpl::InstallAccelerators() {
@@ -339,13 +334,6 @@ HomeCard::State HomeCardImpl::GetState() {
   return state_;
 }
 
-void HomeCardImpl::RegisterSearchProvider(
-    app_list::SearchProvider* search_provider) {
-  DCHECK(!search_provider_);
-  search_provider_.reset(search_provider);
-  view_delegate_->RegisterSearchProvider(search_provider_.get());
-}
-
 void HomeCardImpl::UpdateVirtualKeyboardBounds(
     const gfx::Rect& bounds) {
   if (state_ == VISIBLE_MINIMIZED && !bounds.IsEmpty()) {
@@ -367,10 +355,13 @@ bool HomeCardImpl::OnAcceleratorFired(int command_id,
                                       const ui::Accelerator& accelerator) {
   DCHECK_EQ(COMMAND_SHOW_HOME_CARD, command_id);
 
-  if (state_ == VISIBLE_CENTERED && original_state_ != VISIBLE_BOTTOM)
+  if (state_ == VISIBLE_CENTERED && original_state_ != VISIBLE_BOTTOM) {
     SetState(VISIBLE_MINIMIZED);
-  else if (state_ == VISIBLE_MINIMIZED)
+    WindowManager::Get()->ExitOverview();
+  } else if (state_ == VISIBLE_MINIMIZED) {
     SetState(VISIBLE_CENTERED);
+    WindowManager::Get()->EnterOverview();
+  }
   return true;
 }
 
@@ -379,7 +370,10 @@ void HomeCardImpl::OnGestureEnded(State final_state, bool is_fling) {
   if (state_ != final_state &&
       (state_ == VISIBLE_MINIMIZED || final_state == VISIBLE_MINIMIZED)) {
     SetState(final_state);
-    WindowManager::Get()->ToggleOverview();
+    if (WindowManager::Get()->IsOverviewModeActive())
+      WindowManager::Get()->ExitOverview();
+    else
+      WindowManager::Get()->EnterOverview();
   } else {
     state_ = final_state;
     // When the animation happens after a fling, EASE_IN_OUT would cause weird
@@ -428,17 +422,10 @@ void HomeCardImpl::OnSplitViewModeEnter() {
 void HomeCardImpl::OnSplitViewModeExit() {
 }
 
-void HomeCardImpl::OnWindowActivated(aura::Window* gained_active,
-                                     aura::Window* lost_active) {
-  if (state_ != HIDDEN &&
-      gained_active != home_card_widget_->GetNativeWindow()) {
-    SetState(VISIBLE_MINIMIZED);
-  }
-}
-
 // static
-HomeCard* HomeCard::Create(AppModelBuilder* model_builder) {
-  (new HomeCardImpl(model_builder))->Init();
+HomeCard* HomeCard::Create(scoped_ptr<AppModelBuilder> model_builder,
+                           scoped_ptr<SearchControllerFactory> search_factory) {
+  (new HomeCardImpl(model_builder.Pass(), search_factory.Pass()))->Init();
   DCHECK(instance);
   return instance;
 }
@@ -447,7 +434,7 @@ HomeCard* HomeCard::Create(AppModelBuilder* model_builder) {
 void HomeCard::Shutdown() {
   DCHECK(instance);
   delete instance;
-  instance = NULL;
+  instance = nullptr;
 }
 
 // static

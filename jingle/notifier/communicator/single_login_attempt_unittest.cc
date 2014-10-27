@@ -35,24 +35,20 @@ class FakeDelegate : public SingleLoginAttempt::Delegate {
  public:
   FakeDelegate() : state_(IDLE) {}
 
-  virtual void OnConnect(
-      base::WeakPtr<buzz::XmppTaskParentInterface> base_task) OVERRIDE {
+  void OnConnect(
+      base::WeakPtr<buzz::XmppTaskParentInterface> base_task) override {
     state_ = CONNECTED;
     base_task_ = base_task;
   }
 
-  virtual void OnRedirect(const ServerInformation& redirect_server) OVERRIDE {
+  void OnRedirect(const ServerInformation& redirect_server) override {
     state_ = REDIRECTED;
     redirect_server_ = redirect_server;
   }
 
-  virtual void OnCredentialsRejected() OVERRIDE {
-    state_ = CREDENTIALS_REJECTED;
-  }
+  void OnCredentialsRejected() override { state_ = CREDENTIALS_REJECTED; }
 
-  virtual void OnSettingsExhausted() OVERRIDE {
-    state_ = SETTINGS_EXHAUSTED;
-  }
+  void OnSettingsExhausted() override { state_ = SETTINGS_EXHAUSTED; }
 
   DelegateState state() const { return state_; }
 
@@ -77,7 +73,7 @@ class MyTestURLRequestContext : public net::TestURLRequestContext {
         scoped_ptr<net::HostResolver>(new net::HangingHostResolver()));
     Init();
   }
-  virtual ~MyTestURLRequestContext() {}
+  ~MyTestURLRequestContext() override {}
 };
 
 class SingleLoginAttemptTest : public ::testing::Test {
@@ -97,7 +93,7 @@ class SingleLoginAttemptTest : public ::testing::Test {
           "auth_mechanism"),
         attempt_(new SingleLoginAttempt(login_settings_, &fake_delegate_)) {}
 
-  virtual void TearDown() OVERRIDE {
+  virtual void TearDown() override {
     message_loop_.RunUntilIdle();
   }
 

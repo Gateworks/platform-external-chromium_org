@@ -24,7 +24,7 @@ namespace device {
 namespace {
 
 class FakeSerialDeviceEnumerator : public SerialDeviceEnumerator {
-  virtual mojo::Array<serial::DeviceInfoPtr> GetDevices() OVERRIDE {
+  mojo::Array<serial::DeviceInfoPtr> GetDevices() override {
     mojo::Array<serial::DeviceInfoPtr> devices(1);
     devices[0] = serial::DeviceInfo::New();
     devices[0]->path = "device";
@@ -62,7 +62,7 @@ class SerialConnectionTest : public testing::Test, public mojo::ErrorHandler {
         receive_error_(serial::RECEIVE_ERROR_NONE),
         expected_event_(EVENT_NONE) {}
 
-  virtual void SetUp() OVERRIDE {
+  virtual void SetUp() override {
     message_loop_.reset(new base::MessageLoop);
     mojo::InterfacePtr<serial::SerialService> service;
     mojo::BindToProxy(
@@ -78,9 +78,9 @@ class SerialConnectionTest : public testing::Test, public mojo::ErrorHandler {
     mojo::InterfacePtr<serial::DataSource> producer;
     service->Connect("device",
                      serial::ConnectionOptions::New(),
-                     mojo::Get(&connection_),
-                     mojo::Get(&consumer),
-                     mojo::Get(&producer));
+                     mojo::GetProxy(&connection_),
+                     mojo::GetProxy(&consumer),
+                     mojo::GetProxy(&producer));
     sender_.reset(new DataSender(
         consumer.Pass(), kBufferSize, serial::SEND_ERROR_DISCONNECTED));
     receiver_ = new DataReceiver(
@@ -168,7 +168,7 @@ class SerialConnectionTest : public testing::Test, public mojo::ErrorHandler {
     EventReceived(EVENT_RECEIVE_ERROR);
   }
 
-  virtual void OnConnectionError() OVERRIDE {
+  void OnConnectionError() override {
     EventReceived(EVENT_ERROR);
     FAIL() << "Connection error";
   }

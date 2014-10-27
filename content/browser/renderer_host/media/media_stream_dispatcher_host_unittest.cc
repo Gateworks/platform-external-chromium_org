@@ -120,7 +120,7 @@ class MockMediaStreamDispatcherHost : public MediaStreamDispatcherHost,
   // This method is used to dispatch IPC messages to the renderer. We intercept
   // these messages here and dispatch to our mock methods to verify the
   // conversation between this object and the renderer.
-  virtual bool Send(IPC::Message* message) OVERRIDE {
+  virtual bool Send(IPC::Message* message) override {
     CHECK(message);
     current_ipc_ = message;
 
@@ -260,7 +260,7 @@ class MediaStreamDispatcherHostTest : public testing::Test {
 #endif
   }
 
-  virtual void SetUp() OVERRIDE {
+  virtual void SetUp() override {
     video_capture_device_factory_->GetDeviceNames(&physical_video_devices_);
     ASSERT_GT(physical_video_devices_.size(), 0u);
 
@@ -269,7 +269,7 @@ class MediaStreamDispatcherHostTest : public testing::Test {
     ASSERT_GT(physical_audio_devices_.size(), 0u);
   }
 
-  virtual void TearDown() OVERRIDE {
+  virtual void TearDown() override {
     host_->OnChannelClosing();
   }
 
@@ -858,7 +858,7 @@ TEST_F(MediaStreamDispatcherHostTest, CloseFromUI) {
   scoped_ptr<MockMediaStreamUIProxy> stream_ui(new MockMediaStreamUIProxy());
   EXPECT_CALL(*stream_ui, OnStarted(_, _))
       .WillOnce(SaveArg<0>(&close_callback));
-  media_stream_manager_->UseFakeUI(stream_ui.PassAs<FakeMediaStreamUIProxy>());
+  media_stream_manager_->UseFakeUI(stream_ui.Pass());
 
   GenerateStreamAndWaitForResult(kRenderId, kPageRequestId, options);
 

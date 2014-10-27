@@ -36,11 +36,11 @@ class SuggestionDeletionHandler : public net::URLFetcherDelegate {
       net::URLRequestContextGetter* request_context,
       const DeletionCompletedCallback& callback);
 
-  virtual ~SuggestionDeletionHandler();
+  ~SuggestionDeletionHandler() override;
 
  private:
   // net::URLFetcherDelegate:
-  virtual void OnURLFetchComplete(const net::URLFetcher* source) OVERRIDE;
+  void OnURLFetchComplete(const net::URLFetcher* source) override;
 
   scoped_ptr<net::URLFetcher> deletion_fetcher_;
   DeletionCompletedCallback callback_;

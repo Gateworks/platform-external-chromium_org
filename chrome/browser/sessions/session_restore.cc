@@ -48,6 +48,7 @@
 #include "content/public/browser/session_storage_namespace.h"
 #include "content/public/browser/storage_partition.h"
 #include "content/public/browser/web_contents.h"
+#include "content/public/common/page_state.h"
 #include "extensions/browser/extension_registry.h"
 #include "extensions/common/extension_set.h"
 #include "net/base/network_change_notifier.h"
@@ -117,7 +118,7 @@ class TabLoader : public content::NotificationObserver,
   typedef std::set<RenderWidgetHost*> RenderWidgetHostSet;
 
   explicit TabLoader(base::TimeTicks restore_started);
-  virtual ~TabLoader();
+  ~TabLoader() override;
 
   // Loads the next tab. If there are no more tabs to load this deletes itself,
   // otherwise |force_load_timer_| is restarted.
@@ -125,13 +126,13 @@ class TabLoader : public content::NotificationObserver,
 
   // NotificationObserver method. Removes the specified tab and loads the next
   // tab.
-  virtual void Observe(int type,
-                       const content::NotificationSource& source,
-                       const content::NotificationDetails& details) OVERRIDE;
+  void Observe(int type,
+               const content::NotificationSource& source,
+               const content::NotificationDetails& details) override;
 
   // net::NetworkChangeNotifier::ConnectionTypeObserver overrides.
-  virtual void OnConnectionTypeChanged(
-      net::NetworkChangeNotifier::ConnectionType type) OVERRIDE;
+  void OnConnectionTypeChanged(
+      net::NetworkChangeNotifier::ConnectionType type) override;
 
   // Removes the listeners from the specified tab and removes the tab from
   // the set of tabs to load and list of tabs we're waiting to get a load
@@ -685,7 +686,7 @@ class SessionRestoreImpl : public content::NotificationObserver {
     return web_contents;
   }
 
-  virtual ~SessionRestoreImpl() {
+  ~SessionRestoreImpl() override {
     STLDeleteElements(&windows_);
 
     active_session_restorers->erase(this);
@@ -697,9 +698,9 @@ class SessionRestoreImpl : public content::NotificationObserver {
     g_browser_process->ReleaseModule();
   }
 
-  virtual void Observe(int type,
-                       const content::NotificationSource& source,
-                       const content::NotificationDetails& details) OVERRIDE {
+  void Observe(int type,
+               const content::NotificationSource& source,
+               const content::NotificationDetails& details) override {
     switch (type) {
       case chrome::NOTIFICATION_BROWSER_CLOSED:
         delete this;
@@ -1053,7 +1054,8 @@ class SessionRestoreImpl : public content::NotificationObserver {
     // Set up the file access rights for the selected navigation entry.
     const int id = web_contents->GetRenderProcessHost()->GetID();
     const content::PageState& page_state =
-        tab.navigations.at(selected_index).page_state();
+        content::PageState::CreateFromEncodedData(
+            tab.navigations.at(selected_index).encoded_page_state());
     const std::vector<base::FilePath>& file_paths =
         page_state.GetReferencedFiles();
     for (std::vector<base::FilePath>::const_iterator file = file_paths.begin();

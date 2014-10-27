@@ -12,7 +12,7 @@
 #include "components/copresence/public/copresence_manager.h"
 
 using base::ListValue;
-using copresence::AUDIBLE;
+using copresence::AUDIO_CONFIGURATION_AUDIBLE;
 using copresence::AUDIO_CONFIGURATION_UNKNOWN;
 using copresence::BROADCAST_ONLY;
 using copresence::CopresenceDelegate;
@@ -71,12 +71,12 @@ class MockCopresenceManager : public CopresenceManager {
  public:
   explicit MockCopresenceManager(CopresenceDelegate* delegate)
       : delegate_(delegate) {}
-  virtual ~MockCopresenceManager() {}
+  ~MockCopresenceManager() override {}
 
-  virtual void ExecuteReportRequest(
+  void ExecuteReportRequest(
       ReportRequest request,
       const std::string& app_id,
-      const copresence::StatusCallback& status_callback) OVERRIDE {
+      const copresence::StatusCallback& status_callback) override {
     request_ = request;
     app_id_ = app_id;
     status_callback.Run(copresence::SUCCESS);
@@ -93,7 +93,7 @@ class CopresenceApiUnittest : public ExtensionApiUnittest {
   CopresenceApiUnittest() {}
   virtual ~CopresenceApiUnittest() {}
 
-  virtual void SetUp() OVERRIDE {
+  virtual void SetUp() override {
     ExtensionApiUnittest::SetUp();
 
     CopresenceService* service =
@@ -193,7 +193,7 @@ TEST_F(CopresenceApiUnittest, Subscribe) {
   copresence::BroadcastScanConfiguration broadcast_scan =
       subscription.token_exchange_strategy().broadcast_scan_configuration();
   EXPECT_EQ(BROADCAST_ONLY, broadcast_scan);
-  EXPECT_EQ(AUDIBLE,
+  EXPECT_EQ(AUDIO_CONFIGURATION_AUDIBLE,
             subscription.token_exchange_strategy().audio_configuration());
 }
 

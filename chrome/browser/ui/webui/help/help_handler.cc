@@ -48,6 +48,7 @@
 #include "chrome/browser/chromeos/policy/browser_policy_connector_chromeos.h"
 #include "chrome/browser/chromeos/settings/cros_settings.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/ui/webui/chromeos/image_source.h"
 #include "chrome/browser/ui/webui/help/help_utils_chromeos.h"
 #include "chrome/browser/ui/webui/help/version_updater_chromeos.h"
 #include "chromeos/chromeos_switches.h"
@@ -197,7 +198,7 @@ void HelpHandler::GetLocalizedValues(base::DictionaryValue* localized_strings) {
 #endif
   };
 
-  for (size_t i = 0; i < ARRAYSIZE_UNSAFE(resources); ++i) {
+  for (size_t i = 0; i < arraysize(resources); ++i) {
     localized_strings->SetString(resources[i].name,
                                  l10n_util::GetStringUTF16(resources[i].ids));
   }
@@ -293,6 +294,12 @@ void HelpHandler::RegisterMessages() {
   web_ui()->RegisterMessageCallback("promoteUpdater",
       base::Bind(&HelpHandler::PromoteUpdater, base::Unretained(this)));
 #endif
+
+#if defined(OS_CHROMEOS)
+  // Handler for the product label image, which will be shown if available.
+  content::URLDataSource::Add(Profile::FromWebUI(web_ui()),
+                              new chromeos::ImageSource());
+#endif
 }
 
 void HelpHandler::Observe(int type, const content::NotificationSource& source,
@@ -312,7 +319,6 @@ void HelpHandler::Observe(int type, const content::NotificationSource& source,
 // static
 base::string16 HelpHandler::BuildBrowserVersionString() {
   chrome::VersionInfo version_info;
-  DCHECK(version_info.is_valid());
 
   std::string version = version_info.Version();
 

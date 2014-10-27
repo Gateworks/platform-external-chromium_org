@@ -31,15 +31,14 @@ class ExtensionInstallDialogController :
       const ExtensionInstallPrompt::ShowParams& show_params,
       ExtensionInstallPrompt::Delegate* delegate,
       scoped_refptr<ExtensionInstallPrompt::Prompt> prompt);
-  virtual ~ExtensionInstallDialogController();
+  ~ExtensionInstallDialogController() override;
 
   // ExtensionInstallPrompt::Delegate implementation.
-  virtual void InstallUIProceed() OVERRIDE;
-  virtual void InstallUIAbort(bool user_initiated) OVERRIDE;
+  void InstallUIProceed() override;
+  void InstallUIAbort(bool user_initiated) override;
 
   // ConstrainedWindowMacDelegate implementation.
-  virtual void OnConstrainedWindowClosed(
-      ConstrainedWindowMac* window) OVERRIDE;
+  void OnConstrainedWindowClosed(ConstrainedWindowMac* window) override;
 
   ConstrainedWindowMac* constrained_window() const {
     return constrained_window_.get();

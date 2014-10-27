@@ -1,4 +1,4 @@
-// Copyright (c) 2014 The Chromium Authors. All rights reserved.
+// Copyright 2014 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -25,24 +25,22 @@ class ClipboardStandaloneImpl : public InterfaceImpl<mojo::Clipboard> {
   static const int kNumClipboards = 3;
 
   ClipboardStandaloneImpl();
-  virtual ~ClipboardStandaloneImpl();
+  ~ClipboardStandaloneImpl() override;
 
   // InterfaceImpl<mojo::Clipboard> implementation.
-  virtual void GetSequenceNumber(Clipboard::Type clipboard_type,
-                                 const mojo::Callback<void(uint64_t)>& callback)
-      MOJO_OVERRIDE;
-  virtual void GetAvailableMimeTypes(
+  void GetSequenceNumber(
+      Clipboard::Type clipboard_type,
+      const mojo::Callback<void(uint64_t)>& callback) override;
+  void GetAvailableMimeTypes(
       Clipboard::Type clipboard_types,
-      const mojo::Callback<void(mojo::Array<mojo::String>)>& callback)
-      MOJO_OVERRIDE;
-  virtual void ReadMimeType(
+      const mojo::Callback<void(mojo::Array<mojo::String>)>& callback) override;
+  void ReadMimeType(
       Clipboard::Type clipboard_type,
       const mojo::String& mime_type,
-      const mojo::Callback<void(mojo::Array<uint8_t>)>& callback)
-      MOJO_OVERRIDE;
-  virtual void WriteClipboardData(Clipboard::Type clipboard_type,
-                                  mojo::Array<MimeTypePairPtr> data)
-      MOJO_OVERRIDE;
+      const mojo::Callback<void(mojo::Array<uint8_t>)>& callback) override;
+  void WriteClipboardData(
+      Clipboard::Type clipboard_type,
+      mojo::Map<mojo::String, mojo::Array<uint8_t>> data) override;
 
  private:
   uint64_t sequence_number_[kNumClipboards];

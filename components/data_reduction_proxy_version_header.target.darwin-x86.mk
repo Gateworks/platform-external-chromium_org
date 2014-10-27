@@ -7,6 +7,7 @@ LOCAL_MODULE := components_data_reduction_proxy_version_header_gyp
 LOCAL_MODULE_STEM := data_reduction_proxy_version_header
 LOCAL_MODULE_SUFFIX := .stamp
 LOCAL_MODULE_TARGET_ARCH := $(TARGET_$(GYP_VAR_PREFIX)ARCH)
+LOCAL_SDK_VERSION := 21
 gyp_intermediate_dir := $(call local-intermediates-dir,,$(GYP_VAR_PREFIX))
 gyp_shared_intermediate_dir := $(call intermediates-dir-for,GYP,shared,,,$(GYP_VAR_PREFIX))
 
@@ -14,24 +15,28 @@ gyp_shared_intermediate_dir := $(call intermediates-dir-for,GYP,shared,,,$(GYP_V
 GYP_TARGET_DEPENDENCIES :=
 
 ### Rules for action "version_header":
-$(gyp_shared_intermediate_dir)/components/data_reduction_proxy/common/version.h: gyp_local_path := $(LOCAL_PATH)
-$(gyp_shared_intermediate_dir)/components/data_reduction_proxy/common/version.h: gyp_var_prefix := $(GYP_VAR_PREFIX)
-$(gyp_shared_intermediate_dir)/components/data_reduction_proxy/common/version.h: gyp_intermediate_dir := $(abspath $(gyp_intermediate_dir))
-$(gyp_shared_intermediate_dir)/components/data_reduction_proxy/common/version.h: gyp_shared_intermediate_dir := $(abspath $(gyp_shared_intermediate_dir))
-$(gyp_shared_intermediate_dir)/components/data_reduction_proxy/common/version.h: export PATH := $(subst $(ANDROID_BUILD_PATHS),,$(PATH))
-$(gyp_shared_intermediate_dir)/components/data_reduction_proxy/common/version.h: $(LOCAL_PATH)/chrome/VERSION $(LOCAL_PATH)/components/data_reduction_proxy/common/version.h.in $(GYP_TARGET_DEPENDENCIES)
-	@echo "Gyp action: Generating version header file: "$(gyp_shared_intermediate_dir)/components/data_reduction_proxy/common/version.h" ($@)"
-	$(hide)cd $(gyp_local_path)/components; mkdir -p $(gyp_shared_intermediate_dir)/components/data_reduction_proxy/common; python ../build/util/version.py -e "VERSION_FULL=\"39.0.2171.0\"" data_reduction_proxy/common/version.h.in "$(gyp_shared_intermediate_dir)/components/data_reduction_proxy/common/version.h"
+$(gyp_shared_intermediate_dir)/components/data_reduction_proxy/core/common/version.h: gyp_local_path := $(LOCAL_PATH)
+$(gyp_shared_intermediate_dir)/components/data_reduction_proxy/core/common/version.h: gyp_var_prefix := $(GYP_VAR_PREFIX)
+$(gyp_shared_intermediate_dir)/components/data_reduction_proxy/core/common/version.h: gyp_intermediate_dir := $(abspath $(gyp_intermediate_dir))
+$(gyp_shared_intermediate_dir)/components/data_reduction_proxy/core/common/version.h: gyp_shared_intermediate_dir := $(abspath $(gyp_shared_intermediate_dir))
+$(gyp_shared_intermediate_dir)/components/data_reduction_proxy/core/common/version.h: export PATH := $(subst $(ANDROID_BUILD_PATHS),,$(PATH))
+$(gyp_shared_intermediate_dir)/components/data_reduction_proxy/core/common/version.h: $(LOCAL_PATH)/chrome/VERSION $(LOCAL_PATH)/components/data_reduction_proxy/core/common/version.h.in $(GYP_TARGET_DEPENDENCIES)
+	@echo "Gyp action: Generating version header file: "$(gyp_shared_intermediate_dir)/components/data_reduction_proxy/core/common/version.h" ($@)"
+	$(hide)cd $(gyp_local_path)/components; mkdir -p $(gyp_shared_intermediate_dir)/components/data_reduction_proxy/core/common; python ../build/util/version.py -e "VERSION_FULL=\"40.0.2202.0\"" data_reduction_proxy/core/common/version.h.in "$(gyp_shared_intermediate_dir)/components/data_reduction_proxy/core/common/version.h"
 
 
 
 GYP_GENERATED_OUTPUTS := \
-	$(gyp_shared_intermediate_dir)/components/data_reduction_proxy/common/version.h
+	$(gyp_shared_intermediate_dir)/components/data_reduction_proxy/core/common/version.h
 
 # Make sure our deps and generated files are built first.
 LOCAL_ADDITIONAL_DEPENDENCIES := $(GYP_TARGET_DEPENDENCIES) $(GYP_GENERATED_OUTPUTS)
 
 ### Rules for final target.
+### Set directly by aosp_build_settings.
+LOCAL_CLANG := false
+LOCAL_NDK_STL_VARIANT := stlport_static
+
 # Add target alias to "gyp_all_modules" target.
 .PHONY: gyp_all_modules
 gyp_all_modules: components_data_reduction_proxy_version_header_gyp

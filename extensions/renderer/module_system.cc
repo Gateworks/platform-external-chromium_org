@@ -72,7 +72,7 @@ class DefaultExceptionHandler : public ModuleSystem::ExceptionHandler {
   // Fatally dumps the debug info from |try_catch| to the console.
   // Make sure this is never used for exceptions that originate in external
   // code!
-  virtual void HandleUncaughtException(const v8::TryCatch& try_catch) OVERRIDE {
+  void HandleUncaughtException(const v8::TryCatch& try_catch) override {
     v8::HandleScope handle_scope(context_->isolate());
     std::string stack_trace = "<stack trace unavailable>";
     if (!try_catch.StackTrace().IsEmpty()) {
@@ -561,12 +561,18 @@ v8::Handle<v8::String> ModuleSystem::WrapSource(v8::Handle<v8::String> source) {
 void ModuleSystem::Private(const v8::FunctionCallbackInfo<v8::Value>& args) {
   CHECK_EQ(1, args.Length());
   CHECK(args[0]->IsObject());
+  CHECK(!args[0]->IsNull());
   v8::Local<v8::Object> obj = args[0].As<v8::Object>();
   v8::Local<v8::String> privates_key =
       v8::String::NewFromUtf8(GetIsolate(), "privates");
   v8::Local<v8::Value> privates = obj->GetHiddenValue(privates_key);
   if (privates.IsEmpty()) {
     privates = v8::Object::New(args.GetIsolate());
+    if (privates.IsEmpty()) {
+      GetIsolate()->ThrowException(
+          v8::String::NewFromUtf8(GetIsolate(), "Failed to create privates"));
+      return;
+    }
     obj->SetHiddenValue(privates_key, privates);
   }
   args.GetReturnValue().Set(privates);

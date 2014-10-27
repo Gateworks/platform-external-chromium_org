@@ -15,6 +15,7 @@
 #include "base/gtest_prod_util.h"
 #include "base/memory/memory_pressure_listener.h"
 #include "base/memory/scoped_ptr.h"
+#include "base/observer_list.h"
 #include "base/single_thread_task_runner.h"
 #include "base/task/cancelable_task_tracker.h"
 #include "chrome/browser/history/expire_history_backend.h"
@@ -49,6 +50,7 @@ class AndroidProviderBackend;
 
 class CommitLaterTask;
 struct DownloadRow;
+class HistoryBackendObserver;
 class HistoryClient;
 class HistoryDBTask;
 class InMemoryHistoryBackend;
@@ -120,9 +122,20 @@ class HistoryBackend : public base::RefCountedThreadSafe<HistoryBackend>,
     virtual void SetInMemoryBackend(
         scoped_ptr<InMemoryHistoryBackend> backend) = 0;
 
+    // Notify HistoryService that VisitDatabase was changed. The event will be
+    // forwarded to the history::HistoryServiceObservers in the UI thread.
+    virtual void NotifyAddVisit(const BriefVisitInfo& info) = 0;
+
     // Notify HistoryService that some URLs favicon changed that will forward
     // the events to the FaviconChangedObservers in the correct thread.
     virtual void NotifyFaviconChanged(const std::set<GURL>& urls) = 0;
+
+    // Notify HistoryService that the user is visiting an URL. The event will
+    // be forwarded to the HistoryServiceObservers in the correct thread.
+    virtual void NotifyURLVisited(ui::PageTransition transition,
+                                  const URLRow& row,
+                                  const RedirectList& redirects,
+                                  base::Time visit_time) = 0;
 
     // Broadcasts the specified notification to the notification service.
     // This is implemented here because notifications must only be sent from
@@ -133,9 +146,6 @@ class HistoryBackend : public base::RefCountedThreadSafe<HistoryBackend>,
 
     // Invoked when the backend has finished loading the db.
     virtual void DBLoaded() = 0;
-
-    virtual void NotifyVisitDBObserversOnAddVisit(
-        const history::BriefVisitInfo& info) = 0;
   };
 
   // Init must be called to complete object creation. This object can be
@@ -301,6 +311,11 @@ class HistoryBackend : public base::RefCountedThreadSafe<HistoryBackend>,
 
   void DeleteMatchingURLsForKeyword(KeywordID keyword_id,
                                     const base::string16& term);
+
+  // Observers -----------------------------------------------------------------
+
+  void AddObserver(HistoryBackendObserver* observer);
+  void RemoveObserver(HistoryBackendObserver* observer);
 
 #if defined(OS_ANDROID)
   // Android Provider ---------------------------------------------------------
@@ -502,7 +517,14 @@ class HistoryBackend : public base::RefCountedThreadSafe<HistoryBackend>,
   }
 
  protected:
-  virtual ~HistoryBackend();
+  ~HistoryBackend() override;
+
+  // Notify HistoryBackendObserver that |transition| to |row| occurred at
+  // |visit_time| following |redirects| (empty if there is no redirects).
+  void NotifyURLVisited(ui::PageTransition transition,
+                        const URLRow& row,
+                        const RedirectList& redirects,
+                        base::Time visit_time);
 
  private:
   friend class base::RefCountedThreadSafe<HistoryBackend>;
@@ -773,13 +795,12 @@ class HistoryBackend : public base::RefCountedThreadSafe<HistoryBackend>,
   // to be invoked again if there are more tasks that need to run.
   void ProcessDBTaskImpl();
 
-  virtual void BroadcastNotifications(
-      int type,
-      scoped_ptr<HistoryDetails> details) OVERRIDE;
-  virtual void NotifySyncURLsModified(URLRows* rows) OVERRIDE;
-  virtual void NotifySyncURLsDeleted(bool all_history,
-                                     bool expired,
-                                     URLRows* rows) OVERRIDE;
+  void BroadcastNotifications(int type,
+                              scoped_ptr<HistoryDetails> details) override;
+  void NotifySyncURLsModified(URLRows* rows) override;
+  void NotifySyncURLsDeleted(bool all_history,
+                             bool expired,
+                             URLRows* rows) override;
 
   // Deleting all history ------------------------------------------------------
 
@@ -888,10 +909,16 @@ class HistoryBackend : public base::RefCountedThreadSafe<HistoryBackend>,
 
   // Used to manage syncing of the typed urls datatype. This will be NULL
   // before Init is called.
+  // TODO(sdefresne): turn TypedUrlSyncableService into a HistoryBackendObserver
+  // and remove this field since it is only used for forwarding notifications
+  // about URL visited, modified, deleted.
   scoped_ptr<TypedUrlSyncableService> typed_url_syncable_service_;
 
   // Listens for the system being under memory pressure.
   scoped_ptr<base::MemoryPressureListener> memory_pressure_listener_;
+
+  // List of observers
+  ObserverList<HistoryBackendObserver> observers_;
 
   DISALLOW_COPY_AND_ASSIGN(HistoryBackend);
 };

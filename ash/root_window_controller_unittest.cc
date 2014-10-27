@@ -51,11 +51,11 @@ class TestDelegate : public views::WidgetDelegateView {
   virtual ~TestDelegate() {}
 
   // Overridden from views::WidgetDelegate:
-  virtual views::View* GetContentsView() OVERRIDE {
+  virtual views::View* GetContentsView() override {
     return this;
   }
 
-  virtual ui::ModalType GetModalType() const OVERRIDE {
+  virtual ui::ModalType GetModalType() const override {
     return system_modal_ ? ui::MODAL_TYPE_SYSTEM : ui::MODAL_TYPE_NONE;
   }
 
@@ -78,13 +78,13 @@ class DeleteOnBlurDelegate : public aura::test::TestWindowDelegate,
 
  private:
   // aura::test::TestWindowDelegate overrides:
-  virtual bool CanFocus() OVERRIDE {
+  virtual bool CanFocus() override {
     return true;
   }
 
   // aura::client::FocusChangeObserver implementation:
   virtual void OnWindowFocused(aura::Window* gained_focus,
-                               aura::Window* lost_focus) OVERRIDE {
+                               aura::Window* lost_focus) override {
     if (window_ == lost_focus)
       delete window_;
   }
@@ -538,7 +538,7 @@ class DestroyedWindowObserver : public aura::WindowObserver {
   bool destroyed() const { return destroyed_; }
 
   // WindowObserver overrides:
-  virtual void OnWindowDestroying(Window* window) OVERRIDE {
+  virtual void OnWindowDestroying(Window* window) override {
     destroyed_ = true;
     Shutdown();
   }
@@ -617,7 +617,7 @@ class VirtualKeyboardRootWindowControllerTest
   VirtualKeyboardRootWindowControllerTest() {};
   virtual ~VirtualKeyboardRootWindowControllerTest() {};
 
-  virtual void SetUp() OVERRIDE {
+  virtual void SetUp() override {
     CommandLine::ForCurrentProcess()->AppendSwitch(
         keyboard::switches::kEnableVirtualKeyboard);
     test::AshTestBase::SetUp();
@@ -634,7 +634,7 @@ class MockTextInputClient : public ui::DummyTextInputClient {
   MockTextInputClient() :
       ui::DummyTextInputClient(ui::TEXT_INPUT_TYPE_TEXT) {}
 
-  virtual void EnsureCaretInRect(const gfx::Rect& rect) OVERRIDE {
+  virtual void EnsureCaretInRect(const gfx::Rect& rect) override {
     visible_rect_ = rect;
   }
 
@@ -653,7 +653,7 @@ class TargetHitTestEventHandler : public ui::test::TestEventHandler {
   TargetHitTestEventHandler() {}
 
   // ui::test::TestEventHandler overrides.
-  virtual void OnMouseEvent(ui::MouseEvent* event) OVERRIDE {
+  virtual void OnMouseEvent(ui::MouseEvent* event) override {
     if (event->type() == ui::ET_MOUSE_PRESSED)
       ui::test::TestEventHandler::OnMouseEvent(event);
     event->StopPropagation();
@@ -942,6 +942,28 @@ TEST_F(VirtualKeyboardRootWindowControllerTest, ZOrderTest) {
   // delegates.
   normal.reset();
   menu.reset();
+}
+
+// Resolution in UpdateDisplay is not being respected on Windows 8.
+#if defined(OS_WIN)
+#define MAYBE_DisplayRotation DISABLED_DisplayRotation
+#else
+#define MAYBE_DisplayRotation DisplayRotation
+#endif
+
+// Tests that the virtual keyboard correctly resizes with a change to display
+// orientation. See crbug/417612.
+TEST_F(VirtualKeyboardRootWindowControllerTest, MAYBE_DisplayRotation) {
+  UpdateDisplay("800x600");
+  aura::Window* root_window = Shell::GetPrimaryRootWindow();
+  aura::Window* keyboard_container =
+      Shell::GetContainer(root_window, kShellWindowId_VirtualKeyboardContainer);
+  ASSERT_TRUE(keyboard_container);
+  keyboard_container->Show();
+  EXPECT_EQ("0,0 800x600", keyboard_container->bounds().ToString());
+
+  UpdateDisplay("600x800");
+  EXPECT_EQ("0,0 600x800", keyboard_container->bounds().ToString());
 }
 
 }  // namespace test

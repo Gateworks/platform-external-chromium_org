@@ -98,7 +98,7 @@ class MetricsService : public base::HistogramFlattener {
   MetricsService(MetricsStateManager* state_manager,
                  MetricsServiceClient* client,
                  PrefService* local_state);
-  virtual ~MetricsService();
+  ~MetricsService() override;
 
   // Initializes metrics recording state. Updates various bookkeeping values in
   // prefs and sets up the scheduler. This is a separate function rather than
@@ -152,13 +152,13 @@ class MetricsService : public base::HistogramFlattener {
   static void RegisterPrefs(PrefRegistrySimple* registry);
 
   // HistogramFlattener:
-  virtual void RecordDelta(const base::HistogramBase& histogram,
-                           const base::HistogramSamples& snapshot) OVERRIDE;
-  virtual void InconsistencyDetected(
-      base::HistogramBase::Inconsistency problem) OVERRIDE;
-  virtual void UniqueInconsistencyDetected(
-      base::HistogramBase::Inconsistency problem) OVERRIDE;
-  virtual void InconsistencyDetectedInLoggedCount(int amount) OVERRIDE;
+  void RecordDelta(const base::HistogramBase& histogram,
+                   const base::HistogramSamples& snapshot) override;
+  void InconsistencyDetected(
+      base::HistogramBase::Inconsistency problem) override;
+  void UniqueInconsistencyDetected(
+      base::HistogramBase::Inconsistency problem) override;
+  void InconsistencyDetectedInLoggedCount(int amount) override;
 
   // This should be called when the application is not idle, i.e. the user seems
   // to be interacting with the application.
@@ -243,6 +243,8 @@ class MetricsService : public base::HistogramFlattener {
     CLEANLY_SHUTDOWN = 0xdeadbeef,
     NEED_TO_SHUTDOWN = ~CLEANLY_SHUTDOWN
   };
+
+  friend class ::MetricsServiceAccessor;
 
   typedef std::vector<SyntheticTrialGroup> SyntheticTrialGroups;
 
@@ -364,6 +366,9 @@ class MetricsService : public base::HistogramFlattener {
   // Creates a new MetricsLog instance with the given |log_type|.
   scoped_ptr<MetricsLog> CreateLog(MetricsLog::LogType log_type);
 
+  // Records the current environment (system profile) in |log|.
+  void RecordCurrentEnvironment(MetricsLog* log);
+
   // Record complete list of histograms into the current log.
   // Called when we close a log.
   void RecordCurrentHistograms();
@@ -430,14 +435,6 @@ class MetricsService : public base::HistogramFlattener {
   // A number that identifies the how many times the app has been launched.
   int session_id_;
 
-  // Weak pointers factory used to post task on different threads. All weak
-  // pointers managed by this factory have the same lifetime as MetricsService.
-  base::WeakPtrFactory<MetricsService> self_ptr_factory_;
-
-  // Weak pointers factory used for saving state. All weak pointers managed by
-  // this factory are invalidated in ScheduleNextStateSave.
-  base::WeakPtrFactory<MetricsService> state_saver_factory_;
-
   // The scheduler for determining when uploads should happen.
   scoped_ptr<MetricsReportingScheduler> scheduler_;
 
@@ -457,12 +454,18 @@ class MetricsService : public base::HistogramFlattener {
   // exited-cleanly bit in the prefs.
   static ShutdownCleanliness clean_shutdown_status_;
 
-  friend class ::MetricsServiceAccessor;
-
   FRIEND_TEST_ALL_PREFIXES(MetricsServiceTest, IsPluginProcess);
   FRIEND_TEST_ALL_PREFIXES(MetricsServiceTest,
                            PermutedEntropyCacheClearedWhenLowEntropyReset);
   FRIEND_TEST_ALL_PREFIXES(MetricsServiceTest, RegisterSyntheticTrial);
+
+  // Weak pointers factory used to post task on different threads. All weak
+  // pointers managed by this factory have the same lifetime as MetricsService.
+  base::WeakPtrFactory<MetricsService> self_ptr_factory_;
+
+  // Weak pointers factory used for saving state. All weak pointers managed by
+  // this factory are invalidated in ScheduleNextStateSave.
+  base::WeakPtrFactory<MetricsService> state_saver_factory_;
 
   DISALLOW_COPY_AND_ASSIGN(MetricsService);
 };

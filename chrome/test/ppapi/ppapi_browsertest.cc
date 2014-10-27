@@ -6,13 +6,13 @@
 
 #include "base/test/test_timeouts.h"
 #include "build/build_config.h"
-#include "chrome/browser/content_settings/host_content_settings_map.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_navigator.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/test/base/ui_test_utils.h"
 #include "chrome/test/nacl/nacl_browsertest_util.h"
+#include "components/content_settings/core/browser/host_content_settings_map.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/common/url_constants.h"
 #include "content/public/test/javascript_test_observer.h"
@@ -666,7 +666,9 @@ IN_PROC_BROWSER_TEST_F(PPAPITest, MAYBE_FileIO) {
 IN_PROC_BROWSER_TEST_F(PPAPIPrivateTest, MAYBE_FileIO_Private) {
   RUN_FILEIO_PRIVATE_SUBTESTS;
 }
-IN_PROC_BROWSER_TEST_F(OutOfProcessPPAPITest, MAYBE_FileIO) {
+
+// See: crbug.com/421284
+IN_PROC_BROWSER_TEST_F(OutOfProcessPPAPITest, DISABLED_FileIO) {
   RUN_FILEIO_SUBTESTS;
 }
 IN_PROC_BROWSER_TEST_F(OutOfProcessPPAPIPrivateTest, MAYBE_FileIO_Private) {

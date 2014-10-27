@@ -5,6 +5,7 @@
 import os
 
 from telemetry import decorators
+from telemetry.core import app
 from telemetry.core import browser_credentials
 from telemetry.core import exceptions
 from telemetry.core import extension_dict
@@ -16,7 +17,7 @@ from telemetry.core import wpr_server
 from telemetry.core.backends import browser_backend
 
 
-class Browser(object):
+class Browser(app.App):
   """A running browser instance that can be controlled in a limited way.
 
   To create a browser instance, use browser_finder.FindBrowser.
@@ -30,8 +31,8 @@ class Browser(object):
   def __init__(self, backend, platform_backend, archive_path,
                append_to_existing_wpr, make_javascript_deterministic,
                credentials_path):
-    assert platform_backend.platform != None
-
+    super(Browser, self).__init__(app_backend=backend,
+                                  platform_backend=platform_backend)
     self._browser_backend = backend
     self._platform_backend = platform_backend
     self._wpr_server = None
@@ -65,10 +66,6 @@ class Browser(object):
 
   def __exit__(self, *args):
     self.Close()
-
-  @property
-  def platform(self):
-    return self._platform_backend.platform
 
   @property
   def browser_type(self):
@@ -319,18 +316,18 @@ class Browser(object):
     if not archive_path:
       return None
 
-    if self._browser_backend.wpr_mode == wpr_modes.WPR_OFF:
+    wpr_mode = self._browser_backend.wpr_mode
+    if wpr_mode == wpr_modes.WPR_OFF:
       return
-
-    use_record_mode = self._browser_backend.wpr_mode == wpr_modes.WPR_RECORD
-    if not use_record_mode:
+    if wpr_mode == wpr_modes.WPR_RECORD and append_to_existing_wpr:
+      wpr_mode = wpr_modes.WPR_APPEND
+    if wpr_mode == wpr_modes.WPR_REPLAY:
       assert os.path.isfile(archive_path)
 
     self._wpr_server = wpr_server.ReplayServer(
         self._browser_backend,
         archive_path,
-        use_record_mode,
-        append_to_existing_wpr,
+        wpr_mode,
         make_javascript_deterministic)
 
   def GetStandardOutput(self):
@@ -348,8 +345,3 @@ class Browser(object):
 
        See the documentation of the SystemInfo class for more details."""
     return self._browser_backend.GetSystemInfo()
-
-  # TODO: Remove after call to Start() has been removed from
-  # related authotest files.
-  def Start(self):
-    pass

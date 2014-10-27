@@ -51,7 +51,7 @@ class SSLClientSocketOpenSSL : public SSLClientSocket {
                          const HostPortPair& host_and_port,
                          const SSLConfig& ssl_config,
                          const SSLClientSocketContext& context);
-  virtual ~SSLClientSocketOpenSSL();
+  ~SSLClientSocketOpenSSL() override;
 
   const HostPortPair& host_and_port() const { return host_and_port_; }
   const std::string& ssl_session_cache_shard() const {
@@ -59,49 +59,49 @@ class SSLClientSocketOpenSSL : public SSLClientSocket {
   }
 
   // SSLClientSocket implementation.
-  virtual std::string GetSessionCacheKey() const OVERRIDE;
-  virtual bool InSessionCache() const OVERRIDE;
-  virtual void SetHandshakeCompletionCallback(
-      const base::Closure& callback) OVERRIDE;
-  virtual void GetSSLCertRequestInfo(
-      SSLCertRequestInfo* cert_request_info) OVERRIDE;
-  virtual NextProtoStatus GetNextProto(std::string* proto) OVERRIDE;
-  virtual ChannelIDService* GetChannelIDService() const OVERRIDE;
+  std::string GetSessionCacheKey() const override;
+  bool InSessionCache() const override;
+  void SetHandshakeCompletionCallback(const base::Closure& callback) override;
+  void GetSSLCertRequestInfo(SSLCertRequestInfo* cert_request_info) override;
+  NextProtoStatus GetNextProto(std::string* proto) override;
+  ChannelIDService* GetChannelIDService() const override;
 
   // SSLSocket implementation.
-  virtual int ExportKeyingMaterial(const base::StringPiece& label,
-                                   bool has_context,
-                                   const base::StringPiece& context,
-                                   unsigned char* out,
-                                   unsigned int outlen) OVERRIDE;
-  virtual int GetTLSUniqueChannelBinding(std::string* out) OVERRIDE;
+  int ExportKeyingMaterial(const base::StringPiece& label,
+                           bool has_context,
+                           const base::StringPiece& context,
+                           unsigned char* out,
+                           unsigned int outlen) override;
+  int GetTLSUniqueChannelBinding(std::string* out) override;
 
   // StreamSocket implementation.
-  virtual int Connect(const CompletionCallback& callback) OVERRIDE;
-  virtual void Disconnect() OVERRIDE;
-  virtual bool IsConnected() const OVERRIDE;
-  virtual bool IsConnectedAndIdle() const OVERRIDE;
-  virtual int GetPeerAddress(IPEndPoint* address) const OVERRIDE;
-  virtual int GetLocalAddress(IPEndPoint* address) const OVERRIDE;
-  virtual const BoundNetLog& NetLog() const OVERRIDE;
-  virtual void SetSubresourceSpeculation() OVERRIDE;
-  virtual void SetOmniboxSpeculation() OVERRIDE;
-  virtual bool WasEverUsed() const OVERRIDE;
-  virtual bool UsingTCPFastOpen() const OVERRIDE;
-  virtual bool GetSSLInfo(SSLInfo* ssl_info) OVERRIDE;
+  int Connect(const CompletionCallback& callback) override;
+  void Disconnect() override;
+  bool IsConnected() const override;
+  bool IsConnectedAndIdle() const override;
+  int GetPeerAddress(IPEndPoint* address) const override;
+  int GetLocalAddress(IPEndPoint* address) const override;
+  const BoundNetLog& NetLog() const override;
+  void SetSubresourceSpeculation() override;
+  void SetOmniboxSpeculation() override;
+  bool WasEverUsed() const override;
+  bool UsingTCPFastOpen() const override;
+  bool GetSSLInfo(SSLInfo* ssl_info) override;
 
   // Socket implementation.
-  virtual int Read(IOBuffer* buf, int buf_len,
-                   const CompletionCallback& callback) OVERRIDE;
-  virtual int Write(IOBuffer* buf, int buf_len,
-                    const CompletionCallback& callback) OVERRIDE;
-  virtual int SetReceiveBufferSize(int32 size) OVERRIDE;
-  virtual int SetSendBufferSize(int32 size) OVERRIDE;
+  int Read(IOBuffer* buf,
+           int buf_len,
+           const CompletionCallback& callback) override;
+  int Write(IOBuffer* buf,
+            int buf_len,
+            const CompletionCallback& callback) override;
+  int SetReceiveBufferSize(int32 size) override;
+  int SetSendBufferSize(int32 size) override;
 
  protected:
   // SSLClientSocket implementation.
-  virtual scoped_refptr<X509Certificate> GetUnverifiedServerCertificateChain()
-      const OVERRIDE;
+  scoped_refptr<X509Certificate> GetUnverifiedServerCertificateChain()
+      const override;
 
  private:
   class PeerCertificateChain;
@@ -130,8 +130,8 @@ class SSLClientSocketOpenSSL : public SSLClientSocket {
   void OnRecvComplete(int result);
 
   int DoHandshakeLoop(int last_io_result);
-  int DoReadLoop(int result);
-  int DoWriteLoop(int result);
+  int DoReadLoop();
+  int DoWriteLoop();
   int DoPayloadRead();
   int DoPayloadWrite();
 

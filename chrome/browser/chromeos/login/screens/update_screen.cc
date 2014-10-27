@@ -23,6 +23,7 @@
 #include "content/public/browser/browser_thread.h"
 
 using content::BrowserThread;
+using pairing_chromeos::HostPairingController;
 
 namespace chromeos {
 
@@ -93,8 +94,9 @@ UpdateScreen* UpdateScreen::Get(ScreenManager* manager) {
 }
 
 UpdateScreen::UpdateScreen(ScreenObserver* screen_observer,
-                           UpdateScreenActor* actor)
-    : WizardScreen(screen_observer),
+                           UpdateScreenActor* actor,
+                           HostPairingController* remora_controller)
+    : BaseScreen(screen_observer),
       state_(STATE_IDLE),
       reboot_check_delay_(0),
       is_checking_for_update_(true),
@@ -103,6 +105,7 @@ UpdateScreen::UpdateScreen(ScreenObserver* screen_observer,
       is_shown_(false),
       ignore_idle_status_(true),
       actor_(actor),
+      remora_controller_(remora_controller),
       is_first_detection_notification_(true),
       is_first_portal_notification_(true),
       histogram_helper_(new ErrorScreensHistogramHelper("Update")),
@@ -139,6 +142,8 @@ void UpdateScreen::UpdateStatusChanged(
     case UpdateEngineClient::UPDATE_STATUS_CHECKING_FOR_UPDATE:
       // Do nothing in these cases, we don't want to notify the user of the
       // check unless there is an update.
+      SetHostPairingControllerStatus(
+          HostPairingController::UPDATE_STATUS_UPDATING);
       break;
     case UpdateEngineClient::UPDATE_STATUS_UPDATE_AVAILABLE:
       MakeSureScreenIsShown();
@@ -201,6 +206,8 @@ void UpdateScreen::UpdateStatusChanged(
       if (HasCriticalUpdate()) {
         actor_->ShowCurtain(false);
         VLOG(1) << "Initiate reboot after update";
+        SetHostPairingControllerStatus(
+            HostPairingController::UPDATE_STATUS_REBOOTING);
         DBusThreadManager::Get()->GetUpdateEngineClient()->RebootAfterUpdate();
         reboot_timer_.Start(FROM_HERE,
                             base::TimeDelta::FromSeconds(reboot_check_delay_),
@@ -323,6 +330,8 @@ void UpdateScreen::PrepareToShow() {
 void UpdateScreen::ExitUpdate(UpdateScreen::ExitReason reason) {
   DBusThreadManager::Get()->GetUpdateEngineClient()->RemoveObserver(this);
   NetworkPortalDetector::Get()->RemoveObserver(this);
+  SetHostPairingControllerStatus(HostPairingController::UPDATE_STATUS_UPDATED);
+
 
   switch (reason) {
     case REASON_UPDATE_CANCELED:
@@ -527,6 +536,13 @@ void UpdateScreen::UpdateErrorMessage(
     default:
       NOTREACHED();
       break;
+  }
+}
+
+void UpdateScreen::SetHostPairingControllerStatus(
+    HostPairingController::UpdateStatus update_status) {
+  if (remora_controller_) {
+    remora_controller_->OnUpdateStatusChanged(update_status);
   }
 }
 

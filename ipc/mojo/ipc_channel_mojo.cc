@@ -10,7 +10,7 @@
 #include "ipc/ipc_listener.h"
 #include "ipc/mojo/ipc_channel_mojo_readers.h"
 #include "ipc/mojo/ipc_mojo_bootstrap.h"
-#include "mojo/embedder/embedder.h"
+#include "mojo/edk/embedder/embedder.h"
 
 #if defined(OS_POSIX) && !defined(OS_NACL)
 #include "ipc/file_descriptor_set_posix.h"
@@ -27,13 +27,12 @@ class MojoChannelFactory : public ChannelFactory {
                      Channel::Mode mode)
       : delegate_(delegate), channel_handle_(channel_handle), mode_(mode) {}
 
-  virtual std::string GetName() const OVERRIDE {
+  std::string GetName() const override {
     return channel_handle_.name;
   }
 
-  virtual scoped_ptr<Channel> BuildChannel(Listener* listener) OVERRIDE {
-    return ChannelMojo::Create(delegate_, channel_handle_, mode_, listener)
-        .PassAs<Channel>();
+  scoped_ptr<Channel> BuildChannel(Listener* listener) override {
+    return ChannelMojo::Create(delegate_, channel_handle_, mode_, listener);
   }
 
  private:
@@ -54,6 +53,12 @@ void ChannelMojo::ChannelInfoDeleter::operator()(
 //------------------------------------------------------------------------------
 
 // static
+bool ChannelMojo::ShouldBeUsed() {
+  // TODO(morrita): Turn this on for a set of platforms.
+  return false;
+}
+
+// static
 scoped_ptr<ChannelMojo> ChannelMojo::Create(ChannelMojo::Delegate* delegate,
                                             const ChannelHandle& channel_handle,
                                             Mode mode,
@@ -66,17 +71,15 @@ scoped_ptr<ChannelMojo> ChannelMojo::Create(ChannelMojo::Delegate* delegate,
 scoped_ptr<ChannelFactory> ChannelMojo::CreateServerFactory(
     ChannelMojo::Delegate* delegate,
     const ChannelHandle& channel_handle) {
-  return make_scoped_ptr(new MojoChannelFactory(
-                             delegate, channel_handle, Channel::MODE_SERVER))
-      .PassAs<ChannelFactory>();
+  return make_scoped_ptr(
+      new MojoChannelFactory(delegate, channel_handle, Channel::MODE_SERVER));
 }
 
 // static
 scoped_ptr<ChannelFactory> ChannelMojo::CreateClientFactory(
     const ChannelHandle& channel_handle) {
   return make_scoped_ptr(
-             new MojoChannelFactory(NULL, channel_handle, Channel::MODE_CLIENT))
-      .PassAs<ChannelFactory>();
+      new MojoChannelFactory(NULL, channel_handle, Channel::MODE_CLIENT));
 }
 
 ChannelMojo::ChannelMojo(ChannelMojo::Delegate* delegate,
@@ -216,7 +219,7 @@ int ChannelMojo::GetClientFileDescriptor() const {
   return bootstrap_->GetClientFileDescriptor();
 }
 
-int ChannelMojo::TakeClientFileDescriptor() {
+base::ScopedFD ChannelMojo::TakeClientFileDescriptor() {
   return bootstrap_->TakeClientFileDescriptor();
 }
 

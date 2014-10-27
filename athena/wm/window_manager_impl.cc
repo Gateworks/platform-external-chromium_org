@@ -23,6 +23,7 @@
 #include "ui/gfx/display.h"
 #include "ui/gfx/screen.h"
 #include "ui/wm/core/shadow_controller.h"
+#include "ui/wm/core/transient_window_manager.h"
 #include "ui/wm/core/window_util.h"
 #include "ui/wm/core/wm_state.h"
 #include "ui/wm/public/activation_client.h"
@@ -30,7 +31,7 @@
 
 namespace athena {
 namespace {
-class WindowManagerImpl* instance = NULL;
+class WindowManagerImpl* instance = nullptr;
 
 void SetWindowState(aura::Window* window,
                     const gfx::Rect& bounds,
@@ -44,18 +45,18 @@ void SetWindowState(aura::Window* window,
 class AthenaContainerLayoutManager : public aura::LayoutManager {
  public:
   AthenaContainerLayoutManager();
-  virtual ~AthenaContainerLayoutManager();
+  ~AthenaContainerLayoutManager() override;
 
  private:
   // aura::LayoutManager:
-  virtual void OnWindowResized() OVERRIDE;
-  virtual void OnWindowAddedToLayout(aura::Window* child) OVERRIDE;
-  virtual void OnWillRemoveWindowFromLayout(aura::Window* child) OVERRIDE;
-  virtual void OnWindowRemovedFromLayout(aura::Window* child) OVERRIDE;
-  virtual void OnChildWindowVisibilityChanged(aura::Window* child,
-                                              bool visible) OVERRIDE;
-  virtual void SetChildBounds(aura::Window* child,
-                              const gfx::Rect& requested_bounds) OVERRIDE;
+  void OnWindowResized() override;
+  void OnWindowAddedToLayout(aura::Window* child) override;
+  void OnWillRemoveWindowFromLayout(aura::Window* child) override;
+  void OnWindowRemovedFromLayout(aura::Window* child) override;
+  void OnChildWindowVisibilityChanged(aura::Window* child,
+                                      bool visible) override;
+  void SetChildBounds(aura::Window* child,
+                      const gfx::Rect& requested_bounds) override;
 
   DISALLOW_COPY_AND_ASSIGN(AthenaContainerLayoutManager);
 };
@@ -99,23 +100,11 @@ void AthenaContainerLayoutManager::OnWindowResized() {
 }
 
 void AthenaContainerLayoutManager::OnWindowAddedToLayout(aura::Window* child) {
-  if (!instance->window_list_provider_->IsWindowInList(child))
-    return;
-
-  if (instance->split_view_controller_->IsSplitViewModeActive() &&
-      !instance->IsOverviewModeActive()) {
-    instance->split_view_controller_->ReplaceWindow(
-        instance->split_view_controller_->left_window(), child);
-  } else {
-    gfx::Size size =
-        gfx::Screen::GetNativeScreen()->GetPrimaryDisplay().work_area().size();
-    child->SetBounds(gfx::Rect(size));
-  }
-
-  if (instance->IsOverviewModeActive()) {
-    // TODO(pkotwicz|oshima). Creating a new window should only exit overview
-    // mode if the new window is activated. crbug.com/415266
-    instance->OnSelectWindow(child);
+  // TODO(oshima): Split view modes needs to take the transient window into
+  // account.
+  if (wm::GetTransientParent(child)) {
+    wm::TransientWindowManager::Get(child)
+        ->set_parent_controls_visibility(true);
   }
 }
 
@@ -142,10 +131,13 @@ void AthenaContainerLayoutManager::SetChildBounds(
 WindowManagerImpl::WindowManagerImpl() {
   ScreenManager::ContainerParams params("DefaultContainer", CP_DEFAULT);
   params.can_activate_children = true;
-  container_.reset(ScreenManager::Get()->CreateDefaultContainer(params));
+  params.default_parent = true;
+  params.modal_container_priority = CP_SYSTEM_MODAL;
+  container_.reset(ScreenManager::Get()->CreateContainer(params));
   container_->SetLayoutManager(new AthenaContainerLayoutManager);
   container_->AddObserver(this);
   window_list_provider_.reset(new WindowListProviderImpl(container_.get()));
+  window_list_provider_->AddObserver(this);
   bezel_controller_.reset(new BezelController(container_.get()));
   split_view_controller_.reset(
       new SplitViewController(container_.get(), window_list_provider_.get()));
@@ -156,12 +148,15 @@ WindowManagerImpl::WindowManagerImpl() {
   wm_state_.reset(new wm::WMState());
   aura::client::ActivationClient* activation_client =
       aura::client::GetActivationClient(container_->GetRootWindow());
+  DCHECK(container_->GetRootWindow());
+  DCHECK(activation_client);
   shadow_controller_.reset(new wm::ShadowController(activation_client));
   instance = this;
   InstallAccelerators();
 }
 
 WindowManagerImpl::~WindowManagerImpl() {
+  window_list_provider_->RemoveObserver(this);
   overview_.reset();
   RemoveObserver(split_view_controller_.get());
   split_view_controller_.reset();
@@ -173,7 +168,7 @@ WindowManagerImpl::~WindowManagerImpl() {
   // |title_drag_controller_| needs to be reset before |container_|.
   title_drag_controller_.reset();
   container_.reset();
-  instance = NULL;
+  instance = nullptr;
 }
 
 void WindowManagerImpl::ToggleSplitView() {
@@ -189,27 +184,40 @@ void WindowManagerImpl::ToggleSplitView() {
     FOR_EACH_OBSERVER(WindowManagerObserver,
                       observers_,
                       OnSplitViewModeEnter());
-    split_view_controller_->ActivateSplitMode(NULL, NULL, NULL);
+    split_view_controller_->ActivateSplitMode(nullptr, nullptr, nullptr);
   }
 }
 
-void WindowManagerImpl::ToggleOverview() {
-  if (IsOverviewModeActive()) {
-    SetInOverview(false);
+void WindowManagerImpl::EnterOverview() {
+  if (IsOverviewModeActive())
+    return;
 
-    // Activate the window which was active prior to entering overview.
-    const aura::Window::Windows windows =
-        window_list_provider_->GetWindowList();
-    if (!windows.empty()) {
-      aura::Window* window = windows.back();
-      // Show the window in case the exit overview animation has finished and
-      // |window| was hidden.
-      window->Show();
+  bezel_controller_->set_left_right_delegate(nullptr);
+  FOR_EACH_OBSERVER(WindowManagerObserver, observers_, OnOverviewModeEnter());
 
-      wm::ActivateWindow(window);
-    }
-  } else {
-    SetInOverview(true);
+  // Note: The window_list_provider_ resembles the exact window list of the
+  // container, so no re-stacking is required before showing the OverviewMode.
+  overview_ = WindowOverviewMode::Create(
+      container_.get(), window_list_provider_.get(),
+      split_view_controller_.get(), this);
+  AcceleratorManager::Get()->RegisterAccelerator(kEscAcceleratorData, this);
+}
+
+void WindowManagerImpl::ExitOverview() {
+  if (!IsOverviewModeActive())
+    return;
+
+  ExitOverviewNoActivate();
+
+  // Activate the window which was active prior to entering overview.
+  const aura::Window::Windows windows = window_list_provider_->GetWindowList();
+  if (!windows.empty()) {
+    aura::Window* window_to_activate = windows.back();
+
+    // Show the window in case the exit overview animation has finished and
+    // |window| was hidden.
+    window_to_activate->Show();
+    wm::ActivateWindow(window_to_activate);
   }
 }
 
@@ -217,33 +225,34 @@ bool WindowManagerImpl::IsOverviewModeActive() {
   return overview_;
 }
 
-void WindowManagerImpl::SetInOverview(bool active) {
-  bool in_overview = !!overview_;
-  if (active == in_overview)
+void WindowManagerImpl::ExitOverviewNoActivate() {
+  if (!IsOverviewModeActive())
     return;
 
-  bezel_controller_->set_left_right_delegate(
-      active ? NULL : split_view_controller_.get());
-  if (active) {
-    FOR_EACH_OBSERVER(WindowManagerObserver, observers_, OnOverviewModeEnter());
-
-    // Note: The window_list_provider_ resembles the exact window list of the
-    // container, so no re-stacking is required before showing the OverviewMode.
-    overview_ = WindowOverviewMode::Create(
-        container_.get(), window_list_provider_.get(),
-        split_view_controller_.get(), this);
-  } else {
-    overview_.reset();
-    FOR_EACH_OBSERVER(WindowManagerObserver, observers_, OnOverviewModeExit());
-  }
+  bezel_controller_->set_left_right_delegate(split_view_controller_.get());
+  overview_.reset();
+  FOR_EACH_OBSERVER(WindowManagerObserver, observers_, OnOverviewModeExit());
+  AcceleratorManager::Get()->UnregisterAccelerator(kEscAcceleratorData, this);
 }
 
 void WindowManagerImpl::InstallAccelerators() {
   const AcceleratorData accelerator_data[] = {
-      {TRIGGER_ON_PRESS, ui::VKEY_F6, ui::EF_NONE, CMD_TOGGLE_OVERVIEW,
+      {TRIGGER_ON_PRESS,
+       ui::VKEY_F6,
+       ui::EF_NONE,
+       CMD_TOGGLE_OVERVIEW,
        AF_NONE},
-      {TRIGGER_ON_PRESS, ui::VKEY_F6, ui::EF_CONTROL_DOWN,
-       CMD_TOGGLE_SPLIT_VIEW, AF_NONE},
+      {TRIGGER_ON_PRESS,
+       ui::VKEY_F6,
+       ui::EF_CONTROL_DOWN,
+       CMD_TOGGLE_SPLIT_VIEW,
+       AF_NONE},
+      // Debug
+      {TRIGGER_ON_PRESS,
+       ui::VKEY_6,
+       ui::EF_NONE,
+       CMD_TOGGLE_OVERVIEW,
+       AF_NONE | AF_DEBUG},
   };
   AcceleratorManager::Get()->RegisterAccelerators(
       accelerator_data, arraysize(accelerator_data), this);
@@ -266,7 +275,7 @@ WindowListProvider* WindowManagerImpl::GetWindowListProvider() {
 }
 
 void WindowManagerImpl::OnSelectWindow(aura::Window* window) {
-  SetInOverview(false);
+  ExitOverviewNoActivate();
 
   // Show the window in case the exit overview animation has finished and
   // |window| was hidden.
@@ -305,9 +314,34 @@ void WindowManagerImpl::OnSelectWindow(aura::Window* window) {
 void WindowManagerImpl::OnSelectSplitViewWindow(aura::Window* left,
                                                 aura::Window* right,
                                                 aura::Window* to_activate) {
-  SetInOverview(false);
+  ExitOverviewNoActivate();
   FOR_EACH_OBSERVER(WindowManagerObserver, observers_, OnSplitViewModeEnter());
   split_view_controller_->ActivateSplitMode(left, right, to_activate);
+}
+
+void WindowManagerImpl::OnWindowStackingChangedInList() {
+}
+
+void WindowManagerImpl::OnWindowAddedToList(aura::Window* child) {
+  if (instance->split_view_controller_->IsSplitViewModeActive() &&
+      !instance->IsOverviewModeActive()) {
+    instance->split_view_controller_->ReplaceWindow(
+        instance->split_view_controller_->left_window(), child);
+  } else {
+    gfx::Size size =
+        gfx::Screen::GetNativeScreen()->GetPrimaryDisplay().work_area().size();
+    child->SetBounds(gfx::Rect(size));
+  }
+
+  if (instance->IsOverviewModeActive()) {
+    // TODO(pkotwicz|oshima). Creating a new window should only exit overview
+    // mode if the new window is activated. crbug.com/415266
+    instance->OnSelectWindow(child);
+  }
+}
+
+void WindowManagerImpl::OnWindowRemovedFromList(aura::Window* removed_window,
+                                                int index) {
 }
 
 void WindowManagerImpl::OnWindowDestroying(aura::Window* window) {
@@ -322,8 +356,14 @@ bool WindowManagerImpl::IsCommandEnabled(int command_id) const {
 bool WindowManagerImpl::OnAcceleratorFired(int command_id,
                                            const ui::Accelerator& accelerator) {
   switch (command_id) {
+    case CMD_EXIT_OVERVIEW:
+      ExitOverview();
+      break;
     case CMD_TOGGLE_OVERVIEW:
-      ToggleOverview();
+      if (IsOverviewModeActive())
+        ExitOverview();
+      else
+        EnterOverview();
       break;
     case CMD_TOGGLE_SPLIT_VIEW:
       ToggleSplitView();
@@ -338,7 +378,7 @@ aura::Window* WindowManagerImpl::GetWindowBehind(aura::Window* window) {
       std::find(windows.rbegin(), windows.rend(), window);
   CHECK(iter != windows.rend());
   ++iter;
-  aura::Window* behind = NULL;
+  aura::Window* behind = nullptr;
   if (iter != windows.rend())
     behind = *iter++;
 
@@ -347,7 +387,7 @@ aura::Window* WindowManagerImpl::GetWindowBehind(aura::Window* window) {
     aura::Window* right = split_view_controller_->right_window();
     CHECK(window == left || window == right);
     if (behind == left || behind == right)
-      behind = (iter == windows.rend()) ? NULL : *iter;
+      behind = (iter == windows.rend()) ? nullptr : *iter;
   }
 
   return behind;

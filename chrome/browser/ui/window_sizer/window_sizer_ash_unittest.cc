@@ -11,7 +11,7 @@
 #include "ash/wm/window_resizer.h"
 #include "ash/wm/window_state.h"
 #include "base/compiler_specific.h"
-#include "chrome/browser/ui/ash/ash_init.h"
+#include "chrome/browser/ui/ash/ash_util.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/window_sizer/window_sizer_common_unittest.h"
 #include "chrome/common/chrome_switches.h"
@@ -41,21 +41,21 @@ class TestBrowserWindowAura : public TestBrowserWindow {
   virtual ~TestBrowserWindowAura() {}
 
   // TestBrowserWindow overrides:
-  virtual void Show() OVERRIDE {
+  virtual void Show() override {
     native_window_->Show();
     Activate();
   }
-  virtual void Hide() OVERRIDE {
+  virtual void Hide() override {
     native_window_->Hide();
   }
-  virtual void Activate() OVERRIDE {
+  virtual void Activate() override {
     aura::client::GetActivationClient(
         native_window_->GetRootWindow())->ActivateWindow(native_window_.get());
   }
-  virtual gfx::NativeWindow GetNativeWindow() OVERRIDE {
+  virtual gfx::NativeWindow GetNativeWindow() override {
     return native_window_.get();
   }
-  virtual gfx::Rect GetBounds() const OVERRIDE {
+  virtual gfx::Rect GetBounds() const override {
     return native_window_->bounds();
   }
 

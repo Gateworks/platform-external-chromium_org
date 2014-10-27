@@ -44,12 +44,10 @@ class TestFieldTrialObserver : public FieldTrialList::Observer {
     FieldTrialList::AddObserver(this);
   }
 
-  virtual ~TestFieldTrialObserver() {
-    FieldTrialList::RemoveObserver(this);
-  }
+  ~TestFieldTrialObserver() override { FieldTrialList::RemoveObserver(this); }
 
-  virtual void OnFieldTrialGroupFinalized(const std::string& trial,
-                                          const std::string& group) OVERRIDE {
+  void OnFieldTrialGroupFinalized(const std::string& trial,
+                                  const std::string& group) override {
     trial_name_ = trial;
     group_name_ = group;
   }
@@ -78,8 +76,8 @@ class FieldTrialTest : public testing::Test {
 // Test registration, and also check that destructors are called for trials
 // (and that Valgrind doesn't catch us leaking).
 TEST_F(FieldTrialTest, Registration) {
-  const char* name1 = "name 1 test";
-  const char* name2 = "name 2 test";
+  const char name1[] = "name 1 test";
+  const char name2[] = "name 2 test";
   EXPECT_FALSE(FieldTrialList::Find(name1));
   EXPECT_FALSE(FieldTrialList::Find(name2));
 
@@ -114,10 +112,11 @@ TEST_F(FieldTrialTest, AbsoluteProbabilities) {
   char default_always_false[] = " default always false";
   for (int i = 1; i < 250; ++i) {
     // Try lots of names, by changing the first character of the name.
-    always_true[0] = i;
-    default_always_true[0] = i;
-    always_false[0] = i;
-    default_always_false[0] = i;
+    char c = static_cast<char>(i);
+    always_true[0] = c;
+    default_always_true[0] = c;
+    always_false[0] = c;
+    default_always_false[0] = c;
 
     scoped_refptr<FieldTrial> trial_true =
         CreateFieldTrial(always_true, 10, default_always_true, NULL);
@@ -190,8 +189,9 @@ TEST_F(FieldTrialTest, MiddleProbabilities) {
   bool false_event_seen = false;
   bool true_event_seen = false;
   for (int i = 1; i < 250; ++i) {
-    name[0] = i;
-    default_group_name[0] = i;
+    char c = static_cast<char>(i);
+    name[0] = c;
+    default_group_name[0] = c;
     scoped_refptr<FieldTrial> trial =
         CreateFieldTrial(name, 10, default_group_name, NULL);
     int might_win = trial->AppendGroup("MightWin", 5);
@@ -961,7 +961,7 @@ TEST_F(FieldTrialTest, CreateSimulatedFieldTrial) {
     { 0.95, kDefaultGroupName },
   };
 
-  for (size_t i = 0; i < ARRAYSIZE_UNSAFE(test_cases); ++i) {
+  for (size_t i = 0; i < arraysize(test_cases); ++i) {
     TestFieldTrialObserver observer;
     scoped_refptr<FieldTrial> trial(
        FieldTrial::CreateSimulatedFieldTrial(kTrialName, 100, kDefaultGroupName,
@@ -989,5 +989,16 @@ TEST_F(FieldTrialTest, CreateSimulatedFieldTrial) {
     EXPECT_TRUE(states.empty());
   }
 }
+
+#if GTEST_HAS_DEATH_TEST
+TEST(FieldTrialDeathTest, OneTimeRandomizedTrialWithoutFieldTrialList) {
+  // Trying to instantiate a one-time randomized field trial before the
+  // FieldTrialList is created should crash.
+  EXPECT_DEATH(FieldTrialList::FactoryGetFieldTrial(
+      "OneTimeRandomizedTrialWithoutFieldTrialList", 100, kDefaultGroupName,
+      base::FieldTrialList::kNoExpirationYear, 1, 1,
+      base::FieldTrial::ONE_TIME_RANDOMIZED, NULL), "");
+}
+#endif
 
 }  // namespace base

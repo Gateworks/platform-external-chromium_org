@@ -6,31 +6,31 @@
 
 #include <vector>
 
+#include "base/bind.h"
 #include "base/command_line.h"
+#include "base/files/file_path.h"
 #include "base/lazy_instance.h"
+#include "base/macros.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/memory/scoped_vector.h"
 #include "base/strings/string_split.h"
 #include "build/build_config.h"
-#include "gpu/command_buffer/service/mailbox_manager.h"
+#include "gpu/command_buffer/service/mailbox_manager_impl.h"
 #include "mojo/application_manager/application_loader.h"
 #include "mojo/application_manager/application_manager.h"
 #include "mojo/application_manager/background_shell_application_loader.h"
-#include "mojo/embedder/embedder.h"
-#include "mojo/embedder/simple_platform_support.h"
+#include "mojo/edk/embedder/embedder.h"
+#include "mojo/edk/embedder/simple_platform_support.h"
 #include "mojo/public/cpp/application/application_connection.h"
 #include "mojo/public/cpp/application/application_delegate.h"
 #include "mojo/public/cpp/application/application_impl.h"
 #include "mojo/shell/dynamic_application_loader.h"
+#include "mojo/shell/external_application_listener.h"
 #include "mojo/shell/in_process_dynamic_service_runner.h"
 #include "mojo/shell/out_of_process_dynamic_service_runner.h"
 #include "mojo/shell/switches.h"
 #include "mojo/shell/ui_application_loader_android.h"
 #include "mojo/spy/spy.h"
-
-#if defined(OS_LINUX)
-#include "mojo/shell/dbus_application_loader_linux.h"
-#endif  // defined(OS_LINUX)
 
 #if defined(OS_ANDROID)
 #include "mojo/services/native_viewport/gpu_impl.h"
@@ -46,7 +46,7 @@ namespace {
 // These mojo: URLs are loaded directly from the local filesystem. They
 // correspond to shared libraries bundled alongside the mojo_shell.
 const char* kLocalMojoURLs[] = {
-  "mojo:mojo_network_service",
+    "mojo:network_service",
 };
 
 // Used to ensure we only init once.
@@ -69,8 +69,8 @@ static base::LazyInstance<Setup>::Leaky setup = LAZY_INSTANCE_INITIALIZER;
 void InitContentHandlers(DynamicApplicationLoader* loader,
                          base::CommandLine* command_line) {
   // Default content handlers.
-  loader->RegisterContentHandler("image/png", GURL("mojo://mojo_png_viewer/"));
-  loader->RegisterContentHandler("text/html", GURL("mojo://mojo_html_viewer/"));
+  loader->RegisterContentHandler("image/png", GURL("mojo://png_viewer/"));
+  loader->RegisterContentHandler("text/html", GURL("mojo://html_viewer/"));
 
   // Command-line-specified content handlers.
   std::string handlers_spec = command_line->GetSwitchValueASCII(
@@ -99,10 +99,8 @@ void InitContentHandlers(DynamicApplicationLoader* loader,
 
 class EmptyServiceProvider : public InterfaceImpl<ServiceProvider> {
  private:
-  virtual void ConnectToService(const mojo::String& service_name,
-                                ScopedMessagePipeHandle client_handle)
-      MOJO_OVERRIDE {
-  }
+  void ConnectToService(const mojo::String& service_name,
+                        ScopedMessagePipeHandle client_handle) override {}
 };
 
 }  // namespace
@@ -116,25 +114,25 @@ class Context::NativeViewportApplicationLoader
  public:
   NativeViewportApplicationLoader()
       : share_group_(new gfx::GLShareGroup),
-        mailbox_manager_(new gpu::gles2::MailboxManager) {}
+        mailbox_manager_(new gpu::gles2::MailboxManagerImpl) {}
   virtual ~NativeViewportApplicationLoader() {}
 
  private:
   // ApplicationLoader implementation.
   virtual void Load(ApplicationManager* manager,
                     const GURL& url,
-                    scoped_refptr<LoadCallbacks> callbacks) OVERRIDE {
+                    scoped_refptr<LoadCallbacks> callbacks) override {
     ScopedMessagePipeHandle shell_handle = callbacks->RegisterApplication();
     if (shell_handle.is_valid())
       app_.reset(new ApplicationImpl(this, shell_handle.Pass()));
   }
 
   virtual void OnApplicationError(ApplicationManager* manager,
-                                  const GURL& url) OVERRIDE {}
+                                  const GURL& url) override {}
 
   // ApplicationDelegate implementation.
   virtual bool ConfigureIncomingConnection(
-      mojo::ApplicationConnection* connection) OVERRIDE {
+      mojo::ApplicationConnection* connection) override {
     connection->AddService<NativeViewport>(this);
     connection->AddService<Gpu>(this);
     return true;
@@ -142,13 +140,13 @@ class Context::NativeViewportApplicationLoader
 
   // InterfaceFactory<NativeViewport> implementation.
   virtual void Create(ApplicationConnection* connection,
-                      InterfaceRequest<NativeViewport> request) OVERRIDE {
+                      InterfaceRequest<NativeViewport> request) override {
     BindToRequest(new NativeViewportImpl(app_.get(), false), &request);
   }
 
   // InterfaceFactory<Gpu> implementation.
   virtual void Create(ApplicationConnection* connection,
-                      InterfaceRequest<Gpu> request) OVERRIDE {
+                      InterfaceRequest<Gpu> request) override {
     BindToRequest(new GpuImpl(share_group_.get(), mailbox_manager_.get()),
                   &request);
   }
@@ -178,6 +176,21 @@ void Context::Init() {
     mojo_url_resolver_.AddLocalFileMapping(GURL(kLocalMojoURLs[i]));
 
   base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
+
+  if (command_line->HasSwitch(switches::kEnableExternalApplications)) {
+    listener_ = ExternalApplicationListener::Create(
+        task_runners_->shell_runner(), task_runners_->io_runner());
+
+    base::FilePath socket_path =
+        command_line->GetSwitchValuePath(switches::kEnableExternalApplications);
+    if (socket_path.empty())
+      socket_path = ExternalApplicationListener::ConstructDefaultSocketPath();
+
+    listener_->ListenInBackground(
+        socket_path,
+        base::Bind(&ApplicationManager::RegisterExternalApplication,
+                   base::Unretained(&application_manager_)));
+  }
   scoped_ptr<DynamicServiceRunnerFactory> runner_factory;
   if (command_line->HasSwitch(switches::kEnableMultiprocess))
     runner_factory.reset(new OutOfProcessDynamicServiceRunnerFactory());
@@ -198,18 +211,16 @@ void Context::Init() {
       scoped_ptr<ApplicationLoader>(new UIApplicationLoader(
           scoped_ptr<ApplicationLoader>(new NativeViewportApplicationLoader()),
           this)),
-      GURL("mojo:mojo_native_viewport_service"));
+      GURL("mojo:native_viewport_service"));
 #endif
-
-#if defined(OS_LINUX)
-  application_manager_.SetLoaderForScheme(
-      scoped_ptr<ApplicationLoader>(new DBusApplicationLoader(this)), "dbus");
-#endif  // defined(OS_LINUX)
 
   if (command_line->HasSwitch(switches::kSpy)) {
     spy_.reset(
         new mojo::Spy(&application_manager_,
                       command_line->GetSwitchValueASCII(switches::kSpy)));
+    // TODO(cpu): the spy can snoop, but can't tell anybody until
+    // the Spy::WebSocketDelegate is implemented. In the original repo this
+    // was implemented by src\mojo\spy\websocket_server.h and .cc.
   }
 
 #if defined(OS_ANDROID)
@@ -221,10 +232,13 @@ void Context::Init() {
             scoped_ptr<ApplicationLoader>(new NetworkApplicationLoader()),
             "network_service",
             base::MessageLoop::TYPE_IO));
-    application_manager_.SetLoaderForURL(loader.PassAs<ApplicationLoader>(),
-                                         GURL("mojo:mojo_network_service"));
+    application_manager_.SetLoaderForURL(loader.Pass(),
+                                         GURL("mojo:network_service"));
   }
 #endif
+
+  if (listener_)
+    listener_->WaitForListening();
 }
 
 void Context::OnApplicationError(const GURL& gurl) {

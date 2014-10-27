@@ -6,15 +6,12 @@
 #define CC_RESOURCES_TILE_H_
 
 #include "base/memory/ref_counted.h"
-#include "base/memory/scoped_ptr.h"
-#include "base/memory/scoped_vector.h"
 #include "cc/base/ref_counted_managed.h"
 #include "cc/resources/managed_tile_state.h"
 #include "cc/resources/picture_pile_impl.h"
-#include "cc/resources/raster_mode.h"
 #include "cc/resources/tile_priority.h"
-#include "ui/gfx/rect.h"
-#include "ui/gfx/size.h"
+#include "ui/gfx/geometry/rect.h"
+#include "ui/gfx/geometry/size.h"
 
 namespace cc {
 
@@ -59,8 +56,11 @@ class CC_EXPORT Tile : public RefCountedManaged<Tile> {
                         priority_[PENDING_TREE]);
   }
 
-  void SetPriority(WhichTree tree, const TilePriority& priority);
+  void SetPriority(WhichTree tree, const TilePriority& priority) {
+    priority_[tree] = priority;
+  }
 
+  // TODO(vmpstr): Move this to the iterators.
   void set_is_occluded(WhichTree tree, bool is_occluded) {
     is_occluded_[tree] = is_occluded;
   }
@@ -84,45 +84,34 @@ class CC_EXPORT Tile : public RefCountedManaged<Tile> {
     }
   }
 
-  void MarkRequiredForActivation();
-
-  bool required_for_activation() const {
-    return priority_[PENDING_TREE].required_for_activation;
+  // TODO(vmpstr): Move this to the iterators.
+  bool required_for_activation() const { return required_for_activation_; }
+  void set_required_for_activation(bool is_required) {
+    required_for_activation_ = is_required;
   }
 
   bool use_picture_analysis() const {
     return !!(flags_ & USE_PICTURE_ANALYSIS);
   }
 
-  bool NeedsRasterForMode(RasterMode mode) const {
-    return !managed_state_.tile_versions[mode].IsReadyToDraw();
-  }
-
-  bool HasResources() const {
-    for (int mode = 0; mode < NUM_RASTER_MODES; ++mode) {
-      if (managed_state_.tile_versions[mode].has_resource())
-        return true;
-    }
-    return false;
+  bool HasResources() const { return managed_state_.draw_info.has_resource(); }
+  bool NeedsRaster() const {
+    return managed_state_.draw_info.mode() ==
+               ManagedTileState::DrawInfo::PICTURE_PILE_MODE ||
+           !managed_state_.draw_info.IsReadyToDraw();
   }
 
   void AsValueInto(base::debug::TracedValue* dict) const;
 
   inline bool IsReadyToDraw() const {
-    for (int mode = 0; mode < NUM_RASTER_MODES; ++mode) {
-      if (managed_state_.tile_versions[mode].IsReadyToDraw())
-        return true;
-    }
-    return false;
+    return managed_state_.draw_info.IsReadyToDraw();
   }
 
-  const ManagedTileState::TileVersion& GetTileVersionForDrawing() const {
-    for (int mode = 0; mode < NUM_RASTER_MODES; ++mode) {
-      if (managed_state_.tile_versions[mode].IsReadyToDraw())
-        return managed_state_.tile_versions[mode];
-    }
-    return managed_state_.tile_versions[HIGH_QUALITY_RASTER_MODE];
+  const ManagedTileState::DrawInfo& draw_info() const {
+    return managed_state_.draw_info;
   }
+
+  ManagedTileState::DrawInfo& draw_info() { return managed_state_.draw_info; }
 
   float contents_scale() const { return contents_scale_; }
   gfx::Rect content_rect() const { return content_rect_; }
@@ -143,16 +132,12 @@ class CC_EXPORT Tile : public RefCountedManaged<Tile> {
 
   gfx::Size size() const { return size_; }
 
-  RasterMode DetermineRasterModeForTree(WhichTree tree) const;
-  RasterMode DetermineOverallRasterMode() const;
-
-  // Functionality used in tests.
-  RasterMode GetRasterModeForTesting() const {
-    return managed_state().raster_mode;
+  void set_tiling_index(int i, int j) {
+    tiling_i_index_ = i;
+    tiling_j_index_ = j;
   }
-  ManagedTileState::TileVersion& GetTileVersionForTesting(RasterMode mode) {
-    return managed_state_.tile_versions[mode];
-  }
+  int tiling_i_index() const { return tiling_i_index_; }
+  int tiling_j_index() const { return tiling_j_index_; }
 
  private:
   friend class TileManager;
@@ -174,7 +159,6 @@ class CC_EXPORT Tile : public RefCountedManaged<Tile> {
 
   ManagedTileState& managed_state() { return managed_state_; }
   const ManagedTileState& managed_state() const { return managed_state_; }
-  RasterMode DetermineRasterModeForResolution(TileResolution resolution) const;
 
   bool HasRasterTask() const;
 
@@ -191,6 +175,9 @@ class CC_EXPORT Tile : public RefCountedManaged<Tile> {
   int source_frame_number_;
   int flags_;
   bool is_shared_;
+  int tiling_i_index_;
+  int tiling_j_index_;
+  bool required_for_activation_;
 
   Id id_;
   static Id s_next_id_;

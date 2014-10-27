@@ -65,9 +65,9 @@
 #include "third_party/WebKit/public/web/WebCompositionUnderline.h"
 #include "ui/events/event.h"
 #include "ui/events/keycodes/keyboard_codes.h"
+#include "ui/gfx/geometry/vector2d_conversions.h"
 #include "ui/gfx/size_conversions.h"
 #include "ui/gfx/skbitmap_operations.h"
-#include "ui/gfx/vector2d_conversions.h"
 #include "ui/snapshot/snapshot.h"
 
 #if defined(OS_WIN)
@@ -88,6 +88,10 @@ namespace content {
 namespace {
 
 bool g_check_for_pending_resize_ack = true;
+
+const size_t kBrowserCompositeLatencyHistorySize = 60;
+const double kBrowserCompositeLatencyEstimationPercentile = 90.0;
+const double kBrowserCompositeLatencyEstimationSlack = 1.1;
 
 typedef std::pair<int32, int32> RenderWidgetHostID;
 typedef base::hash_map<RenderWidgetHostID, RenderWidgetHostImpl*>
@@ -120,8 +124,7 @@ class RenderWidgetHostIteratorImpl : public RenderWidgetHostIterator {
       : current_index_(0) {
   }
 
-  virtual ~RenderWidgetHostIteratorImpl() {
-  }
+  ~RenderWidgetHostIteratorImpl() override {}
 
   void Add(RenderWidgetHost* host) {
     hosts_.push_back(RenderWidgetHostID(host->GetProcess()->GetID(),
@@ -129,7 +132,7 @@ class RenderWidgetHostIteratorImpl : public RenderWidgetHostIterator {
   }
 
   // RenderWidgetHostIterator:
-  virtual RenderWidgetHost* GetNextHost() OVERRIDE {
+  RenderWidgetHost* GetNextHost() override {
     RenderWidgetHost* host = NULL;
     while (current_index_ < hosts_.size() && !host) {
       RenderWidgetHostID id = hosts_[current_index_];
@@ -186,6 +189,7 @@ RenderWidgetHostImpl::RenderWidgetHostImpl(RenderWidgetHostDelegate* delegate,
       has_touch_handler_(false),
       last_input_number_(static_cast<int64>(GetProcess()->GetID()) << 32),
       next_browser_snapshot_id_(1),
+      browser_composite_latency_history_(kBrowserCompositeLatencyHistorySize),
       weak_factory_(this) {
   CHECK(delegate_);
   if (routing_id_ == MSG_ROUTING_NONE) {
@@ -284,8 +288,7 @@ scoped_ptr<RenderWidgetHostIterator> RenderWidgetHost::GetRenderWidgetHosts() {
 
     // Add only active RenderViewHosts.
     RenderViewHost* rvh = RenderViewHost::From(widget);
-    if (RenderViewHostImpl::IsRVHStateActive(
-            static_cast<RenderViewHostImpl*>(rvh)->rvh_state()))
+    if (static_cast<RenderViewHostImpl*>(rvh)->is_active())
       hosts->Add(widget);
   }
 
@@ -455,8 +458,8 @@ bool RenderWidgetHostImpl::OnMessageReceived(const IPC::Message &msg) {
     IPC_MESSAGE_HANDLER(ViewHostMsg_Focus, OnFocus)
     IPC_MESSAGE_HANDLER(ViewHostMsg_Blur, OnBlur)
     IPC_MESSAGE_HANDLER(ViewHostMsg_SetCursor, OnSetCursor)
-    IPC_MESSAGE_HANDLER(ViewHostMsg_TextInputStateChanged,
-                        OnTextInputStateChanged)
+    IPC_MESSAGE_HANDLER(ViewHostMsg_TextInputTypeChanged,
+                        OnTextInputTypeChanged)
     IPC_MESSAGE_HANDLER(ViewHostMsg_LockMouse, OnLockMouse)
     IPC_MESSAGE_HANDLER(ViewHostMsg_UnlockMouse, OnUnlockMouse)
     IPC_MESSAGE_HANDLER(ViewHostMsg_ShowDisambiguationPopup,
@@ -625,6 +628,8 @@ void RenderWidgetHostImpl::ResizeRectChanged(const gfx::Rect& new_rect) {
 
 void RenderWidgetHostImpl::GotFocus() {
   Focus();
+  if (delegate_)
+    delegate_->RenderWidgetGotFocus(this);
 }
 
 void RenderWidgetHostImpl::Focus() {
@@ -1500,6 +1505,11 @@ bool RenderWidgetHostImpl::OnSwapCompositorFrame(
   input_router_->OnViewUpdated(
       GetInputRouterViewFlagsFromCompositorFrameMetadata(frame->metadata));
 
+  for (size_t i = 0; i < frame->metadata.latency_info.size(); ++i) {
+    frame->metadata.latency_info[i].AddLatencyNumber(
+        ui::INPUT_EVENT_BROWSER_COMPOSITE_COMPONENT, 0, 0);
+  }
+
   if (view_) {
     view_->OnSwapCompositorFrame(output_surface_id, frame.Pass());
     view_->DidReceiveRendererFrame();
@@ -1669,10 +1679,13 @@ void RenderWidgetHostImpl::SetTouchEventEmulationEnabled(bool enabled) {
   }
 }
 
-void RenderWidgetHostImpl::OnTextInputStateChanged(
-    const ViewHostMsg_TextInputState_Params& params) {
+void RenderWidgetHostImpl::OnTextInputTypeChanged(
+    ui::TextInputType type,
+    ui::TextInputMode input_mode,
+    bool can_compose_inline,
+    int flags) {
   if (view_)
-    view_->TextInputStateChanged(params);
+    view_->TextInputTypeChanged(type, input_mode, can_compose_inline, flags);
 }
 
 #if defined(OS_MACOSX) || defined(USE_AURA)
@@ -1735,14 +1748,10 @@ void RenderWidgetHostImpl::OnShowDisambiguationPopup(
   SkBitmap zoomed_bitmap;
   zoomed_bitmap.installPixels(info, bitmap->pixels(), info.minRowBytes());
 
-#if defined(OS_ANDROID) || defined(TOOLKIT_VIEWS)
   // Note that |rect| is in coordinates of pixels relative to the window origin.
   // Aura-based systems will want to convert this to DIPs.
   if (view_)
     view_->ShowDisambiguationPopup(rect_pixels, zoomed_bitmap);
-#else
-  NOTIMPLEMENTED();
-#endif
 
   // It is assumed that the disambiguation popup will make a copy of the
   // provided zoomed image, so we delete this one.
@@ -2029,17 +2038,6 @@ bool RenderWidgetHostImpl::GotResponseToLockMouseRequest(bool allowed) {
 }
 
 // static
-void RenderWidgetHostImpl::AcknowledgeBufferPresent(
-    int32 route_id, int gpu_host_id,
-    const AcceleratedSurfaceMsg_BufferPresented_Params& params) {
-  GpuProcessHostUIShim* ui_shim = GpuProcessHostUIShim::FromID(gpu_host_id);
-  if (ui_shim) {
-    ui_shim->Send(new AcceleratedSurfaceMsg_BufferPresented(route_id,
-                                                            params));
-  }
-}
-
-// static
 void RenderWidgetHostImpl::SendSwapCompositorFrameAck(
     int32 route_id,
     uint32 output_surface_id,
@@ -2194,6 +2192,21 @@ void RenderWidgetHostImpl::FrameSwapped(const ui::LatencyInfo& latency_info) {
           1000000,
           100);
     }
+  }
+
+  ui::LatencyInfo::LatencyComponent gpu_swap_component;
+  if (!latency_info.FindLatency(
+          ui::INPUT_EVENT_GPU_SWAP_BUFFER_COMPONENT, 0, &gpu_swap_component)) {
+    return;
+  }
+
+  ui::LatencyInfo::LatencyComponent composite_component;
+  if (latency_info.FindLatency(ui::INPUT_EVENT_BROWSER_COMPOSITE_COMPONENT,
+                               0,
+                               &composite_component)) {
+    base::TimeDelta delta =
+        gpu_swap_component.event_time - composite_component.event_time;
+    browser_composite_latency_history_.InsertSample(delta);
   }
 }
 
@@ -2366,6 +2379,17 @@ BrowserAccessibilityManager*
     RenderWidgetHostImpl::GetOrCreateRootBrowserAccessibilityManager() {
   return delegate_ ?
       delegate_->GetOrCreateRootBrowserAccessibilityManager() : NULL;
+}
+
+base::TimeDelta RenderWidgetHostImpl::GetEstimatedBrowserCompositeTime() {
+  // TODO(orglofch) remove lower bound on estimate once we're sure it won't
+  // cause regressions
+  return std::max(
+      browser_composite_latency_history_.Percentile(
+          kBrowserCompositeLatencyEstimationPercentile) *
+          kBrowserCompositeLatencyEstimationSlack,
+      base::TimeDelta::FromMicroseconds(
+          (1.0f * base::Time::kMicrosecondsPerSecond) / (3.0f * 60)));
 }
 
 #if defined(OS_WIN)

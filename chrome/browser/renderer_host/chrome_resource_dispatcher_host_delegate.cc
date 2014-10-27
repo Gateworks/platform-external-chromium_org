@@ -13,7 +13,6 @@
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/chrome_notification_types.h"
 #include "chrome/browser/component_updater/component_updater_resource_throttle.h"
-#include "chrome/browser/content_settings/host_content_settings_map.h"
 #include "chrome/browser/download/download_request_limiter.h"
 #include "chrome/browser/download/download_resource_throttle.h"
 #include "chrome/browser/net/resource_prefetch_predictor_observer.h"
@@ -34,8 +33,9 @@
 #include "chrome/browser/ui/sync/one_click_signin_helper.h"
 #include "chrome/common/render_messages.h"
 #include "chrome/common/url_constants.h"
+#include "components/content_settings/core/browser/host_content_settings_map.h"
 #include "components/google/core/browser/google_util.h"
-#include "components/variations/variations_http_header_provider.h"
+#include "components/variations/net/variations_http_header_provider.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/notification_service.h"
 #include "content/public/browser/render_process_host.h"
@@ -43,7 +43,7 @@
 #include "content/public/browser/resource_context.h"
 #include "content/public/browser/resource_dispatcher_host.h"
 #include "content/public/browser/resource_request_info.h"
-#include "content/public/browser/stream_handle.h"
+#include "content/public/browser/stream_info.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/common/resource_response.h"
 #include "net/base/load_flags.h"
@@ -167,7 +167,7 @@ void UpdatePrerenderNetworkBytesCallback(int render_process_id,
 }
 
 #if defined(ENABLE_EXTENSIONS)
-void SendExecuteMimeTypeHandlerEvent(scoped_ptr<content::StreamHandle> stream,
+void SendExecuteMimeTypeHandlerEvent(scoped_ptr<content::StreamInfo> stream,
                                      int64 expected_content_size,
                                      int render_process_id,
                                      int render_view_id,
@@ -615,7 +615,7 @@ bool ChromeResourceDispatcherHostDelegate::ShouldInterceptResourceAsStream(
 
 void ChromeResourceDispatcherHostDelegate::OnStreamCreated(
     net::URLRequest* request,
-    scoped_ptr<content::StreamHandle> stream) {
+    scoped_ptr<content::StreamInfo> stream) {
 #if defined(ENABLE_EXTENSIONS)
   const ResourceRequestInfo* info = ResourceRequestInfo::ForRequest(request);
   std::map<net::URLRequest*, StreamTargetInfo>::iterator ix =
@@ -642,8 +642,10 @@ void ChromeResourceDispatcherHostDelegate::OnResponseStarted(
   // See if the response contains the X-Auto-Login header.  If so, this was
   // a request for a login page, and the server is allowing the browser to
   // suggest auto-login, if available.
-  AutoLoginPrompter::ShowInfoBarIfPossible(request, info->GetChildID(),
-                                           info->GetRouteID());
+  if (info->IsMainFrame()) {
+    AutoLoginPrompter::ShowInfoBarIfPossible(request, info->GetChildID(),
+                                             info->GetRouteID());
+  }
 #endif
 
   ProfileIOData* io_data = ProfileIOData::FromResourceContext(resource_context);

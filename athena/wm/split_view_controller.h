@@ -29,7 +29,8 @@ class Widget;
 }
 
 namespace athena {
-class WindowListProvider;
+class SplitViewControllerTest;
+class WindowListProviderImpl;
 
 // Responsible for entering split view mode, exiting from split view mode, and
 // laying out the windows in split view mode.
@@ -39,17 +40,18 @@ class ATHENA_EXPORT SplitViewController
       public WindowManagerObserver {
  public:
   SplitViewController(aura::Window* container,
-                      WindowListProvider* window_list_provider);
+                      WindowListProviderImpl* window_list_provider);
 
-  virtual ~SplitViewController();
+  ~SplitViewController() override;
 
   bool CanActivateSplitViewMode() const;
   bool IsSplitViewModeActive() const;
 
   // Activates split-view mode with |left| and |right| windows. If |left| and/or
-  // |right| is NULL, then the first window in the window-list (which is neither
+  // |right| is nullptr, then the first window in the window-list (which is
+  // neither
   // |left| nor |right|) is selected instead. |to_activate| indicates which of
-  // |left| or |right| should be activated. If |to_activate| is NULL, the
+  // |left| or |right| should be activated. If |to_activate| is nullptr, the
   // currently active window is kept active if it is one of the split-view
   // windows.
   void ActivateSplitMode(aura::Window* left,
@@ -74,9 +76,11 @@ class ATHENA_EXPORT SplitViewController
   aura::Window* right_window() { return right_window_; }
 
  private:
+  friend class SplitViewControllerTest;
+
   enum State {
     // Split View mode is not active. |left_window_| and |right_window| are
-    // NULL.
+    // nullptr.
     INACTIVE,
     // Two windows |left_window_| and |right_window| are shown side by side and
     // there is a horizontal scroll in progress which is dragging the divider
@@ -107,33 +111,36 @@ class ATHENA_EXPORT SplitViewController
   // active and the divider is not being dragged.
   int GetDefaultDividerPosition();
 
+  // Access to constants in anonymous namespace for testing purposes.
+  float GetMaxDistanceFromMiddleForTest() const;
+  float GetMinFlingVelocityForTest() const;
+
   // BezelController::ScrollDelegate:
-  virtual void BezelScrollBegin(BezelController::Bezel bezel,
-                                float delta) OVERRIDE;
-  virtual void BezelScrollEnd() OVERRIDE;
-  virtual void BezelScrollUpdate(float delta) OVERRIDE;
-  virtual bool BezelCanScroll() OVERRIDE;
+  void BezelScrollBegin(BezelController::Bezel bezel, float delta) override;
+  void BezelScrollEnd(float velocity) override;
+  void BezelScrollUpdate(float delta) override;
+  bool BezelCanScroll() override;
 
   // DragHandleScrollDelegate:
-  virtual void HandleScrollBegin(float delta) OVERRIDE;
-  virtual void HandleScrollEnd() OVERRIDE;
-  virtual void HandleScrollUpdate(float delta) OVERRIDE;
+  void HandleScrollBegin(float delta) override;
+  void HandleScrollEnd(float velocity) override;
+  void HandleScrollUpdate(float delta) override;
 
   // WindowManagerObserver:
-  virtual void OnOverviewModeEnter() OVERRIDE;
-  virtual void OnOverviewModeExit() OVERRIDE;
-  virtual void OnSplitViewModeEnter() OVERRIDE;
-  virtual void OnSplitViewModeExit() OVERRIDE;
+  void OnOverviewModeEnter() override;
+  void OnOverviewModeExit() override;
+  void OnSplitViewModeEnter() override;
+  void OnSplitViewModeExit() override;
 
   State state_;
 
   aura::Window* container_;
 
   // Provider of the list of windows to cycle through. Not owned.
-  WindowListProvider* window_list_provider_;
+  WindowListProviderImpl* window_list_provider_;
 
   // Windows for the left and right activities shown in SCROLLING and ACTIVE
-  // states. In INACTIVE state these are NULL.
+  // states. In INACTIVE state these are nullptr.
   aura::Window* left_window_;
   aura::Window* right_window_;
 

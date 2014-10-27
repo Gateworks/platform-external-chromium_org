@@ -13,7 +13,6 @@
 #include "chrome/browser/extensions/api/commands/command_service.h"
 #include "chrome/browser/extensions/extension_action.h"
 #include "chrome/browser/extensions/extension_action_manager.h"
-#include "chrome/browser/extensions/extension_install_ui.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/signin/signin_promo.h"
 #include "chrome/browser/ui/browser.h"
@@ -33,6 +32,7 @@
 #include "chrome/grit/chromium_strings.h"
 #include "chrome/grit/generated_resources.h"
 #include "extensions/common/extension.h"
+#include "extensions/common/feature_switch.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/resource/resource_bundle.h"
 #include "ui/gfx/render_text.h"
@@ -234,13 +234,13 @@ class InstalledBubbleContent : public views::View,
   }
 
   virtual void ButtonPressed(views::Button* sender,
-                             const ui::Event& event) OVERRIDE {
+                             const ui::Event& event) override {
     DCHECK_EQ(sender, close_button_);
     GetWidget()->Close();
   }
 
   // Implements the views::LinkListener interface.
-  virtual void LinkClicked(views::Link* source, int event_flags) OVERRIDE {
+  virtual void LinkClicked(views::Link* source, int event_flags) override {
     GetWidget()->Close();
     std::string configure_url;
     if (source == manage_shortcut_) {
@@ -373,7 +373,7 @@ class InstalledBubbleContent : public views::View,
     return height;
   }
 
-  virtual gfx::Size GetPreferredSize() const OVERRIDE {
+  virtual gfx::Size GetPreferredSize() const override {
     int width = kHorizOuterMargin;
     width += kIconSize;
     width += views::kPanelHorizMargin;
@@ -408,7 +408,7 @@ class InstalledBubbleContent : public views::View,
     return gfx::Size(width, std::max(height, kIconSize + 2 * kVertOuterMargin));
   }
 
-  virtual void Layout() OVERRIDE {
+  virtual void Layout() override {
     int x = kHorizOuterMargin;
     int y = kVertOuterMargin;
 
@@ -465,7 +465,7 @@ class InstalledBubbleContent : public views::View,
     close_button_->SetBounds(x - 1, y - 1, sz.width(), sz.height());
   }
 
-  virtual void OnPaint(gfx::Canvas* canvas) OVERRIDE {
+  virtual void OnPaint(gfx::Canvas* canvas) override {
     for (ScopedVector<gfx::RenderText>::const_iterator it =
              sign_in_promo_lines_.begin();
          it != sign_in_promo_lines_.end(); ++it)
@@ -529,7 +529,8 @@ bool ExtensionInstalledBubbleView::MaybeShowNow() {
       BrowserView::GetBrowserViewForBrowser(bubble_.browser());
 
   views::View* reference_view = NULL;
-  if (bubble_.type() == bubble_.BROWSER_ACTION) {
+  if (bubble_.type() == bubble_.BROWSER_ACTION ||
+      extensions::FeatureSwitch::extension_action_redesign()->IsEnabled()) {
     BrowserActionsContainer* container =
         browser_view->GetToolbarView()->browser_actions();
     if (container->animating())
@@ -595,7 +596,8 @@ gfx::Rect ExtensionInstalledBubbleView::GetAnchorRect() const {
 }
 
 void ExtensionInstalledBubbleView::WindowClosing() {
-  if (bubble_.extension() && bubble_.type() == bubble_.PAGE_ACTION) {
+  if (bubble_.extension() && bubble_.type() == bubble_.PAGE_ACTION &&
+      !extensions::FeatureSwitch::extension_action_redesign()->IsEnabled()) {
     BrowserView* browser_view =
         BrowserView::GetBrowserViewForBrowser(bubble_.browser());
     browser_view->GetLocationBarView()->SetPreviewEnabledPageAction(

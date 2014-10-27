@@ -75,7 +75,6 @@ import org.chromium.content.browser.input.SelectPopupItem;
 import org.chromium.content.browser.input.SelectionEventType;
 import org.chromium.content.common.ContentSwitches;
 import org.chromium.content_public.browser.GestureStateListener;
-import org.chromium.content_public.browser.JavaScriptCallback;
 import org.chromium.content_public.browser.WebContents;
 import org.chromium.ui.base.DeviceFormFactor;
 import org.chromium.ui.base.ViewAndroid;
@@ -231,7 +230,7 @@ public class ContentViewCore
     private ViewGroup mContainerView;
     private InternalAccessDelegate mContainerViewInternals;
     private WebContents mWebContents;
-    private WebContentsObserverAndroid mWebContentsObserver;
+    private WebContentsObserver mWebContentsObserver;
 
     private ContentViewClient mContentViewClient;
 
@@ -393,7 +392,6 @@ public class ContentViewCore
     /**
      * @return The context used for creating this ContentViewCore.
      */
-    @CalledByNative
     public Context getContext() {
         return mContext;
     }
@@ -484,7 +482,7 @@ public class ContentViewCore
                         scaledWidth = mContainerViewAtCreation.getWidth() - startMargin;
                     }
                     FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(
-                        scaledWidth, Math.round(height * scale));
+                            scaledWidth, Math.round(height * scale));
                     ApiCompatibilityUtils.setMarginStart(lp, startMargin);
                     lp.topMargin = topMargin;
                     view.setLayoutParams(lp);
@@ -577,7 +575,8 @@ public class ContentViewCore
                                 } else if (hasFocus() && resultCode ==
                                         InputMethodManager.RESULT_UNCHANGED_SHOWN) {
                                     // If the OSK was already there, focus the form immediately.
-                                    scrollFocusedEditableNodeIntoView();
+                                    assert mWebContents != null;
+                                    mWebContents.scrollFocusedEditableNodeIntoView();
                                 }
                             }
                         };
@@ -628,7 +627,7 @@ public class ContentViewCore
 
         mAccessibilityInjector = AccessibilityInjector.newInstance(this);
 
-        mWebContentsObserver = new WebContentsObserverAndroid(mWebContents) {
+        mWebContentsObserver = new WebContentsObserver(mWebContents) {
             @Override
             public void didNavigateMainFrame(String url, String baseUrl,
                     boolean isNavigationToDifferentPage, boolean isFragmentNavigation) {
@@ -676,14 +675,6 @@ public class ContentViewCore
 
         mContainerView = containerView;
         mPositionObserver = new ViewPositionObserver(mContainerView);
-        String contentDescription = "Web View";
-        if (R.string.accessibility_content_view == 0) {
-            Log.w(TAG, "Setting contentDescription to 'Web View' as no value was specified.");
-        } else {
-            contentDescription = mContext.getResources().getString(
-                    R.string.accessibility_content_view);
-        }
-        mContainerView.setContentDescription(contentDescription);
         mContainerView.setWillNotDraw(false);
         mContainerView.setClickable(true);
         TraceEvent.end();
@@ -718,8 +709,6 @@ public class ContentViewCore
                     public void run() {
                         if (mContainerViewAtCreation.indexOfChild(zoomer) == -1) {
                             mContainerViewAtCreation.addView(zoomer);
-                        } else {
-                            assert false : "PopupZoomer should never be shown without being hidden";
                         }
                     }
                 });
@@ -733,8 +722,6 @@ public class ContentViewCore
                         if (mContainerViewAtCreation.indexOfChild(zoomer) != -1) {
                             mContainerViewAtCreation.removeView(zoomer);
                             mContainerViewAtCreation.invalidate();
-                        } else {
-                            assert false : "PopupZoomer should never be hidden without being shown";
                         }
                     }
                 });
@@ -857,61 +844,55 @@ public class ContentViewCore
     }
 
     /**
-     * Shows an interstitial page driven by the passed in delegate.
-     *
-     * @param url The URL being blocked by the interstitial.
-     * @param delegate The delegate handling the interstitial.
-     */
-    @VisibleForTesting
-    public void showInterstitialPage(
-            String url, InterstitialPageDelegateAndroid delegate) {
-        assert mWebContents != null;
-        mWebContents.showInterstitialPage(url, delegate.getNative());
-    }
-
-    /**
-     * @return Whether the page is currently showing an interstitial, such as a bad HTTPS page.
-     */
-    public boolean isShowingInterstitialPage() {
-        assert mWebContents != null;
-        return mWebContents.isShowingInterstitialPage();
-    }
-
-    /**
      * @return Viewport width in physical pixels as set from onSizeChanged.
      */
     @CalledByNative
-    public int getViewportWidthPix() { return mViewportWidthPix; }
+    public int getViewportWidthPix() {
+        return mViewportWidthPix;
+    }
 
     /**
      * @return Viewport height in physical pixels as set from onSizeChanged.
      */
     @CalledByNative
-    public int getViewportHeightPix() { return mViewportHeightPix; }
+    public int getViewportHeightPix() {
+        return mViewportHeightPix;
+    }
 
     /**
      * @return Width of underlying physical surface.
      */
     @CalledByNative
-    public int getPhysicalBackingWidthPix() { return mPhysicalBackingWidthPix; }
+    public int getPhysicalBackingWidthPix() {
+        return mPhysicalBackingWidthPix;
+    }
 
     /**
      * @return Height of underlying physical surface.
      */
     @CalledByNative
-    public int getPhysicalBackingHeightPix() { return mPhysicalBackingHeightPix; }
+    public int getPhysicalBackingHeightPix() {
+        return mPhysicalBackingHeightPix;
+    }
 
     /* TODO(aelias): Remove these when downstream callers disappear. */
     @VisibleForTesting
-    public int getViewportSizeOffsetWidthPix() { return 0; }
+    public int getViewportSizeOffsetWidthPix() {
+        return 0;
+    }
+
     @VisibleForTesting
-    public int getViewportSizeOffsetHeightPix() { return getTopControlsLayoutHeightPix(); }
+    public int getViewportSizeOffsetHeightPix() {
+        return getTopControlsLayoutHeightPix();
+    }
 
     /**
      * @return The amount that the viewport size given to Blink is shrunk by the URL-bar..
      */
     @CalledByNative
-    public int getTopControlsLayoutHeightPix() { return mTopControlsLayoutHeightPix; }
+    public int getTopControlsLayoutHeightPix() {
+        return mTopControlsLayoutHeightPix;
+    }
 
     /**
      * @see android.webkit.WebView#getContentHeight()
@@ -1189,65 +1170,6 @@ public class ContentViewCore
     }
 
     /**
-     * Inserts the provided markup sandboxed into the frame.
-     */
-    public void setupTransitionView(String markup) {
-        assert mWebContents != null;
-        mWebContents.setupTransitionView(markup);
-    }
-
-    /**
-     * Hides transition elements specified by the selector, and activates any
-     * exiting-transition stylesheets.
-     */
-    public void beginExitTransition(String cssSelector) {
-        assert mWebContents != null;
-        mWebContents.beginExitTransition(cssSelector);
-    }
-
-    /**
-     * Requests the renderer insert a link to the specified stylesheet in the
-     * main frame's document.
-     */
-    public void addStyleSheetByURL(String url) {
-        assert mWebContents != null;
-        mWebContents.addStyleSheetByURL(url);
-    }
-
-    /**
-     * Injects the passed Javascript code in the current page and evaluates it.
-     * If a result is required, pass in a callback.
-     * Used in automation tests.
-     *
-     * @param script The Javascript to execute.
-     * @param callback The callback to be fired off when a result is ready. The script's
-     *                 result will be json encoded and passed as the parameter, and the call
-     *                 will be made on the main thread.
-     *                 If no result is required, pass null.
-     */
-    public void evaluateJavaScript(String script, JavaScriptCallback callback) {
-        assert mWebContents != null;
-        mWebContents.evaluateJavaScript(script, callback);
-    }
-
-    /**
-     * Post a message to a frame.
-     * TODO(sgurun) also add support for transferring a message channel port.
-     *
-     * @param frameName The name of the frame. If the name is null the message is posted
-     *                  to the main frame.
-     * @param message   The message
-     * @param sourceOrigin  The source origin
-     * @param targetOrigin  The target origin
-     */
-    public void postMessageToFrame(String frameName, String message,
-            String sourceOrigin, String targetOrigin) {
-        if (mNativeContentViewCore == 0) return;
-        nativePostMessageToFrame(mNativeContentViewCore, frameName, message, sourceOrigin,
-            targetOrigin);
-    }
-
-    /**
      * To be called when the ContentView is shown.
      */
     public void onShow() {
@@ -1459,7 +1381,8 @@ public class ContentViewCore
             if (!rect.equals(mFocusPreOSKViewportRect)) {
                 // Only assume the OSK triggered the onSizeChanged if width was preserved.
                 if (rect.width() == mFocusPreOSKViewportRect.width()) {
-                    scrollFocusedEditableNodeIntoView();
+                    assert mWebContents != null;
+                    mWebContents.scrollFocusedEditableNodeIntoView();
                 }
                 cancelRequestToScrollFocusedEditableNodeIntoView();
             }
@@ -1470,20 +1393,6 @@ public class ContentViewCore
         // Zero-ing the rect will prevent |updateAfterSizeChanged()| from
         // issuing the delayed form focus event.
         mFocusPreOSKViewportRect.setEmpty();
-    }
-
-    private void scrollFocusedEditableNodeIntoView() {
-        assert mWebContents != null;
-        mWebContents.scrollFocusedEditableNodeIntoView();
-    }
-
-    /**
-     * Selects the word around the caret, if any.
-     * The caller can check if selection actually occurred by listening to OnSelectionChanged.
-     */
-    public void selectWordAroundCaret() {
-        assert mWebContents != null;
-        mWebContents.selectWordAroundCaret();
     }
 
     /**
@@ -1975,6 +1884,14 @@ public class ContentViewCore
         return mHasSelection;
     }
 
+     /**
+     * @return Whether the page has an active, touch-controlled insertion handle.
+     */
+    @VisibleForTesting
+    protected boolean hasInsertion() {
+        return mHasInsertion;
+    }
+
     private void hidePastePopup() {
         if (mPastePopupMenu == null) return;
         mPastePopupMenu.hide();
@@ -2253,6 +2170,11 @@ public class ContentViewCore
                     final boolean isTouchHandleEvent = true;
                     return onTouchEventImpl(event, isTouchHandleEvent);
                 }
+
+                @Override
+                public boolean isScrollInProgress() {
+                    return ContentViewCore.this.isScrollInProgress();
+                }
             };
         }
         return new PopupTouchHandleDrawable(mTouchHandleDelegate);
@@ -2279,8 +2201,8 @@ public class ContentViewCore
         if (!mHasInsertion || !canPaste()) return false;
         final float contentOffsetYPix = mRenderCoordinates.getContentOffsetYPix();
         getPastePopup().showAt(
-            (int) mRenderCoordinates.fromDipToPix(xDip),
-            (int) (mRenderCoordinates.fromDipToPix(yDip) + contentOffsetYPix));
+                (int) mRenderCoordinates.fromDipToPix(xDip),
+                (int) (mRenderCoordinates.fromDipToPix(yDip) + contentOffsetYPix));
         return true;
     }
 
@@ -2537,17 +2459,6 @@ public class ContentViewCore
         return mRenderCoordinates.getPageScaleFactor();
     }
 
-    /**
-     * If the view is ready to draw contents to the screen. In hardware mode,
-     * the initialization of the surface texture may not occur until after the
-     * view has been added to the layout. This method will return {@code true}
-     * once the texture is actually ready.
-     */
-    public boolean isReady() {
-        assert mWebContents != null;
-        return mWebContents.isReady();
-    }
-
     @CalledByNative
     private void startContentIntent(String contentUrl) {
         getContentViewClient().onStartContentIntent(getContext(), contentUrl);
@@ -2697,9 +2608,9 @@ public class ContentViewCore
                     }
                 };
                 contentResolver.registerContentObserver(
-                    Settings.Secure.getUriFor(accessibilityScriptInjection),
-                    false,
-                    contentObserver);
+                        Settings.Secure.getUriFor(accessibilityScriptInjection),
+                        false,
+                        contentObserver);
                 mAccessibilityScriptInjectionObserver = contentObserver;
             }
 
@@ -2778,28 +2689,7 @@ public class ContentViewCore
     }
 
     /**
-     * Inform WebKit that Fullscreen mode has been exited by the user.
-     */
-    public void exitFullscreen() {
-        assert mWebContents != null;
-        mWebContents.exitFullscreen();
-    }
-
-    /**
-     * Changes whether hiding the top controls is enabled.
      *
-     * @param enableHiding Whether hiding the top controls should be enabled or not.
-     * @param enableShowing Whether showing the top controls should be enabled or not.
-     * @param animate Whether the transition should be animated or not.
-     */
-    public void updateTopControlsState(boolean enableHiding, boolean enableShowing,
-            boolean animate) {
-        assert mWebContents != null;
-        mWebContents.updateTopControlsState(
-                enableHiding, enableShowing, animate);
-    }
-
-    /**
      * @return The cached copy of render positions and scales.
      */
     public RenderCoordinates getRenderCoordinates() {
@@ -2892,8 +2782,7 @@ public class ContentViewCore
     private native long nativeInit(long webContentsPtr,
             long viewAndroidPtr, long windowAndroidPtr, HashSet<Object> retainedObjectSet);
 
-    @CalledByNative
-    private ContentVideoViewClient getContentVideoViewClient() {
+    ContentVideoViewClient getContentVideoViewClient() {
         return getContentViewClient().getContentVideoViewClient();
     }
 
@@ -2915,11 +2804,6 @@ public class ContentViewCore
     @Override
     public void onScreenOrientationChanged(int orientation) {
         sendOrientationChangeEvent(orientation);
-    }
-
-    public void resumeResponseDeferredAtStart() {
-        assert mWebContents != null;
-        mWebContents.resumeResponseDeferredAtStart();
     }
 
     /**
@@ -3014,9 +2898,6 @@ public class ContentViewCore
     private native void nativeSelectPopupMenuItems(long nativeContentViewCoreImpl,
             long nativeSelectPopupSourceFrame, int[] indices);
 
-
-    private native void nativePostMessageToFrame(long nativeContentViewCoreImpl, String frameId,
-            String message, String sourceOrigin, String targetOrigin);
 
     private native long nativeGetNativeImeAdapter(long nativeContentViewCoreImpl);
 

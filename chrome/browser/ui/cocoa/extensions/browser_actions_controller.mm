@@ -12,7 +12,6 @@
 #include "chrome/browser/extensions/extension_action.h"
 #include "chrome/browser/extensions/extension_action_manager.h"
 #include "chrome/browser/extensions/extension_toolbar_model.h"
-#include "chrome/browser/extensions/extension_util.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/sessions/session_tab_helper.h"
 #include "chrome/browser/ui/browser.h"
@@ -141,10 +140,6 @@ const CGFloat kBrowserActionBubbleYOffset = 3.0;
                  shouldGrant:(BOOL)shouldGrant;
 - (BOOL)browserActionClicked:(BrowserActionButton*)button;
 
-// Returns whether the given extension should be displayed. Only displays
-// incognito-enabled extensions in incognito mode. Otherwise returns YES.
-- (BOOL)shouldDisplayBrowserAction:(const Extension*)extension;
-
 // The reason |frame| is specified in these chevron functions is because the
 // container may be animating and the end frame of the animation should be
 // passed instead of the current frame (which may be off and cause the chevron
@@ -191,10 +186,9 @@ class ExtensionServiceObserverBridge
   }
 
   // Overridden from content::NotificationObserver.
-  virtual void Observe(
-      int type,
-      const content::NotificationSource& source,
-      const content::NotificationDetails& details) OVERRIDE {
+  void Observe(int type,
+               const content::NotificationSource& source,
+               const content::NotificationDetails& details) override {
     switch (type) {
       case extensions::NOTIFICATION_EXTENSION_HOST_VIEW_SHOULD_CLOSE: {
         ExtensionPopupController* popup = [ExtensionPopupController popup];
@@ -220,30 +214,26 @@ class ExtensionServiceObserverBridge
   }
 
   // extensions::ExtensionToolbarModel::Observer implementation.
-  virtual void ToolbarExtensionAdded(
-      const Extension* extension,
-      int index) OVERRIDE {
+  void ToolbarExtensionAdded(const Extension* extension, int index) override {
     [owner_ createActionButtonForExtension:extension withIndex:index];
     [owner_ resizeContainerAndAnimate:NO];
   }
 
-  virtual void ToolbarExtensionRemoved(const Extension* extension) OVERRIDE {
+  void ToolbarExtensionRemoved(const Extension* extension) override {
     [owner_ removeActionButtonForExtension:extension];
     [owner_ resizeContainerAndAnimate:NO];
   }
 
-  virtual void ToolbarExtensionMoved(const Extension* extension,
-                                     int index) OVERRIDE {
-  }
+  void ToolbarExtensionMoved(const Extension* extension, int index) override {}
 
-  virtual void ToolbarExtensionUpdated(const Extension* extension) OVERRIDE {
+  void ToolbarExtensionUpdated(const Extension* extension) override {
     BrowserActionButton* button = [owner_ buttonForExtension:extension];
     if (button)
       [button updateState];
   }
 
-  virtual bool ShowExtensionActionPopup(const Extension* extension,
-                                        bool grant_active_tab) OVERRIDE {
+  bool ShowExtensionActionPopup(const Extension* extension,
+                                bool grant_active_tab) override {
     // Do not override other popups and only show in active window.
     ExtensionPopupController* popup = [ExtensionPopupController popup];
     if (popup || !browser_->window()->IsActive())
@@ -254,15 +244,11 @@ class ExtensionServiceObserverBridge
                                       shouldGrant:grant_active_tab];
   }
 
-  virtual void ToolbarVisibleCountChanged() OVERRIDE {
-  }
+  void ToolbarVisibleCountChanged() override {}
 
-  virtual void ToolbarHighlightModeChanged(bool is_highlighting) OVERRIDE {
-  }
+  void ToolbarHighlightModeChanged(bool is_highlighting) override {}
 
-  virtual Browser* GetBrowser() OVERRIDE {
-    return browser_;
-  }
+  Browser* GetBrowser() override { return browser_; }
 
  private:
   // The object we need to inform when we get a notification. Weak. Owns us.
@@ -494,9 +480,6 @@ class ExtensionServiceObserverBridge
   for (ExtensionList::const_iterator iter =
            toolbarModel_->toolbar_items().begin();
        iter != toolbarModel_->toolbar_items().end(); ++iter) {
-    if (![self shouldDisplayBrowserAction:iter->get()])
-      continue;
-
     [self createActionButtonForExtension:iter->get() withIndex:i++];
   }
 
@@ -506,16 +489,6 @@ class ExtensionServiceObserverBridge
 
 - (void)createActionButtonForExtension:(const Extension*)extension
                              withIndex:(NSUInteger)index {
-  if (!extensions::ExtensionActionManager::Get(profile_)->
-      GetBrowserAction(*extension))
-    return;
-
-  if (![self shouldDisplayBrowserAction:extension])
-    return;
-
-  if (profile_->IsOffTheRecord())
-    index = toolbarModel_->OriginalIndexToIncognito(index);
-
   // Show the container if it's the first button. Otherwise it will be shown
   // already.
   if ([self buttonCount] == 0)
@@ -551,18 +524,11 @@ class ExtensionServiceObserverBridge
 }
 
 - (void)removeActionButtonForExtension:(const Extension*)extension {
-  if (!extensions::ActionInfo::GetBrowserActionInfo(extension))
-    return;
-
   NSString* buttonKey = base::SysUTF8ToNSString(extension->id());
   if (!buttonKey)
     return;
 
   BrowserActionButton* button = [buttons_ objectForKey:buttonKey];
-  // This could be the case in incognito, where only a subset of extensions are
-  // shown.
-  if (!button)
-    return;
 
   [button removeFromSuperview];
   // It may or may not be hidden, but it won't matter to NSMutableArray either
@@ -586,8 +552,6 @@ class ExtensionServiceObserverBridge
   for (ExtensionList::const_iterator iter =
            toolbarModel_->toolbar_items().begin();
        iter != toolbarModel_->toolbar_items().end(); ++iter) {
-    if (![self shouldDisplayBrowserAction:iter->get()])
-      continue;
     BrowserActionButton* button = [self buttonForExtension:(iter->get())];
     if (!button)
       continue;
@@ -664,7 +628,9 @@ class ExtensionServiceObserverBridge
 - (void)containerDragStart:(NSNotification*)notification {
   [self setChevronHidden:YES inFrame:[containerView_ frame] animate:YES];
   while([hiddenButtons_ count] > 0) {
-    [containerView_ addSubview:[hiddenButtons_ objectAtIndex:0]];
+    BrowserActionButton* button = [hiddenButtons_ objectAtIndex:0];
+    [button setAlphaValue:1.0];
+    [containerView_ addSubview:button];
     [hiddenButtons_ removeObjectAtIndex:0];
   }
 }
@@ -697,8 +663,7 @@ class ExtensionServiceObserverBridge
   }
   [self updateGrippyCursors];
 
-  if (!profile_->IsOffTheRecord())
-    toolbarModel_->SetVisibleIconCount([self visibleButtonCount]);
+  toolbarModel_->SetVisibleIconCount([self visibleButtonCount]);
 
   [[NSNotificationCenter defaultCenter]
       postNotificationName:kBrowserActionGrippyDragFinishedNotification
@@ -725,7 +690,7 @@ class ExtensionServiceObserverBridge
 
     if (intersectionWidth > dragThreshold && button != draggedButton &&
         ![button isAnimating] && index < [self visibleButtonCount]) {
-      toolbarModel_->MoveExtensionIcon([draggedButton extension], index);
+      toolbarModel_->MoveExtensionIcon([draggedButton extension]->id(), index);
       [self positionActionButtonsAndAnimate:YES];
       return;
     }
@@ -786,12 +751,6 @@ class ExtensionServiceObserverBridge
 - (BOOL)browserActionClicked:(BrowserActionButton*)button {
   return [self browserActionClicked:button
                         shouldGrant:YES];
-}
-
-- (BOOL)shouldDisplayBrowserAction:(const Extension*)extension {
-  // Only display incognito-enabled extensions while in incognito mode.
-  return !profile_->IsOffTheRecord() ||
-      extensions::util::IsIncognitoEnabled(extension->id(), profile_);
 }
 
 - (void)showChevronIfNecessaryInFrame:(NSRect)frame animate:(BOOL)animate {
@@ -886,9 +845,7 @@ class ExtensionServiceObserverBridge
 #pragma mark -
 #pragma mark Testing Methods
 
-- (NSButton*)buttonWithIndex:(NSUInteger)index {
-  if (profile_->IsOffTheRecord())
-    index = toolbarModel_->IncognitoIndexToOriginal(index);
+- (BrowserActionButton*)buttonWithIndex:(NSUInteger)index {
   const extensions::ExtensionList& toolbar_items =
       toolbarModel_->toolbar_items();
   if (index < toolbar_items.size()) {
