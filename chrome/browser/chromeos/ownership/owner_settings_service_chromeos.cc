@@ -398,6 +398,12 @@ void OwnerSettingsServiceChromeOS::UpdateDeviceSettings(
                   &kiosk_app_id)) {
             account->mutable_kiosk_app()->set_app_id(kiosk_app_id);
           }
+          std::string kiosk_app_update_url;
+          if (entry_dict->GetStringWithoutPathExpansion(
+                  kAccountsPrefDeviceLocalAccountsKeyKioskAppUpdateURL,
+                  &kiosk_app_update_url)) {
+            account->mutable_kiosk_app()->set_update_url(kiosk_app_update_url);
+          }
         } else {
           NOTREACHED();
         }
@@ -546,6 +552,8 @@ void OwnerSettingsServiceChromeOS::UpdateDeviceSettings(
     //   kStartUpUrls
     //   kSystemTimezonePolicy
     //   kVariationsRestrictParameter
+    //   kDeviceDisabled
+    //   kDeviceDisabledMessage
 
     LOG(FATAL) << "Device setting " << path << " is read-only.";
   }

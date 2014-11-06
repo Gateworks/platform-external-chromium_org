@@ -21,7 +21,6 @@
 #include "ui/ozone/platform/dri/dri_wrapper.h"
 #include "ui/ozone/platform/dri/native_display_delegate_dri.h"
 #include "ui/ozone/platform/dri/screen_manager.h"
-#include "ui/ozone/platform/dri/virtual_terminal_manager.h"
 #include "ui/ozone/public/ozone_platform.h"
 #include "ui/ozone/public/ui_thread_gpu.h"
 
@@ -38,8 +37,7 @@ const char kDefaultGraphicsCardPath[] = "/dev/dri/card0";
 class OzonePlatformDri : public OzonePlatform {
  public:
   OzonePlatformDri()
-      : vt_manager_(new VirtualTerminalManager()),
-        dri_(new DriWrapper(kDefaultGraphicsCardPath)),
+      : dri_(new DriWrapper(kDefaultGraphicsCardPath)),
         buffer_generator_(new DriBufferGenerator(dri_.get())),
         screen_manager_(new ScreenManager(dri_.get(),
                                           buffer_generator_.get())),
@@ -66,11 +64,8 @@ class OzonePlatformDri : public OzonePlatform {
       PlatformWindowDelegate* delegate,
       const gfx::Rect& bounds) override {
     scoped_ptr<DriWindow> platform_window(
-        new DriWindow(delegate,
-                      bounds,
-                      gpu_platform_support_host_.get(),
-                      event_factory_ozone_.get(),
-                      window_manager_.get()));
+        new DriWindow(delegate, bounds, gpu_platform_support_host_.get(),
+                      event_factory_ozone_.get(), window_manager_.get()));
     platform_window->Initialize();
     return platform_window.Pass();
   }
@@ -83,11 +78,9 @@ class OzonePlatformDri : public OzonePlatform {
     dri_->Initialize();
     surface_factory_ozone_.reset(new DriSurfaceFactory(
         dri_.get(), screen_manager_.get(), &window_delegate_manager_));
-    gpu_platform_support_.reset(
-        new DriGpuPlatformSupport(surface_factory_ozone_.get(),
-                                  &window_delegate_manager_,
-                                  screen_manager_.get(),
-                                  scoped_ptr<NativeDisplayDelegateDri>()));
+    gpu_platform_support_.reset(new DriGpuPlatformSupport(
+        surface_factory_ozone_.get(), &window_delegate_manager_,
+        screen_manager_.get(), scoped_ptr<NativeDisplayDelegateDri>()));
     gpu_platform_support_host_.reset(new DriGpuPlatformSupportHost());
     cursor_factory_ozone_.reset(new BitmapCursorFactoryOzone);
     window_manager_.reset(new DriWindowManager(surface_factory_ozone_.get()));
@@ -104,7 +97,6 @@ class OzonePlatformDri : public OzonePlatform {
   virtual void InitializeGPU() override {}
 
  private:
-  scoped_ptr<VirtualTerminalManager> vt_manager_;
   scoped_ptr<DriWrapper> dri_;
   scoped_ptr<DriBufferGenerator> buffer_generator_;
   scoped_ptr<ScreenManager> screen_manager_;

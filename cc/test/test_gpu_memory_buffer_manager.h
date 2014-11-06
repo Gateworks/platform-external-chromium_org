@@ -5,22 +5,27 @@
 #ifndef CC_TEST_TEST_GPU_MEMORY_BUFFER_MANAGER_H_
 #define CC_TEST_TEST_GPU_MEMORY_BUFFER_MANAGER_H_
 
-#include "cc/resources/gpu_memory_buffer_manager.h"
+#include "gpu/command_buffer/client/gpu_memory_buffer_manager.h"
 
 namespace cc {
 
-class TestGpuMemoryBufferManager : public GpuMemoryBufferManager {
+class TestGpuMemoryBufferManager : public gpu::GpuMemoryBufferManager {
  public:
   TestGpuMemoryBufferManager();
   ~TestGpuMemoryBufferManager() override;
 
-  // Overridden from GpuMemoryBufferManager:
+  // Overridden from gpu::GpuMemoryBufferManager:
   scoped_ptr<gfx::GpuMemoryBuffer> AllocateGpuMemoryBuffer(
       const gfx::Size& size,
       gfx::GpuMemoryBuffer::Format format,
       gfx::GpuMemoryBuffer::Usage usage) override;
   gfx::GpuMemoryBuffer* GpuMemoryBufferFromClientBuffer(
       ClientBuffer buffer) override;
+  void SetDestructionSyncPoint(gfx::GpuMemoryBuffer* buffer,
+                               uint32 sync_point) override;
+
+ private:
+  DISALLOW_COPY_AND_ASSIGN(TestGpuMemoryBufferManager);
 };
 
 }  // namespace cc

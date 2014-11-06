@@ -16,7 +16,6 @@
 #include "base/memory/scoped_ptr.h"
 #include "base/observer_list.h"
 #include "base/time/time.h"
-#include "base/timer/timer.h"
 #include "content/common/content_export.h"
 #include "content/common/cursors/webcursor.h"
 #include "content/common/gpu/client/webgraphicscontext3d_command_buffer_impl.h"
@@ -292,10 +291,11 @@ class CONTENT_EXPORT RenderWidget
   void UpdateTextInputState(ShowIme show_ime, ChangeSource change_source);
 #endif
 
-#if defined(OS_MACOSX) || defined(USE_AURA)
+#if defined(OS_MACOSX) || defined(USE_AURA) || defined(OS_ANDROID)
   // Checks if the composition range or composition character bounds have been
   // changed. If they are changed, the new value will be sent to the browser
-  // process.
+  // process. This method does nothing when the browser process is not able to
+  // handle composition range and composition character bounds.
   void UpdateCompositionInfo(bool should_update_range);
 #endif
 
@@ -358,7 +358,9 @@ class CONTENT_EXPORT RenderWidget
               bool is_fullscreen,
               ResizeAck resize_ack);
   // Used to force the size of a window when running layout tests.
-  void ResizeSynchronously(const gfx::Rect& new_position);
+  void ResizeSynchronously(
+      const gfx::Rect& new_position,
+      const gfx::Size& visible_viewport_size);
   virtual void SetScreenMetricsEmulationParameters(
       float device_scale_factor,
       const gfx::Point& root_layer_offset,
@@ -471,7 +473,7 @@ class CONTENT_EXPORT RenderWidget
   virtual ui::TextInputType WebKitToUiTextInputType(
       blink::WebTextInputType type);
 
-#if defined(OS_MACOSX) || defined(USE_AURA)
+#if defined(OS_MACOSX) || defined(USE_AURA) || defined(OS_ANDROID)
   // Override point to obtain that the current composition character bounds.
   // In the case of surrogate pairs, the character is treated as two characters:
   // the bounds for first character is actual one, and the bounds for second

@@ -13,8 +13,13 @@ uint32 AXStateFromBlink(const blink::WebAXObject& o) {
   if (o.isChecked())
     state |= (1 << ui::AX_STATE_CHECKED);
 
-  if (o.isCollapsed())
-    state |= (1 << ui::AX_STATE_COLLAPSED);
+  blink::WebAXExpanded expanded = o.isExpanded();
+  if (expanded) {
+    if (expanded == blink::WebAXExpandedCollapsed)
+      state |= (1 << ui::AX_STATE_COLLAPSED);
+    else if (expanded == blink::WebAXExpandedExpanded)
+      state |= (1 << ui::AX_STATE_EXPANDED);
+  }
 
   if (o.canSetFocusAttribute())
     state |= (1 << ui::AX_STATE_FOCUSABLE);
@@ -23,11 +28,8 @@ uint32 AXStateFromBlink(const blink::WebAXObject& o) {
     state |= (1 << ui::AX_STATE_FOCUSED);
 
   if (o.role() == blink::WebAXRolePopUpButton ||
-      o.ariaHasPopup()) {
+      o.ariaHasPopup())
     state |= (1 << ui::AX_STATE_HASPOPUP);
-    if (!o.isCollapsed())
-      state |= (1 << ui::AX_STATE_EXPANDED);
-  }
 
   if (o.isHovered())
     state |= (1 << ui::AX_STATE_HOVERED);
@@ -208,8 +210,6 @@ ui::AXRole AXRoleFromBlink(blink::WebAXRole role) {
       return ui::AX_ROLE_MARQUEE;
     case blink::WebAXRoleMath:
       return ui::AX_ROLE_MATH;
-    case blink::WebAXRoleMathElement:
-      return ui::AX_ROLE_MATH_ELEMENT;
     case blink::WebAXRoleMatte:
       return ui::AX_ROLE_MATTE;
     case blink::WebAXRoleMenu:

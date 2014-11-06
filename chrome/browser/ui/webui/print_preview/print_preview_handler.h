@@ -78,11 +78,11 @@ class PrintPreviewHandler
   // Called when print preview failed.
   void OnPrintPreviewFailed();
 
-#if !defined(DISABLE_BASIC_PRINTING)
+#if defined(ENABLE_BASIC_PRINTING)
   // Called when the user press ctrl+shift+p to display the native system
   // dialog.
   void ShowSystemDialog();
-#endif  // !DISABLE_BASIC_PRINTING
+#endif  // ENABLE_BASIC_PRINTING
 
 #if defined(ENABLE_SERVICE_DISCOVERY)
   // PrivetLocalPrinterLister::Delegate implementation.
@@ -149,11 +149,11 @@ class PrintPreviewHandler
   // Gets the printer capabilities. First element of |args| is the printer name.
   void HandleGetPrinterCapabilities(const base::ListValue* args);
 
-#if !defined(DISABLE_BASIC_PRINTING)
+#if defined(ENABLE_BASIC_PRINTING)
   // Asks the initiator renderer to show the native print system dialog. |args|
   // is unused.
   void HandleShowSystemDialog(const base::ListValue* args);
-#endif  // !DISABLE_BASIC_PRINTING
+#endif  // ENABLE_BASIC_PRINTING
 
   // Callback for the signin dialog to call once signin is complete.
   void OnSigninComplete();
@@ -176,10 +176,6 @@ class PrintPreviewHandler
   // Asks the browser to show the native printer management dialog.
   // |args| is unused.
   void HandleManagePrinters(const base::ListValue* args);
-
-  // Asks the browser to show the cloud print dialog. |args| is signle int with
-  // page count.
-  void HandlePrintWithCloudPrintDialog(const base::ListValue* args);
 
   // Asks the browser for several settings that are needed before the first
   // preview is displayed.
@@ -225,9 +221,6 @@ class PrintPreviewHandler
 
   // Handles printing to PDF.
   void PrintToPdf();
-
-  // Asks the browser to show the cloud print dialog.
-  void PrintWithCloudPrintDialog();
 
   // Gets the initiator for the print preview dialog.
   content::WebContents* GetInitiator() const;

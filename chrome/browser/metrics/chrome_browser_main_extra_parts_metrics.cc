@@ -24,6 +24,7 @@
 #include "ui/base/touch/touch_device.h"
 #include "ui/base/ui_base_switches.h"
 #include "ui/events/event_switches.h"
+#include "ui/gfx/screen.h"
 
 #if defined(OS_LINUX) && !defined(OS_CHROMEOS)
 #include <gnu/libc-version.h>
@@ -221,10 +222,13 @@ void RecordTouchEventState() {
 
 }  // namespace
 
-ChromeBrowserMainExtraPartsMetrics::ChromeBrowserMainExtraPartsMetrics() {
+ChromeBrowserMainExtraPartsMetrics::ChromeBrowserMainExtraPartsMetrics()
+    : display_count_(0), is_screen_observer_(false) {
 }
 
 ChromeBrowserMainExtraPartsMetrics::~ChromeBrowserMainExtraPartsMetrics() {
+  if (is_screen_observer_)
+    gfx::Screen::GetNativeScreen()->RemoveObserver(this);
 }
 
 void ChromeBrowserMainExtraPartsMetrics::PreProfileInit() {
@@ -246,11 +250,43 @@ void ChromeBrowserMainExtraPartsMetrics::PostBrowserStart() {
 #endif
   RecordTouchEventState();
 
+#if defined(OS_MACOSX) && !defined(OS_IOS)
+  RecordMacMetrics();
+#endif  // defined(OS_MACOSX) && !defined(OS_IOS)
+
   const int kStartupMetricsGatheringDelaySeconds = 45;
   content::BrowserThread::GetBlockingPool()->PostDelayedTask(
       FROM_HERE,
       base::Bind(&RecordStartupMetricsOnBlockingPool),
       base::TimeDelta::FromSeconds(kStartupMetricsGatheringDelaySeconds));
+
+  display_count_ = gfx::Screen::GetNativeScreen()->GetNumDisplays();
+  UMA_HISTOGRAM_COUNTS_100("Hardware.Display.Count.OnStartup", display_count_);
+  gfx::Screen::GetNativeScreen()->AddObserver(this);
+  is_screen_observer_ = true;
+}
+
+void ChromeBrowserMainExtraPartsMetrics::OnDisplayAdded(
+    const gfx::Display& new_display) {
+  EmitDisplaysChangedMetric();
+}
+
+void ChromeBrowserMainExtraPartsMetrics::OnDisplayRemoved(
+    const gfx::Display& old_display) {
+  EmitDisplaysChangedMetric();
+}
+
+void ChromeBrowserMainExtraPartsMetrics::OnDisplayMetricsChanged(
+    const gfx::Display& display,
+    uint32_t changed_metrics) {
+}
+
+void ChromeBrowserMainExtraPartsMetrics::EmitDisplaysChangedMetric() {
+  int display_count = gfx::Screen::GetNativeScreen()->GetNumDisplays();
+  if (display_count != display_count_) {
+    display_count_ = display_count;
+    UMA_HISTOGRAM_COUNTS_100("Hardware.Display.Count.OnChange", display_count_);
+  }
 }
 
 namespace chrome {

@@ -7,7 +7,7 @@
 
 #include "athena/athena_export.h"
 #include "athena/util/drag_handle.h"
-#include "athena/wm/bezel_controller.h"
+#include "athena/wm/public/window_list_provider_observer.h"
 #include "athena/wm/public/window_manager_observer.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/memory/weak_ptr.h"
@@ -35,9 +35,9 @@ class WindowListProviderImpl;
 // Responsible for entering split view mode, exiting from split view mode, and
 // laying out the windows in split view mode.
 class ATHENA_EXPORT SplitViewController
-    : public BezelController::ScrollDelegate,
-      public DragHandleScrollDelegate,
-      public WindowManagerObserver {
+    : public DragHandleScrollDelegate,
+      public WindowManagerObserver,
+      public WindowListProviderObserver {
  public:
   SplitViewController(aura::Window* container,
                       WindowListProviderImpl* window_list_provider);
@@ -115,12 +115,6 @@ class ATHENA_EXPORT SplitViewController
   float GetMaxDistanceFromMiddleForTest() const;
   float GetMinFlingVelocityForTest() const;
 
-  // BezelController::ScrollDelegate:
-  void BezelScrollBegin(BezelController::Bezel bezel, float delta) override;
-  void BezelScrollEnd(float velocity) override;
-  void BezelScrollUpdate(float delta) override;
-  bool BezelCanScroll() override;
-
   // DragHandleScrollDelegate:
   void HandleScrollBegin(float delta) override;
   void HandleScrollEnd(float velocity) override;
@@ -131,6 +125,12 @@ class ATHENA_EXPORT SplitViewController
   void OnOverviewModeExit() override;
   void OnSplitViewModeEnter() override;
   void OnSplitViewModeExit() override;
+
+  // WindowListProviderObserver:
+  void OnWindowStackingChangedInList() override {}
+  void OnWindowAddedToList(aura::Window* added_window) override;
+  void OnWindowRemovedFromList(aura::Window* removed_window,
+                               int index) override;
 
   State state_;
 

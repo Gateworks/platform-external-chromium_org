@@ -479,7 +479,6 @@
         'protocol/device_info_specifics.proto',
         'protocol/dictionary_specifics.proto',
         'protocol/encryption.proto',
-        'protocol/enhanced_bookmark_specifics.proto',
         'protocol/experiment_status.proto',
         'protocol/experiments_specifics.proto',
         'protocol/extension_setting_specifics.proto',
@@ -507,6 +506,7 @@
         'protocol/theme_specifics.proto',
         'protocol/typed_url_specifics.proto',
         'protocol/unique_position.proto',
+	'protocol/wifi_credential_specifics.proto',
       ],
       'variables': {
         'enable_wexit_time_destructors': 1,

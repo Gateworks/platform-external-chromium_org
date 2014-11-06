@@ -734,7 +734,7 @@ void HWNDMessageHandler::FlashFrame(bool flash) {
   fwi.cbSize = sizeof(fwi);
   fwi.hwnd = hwnd();
   if (flash) {
-    fwi.dwFlags = FLASHW_ALL;
+    fwi.dwFlags = custom_window_region_ ? FLASHW_TRAY : FLASHW_ALL;
     fwi.uCount = 4;
     fwi.dwTimeout = 0;
   } else {
@@ -871,7 +871,8 @@ void HWNDMessageHandler::SetFullscreen(bool fullscreen) {
 void HWNDMessageHandler::SizeConstraintsChanged() {
   LONG style = GetWindowLong(hwnd(), GWL_STYLE);
   // Ignore if this is not a standard window.
-  if (!(style & WS_OVERLAPPED))
+  // WS_OVERLAPPED is just the *absence* of WS_POPUP and WS_CHILD.
+  if ((style & (WS_POPUP | WS_CHILD)) == WS_OVERLAPPED)
     return;
 
   if (delegate_->CanResize()) {

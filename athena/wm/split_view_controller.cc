@@ -174,9 +174,11 @@ SplitViewController::SplitViewController(
       divider_widget_(nullptr),
       drag_handle_(nullptr),
       weak_factory_(this) {
+  window_list_provider_->AddObserver(this);
 }
 
 SplitViewController::~SplitViewController() {
+  window_list_provider_->RemoveObserver(this);
 }
 
 bool SplitViewController::CanActivateSplitViewMode() const {
@@ -366,6 +368,40 @@ gfx::Rect SplitViewController::GetRightAreaBounds() {
                    work_area.height());
 }
 
+void SplitViewController::OnWindowAddedToList(aura::Window* added_window) {
+}
+
+void SplitViewController::OnWindowRemovedFromList(aura::Window* removed_window,
+                                                  int index) {
+  if (!IsSplitViewModeActive() ||
+      (removed_window != left_window_ && removed_window != right_window_)) {
+    return;
+  }
+
+  DCHECK(!window_list_provider_->IsWindowInList(removed_window));
+
+  const aura::Window::Windows windows = window_list_provider_->GetWindowList();
+  CHECK_GE(static_cast<int>(windows.size()), 1);
+  DCHECK_GE(index, static_cast<int>(windows.size() - 1));
+  DCHECK_LE(index, static_cast<int>(windows.size()));
+
+  if (windows.size() == 1) {
+    DeactivateSplitMode();
+    return;
+  }
+
+  aura::Window* next_window = *(windows.rbegin() + 1);
+  if (removed_window == left_window_) {
+    CHECK(right_window_ == windows.back());
+    left_window_ = next_window;
+  } else {
+    CHECK(left_window_ == windows.back());
+    CHECK(removed_window == right_window_);
+    right_window_ = next_window;
+  }
+  UpdateLayout(false);
+}
+
 void SplitViewController::SetState(SplitViewController::State state) {
   if (state_ == state)
     return;
@@ -519,45 +555,17 @@ float SplitViewController::GetMinFlingVelocityForTest() const {
 }
 
 ///////////////////////////////////////////////////////////////////////////////
-// BezelController::ScrollDelegate:
+// DragHandleScrollDelegate:
 
-void SplitViewController::BezelScrollBegin(BezelController::Bezel bezel,
-                                           float delta) {
-  if (!BezelCanScroll())
-    return;
-
-  SetState(SCROLLING);
-
-  const aura::Window::Windows& windows = window_list_provider_->GetWindowList();
-  CHECK(windows.size() >= 2);
-  aura::Window::Windows::const_reverse_iterator iter = windows.rbegin();
-  aura::Window* current_window = *(iter);
-
-  if (delta > 0) {
-    right_window_ = current_window;
-    left_window_ = *(iter + 1);
-  } else {
-    left_window_ = current_window;
-    right_window_ = *(iter + 1);
-  }
-
-  CHECK(left_window_);
-  CHECK(right_window_);
-
-  // Calculate divider_scroll_start_position_
-  gfx::Screen* screen = gfx::Screen::GetScreenFor(container_);
-  const gfx::Rect& display_bounds =
-      screen->GetDisplayNearestWindow(container_).bounds();
-  gfx::Rect container_bounds = container_->GetBoundsInScreen();
-  divider_scroll_start_position_ =
-      delta > 0 ? display_bounds.x() - container_bounds.x()
-                : display_bounds.right() - container_bounds.x();
-
+void SplitViewController::HandleScrollBegin(float delta) {
+  CHECK(state_ == ACTIVE);
+  state_ = SCROLLING;
+  divider_scroll_start_position_ = GetDefaultDividerPosition();
   divider_position_ = divider_scroll_start_position_ + delta;
   UpdateLayout(false);
 }
 
-void SplitViewController::BezelScrollEnd(float velocity) {
+void SplitViewController::HandleScrollEnd(float velocity) {
   if (state_ != SCROLLING)
     return;
 
@@ -588,34 +596,11 @@ void SplitViewController::BezelScrollEnd(float velocity) {
   UpdateLayout(true);
 }
 
-void SplitViewController::BezelScrollUpdate(float delta) {
+void SplitViewController::HandleScrollUpdate(float delta) {
   if (state_ != SCROLLING)
     return;
   divider_position_ = divider_scroll_start_position_ + delta;
   UpdateLayout(false);
-}
-
-bool SplitViewController::BezelCanScroll() {
-  return CanActivateSplitViewMode();
-}
-
-///////////////////////////////////////////////////////////////////////////////
-// DragHandleScrollDelegate:
-
-void SplitViewController::HandleScrollBegin(float delta) {
-  CHECK(state_ == ACTIVE);
-  state_ = SCROLLING;
-  divider_scroll_start_position_ = GetDefaultDividerPosition();
-  divider_position_ = divider_scroll_start_position_ + delta;
-  UpdateLayout(false);
-}
-
-void SplitViewController::HandleScrollEnd(float velocity) {
-  BezelScrollEnd(velocity);
-}
-
-void SplitViewController::HandleScrollUpdate(float delta) {
-  BezelScrollUpdate(delta);
 }
 
 ///////////////////////////////////////////////////////////////////////////////

@@ -6,13 +6,11 @@
 #define COMPONENTS_COPRESENCE_COPRESENCE_MANAGER_IMPL_H_
 
 #include <string>
-#include <vector>
 
-#include "base/callback.h"
 #include "base/cancelable_callback.h"
 #include "base/macros.h"
 #include "base/memory/scoped_ptr.h"
-#include "components/copresence/proto/rpcs.pb.h"
+#include "base/memory/scoped_vector.h"
 #include "components/copresence/public/copresence_manager.h"
 
 namespace net {
@@ -21,24 +19,30 @@ class URLContextGetter;
 
 namespace copresence {
 
+class DirectiveHandler;
+class ReportRequest;
 class RpcHandler;
 
 struct PendingRequest {
   PendingRequest(const ReportRequest& report,
-                 const std::string app_id,
+                 const std::string& app_id,
+                 const std::string& auth_token,
                  const StatusCallback& callback);
   ~PendingRequest();
 
-  ReportRequest report;
+  scoped_ptr<ReportRequest> report;
   std::string app_id;
+  std::string auth_token;
   StatusCallback callback;
 };
 
-// The implementation for CopresenceManager.
+// The implementation for CopresenceManager. Responsible primarily for
+// client-side initialization. The RpcHandler handles all the details
+// of interacting with the server.
 class CopresenceManagerImpl : public CopresenceManager {
  public:
   ~CopresenceManagerImpl() override;
-  void ExecuteReportRequest(ReportRequest request,
+  void ExecuteReportRequest(const ReportRequest& request,
                             const std::string& app_id,
                             const StatusCallback& callback) override;
 
@@ -50,18 +54,17 @@ class CopresenceManagerImpl : public CopresenceManager {
   void CompleteInitialization();
   void InitStepComplete(const std::string& step, bool success);
 
-  bool init_failed_;
-  std::vector<PendingRequest> pending_requests_queue_;
-
-  base::CancelableCallback<void(bool)> init_callback_;
-
-  // TODO(rkc): This code is almost identical to what we use in feedback to
-  // perform multiple blocking tasks and then run a post process method. Look
-  // into refactoring it all out to a common construct, like maybe a
-  // PostMultipleTasksAndReply?
-  size_t pending_init_operations_;
-
+  // Belongs to the caller.
   CopresenceDelegate* const delegate_;
+
+  int pending_init_operations_;
+  base::CancelableCallback<void(bool)> whispernet_init_callback_;
+  bool init_failed_;
+
+  ScopedVector<PendingRequest> pending_requests_queue_;
+
+  // The RpcHandler depends on the directive handler.
+  scoped_ptr<DirectiveHandler> directive_handler_;
   scoped_ptr<RpcHandler> rpc_handler_;
 
   DISALLOW_COPY_AND_ASSIGN(CopresenceManagerImpl);

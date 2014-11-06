@@ -12,7 +12,6 @@
 #include "chrome/browser/extensions/extension_management.h"
 #include "chrome/browser/extensions/external_policy_loader.h"
 #include "chrome/browser/extensions/external_provider_impl.h"
-#include "chrome/common/pref_names.h"
 #include "chrome/test/base/testing_pref_service_syncable.h"
 #include "chrome/test/base/testing_profile.h"
 #include "content/public/test/test_browser_thread.h"
@@ -31,7 +30,7 @@ class ExternalPolicyLoaderTest : public testing::Test {
   ExternalPolicyLoaderTest() : ui_thread_(BrowserThread::UI, &loop_) {
   }
 
-  virtual ~ExternalPolicyLoaderTest() {}
+  ~ExternalPolicyLoaderTest() override {}
 
  private:
   // We need these to satisfy BrowserThread::CurrentlyOn(BrowserThread::UI)

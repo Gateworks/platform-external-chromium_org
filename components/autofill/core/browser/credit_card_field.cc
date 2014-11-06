@@ -44,7 +44,7 @@ FormField* CreditCardField::Parse(AutofillScanner* scanner) {
     // we search for "name" only when we've already parsed at least one other
     // credit card field and haven't yet parsed the expiration date (which
     // usually appears at the end).
-    if (credit_card_field->cardholder_ == NULL) {
+    if (!credit_card_field->cardholder_) {
       base::string16 name_pattern;
       if (fields == 0 || credit_card_field->expiration_month_) {
         // at beginning or end
@@ -55,47 +55,36 @@ FormField* CreditCardField::Parse(AutofillScanner* scanner) {
 
       if (ParseField(scanner, name_pattern, &credit_card_field->cardholder_))
         continue;
-
-      // As a hard-coded hack for Expedia's billing pages (expedia_checkout.html
-      // and ExpediaBilling.html in our test suite), recognize separate fields
-      // for the cardholder's first and last name if they have the labels "cfnm"
-      // and "clnm".
-      scanner->SaveCursor();
-      AutofillField* first;
-      if (ParseField(scanner, base::ASCIIToUTF16("^cfnm"), &first) &&
-          ParseField(scanner,
-                     base::ASCIIToUTF16("^clnm"),
-                     &credit_card_field->cardholder_last_)) {
-        credit_card_field->cardholder_ = first;
-        continue;
-      }
-      scanner->Rewind();
     }
 
     // Check for a credit card type (Visa, MasterCard, etc.) field.
-    base::string16 type_pattern = base::UTF8ToUTF16(autofill::kCardTypeRe);
     if (!credit_card_field->type_ &&
         ParseFieldSpecifics(scanner,
-                            type_pattern,
+                            base::UTF8ToUTF16(autofill::kCardTypeRe),
                             MATCH_DEFAULT | MATCH_SELECT,
                             &credit_card_field->type_)) {
       continue;
     }
 
-    // We look for a card security code before we look for a credit
-    // card number and match the general term "number".  The security code
-    // has a plethora of names; we've seen "verification #",
-    // "verification number", "card identification number" and others listed
-    // in the |pattern| below.
-    base::string16 pattern = base::UTF8ToUTF16(autofill::kCardCvcRe);
+    // We look for a card security code before we look for a credit card number
+    // and match the general term "number". The security code has a plethora of
+    // names; we've seen "verification #", "verification number", "card
+    // identification number", and others listed in the regex pattern used
+    // below.
+    // Note: Some sites use type="tel" for numerical inputs.
     if (!credit_card_field->verification_ &&
-        ParseField(scanner, pattern, &credit_card_field->verification_)) {
+        ParseFieldSpecifics(scanner,
+                            base::UTF8ToUTF16(autofill::kCardCvcRe),
+                            MATCH_DEFAULT | MATCH_TELEPHONE | MATCH_PASSWORD,
+                            &credit_card_field->verification_)) {
       continue;
     }
 
-    pattern = base::UTF8ToUTF16(autofill::kCardNumberRe);
     AutofillField* current_number_field;
-    if (ParseField(scanner, pattern, &current_number_field)) {
+    if (ParseFieldSpecifics(scanner,
+                            base::UTF8ToUTF16(autofill::kCardNumberRe),
+                            MATCH_DEFAULT | MATCH_TELEPHONE,
+                            &current_number_field)) {
       // Avoid autofilling any credit card number field having very low or high
       // |start_index| on the HTML form.
       size_t start_index = 0;
@@ -118,50 +107,51 @@ FormField* CreditCardField::Parse(AutofillScanner* scanner) {
       continue;
     }
 
-    if (LowerCaseEqualsASCII(scanner->Cursor()->form_control_type, "month")) {
+    if (!credit_card_field->expiration_date_ &&
+        LowerCaseEqualsASCII(scanner->Cursor()->form_control_type, "month")) {
       credit_card_field->expiration_date_ = scanner->Cursor();
+      credit_card_field->expiration_month_ = nullptr;
+      credit_card_field->expiration_year_ = nullptr;
       scanner->Advance();
-    } else {
+      continue;
+    }
+
+    if (!credit_card_field->expiration_month_ &&
+        !credit_card_field->expiration_date_) {
       // First try to parse split month/year expiration fields.
       scanner->SaveCursor();
-      pattern = base::UTF8ToUTF16(autofill::kExpirationMonthRe);
-      if (!credit_card_field->expiration_month_ &&
-          ParseFieldSpecifics(scanner,
-                              pattern,
+      if (ParseFieldSpecifics(scanner,
+                              base::UTF8ToUTF16(autofill::kExpirationMonthRe),
                               MATCH_DEFAULT | MATCH_SELECT,
-                              &credit_card_field->expiration_month_)) {
-        pattern = base::UTF8ToUTF16(autofill::kExpirationYearRe);
-        if (ParseFieldSpecifics(scanner,
-                                pattern,
-                                MATCH_DEFAULT | MATCH_SELECT,
-                                &credit_card_field->expiration_year_)) {
-          continue;
-        }
+                              &credit_card_field->expiration_month_) &&
+          ParseFieldSpecifics(scanner,
+                              base::UTF8ToUTF16(autofill::kExpirationYearRe),
+                              MATCH_DEFAULT | MATCH_SELECT,
+                              &credit_card_field->expiration_year_)) {
+        continue;
       }
 
       // If that fails, try to parse a combined expiration field.
-      if (!credit_card_field->expiration_date_) {
-        // Look for a 2-digit year first.
-        scanner->Rewind();
-        pattern = base::UTF8ToUTF16(autofill::kExpirationDate2DigitYearRe);
-        // We allow <select> fields, because they're used e.g. on qvc.com.
-        if (ParseFieldSpecifics(
-                scanner,
-                pattern,
-                MATCH_LABEL | MATCH_VALUE | MATCH_TEXT | MATCH_SELECT,
-                &credit_card_field->expiration_date_)) {
-          credit_card_field->exp_year_type_ = CREDIT_CARD_EXP_DATE_2_DIGIT_YEAR;
-          continue;
-        }
+      // Look for a 2-digit year first.
+      // We allow <select> fields, because they're used e.g. on qvc.com.
+      scanner->Rewind();
+      if (ParseFieldSpecifics(
+              scanner,
+              base::UTF8ToUTF16(autofill::kExpirationDate2DigitYearRe),
+              MATCH_LABEL | MATCH_VALUE | MATCH_TEXT | MATCH_SELECT,
+              &credit_card_field->expiration_date_)) {
+        credit_card_field->exp_year_type_ = CREDIT_CARD_EXP_DATE_2_DIGIT_YEAR;
+        credit_card_field->expiration_month_ = nullptr;
+        continue;
+      }
 
-        pattern = base::UTF8ToUTF16(autofill::kExpirationDateRe);
-        if (ParseFieldSpecifics(
-                scanner,
-                pattern,
-                MATCH_LABEL | MATCH_VALUE | MATCH_TEXT | MATCH_SELECT,
-                &credit_card_field->expiration_date_)) {
-          continue;
-        }
+      if (ParseFieldSpecifics(
+              scanner,
+              base::UTF8ToUTF16(autofill::kExpirationDateRe),
+              MATCH_LABEL | MATCH_VALUE | MATCH_TEXT | MATCH_SELECT,
+              &credit_card_field->expiration_date_)) {
+        credit_card_field->expiration_month_ = nullptr;
+        continue;
       }
 
       if (credit_card_field->expiration_month_ &&
@@ -241,6 +231,8 @@ bool CreditCardField::ClassifyField(ServerFieldTypeMap* map) const {
     ok = ok && AddClassification(cardholder_, CREDIT_CARD_NAME, map);
 
   if (expiration_date_) {
+    DCHECK(!expiration_month_);
+    DCHECK(!expiration_year_);
     ok =
         ok && AddClassification(expiration_date_, GetExpirationYearType(), map);
   } else {

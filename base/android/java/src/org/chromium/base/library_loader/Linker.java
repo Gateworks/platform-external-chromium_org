@@ -15,6 +15,7 @@ import org.chromium.base.CalledByNative;
 import org.chromium.base.SysUtils;
 import org.chromium.base.ThreadUtils;
 
+import java.io.FileNotFoundException;
 import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
@@ -232,6 +233,7 @@ public class Linker {
                     System.loadLibrary(TAG);
                 } catch (UnsatisfiedLinkError  e) {
                     // In a component build, the ".cr" suffix is added to each library name.
+                    Log.w(TAG, "Couldn't load lib" + TAG + ".so, trying lib" + TAG + ".cr.so");
                     System.loadLibrary(TAG + ".cr");
                 }
                 sRelroSharingSupported = nativeCanUseSharedRelro();
@@ -242,8 +244,8 @@ public class Linker {
                 }
 
                 if (sMemoryDeviceConfig == MEMORY_DEVICE_CONFIG_INIT) {
-                    sMemoryDeviceConfig = SysUtils.isLowEndDevice() ?
-                            MEMORY_DEVICE_CONFIG_LOW : MEMORY_DEVICE_CONFIG_NORMAL;
+                    sMemoryDeviceConfig = SysUtils.isLowEndDevice()
+                            ? MEMORY_DEVICE_CONFIG_LOW : MEMORY_DEVICE_CONFIG_NORMAL;
                 }
 
                 switch (BROWSER_SHARED_RELRO_CONFIG) {
@@ -340,8 +342,8 @@ public class Linker {
         assert NativeLibraries.sEnableLinkerTests;
         synchronized (Linker.class) {
             assert sMemoryDeviceConfig == MEMORY_DEVICE_CONFIG_INIT;
-            assert memoryDeviceConfig == MEMORY_DEVICE_CONFIG_LOW ||
-                   memoryDeviceConfig == MEMORY_DEVICE_CONFIG_NORMAL;
+            assert memoryDeviceConfig == MEMORY_DEVICE_CONFIG_LOW
+                   || memoryDeviceConfig == MEMORY_DEVICE_CONFIG_NORMAL;
             if (DEBUG) {
                 if (memoryDeviceConfig == MEMORY_DEVICE_CONFIG_LOW)
                     Log.i(TAG, "Simulating a low-memory device");
@@ -506,8 +508,8 @@ public class Linker {
             parcel.recycle();
         }
         if (DEBUG) {
-            Log.i(TAG, "useSharedRelros() called with " + bundle +
-                    ", cloned " + clonedBundle);
+            Log.i(TAG, "useSharedRelros() called with " + bundle
+                    + ", cloned " + clonedBundle);
         }
         synchronized (Linker.class) {
             // Note that in certain cases, this can be called before
@@ -639,8 +641,7 @@ public class Linker {
         final long maxExpectedBytes = 192 * 1024 * 1024;
         final long address = nativeGetRandomBaseLoadAddress(maxExpectedBytes);
         if (DEBUG) {
-            Log.i(TAG,
-                  String.format(Locale.US, "Random native base load address: 0x%x", address));
+            Log.i(TAG, String.format(Locale.US, "Random native base load address: 0x%x", address));
         }
         return address;
     }
@@ -699,39 +700,17 @@ public class Linker {
     }
 
     /**
-     * Load a native shared library with the Chromium linker.
-     * The shared library is uncompressed and page aligned inside the zipfile.
-     * Note the crazy linker treats libraries and files as equivalent,
-     * so you can only open one library in a given zip file.
+     * Load a native shared library with the Chromium linker. If the zip file
+     * is not null, the shared library must be uncompressed and page aligned
+     * inside the zipfile. Note the crazy linker treats libraries and files as
+     * equivalent, so you can only open one library in a given zip file. The
+     * library must not be the Chromium linker library.
      *
-     * @param zipfile The filename of the zipfile contain the library.
-     * @param library The library's base name.
+     * @param zipFilePath The path of the zip file containing the library (or null).
+     * @param libFilePath The path of the library (possibly in the zip file).
      */
-    public static void loadLibraryInZipFile(String zipfile, String library) {
-        loadLibraryMaybeInZipFile(zipfile, library);
-    }
-
-    /**
-     * Load a native shared library with the Chromium linker.
-     *
-     * @param library The library's base name.
-     */
-    public static void loadLibrary(String library) {
-        loadLibraryMaybeInZipFile(null, library);
-    }
-
-    private static void loadLibraryMaybeInZipFile(
-            @Nullable String zipFile, String library) {
-        if (DEBUG) Log.i(TAG, "loadLibrary: " + library);
-
-        // Don't self-load the linker. This is because the build system is
-        // not clever enough to understand that all the libraries packaged
-        // in the final .apk don't need to be explicitly loaded.
-        // Also deal with the component build that adds a .cr suffix to the name.
-        if (library.equals(TAG) || library.equals(TAG + ".cr")) {
-            if (DEBUG) Log.i(TAG, "ignoring self-linker load");
-            return;
-        }
+    public static void loadLibrary(@Nullable String zipFilePath, String libFilePath) {
+        if (DEBUG) Log.i(TAG, "loadLibrary: " + zipFilePath + ", " + libFilePath);
 
         synchronized (Linker.class) {
             ensureInitializedLocked();
@@ -742,12 +721,10 @@ public class Linker {
             // that wrap all calls to loadLibrary() in the library loader.
             assert sPrepareLibraryLoadCalled;
 
-            String libName = System.mapLibraryName(library);
-
             if (sLoadedLibraries == null) sLoadedLibraries = new HashMap<String, LibInfo>();
 
-            if (sLoadedLibraries.containsKey(libName)) {
-                if (DEBUG) Log.i(TAG, "Not loading " + libName + " twice");
+            if (sLoadedLibraries.containsKey(libFilePath)) {
+                if (DEBUG) Log.i(TAG, "Not loading " + libFilePath + " twice");
                 return;
             }
 
@@ -758,18 +735,18 @@ public class Linker {
                 loadAddress = sCurrentLoadAddress;
             }
 
-            String sharedRelRoName = libName;
-            if (zipFile != null) {
-                if (!nativeLoadLibraryInZipFile(zipFile, libName, loadAddress, libInfo)) {
-                    String errorMessage = "Unable to load library: " + libName +
-                                          ", in: " + zipFile;
+            String sharedRelRoName = libFilePath;
+            if (zipFilePath != null) {
+                if (!nativeLoadLibraryInZipFile(zipFilePath, libFilePath, loadAddress, libInfo)) {
+                    String errorMessage = "Unable to load library: " + libFilePath
+                                          + ", in: " + zipFilePath;
                     Log.e(TAG, errorMessage);
                     throw new UnsatisfiedLinkError(errorMessage);
                 }
-                sharedRelRoName = zipFile;
+                sharedRelRoName = zipFilePath;
             } else {
-                if (!nativeLoadLibrary(libName, loadAddress, libInfo)) {
-                    String errorMessage = "Unable to load library: " + libName;
+                if (!nativeLoadLibrary(libFilePath, loadAddress, libInfo)) {
+                    String errorMessage = "Unable to load library: " + libFilePath;
                     Log.e(TAG, errorMessage);
                     throw new UnsatisfiedLinkError(errorMessage);
                 }
@@ -786,7 +763,7 @@ public class Linker {
                         Locale.US,
                         "%s_LIBRARY_ADDRESS: %s %x",
                         sInBrowserProcess ? "BROWSER" : "RENDERER",
-                        libName,
+                        libFilePath,
                         libInfo.mLoadAddress));
             }
 
@@ -794,7 +771,7 @@ public class Linker {
                 // Create a new shared RELRO section at the 'current' fixed load address.
                 if (!nativeCreateSharedRelro(sharedRelRoName, sCurrentLoadAddress, libInfo)) {
                     Log.w(TAG, String.format(Locale.US,
-                            "Could not create shared RELRO for %s at %x", libName,
+                            "Could not create shared RELRO for %s at %x", libFilePath,
                             sCurrentLoadAddress));
                 } else {
                     if (DEBUG) Log.i(TAG,
@@ -821,21 +798,80 @@ public class Linker {
     }
 
     /**
-     * Check whether the device supports loading a library directly from the APK file.
+     * Enable the fallback due to lack of support for mapping the APK file with
+     * executable permission (see crbug.com/398425).
+     */
+    public static void enableNoMapExecSupportFallback() {
+        synchronized (Linker.class) {
+            ensureInitializedLocked();
+
+            if (DEBUG) Log.i(TAG, "Enabling no map executable support fallback");
+            nativeEnableNoMapExecSupportFallback();
+        }
+    }
+
+    /**
+     * Determine whether a library is the linker library. Also deal with the
+     * component build that adds a .cr suffix to the name.
+     */
+    public static boolean isChromiumLinkerLibrary(String library) {
+        return library.equals(TAG) || library.equals(TAG + ".cr");
+    }
+
+    /**
+     * Get the full library path in zip file (lib/<abi>/crazy.<lib_name>).
+     *
+     * @param library The library's base name.
+     * @return the library path.
+     */
+    public static String getLibraryFilePathInZipFile(String library) throws FileNotFoundException {
+        synchronized (Linker.class) {
+            ensureInitializedLocked();
+
+            String path = nativeGetLibraryFilePathInZipFile(library);
+            if (path.equals("")) {
+                throw new FileNotFoundException(
+                        "Failed to retrieve path in zip file for library " + library);
+            }
+            return path;
+        }
+    }
+
+    /**
+     * Check whether the device supports mapping the APK file with executable permission.
      *
      * @param apkFile Filename of the APK.
      * @return true if supported.
      */
-    public static boolean checkLibraryLoadFromApkSupport(String apkFile) {
+    public static boolean checkMapExecSupport(String apkFile) {
         assert apkFile != null;
         synchronized (Linker.class) {
             ensureInitializedLocked();
 
-            if (DEBUG) Log.i(TAG, "checkLibraryLoadFromApkSupported: " + apkFile);
-            boolean supported = nativeCheckLibraryLoadFromApkSupport(apkFile);
-            if (DEBUG) Log.i(TAG, "Loading a library directly from the APK file " +
-                    (supported ? "" : "NOT ") + "supported");
+            if (DEBUG) Log.i(TAG, "checkMapExecSupport: " + apkFile);
+            boolean supported = nativeCheckMapExecSupport(apkFile);
+            if (DEBUG) Log.i(TAG, "Mapping the APK file with executable permission "
+                    + (supported ? "" : "NOT ") + "supported");
             return supported;
+        }
+    }
+
+    /**
+     * Check whether a library is page aligned in the APK file.
+     *
+     * @param apkFile Filename of the APK.
+     * @param library The library's base name.
+     * @return true if page aligned.
+     */
+    public static boolean checkLibraryAlignedInApk(String apkFile, String library) {
+        synchronized (Linker.class) {
+            ensureInitializedLocked();
+
+            if (DEBUG) Log.i(TAG, "checkLibraryAlignedInApk: " + apkFile + ", " + library);
+            boolean aligned = nativeCheckLibraryAlignedInApk(apkFile, library);
+            if (DEBUG) Log.i(TAG, library + " is " + (aligned ? "" : "NOT ")
+                    + "page aligned in " + apkFile);
+            return aligned;
         }
     }
 
@@ -884,11 +920,16 @@ public class Linker {
      * of this LibInfo instance will set on success.
      * @return true for success, false otherwise.
      */
-    private static native boolean nativeLoadLibraryInZipFile(
-        String zipfileName,
-        String libraryName,
-        long loadAddress,
-        LibInfo libInfo);
+    private static native boolean nativeLoadLibraryInZipFile(String zipfileName,
+                                                             String libraryName,
+                                                             long loadAddress,
+                                                             LibInfo libInfo);
+
+    /**
+     * Native method used to enable the fallback due to lack of support for
+     * mapping the APK file with executable permission.
+     */
+    private static native void nativeEnableNoMapExecSupportFallback();
 
     /**
      * Native method used to create a shared RELRO section.
@@ -937,14 +978,31 @@ public class Linker {
     private static native long nativeGetRandomBaseLoadAddress(long sizeBytes);
 
     /**
-     * Native method which checks whether the device supports loading a library
-     * directly from the APK file.
+      * Native method used to get the full library path in zip file
+      * (lib/<abi>/crazy.<lib_name>).
+      *
+      * @param library The library's base name.
+      * @return the library path (or empty string on failure).
+      */
+    private static native String nativeGetLibraryFilePathInZipFile(String library);
+
+    /**
+     * Native method which checks whether the device supports mapping the APK file
+     * with executable permission.
      *
      * @param apkFile Filename of the APK.
      * @return true if supported.
-     *
      */
-    private static native boolean nativeCheckLibraryLoadFromApkSupport(String apkFile);
+    private static native boolean nativeCheckMapExecSupport(String apkFile);
+
+    /**
+     * Native method which checks whether a library is page aligned in the APK file.
+     *
+     * @param apkFile Filename of the APK.
+     * @param library The library's base name.
+     * @return true if page aligned.
+     */
+    private static native boolean nativeCheckLibraryAlignedInApk(String apkFile, String library);
 
     /**
      * Record information for a given library.
@@ -1079,5 +1137,5 @@ public class Linker {
 
     // Used to pass the shared RELRO Bundle through Binder.
     public static final String EXTRA_LINKER_SHARED_RELROS =
-        "org.chromium.base.android.linker.shared_relros";
+            "org.chromium.base.android.linker.shared_relros";
 }

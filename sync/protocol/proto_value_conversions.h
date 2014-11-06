@@ -36,7 +36,6 @@ class DeviceInfoSpecifics;
 class DeviceInformation;
 class DictionarySpecifics;
 class EncryptedData;
-class EnhancedBookmarkSpecifics;
 class EntitySpecifics;
 class EverythingDirective;
 class ExperimentsSpecifics;
@@ -79,6 +78,7 @@ class Target;
 class ThemeSpecifics;
 class TimeRangeDirective;
 class TypedUrlSpecifics;
+class WifiCredentialSpecifics;
 }  // namespace sync_pb
 
 // Utility functions to convert sync protocol buffers to dictionaries.
@@ -212,9 +212,6 @@ SYNC_EXPORT_PRIVATE base::DictionaryValue* DeviceInfoSpecificsToValue(
 SYNC_EXPORT_PRIVATE base::DictionaryValue* DictionarySpecificsToValue(
     const sync_pb::DictionarySpecifics& dictionary_specifics);
 
-SYNC_EXPORT_PRIVATE base::DictionaryValue* EnhancedBookmarkSpecificsToValue(
-    const sync_pb::EnhancedBookmarkSpecifics& enhanced_bookmark_specifics);
-
 SYNC_EXPORT_PRIVATE base::DictionaryValue* ExperimentsSpecificsToValue(
     const sync_pb::ExperimentsSpecifics& proto);
 
@@ -277,6 +274,9 @@ SYNC_EXPORT_PRIVATE base::DictionaryValue* ThemeSpecificsToValue(
 
 SYNC_EXPORT_PRIVATE base::DictionaryValue* TypedUrlSpecificsToValue(
     const sync_pb::TypedUrlSpecifics& typed_url_specifics);
+
+SYNC_EXPORT_PRIVATE base::DictionaryValue* WifiCredentialSpecificsToValue(
+    const sync_pb::WifiCredentialSpecifics& wifi_credential_specifics);
 
 // Any present extensions are mapped to sub-dictionary values with the
 // key equal to the extension name.

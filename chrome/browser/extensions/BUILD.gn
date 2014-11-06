@@ -6,6 +6,8 @@ import("//build/config/crypto.gni")
 import("//build/config/features.gni")
 import("//build/config/ui.gni")
 
+assert(enable_extensions)
+
 gypi_values = exec_script(
     "//build/gypi_to_gn.py",
     [ rebase_path("../../chrome_browser_extensions.gypi") ],
@@ -82,6 +84,10 @@ static_library("extensions") {
     sources += rebase_path(
         gypi_values.chrome_browser_extensions_chromeos_sources,
         ".", "//chrome")
+    sources -= [
+      "api/audio/audio_service_linux.cc",
+      "api/music_manager_private/device_id_linux.cc",
+    ]
     configs += [ "//build/config/linux:dbus" ]
     deps += [
       "//third_party/libevent",
@@ -172,7 +178,8 @@ static_library("extensions") {
     ]
   }
 
-  if (!use_x11) {
+  # chromeos uses its own global_shortcut_listener, _x11 is not necessary.
+  if (is_chromeos || !use_x11) {
     sources -= [
       "global_shortcut_listener_x11.cc",
       "global_shortcut_listener_x11.h",
@@ -193,7 +200,7 @@ static_library("extensions") {
         ".", "//chrome")
   }
 
-  if (is_linux) {
+  if (is_desktop_linux) {
     sources += rebase_path(
         gypi_values.chrome_browser_extensions_networking_private_sources_linux,
         ".", "//chrome")
@@ -217,6 +224,11 @@ static_library("extensions") {
         ".", "//chrome")
   }
 
+  if (is_chromeos && use_ozone) {
+    sources -= [
+      "global_shortcut_listener_chromeos.cc",
+    ]
+  }
   if (!use_ozone) {
     sources -= [
       "global_shortcut_listener_ozone.cc",

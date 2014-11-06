@@ -67,9 +67,16 @@
 #include "ui/gfx/image/image.h"
 #include "ui/gfx/image/image_png_rep.h"
 #include "ui/gfx/image/image_skia.h"
+#include "ui/gfx/native_widget_types.h"
 #include "ui/gfx/screen.h"
 #include "ui/wm/public/drag_drop_client.h"
 #include "ui/wm/public/drag_drop_delegate.h"
+
+#if defined(OS_WIN)
+#include "content/browser/accessibility/browser_accessibility_manager.h"
+#include "content/browser/accessibility/browser_accessibility_win.h"
+#include "ui/base/win/hidden_window.h"
+#endif
 
 namespace content {
 WebContentsView* CreateWebContentsView(
@@ -144,19 +151,19 @@ class OverscrollWindowDelegate : public ImageWindowDelegate {
   void stop_forwarding_events() { forward_events_ = false; }
 
  private:
-  virtual ~OverscrollWindowDelegate() {}
+  ~OverscrollWindowDelegate() override {}
 
   aura::Window* web_contents_window() {
     return web_contents_->GetView()->GetContentNativeView();
   }
 
   // Overridden from ui::EventHandler.
-  virtual void OnScrollEvent(ui::ScrollEvent* event) override {
+  void OnScrollEvent(ui::ScrollEvent* event) override {
     if (forward_events_ && web_contents_window())
       web_contents_window()->delegate()->OnScrollEvent(event);
   }
 
-  virtual void OnGestureEvent(ui::GestureEvent* event) override {
+  void OnGestureEvent(ui::GestureEvent* event) override {
     if (forward_events_ && web_contents_window())
       web_contents_window()->delegate()->OnGestureEvent(event);
   }
@@ -186,13 +193,12 @@ class WebDragSourceAura : public NotificationObserver {
                    Source<WebContents>(contents));
   }
 
-  virtual ~WebDragSourceAura() {
-  }
+  ~WebDragSourceAura() override {}
 
   // NotificationObserver:
-  virtual void Observe(int type,
-      const NotificationSource& source,
-      const NotificationDetails& details) override {
+  void Observe(int type,
+               const NotificationSource& source,
+               const NotificationDetails& details) override {
     if (type != NOTIFICATION_WEB_CONTENTS_DISCONNECTED)
       return;
 
@@ -479,7 +485,7 @@ class WebContentsViewAura::WindowObserver
 #endif
   }
 
-  virtual ~WindowObserver() {
+  ~WindowObserver() override {
     view_->window_->RemoveObserver(this);
     if (view_->window_->GetHost())
       view_->window_->GetHost()->RemoveObserver(this);
@@ -503,7 +509,7 @@ class WebContentsViewAura::WindowObserver
   }
 
   // Overridden from aura::WindowObserver:
-  virtual void OnWindowHierarchyChanged(
+  void OnWindowHierarchyChanged(
       const aura::WindowObserver::HierarchyChangeParams& params) override {
     if (params.receiver != view_->window_.get() ||
         !params.target->Contains(view_->window_.get())) {
@@ -560,8 +566,8 @@ class WebContentsViewAura::WindowObserver
   }
 #endif
 
-  virtual void OnWindowParentChanged(aura::Window* window,
-                                     aura::Window* parent) override {
+  void OnWindowParentChanged(aura::Window* window,
+                             aura::Window* parent) override {
     if (window != view_->window_)
       return;
 
@@ -615,9 +621,9 @@ class WebContentsViewAura::WindowObserver
     }
   }
 
-  virtual void OnWindowBoundsChanged(aura::Window* window,
-                                     const gfx::Rect& old_bounds,
-                                     const gfx::Rect& new_bounds) override {
+  void OnWindowBoundsChanged(aura::Window* window,
+                             const gfx::Rect& old_bounds,
+                             const gfx::Rect& new_bounds) override {
     if (window == host_window_ || window == view_->window_) {
       SendScreenRects();
       if (view_->touch_editable_)
@@ -629,25 +635,29 @@ class WebContentsViewAura::WindowObserver
     }
   }
 
-  virtual void OnWindowDestroying(aura::Window* window) override {
+  void OnWindowDestroying(aura::Window* window) override {
     if (window == host_window_) {
       host_window_->RemoveObserver(this);
       host_window_ = NULL;
     }
   }
 
-  virtual void OnWindowAddedToRootWindow(aura::Window* window) override {
+  void OnWindowAddedToRootWindow(aura::Window* window) override {
     if (window == view_->window_) {
       window->GetHost()->AddObserver(this);
 #if defined(OS_WIN)
       if (!window->GetRootWindow()->HasObserver(this))
         window->GetRootWindow()->AddObserver(this);
+      if (view_->legacy_hwnd_) {
+        view_->legacy_hwnd_->UpdateParent(
+            window->GetHost()->GetAcceleratedWidget());
+      }
 #endif
     }
   }
 
-  virtual void OnWindowRemovingFromRootWindow(aura::Window* window,
-                                              aura::Window* new_root) override {
+  void OnWindowRemovingFromRootWindow(aura::Window* window,
+                                      aura::Window* new_root) override {
     if (window == view_->window_) {
       window->GetHost()->RemoveObserver(this);
 #if defined(OS_WIN)
@@ -661,13 +671,16 @@ class WebContentsViewAura::WindowObserver
           root_children[i]->RemoveObserver(this);
         }
       }
+
+      if (view_->legacy_hwnd_)
+        view_->legacy_hwnd_->UpdateParent(ui::GetHiddenWindow());
 #endif
     }
   }
 
   // Overridden WindowTreeHostObserver:
-  virtual void OnHostMoved(const aura::WindowTreeHost* host,
-                           const gfx::Point& new_origin) override {
+  void OnHostMoved(const aura::WindowTreeHost* host,
+                   const gfx::Point& new_origin) override {
     TRACE_EVENT1("ui",
                  "WebContentsViewAura::WindowObserver::OnHostMoved",
                  "new_origin", new_origin.ToString());
@@ -1017,6 +1030,10 @@ void WebContentsViewAura::SizeContents(const gfx::Size& size) {
   if (bounds.size() != size) {
     bounds.set_size(size);
     window_->SetBounds(bounds);
+#if defined(OS_WIN)
+    if (legacy_hwnd_)
+      legacy_hwnd_->SetBounds(window_->GetBoundsInRootWindow());
+#endif
   } else {
     // Our size matches what we want but the renderers size may not match.
     // Pretend we were resized so that the renderers size is updated too.
@@ -1113,6 +1130,14 @@ void WebContentsViewAura::CreateView(
   // platforms as well.
   if (delegate_)
     drag_dest_delegate_ = delegate_->GetDragDestDelegate();
+
+#if defined(OS_WIN)
+  if (context && context->GetHost()) {
+    HWND parent_hwnd = context->GetHost()->GetAcceleratedWidget();
+    CHECK(parent_hwnd);
+    legacy_hwnd_.reset(LegacyRenderWidgetHostHWND::Create(parent_hwnd, this));
+  }
+#endif
 }
 
 RenderWidgetHostViewBase* WebContentsViewAura::CreateViewForWidget(
@@ -1153,12 +1178,24 @@ RenderWidgetHostViewBase* WebContentsViewAura::CreateViewForWidget(
   }
 
   AttachTouchEditableToRenderView();
+
+#if defined(OS_WIN)
+  if (legacy_hwnd_)
+    view->SetLegacyRenderWidgetHostHWND(legacy_hwnd_.get());
+#endif
+
   return view;
 }
 
 RenderWidgetHostViewBase* WebContentsViewAura::CreateViewForPopupWidget(
     RenderWidgetHost* render_widget_host) {
-  return new RenderWidgetHostViewAura(render_widget_host, false);
+  RenderWidgetHostViewAura* view =
+      new RenderWidgetHostViewAura(render_widget_host, false);
+#if defined(OS_WIN)
+  if (legacy_hwnd_)
+    view->SetLegacyRenderWidgetHostHWND(legacy_hwnd_.get());
+#endif
+  return view;
 }
 
 void WebContentsViewAura::SetPageTitle(const base::string16& title) {
@@ -1638,6 +1675,35 @@ void WebContentsViewAura::UpdateWebContentsVisibility(bool visible) {
     if (web_contents_->should_normally_be_visible())
       web_contents_->WasHidden();
   }
+
+#if defined(OS_WIN)
+  if (!legacy_hwnd_)
+    return;
+
+  if (visible && GetNativeView() && GetNativeView()->GetHost()) {
+    legacy_hwnd_->UpdateParent(
+        GetNativeView()->GetHost()->GetAcceleratedWidget());
+    legacy_hwnd_->SetBounds(window_->GetBoundsInRootWindow());
+    legacy_hwnd_->Show();
+  } else {
+    // We reparent the legacy Chrome_RenderWidgetHostHWND window to the global
+    // hidden window on the same lines as Windowed plugin windows.
+    legacy_hwnd_->UpdateParent(ui::GetHiddenWindow());
+    legacy_hwnd_->Hide();
+  }
+#endif
 }
+
+#if defined(OS_WIN)
+gfx::NativeViewAccessible
+WebContentsViewAura::GetNativeViewAccessible() {
+  BrowserAccessibilityManager* manager =
+      web_contents_->GetRootBrowserAccessibilityManager();
+  if (!manager)
+    return nullptr;
+
+  return manager->GetRoot()->ToBrowserAccessibilityWin();
+}
+#endif
 
 }  // namespace content

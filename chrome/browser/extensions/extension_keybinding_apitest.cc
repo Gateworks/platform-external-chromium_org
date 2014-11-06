@@ -46,7 +46,7 @@ const char kMediaKeyTestCommand[] = "test_mediakeys_update";
 class CommandsApiTest : public ExtensionApiTest {
  public:
   CommandsApiTest() {}
-  virtual ~CommandsApiTest() {}
+  ~CommandsApiTest() override {}
 
  protected:
   BrowserActionTestUtil GetBrowserActionsBar() {
@@ -377,9 +377,9 @@ IN_PROC_BROWSER_TEST_F(CommandsApiTest,
   const Extension* extension = GetSingleLoadedExtension();
   // Simulate the user setting the keybinding to Ctrl+D.
 #if defined(OS_MACOSX)
-  const char* hotkey = "Command+D";
+  const char hotkey[] = "Command+D";
 #else
-  const char* hotkey = "Ctrl+D";
+  const char hotkey[] = "Ctrl+D";
 #endif  // defined(OS_MACOSX)
   command_service->UpdateKeybindingPrefs(
       extension->id(), manifest_values::kBrowserActionCommandEvent, hotkey);

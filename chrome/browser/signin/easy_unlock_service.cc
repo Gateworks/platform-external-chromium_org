@@ -208,6 +208,10 @@ EasyUnlockService::~EasyUnlockService() {
 void EasyUnlockService::RegisterProfilePrefs(
     user_prefs::PrefRegistrySyncable* registry) {
   registry->RegisterBooleanPref(
+      prefs::kEasyUnlockAllowed,
+      true,
+      user_prefs::PrefRegistrySyncable::UNSYNCABLE_PREF);
+  registry->RegisterBooleanPref(
       prefs::kEasyUnlockEnabled,
       false,
       user_prefs::PrefRegistrySyncable::UNSYNCABLE_PREF);
@@ -216,9 +220,9 @@ void EasyUnlockService::RegisterProfilePrefs(
       new base::DictionaryValue(),
       user_prefs::PrefRegistrySyncable::UNSYNCABLE_PREF);
   registry->RegisterBooleanPref(
-      prefs::kEasyUnlockAllowed,
-      true,
-      user_prefs::PrefRegistrySyncable::UNSYNCABLE_PREF);
+      prefs::kEasyUnlockProximityRequired,
+      false,
+      user_prefs::PrefRegistrySyncable::SYNCABLE_PREF);
 }
 
 // static
@@ -383,7 +387,7 @@ void EasyUnlockService::CheckCryptohomeKeysAndMaybeHardlock() {
     chromeos::EasyUnlockKeyManager::RemoteDeviceListToDeviceDataList(
         *device_list, &parsed_paired);
     for (const auto& device_key_data : parsed_paired)
-      paired_devices.insert(device_key_data.public_key);
+      paired_devices.insert(device_key_data.psk);
   }
   if (paired_devices.empty()) {
     SetHardlockState(EasyUnlockScreenlockStateHandler::NO_PAIRING);
@@ -618,7 +622,7 @@ void EasyUnlockService::OnCryptohomeKeysFetchedForChecking(
 
   std::set<std::string> devices_in_cryptohome;
   for (const auto& device_key_data : key_data_list)
-    devices_in_cryptohome.insert(device_key_data.public_key);
+    devices_in_cryptohome.insert(device_key_data.psk);
 
   if (paired_devices != devices_in_cryptohome ||
       GetHardlockState() == EasyUnlockScreenlockStateHandler::NO_PAIRING) {

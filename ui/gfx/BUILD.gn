@@ -275,7 +275,6 @@ component("gfx") {
     sources -= [
       "animation/throb_animation.cc",
       "canvas_skia.cc",
-      "display_observer.cc",
       "selection_model.cc",
     ]
 
@@ -344,6 +343,9 @@ component("gfx") {
   if (use_x11) {
     deps += [
       "//ui/gfx/x",
+    ]
+    configs += [
+      "//build/config/linux:x11",
     ]
   } else {
     sources -= [

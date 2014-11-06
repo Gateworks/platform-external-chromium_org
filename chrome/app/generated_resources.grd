@@ -1850,7 +1850,7 @@ Psst! Incognito mode <ph name="SHORTCUT_KEY">$1<ex>(Ctrl+Shift+N)</ex></ph> may 
       </message>
       <message name="IDS_PROMPT_CONFIRM_KEEP_DANGEROUS_DOWNLOAD"
                desc="Prompt text for the confirmation dialog asking whether the user really meant to keep a dangerous download">
-        This might hurt. Don't say we didn't warn you...
+        This file may be harmful for your computer.
       </message>
       <message name="IDS_PROMPT_CONFIRM_KEEP_MALICIOUS_DOWNLOAD_LEAD"
                desc="Lead prompt text for the confirmation dialog asking whether the user really meant to keep a malicious download">
@@ -2240,6 +2240,9 @@ Even if you have downloaded files from this website before, the website might ha
       </message>
       <message name="IDS_APPLICATION_INFO_SIZE_SMALL_LABEL" desc="Text displayed instead of the app or extension's size for apps and extensions that are less than 1 megabyte in size.">
         &lt; 1 MB
+      </message>
+      <message name="IDS_APPLICATION_INFO_REVOKE_PERMISSION_ALT_TEXT" desc="Alt text displayed on hover (or in a screen reader) on the icon button that revokes (removes) the permission from this app.">
+        Revoke the permission '<ph name="PERMISSION">$1<ex>Access your USB and Bluetooth devices</ex></ph>'
       </message>
       <message name="IDS_APPLICATION_INFO_APP_NO_PERMISSIONS_TEXT" desc="Text displayed in the Permissions area of the dialog if the app has no permissions.">
         This app requires no special permissions.
@@ -6256,10 +6259,10 @@ Keep your key file in a safe place. You will need it to create new versions of y
       <message name="IDS_FLAGS_PASSWORD_MANAGER_REAUTHENTICATION_DESCRIPTION" desc="Description of the flag for the password manager reauthentication option.">
         Disable prompting the user for their OS password before revealing passwords on the passwords page.
       </message>
-      <message name="IDS_FLAGS_PASSWORD_MANAGER_ANDROID_LINK_NAME" desc="Name of the flag to enable showing a link to account central on Android password settings page">
+      <message name="IDS_FLAGS_PASSWORD_MANAGER_LINK_NAME" desc="Name of the flag to enable showing a link to account central on password settings page">
         Enable remote password management link
       </message>
-      <message name="IDS_FLAGS_PASSWORD_MANAGER_ANDROID_LINK_DESCRIPTION" desc="Description of the flag to enable showing a link to account central on Android password settings page">
+      <message name="IDS_FLAGS_PASSWORD_MANAGER_LINK_DESCRIPTION" desc="Description of the flag to enable showing a link to account central on password settings page">
         Show a link in the password manager settings page to manage your synced passwords online.
       </message>
       <message name="IDS_FLAGS_AUTOFILL_SYNC_CREDENTIAL_NAME" desc="Name of the flag specifying how the browser will handle autofilling the users sync credential.">
@@ -6297,6 +6300,12 @@ Keep your key file in a safe place. You will need it to create new versions of y
       </message>
       <message name="IDS_FLAGS_ENABLE_SUPERVISED_USER_BLACKLIST_DESCRIPTION" desc="Description for the flag to enable the supervised user host blacklist.">
         Enable the host blacklist for use by supervised users.
+      </message>
+      <message name="IDS_FLAGS_ENABLE_SUPERVISED_USER_SAFESITES_NAME" desc="Name of the flag to enable the supervised user SafeSites feature.">
+        Enable the supervised user SafeSites filter
+      </message>
+      <message name="IDS_FLAGS_ENABLE_SUPERVISED_USER_SAFESITES_DESCRIPTION" desc="Description for the flag to enable the supervised user SafeSites feature.">
+        Enable SafeSites filtering for supervised users.
       </message>
       <message name="IDS_FLAGS_ENABLE_SYNCED_NOTIFICATIONS_NAME" desc="Name of the flag to enable synced notifications.">
         Enable Synced Notifications
@@ -6710,6 +6719,13 @@ Keep your key file in a safe place. You will need it to create new versions of y
       <message name="IDS_FLAGS_ENABLE_TAB_AUDIO_MUTING_DESCRIPTION" desc="Description of the flag that enables the tab audio muting UI experiment in chrome://extensions.">
         When enabled, the audio indicators in the tab strip double as tab audio mute controls.  This also adds commands in the tab context menu for quickly muting multiple selected tabs.
       </message>
+      <message name="IDS_FLAGS_ENABLE_EASY_UNLOCK_PROXIMITY_DETECTION_NAME" desc="Title for the flag to enable Smart Lock to require close proximity between the phone and the Chromebook in order to unlock the Chromebook.">
+        Enable Smart Lock proximity detection.
+      </message>
+      <message name="IDS_FLAGS_ENABLE_EASY_UNLOCK_PROXIMITY_DETECTION_DESCRIPTION" desc="Description for the flag that enables Smart Lock to require close proximity between the phone and the Chromebook in order to unlock the Chromebook.">
+        Enables a Smart Lock setting that restricts unlocking to only work when your phone is very close to (roughly, within an arm's length of) the Chrome device.
+      </message>
+
 
       <!-- Crashes -->
       <message name="IDS_CRASHES_TITLE" desc="Title for the chrome://crashes page.">
@@ -6794,11 +6810,14 @@ Keep your key file in a safe place. You will need it to create new versions of y
       <message name="IDS_HOTWORD_SEARCH_PREF_CHKBOX" desc="A checkbox on the Settings page to allow audio capture devices to initiate searches.">
         Enable "Ok Google" to start a voice search
       </message>
+      <message name="IDS_HOTWORD_SEARCH_NO_DSP_DESCRIPTION" desc="Description of the hotword search preference for devices with no DSP.">
+        Say "Ok Google" in a new tab, google.com, and the App Launcher
+      </message>
+      <message name="IDS_HOTWORD_SEARCH_ALWAYS_ON_DESCRIPTION" desc="Description of the hotword-always-on search preference.">
+        Say "Ok Google" when the screen is on and unlocked
+      </message>
       <message name="IDS_HOTWORD_SEARCH_PREF_DESCRIPTION" desc="Description of the hotword search preference">
         When you say "Ok Google," Chrome will search for what you say next.
-      </message>
-      <message name="IDS_HOTWORD_ALWAYS_ON_SEARCH_PREF_CHKBOX" desc="A checkbox on the Settings page to allow audio capture devices to initiate searches from any screen.">
-        Enable "Ok Google" from any screen, when the screen is on and unlocked
       </message>
       <message name="IDS_HOTWORD_AUDIO_HISTORY_PREF_CHKBOX" desc="A checkbox on the Settings page that allows for sending audio of 'Ok, Google' plus a few seconds before back to Google to improve voice search.">
         Enable audio history
@@ -8075,6 +8094,9 @@ Keep your key file in a safe place. You will need it to create new versions of y
       <message name="IDS_ZOOMLEVELS_HEADER_AND_TAB_LABEL" desc="Label for Zoom Level tab and a header the on Content Settings dialog (zoom levels indicate that a page should be shown for example at 110% magnification).">
         Zoom Levels
       </message>
+      <message name="IDS_ZOOMLEVELS_CHROME_ERROR_PAGES_LABEL" desc="Label for zoom level list entry for Chrome error pages.">
+        (Chrome error pages)
+      </message>
       <message name="IDS_ZOOMLEVELS_MANAGE_BUTTON" desc="Button on the Content Settings dialog that opens a dialog to manage your page zoom levels (zoom levels indicate that a page should be shown for example at 110% magnification).">
         Manage...
       </message>
@@ -8265,7 +8287,7 @@ Keep your key file in a safe place. You will need it to create new versions of y
           The selected printer is not available or not installed correctly.  Check your printer or try selecting another printer.
         </message>
       </if>
-      <if expr="enable_full_printing">
+      <if expr="enable_print_preview">
         <message name="IDS_PRINT_PREVIEW_TITLE" desc="Fallback title for print preview page.">
           Print
         </message>
@@ -8370,17 +8392,11 @@ Keep your key file in a safe place. You will need it to create new versions of y
           Open PDF in Preview
           </message>
         </if>
-        <message name="IDS_PRINT_PREVIEW_SYSTEM_DIALOG_OPTION" desc="Option allowing the user to access advanced printer settings using the native print system dialog instead of printing through the print preview mechanism. Shortcut key is not translated">
-          Print using system dialog... <ph name="SHORTCUT_KEY">$1<ex>(Shift+Ctrl+P)</ex></ph>
-        </message>
-        <if expr="chromeos">
-          <message name="IDS_PRINT_PREVIEW_CLOUD_DIALOG_OPTION" desc="Option allowing the user to access advanced printer settings using the cloud print dialog instead of printing through the print preview mechanism.">
-            Print using <ph name="CLOUD_PRINT_NAME">$1<ex>Google Cloud Print</ex></ph> dialog... <ph name="SHORTCUT_KEY">$2<ex>(Shift+Ctrl+P)</ex></ph>
+        <if expr="not chromeos">
+          <message name="IDS_PRINT_PREVIEW_SYSTEM_DIALOG_OPTION" desc="Option allowing the user to access advanced printer settings using the native print system dialog instead of printing through the print preview mechanism. Shortcut key is not translated">
+            Print using system dialog... <ph name="SHORTCUT_KEY">$1<ex>(Shift+Ctrl+P)</ex></ph>
           </message>
         </if>
-        <message name="IDS_PRINT_PREVIEW_CLOUD_DIALOG_OPTION_NO_SHORTCUT" desc="Option allowing the user to access advanced printer settings using the cloud print dialog instead of printing through the print preview mechanism without a shortcut key.">
-          Print using <ph name="CLOUD_PRINT_NAME">$1<ex>Google Cloud Print</ex></ph> dialog...
-        </message>
         <message name="IDS_PRINT_PREVIEW_PAGE_RANGE_INSTRUCTION" desc="Instruction shown when the user enters an invalid page range.">
           Invalid page range, use <ph name="EXAMPLE_PAGE_RANGE">$1<ex>e.g. 1-5, 8, 11-13</ex></ph>
         </message>
@@ -8440,6 +8456,12 @@ Keep your key file in a safe place. You will need it to create new versions of y
         </message>
         <message name="IDS_PRINT_PREVIEW_MEDIA_SIZE_LABEL" desc="Media size option label. Provides user the option to change the size of the printed page.">
           Paper size
+        </message>
+        <message name="IDS_PRINT_PREVIEW_DPI_LABEL" desc="Print quality option label. Provides user the option to select one of the print quality options defined for the printer.">
+          Quality
+        </message>
+        <message name="IDS_PRINT_PREVIEW_DPI_ITEM_LABEL" desc="Print quality option value text.">
+          <ph name="DPI">$1<ex>300</ex></ph> dpi
         </message>
         <message name="IDS_PRINT_PREVIEW_NATIVE_DIALOG" desc="Option offering the user to open the native print dialog, displayed when the PDF viewer is missing or when print preview fails.">
           Print using system dialog…
@@ -9268,6 +9290,16 @@ Keep your key file in a safe place. You will need it to create new versions of y
         An SSLv3 fallback was able to handshake with the server, but we no longer accept SSLv3 fallbacks due to new attacks against the protocol. The server needs to be updated to support a minimum of TLS 1.0 and preferably TLS 1.2.
       </message>
 
+      <message name="IDS_ERRORPAGES_HEADING_SSL_VERSION_OR_CIPHER_MISMATCH" desc="Heading in the error page for SSL cipher and version errors.">
+        This webpage is not available
+      </message>
+      <message name="IDS_ERRORPAGES_SUMMARY_SSL_VERSION_OR_CIPHER_MISMATCH" desc="Summary in the error page for SSL cipher and version errors.">
+        A secure connection cannot be established because this site uses an unsupported protocol.
+      </message>
+      <message name="IDS_ERRORPAGES_DETAILS_SSL_VERSION_OR_CIPHER_MISMATCH" desc="The error message displayed for SSL cipher and version errors.">
+        The client and server don't support a common SSL protocol version or cipher suite. This is usually caused when the server needs SSLv3 support, which has been removed.
+      </message>
+
       <message name="IDS_ERRORPAGES_HEADING_PINNING_FAILURE" desc="Title of the error page for a certificate which doesn't match the built-in pins for that name">
         Incorrect certificate for host.
       </message>
@@ -9684,8 +9716,27 @@ and incorrect credentials. Either an attacker is trying to pretend to be <ph nam
         Update date and time
       </message>
 
-      <message name="IDS_SSL_V2_CLOCK_PRIMARY_PARAGRAPH" desc="Paragraph explaining that the SSL clock interstitial is probably caused by an incorrect clock.">
-        A private connection to <ph name="DOMAIN">$1<ex>paypal.com</ex></ph> can't be established because your computer's date and time (<ph name="DATE_AND_TIME">$2<ex>Monday, January 1, 1970 2:44:30 PM</ex></ph>) are incorrect.
+
+      <if expr="not is_android and not is_ios">
+        <message name="IDS_SSL_V2_CLOCK_PRIMARY_PARAGRAPH" desc="Paragraph explaining that the SSL clock interstitial is probably caused by an incorrect clock.">
+          A private connection to <ph name="BEGIN_BOLD">&lt;strong&gt;</ph><ph name="DOMAIN">$1<ex>paypal.com</ex></ph><ph name="END_BOLD">&lt;/strong&gt;</ph> can't be established because your computer's date and time (<ph name="DATE_AND_TIME">$2<ex>Monday, January 1, 1970 2:44:30 PM</ex></ph>) are incorrect.
+        </message>
+      </if>
+      <if expr="is_android">
+        <message name="IDS_SSL_V2_CLOCK_PRIMARY_PARAGRAPH" desc="Paragraph explaining that the SSL clock interstitial is probably caused by an incorrect clock. (The string is slightly customized for mobile.)">
+          A private connection to <ph name="BEGIN_BOLD">&lt;strong&gt;</ph><ph name="DOMAIN">$1<ex>paypal.com</ex></ph><ph name="END_BOLD">&lt;/strong&gt;</ph> can't be established because your device's date and time (<ph name="DATE_AND_TIME">$2<ex>Monday, January 1, 1970 2:44:30 PM</ex></ph>) are incorrect.
+        </message>
+      </if>
+      <if expr="is_ios">
+        <message name="IDS_SSL_V2_CLOCK_PRIMARY_PARAGRAPH" desc="Paragraph explaining that the SSL clock interstitial is probably caused by an incorrect clock. On iOS, we can't send the user directly to the date and time panel, so we give them concise instructions.">
+          &lt;p&gt;A private connection to <ph name="BEGIN_BOLD">&lt;strong&gt;</ph><ph name="DOMAIN">$1<ex>paypal.com</ex></ph><ph name="END_BOLD">&lt;/strong&gt;</ph> can't be established because your device's date and time (<ph name="DATE_AND_TIME">$2<ex>Monday, January 1, 1970 2:44:30 PM</ex></ph>) are incorrect.&lt;/p&gt;
+
+          &lt;p&gt;Please adjust the date and time from the &lt;strong&gt;General&lt;/strong&gt; section of the &lt;strong&gt;Settings&lt;/strong&gt; app.&lt;/p&gt;
+        </message>
+      </if>
+
+      <message name="IDS_SSL_V2_CLOCK_EXPLANATION" desc="Body text for the explanation shown if user clicks on the Advanced button for an SSL clock error.">
+        To establish a secure connection, your clock needs to be set correctly. This is because the certificates that websites use to identify themselves are only valid for specific periods of time. Since your device's clock is incorrect, Chromium cannot verify these certificates.
       </message>
 
       <!-- Misc strings for SSL UI -->
@@ -10042,9 +10093,6 @@ Chrome ran out of memory.
         <message name="IDS_OPTIONS_DEFAULTSEARCH_GROUP_NAME" desc="The title of the default search engine group">
           Search
         </message>
-        <message name="IDS_OPTIONS_VOICE_GROUP_NAME" desc="The title of the voice group in the settings page">
-          Voice
-        </message>
         <message name="IDS_SEARCH_ENGINE_ADD_NEW_NAME_PLACEHOLDER" desc="Placeholder text for name before the user adds a new search engine" >
           Add a new search engine
         </message>
@@ -10085,22 +10133,25 @@ Chrome ran out of memory.
           Smart Lock (Beta)
         </message>
         <message name="IDS_OPTIONS_EASY_UNLOCK_SETUP_INTRO" desc="The text to show in Easy Unlock section to introduce the feature.">
-          Use your Android phone to securely unlock your <ph name="DEVICE_TYPE">$1<ex>Chromebook</ex></ph>. No need to type your password.
+          Keep your <ph name="DEVICE_TYPE">$1<ex>Chromebook</ex></ph> unlocked when your Android phone is unlocked and nearby – no need to type your password. Learn more
         </message>
         <message name="IDS_OPTIONS_EASY_UNLOCK_SETUP_BUTTON" desc="The label of the button to set up Easy Unlock section on the settings page.">
-          Set up
+          Set up Smart Lock
         </message>
-        <message name="IDS_OPTIONS_EASY_UNLOCK_DESCRIPTION" desc="The text that describs what Easy Unlock does.">
-          Your Android phone can securely unlock your <ph name="DEVICE_TYPE">$1<ex>Chromebook</ex></ph>.
+        <message name="IDS_OPTIONS_EASY_UNLOCK_DESCRIPTION" desc="The text that describes what Easy Unlock does.">
+          Your <ph name="DEVICE_TYPE">$1<ex>Chromebook</ex></ph> will be unlocked when your Android phone is unlocked and nearby.
+        </message>
+        <message name="IDS_OPTIONS_EASY_UNLOCK_REQUIRE_PROXIMITY_LABEL" desc="The text label that describes the checkbox that controls whether the user's Android phone must be in close proximity to the Chromebook in order to unlock it..">
+          Allow unlocking this <ph name="DEVICE_TYPE">$1<ex>Chromebook</ex></ph> only when the phone is within an arm's length away.
         </message>
         <message name="IDS_OPTIONS_EASY_UNLOCK_TURN_OFF_BUTTON" desc="The label of the button to disable Easy unlock on the settings page and the turn off Easy unlock dialog.">
           Turn off
         </message>
         <message name="IDS_OPTIONS_EASY_UNLOCK_TURN_OFF_TITLE" desc="The title of the Easy unlock turn off dialog.">
-          Turn off Smart Lock
+          Turn off Chrome Smart Lock
         </message>
         <message name="IDS_OPTIONS_EASY_UNLOCK_TURN_OFF_DESCRIPTION" desc="The description text of the Easy unlock turn off dialog.">
-          If you turn off Smart Lock, you won’t be able to unlock your Chrome devices when your phone is with you. You will have to type in your password.
+          If you turn off Chrome Smart Lock, you won’t be able to unlock your Chrome devices when your phone is with you. You will have to type in your password.
         </message>
         <message name="IDS_OPTIONS_EASY_UNLOCK_TURN_OFF_OFFLINE_TITLE" desc="The title text on the Easy unlock turn off dialog when Easy unlock could not be turned off because the device is offline.">
           Please connect to a network
@@ -11515,7 +11566,7 @@ Chrome ran out of memory.
         Create, change, or delete profiles.
       </message>
       <message name="IDS_PROFILES_PROFILE_SIGNOUT_BUTTON" desc="Button in the avatar menu bubble view to sign-out the current profile.">
-        Lock
+        Exit and childlock
       </message>
       <message name="IDS_PROFILES_PROFILE_SIGNOUT_BUTTON_TIP" desc="Tool-tip text shown for button in the avatar menu bubble view to sign-out the current profile.">
         Sign-out user <ph name="PROFILE_USERNAME">$1<ex>user@gmail.com</ex></ph>.
@@ -12348,9 +12399,16 @@ Some features may be unavailable.  Please check that the profile exists and you 
         <message name="IDS_SYNC_DATATYPE_AUTOFILL" desc="Form Autofill items, one of the data types that we allow syncing.">
           Autofill
         </message>
-        <message name="IDS_SYNC_DATATYPE_THEMES" desc="Themes, one of the data types that we allow syncing.">
-          Themes
-        </message>
+        <if expr="chromeos">
+          <message name="IDS_SYNC_DATATYPE_THEMES" desc="Themes, one of the data types that we allow syncing.">
+            Themes &amp; Wallpapers
+          </message>
+        </if>
+        <if expr="not chromeos">
+          <message name="IDS_SYNC_DATATYPE_THEMES" desc="Themes, one of the data types that we allow syncing.">
+            Themes
+          </message>
+        </if>
         <message name="IDS_SYNC_DATATYPE_EXTENSIONS" desc="Extensions, one of the data types that we allow syncing.">
           Extensions
         </message>
@@ -12365,6 +12423,9 @@ Some features may be unavailable.  Please check that the profile exists and you 
         </message>
         <message name="IDS_SYNC_DATATYPE_TABS" desc="Open Tabs, one of the data types that we allow syncing.">
           Open Tabs
+        </message>
+        <message name="IDS_SYNC_DATATYPE_WIFI_CREDENTIALS" desc="WiFi network names and passwords, one of the data types that we allow syncing.">
+          WiFi Credentials
         </message>
 
         <!-- Encryption tab of the configure sync dialog -->
@@ -13122,6 +13183,12 @@ Some features may be unavailable.  Please check that the profile exists and you 
     <message name="IDS_MANAGE_PASSWORDS_CONFIRM_GENERATED_TEXT" desc="The text that is used in the manage passwords bubble when a generated password is saved. Text inside |bars| is link text.">
       You can access it and all your |Google saved passwords| from any browser.
     </message>
+    <message name="IDS_MANAGE_PASSWORDS_CONFIRM_GENERATED_TEXT_INFOBAR" desc="A message that the browser shows after saving a password it has autogenerated for the user. This message appears in an infobar and contains a link to all the user's saved autogenerated passwords. The link text is a separate string in the translation console and appears here as placeholder text.">
+      Generated password saved. You can access it and all your <ph name="SAVED_PASSWORDS_LINK">$1<ex>Google saved passwords</ex></ph> from any browser.
+    </message>
+    <message name="IDS_MANAGE_PASSWORDS_CONFIRM_GENERATED_LINK" desc="The text for a link to the user's saved autogenerated passwords. This is inserted into an infobar that the browser shows to the user after it saves an autogenerated password. The infobar uses a separate string in the translation console that has a placeholder for this link title.">
+      Google saved passwords
+    </message>
     <message name="IDS_MANAGE_PASSWORDS_TITLE" desc="The title text that is used in the manage passwords bubble when a password is autofilled or after a user has stored a password.">
       Saved passwords for this site:
     </message>
@@ -13139,6 +13206,9 @@ Some features may be unavailable.  Please check that the profile exists and you 
     </message>
     <message name="IDS_MANAGE_PASSWORDS_BLACKLIST_CONFIRMATION_BUTTON" desc="The confirmation button that is used in the manage passwords bubble when confirming blacklisting a site.">
       Delete saved passwords
+    </message>
+    <message name="IDS_MANAGE_PASSWORDS_REMOTE_TEXT" desc="The text used to tell inform users of how to manage their passwords from a website. Text between |bars| is link text.">
+      Manage passwords remotely on your |Google Account|
     </message>
 
     <message name="IDS_MANAGE_PASSWORDS_NO_PASSWORDS" desc="The text that is used in the manage passwords bubble when all passwords have been deleted.">
@@ -13898,6 +13968,13 @@ Do you accept?
     </message>
 
     <if expr="chromeos">
+      <message name="IDS_FLAGS_AUTO_VIRTUAL_KEYBOARD_NAME" desc="Name of about:flags option to turn on automatic deployment of the virtual keyboard.">
+        Auto Virtual Keyboard
+      </message>
+      <message name="IDS_FLAGS_AUTO_VIRTUAL_KEYBOARD_DESCRIPTION" desc="Description of about:flags option to turn on automatic deployment of the virtual keyboard">
+        Enable automatic deployment of the virtual keyboard.
+      </message>
+
       <message name="IDS_FLAGS_ENABLE_VIRTUAL_KEYBOARD_NAME" desc="Name of about:flags option to turn on the virtual keyboard">
         Virtual Keyboard
       </message>
@@ -13953,6 +14030,29 @@ Do you accept?
         Accepts remote assistance connections to this machine via the Chrome Remote Desktop app.
       </message>
     </if>
+
+    <!-- Strings for controlling the minimum SSL/TLS version in about:flags. -->
+    <message name="IDS_FLAGS_SSL_VERSION_MIN_NAME" desc="Name of about::flags option to control the minimum supported SSL/TLS version">
+      Minimum SSL/TLS version supported.
+    </message>
+    <message name="IDS_FLAGS_SSL_VERSION_MIN_DESCRIPTION" desc="Description of about::flags option to control the minimum supported SSL/TLS version">
+      Configure the minimum SSL/TLS version that can be used when connecting to HTTPS servers.
+    </message>
+    <message name="IDS_FLAGS_SSL_VERSION_DEFAULT" desc="The description of the default value for the minimum SSL/TLS version.">
+      Default
+    </message>
+    <message name="IDS_FLAGS_SSL_VERSION_SSLV3" desc="Name of SSLv3. This is a technical term and it's very unlikely that any translation will be needed.">
+      SSLv3
+    </message>
+    <message name="IDS_FLAGS_SSL_VERSION_TLSV1" desc="Name of TLS 1.0. This is a technical term and it's very unlikely that any translation will be needed.">
+      TLS 1.0
+    </message>
+    <message name="IDS_FLAGS_SSL_VERSION_TLSV11" desc="Name of TLS 1.1. This is a technical term and it's very unlikely that any translation will be needed.">
+      TLS 1.1
+    </message>
+    <message name="IDS_FLAGS_SSL_VERSION_TLSV12" desc="Name of TLS 1.2. This is a technical term and it's very unlikely that any translation will be needed.">
+      TLS 1.2
+    </message>
 
     <!-- Simple Cache Backend experiment. -->
     <message name="IDS_FLAGS_ENABLE_SIMPLE_CACHE_BACKEND_NAME" desc="Name of about:flags option to turn on the Simple Cache Backend">
@@ -14596,23 +14696,11 @@ Do you accept?
       <message name="IDS_FLAGS_ZERO_SUGGEST_MOST_VISITED" desc="A choice in dropdown dialog on about:flags page for the most visited sites option">
         Most visited
       </message>
-      <message name="IDS_FLAGS_ZERO_SUGGEST_ETHER_SERP" desc="A choice in dropdown dialog on about:flags page to show zero suggest on http pages and Google.com">
-        Related URLs and Google.com searches
-      </message>
-      <message name="IDS_FLAGS_ZERO_SUGGEST_ETHER_NO_SERP" desc="A choice in dropdown dialog on about:flags page to show zero suggest on http pages only">
-        Related URLs only
-      </message>
-      <message name="IDS_FLAGS_ZERO_SUGGEST_PERSONALIZED" desc="A choice in dropdown dialog on about:flags page to show personalized zero-prefix suggestions">
-        Personalized
+      <message name="IDS_FLAGS_ZERO_SUGGEST_MOST_VISITED_WITHOUT_SERP" desc="A choice in dropdown dialog on about:flags page to show most visited option on non-search pages">
+        Most visited excl. search pages
       </message>
     </if>
 
-    <message name="IDS_FLAGS_DISABLE_IGNORE_AUTOCOMPLETE_OFF_NAME" desc="Name of the disable ignore autocomplete='off' lab">
-      Disable ignore autocomplete='off' (Passwords)
-    </message>
-    <message name="IDS_FLAGS_DISABLE_IGNORE_AUTOCOMPLETE_OFF_DESCRIPTION" desc="Description of the disable ignore autocomplete='off' lab">
-      Disable ignore autocomplete='off' for password forms in the password manager.
-    </message>
     <message name="IDS_FLAGS_IGNORE_AUTOCOMPLETE_OFF_AUTOFILL_NAME" desc="Name of the ignore autocomplete='off' for Autofill lab">
       Ignore autocomplete='off' (Autofill)
     </message>
@@ -14729,7 +14817,7 @@ Do you accept?
       Chrome Smart Lock
     </message>
     <message name="IDS_EASY_UNLOCK_SETUP_NOTIFICATION_MESSAGE" desc="The body text for the notification inviting the user to use the Easy Unlock feature.">
-      Use your Android phone to securely unlock this <ph name="DEVICE_TYPE">$1<ex>Chromebook</ex></ph>. No need to type your password again.
+      Use your Android phone to unlock this <ph name="DEVICE_TYPE">$1<ex>Chromebook</ex></ph>. No need to type your password again.
     </message>
     <message name="IDS_EASY_UNLOCK_SETUP_NOTIFICATION_BUTTON_TITLE" desc="The text to show on the button in the notification inviting the user to use the Easy Unlock feature.">
       1-minute setup
@@ -14841,9 +14929,6 @@ Do you accept?
     <message name="IDS_EASY_UNLOCK_SCREENLOCK_TOOLTIP_UNSUPPORTED_ANDROID_VERSION" desc="Tooltip for the icon on user's lock screen pod shown by Easy Unlock when a phone set up to unlock the Chromebook is detected, but has an unsupported Android version. The user is asked to update the phone.">
       Please update your phone to a newer version of Android to unlock this <ph name="DEVICE_TYPE">$1<ex>Chromebook</ex></ph>.
     </message>
-    <message name="IDS_EASY_UNLOCK_SCREENLOCK_TOOLTIP_TUTORIAL" desc="Tooltip text shown on lock screen when Easy Unlock is first setup.">
-      This open lock indicates that your phone is unlocked and nearby. Just click your profile picture to enter. If your phone is locked or away, a locked icon will show, and you’ll need to type your password.
-    </message>
     <message name="IDS_EASY_UNLOCK_SCREENLOCK_TOOLTIP_HARDLOCK_USER" desc="Tooltip text shown on a user's lock screen pod when Easy Unlock feature is enabled for the user, but the user hard locked the device. Hard lock is done by clicking the Easy Unlock icon on the user's pod. When a device is hard locked by a user, the Easy Unlock cannot be used to unlock the device as that user. A password has to be entered to unlock the device.">
       Your <ph name="DEVICE_TYPE">$1<ex>Chromebook</ex></ph> has been manually locked. You'll need to enter your password to unlock it.
     </message>
@@ -14852,6 +14937,9 @@ Do you accept?
     </message>
     <message name="IDS_EASY_UNLOCK_SCREENLOCK_TOOLTIP_LOGIN_FAILURE" desc="Tooltip text shown on a user's lock screen when Smart Lock signin attempt fails.">
       Smart Lock couldn't verify your account. Type your password to enter.
+    </message>
+    <message name="IDS_SMART_LOCK_SCREENLOCK_TOOLTIP_HARDLOCK_REAUTH_USER" desc="Tooltip text shown on a user's lock screen pod to reauthenticate the user before setting up Smart Lock. A password has to be entered to unlock the device.">
+      To set up Chrome Smart Lock, Google needs to make sure it's you--type your password to get started.
     </message>
     <message name="IDS_EASY_UNLOCK_SCREENLOCK_USER_POD_AUTH_VALUE" desc="Message on lock screen user pod shown in place of password field when Easy Unlock is enabled and a phone that can unlock the Chromebook is detected in proximity.">
       Click to enter
@@ -14897,6 +14985,12 @@ Do you accept?
     </message>
     <message name="IDS_DEVICE_PERMISSIONS_DIALOG_SELECT" desc="Button confirming the devices selected for access by the app.">
       Select
+    </message>
+    <message name="IDS_FLAGS_DISABLE_CAST_STREAMING_HW_ENCODING_NAME" desc="Name of chrome:flags option to turn off Cast Streaming hardware video encoding support.">
+      Disable support for Cast Streaming hardware video encoding.
+    </message>
+    <message name="IDS_FLAGS_DISABLE_CAST_STREAMING_HW_ENCODING_DESCRIPTION" desc="Description of chrome:flags option to turn off Cast Streaming hardware video encoding support.">
+      This option disables support in Cast Streaming for encoding video streams using platform hardware.
     </message>
   </messages>
   </release>

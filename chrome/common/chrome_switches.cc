@@ -225,6 +225,10 @@ const char kDisableBackgroundNetworking[]   = "disable-background-networking";
 // Disables the bundled PPAPI version of Flash.
 const char kDisableBundledPpapiFlash[]      = "disable-bundled-ppapi-flash";
 
+// Disable hardware encoding support for Cast Streaming.
+const char kDisableCastStreamingHWEncoding[] =
+    "disable-cast-streaming-hw-encoding";
+
 // Disables the client-side phishing detection feature. Note that even if
 // client-side phishing detection is enabled, it will only be active if the
 // user has opted in to UMA stats and SafeBrowsing is enabled in the
@@ -350,6 +354,10 @@ const char kDisableSuggestionsService[]     = "disable-suggestions-service";
 const char kDisableSupervisedUserBlacklist[] =
     "disable-supervised-user-blacklist";
 
+// Disables SafeSites filtering for supervised users.
+const char kDisableSupervisedUserSafeSites[] =
+    "disable-supervised-user-safesites";
+
 // Disables syncing browser data to a Google Account.
 const char kDisableSync[]                   = "disable-sync";
 
@@ -437,9 +445,6 @@ const char kEnableDomainReliability[]          = "enable-domain-reliability";
 // Enable Enhanced Bookmarks.
 const char kEnhancedBookmarksExperiment[] = "enhanced-bookmarks-experiment";
 
-// Enable Enhanced Bookmarks sync.
-const char kEnableEnhancedBookmarksSync[] = "enable-enhanced-bookmarks-sync";
-
 // Enables experimentation with ephemeral apps, which are launched without
 // installing in Chrome.
 const char kEnableEphemeralApps[]           = "enable-ephemeral-apps";
@@ -513,6 +518,9 @@ const char kEnablePanels[]                  = "enable-panels";
 // Enables presenting plugin placeholder content as shadow DOM.
 const char kEnablePluginPlaceholderShadowDom[] =
     "enable-plugin-placeholder-shadow-dom";
+
+// Enables the Power overlay in Settings.
+const char kEnablePowerOverlay[]            = "enable-power-overlay";
 
 // Enables showing unregistered printers in print preview
 const char kEnablePrintPreviewRegisterPromos[] =
@@ -608,6 +616,10 @@ const char kEnableSuggestionsService[]      = "enable-suggestions-service";
 // Enables the supervised user host blacklist.
 const char kEnableSupervisedUserBlacklist[] =
     "enable-supervised-user-blacklist";
+
+// Enables SafeSites filtering for supervised users.
+const char kEnableSupervisedUserSafeSites[] =
+    "enable-supervised-user-safesites";
 
 // Enables synced notifications.
 const char kEnableSyncSyncedNotifications[] =
@@ -1125,6 +1137,13 @@ const char kSSLVersionMin[]                 = "ssl-version-min";
 // "tls1.2") that TLS fallback will accept.
 const char kSSLVersionFallbackMin[]         = "ssl-version-fallback-min";
 
+// These values aren't switches, but rather the values that kSSLVersionMax,
+// kSSLVersionMin and kSSLVersionFallbackMin can have.
+const char kSSLVersionSSLv3[]               = "ssl3";
+const char kSSLVersionTLSv1[]               = "tls1";
+const char kSSLVersionTLSv11[]              = "tls1.1";
+const char kSSLVersionTLSv12[]              = "tls1.2";
+
 // Starts the browser maximized, regardless of any previous settings.
 const char kStartMaximized[]                = "start-maximized";
 
@@ -1241,25 +1260,15 @@ const char kEnableAppInstallAlerts[]        = "enable-app-install-alerts";
 // Enables Contextual Search.
 const char kEnableContextualSearch[]        = "enable-contextual-search";
 
-// Enables zero suggest functionality on Dev channel, showing contextual
-// suggestions (EtherSuggest) for http pages and google.com search queries.
-const char kEnableZeroSuggestEtherSerp[] =
-    "enable-zero-suggest-ether-serp";
-
-// Enables zero suggest functionality on Dev channel, showing contextual
-// suggestions (EtherSuggest) for http pages.
-const char kEnableZeroSuggestEtherNoSerp[] =
-    "enable-zero-suggest-ether-noserp";
-
 // Enables zero suggest functionality on Dev channel, showing most visited
 // sites as default suggestions.
 const char kEnableZeroSuggestMostVisited[] =
     "enable-zero-suggest-most-visited";
 
-// Enables zero suggest functionality on Dev channel, showing recently typed
-// queries as default suggestions.
-const char kEnableZeroSuggestPersonalized[] =
-    "enable-zero-suggest-personalized";
+// Enable zero suggest functionality on Dev channel, showing most visited
+// sites on non-search-result pages as default suggestions.
+const char kEnableZeroSuggestMostVisitedWithoutSerp[] =
+    "enable-zero-suggest-most-visited-without-serp";
 
 // Enables instant search clicks feature.
 const char kEnableInstantSearchClicks[] = "enable-instant-search-clicks";
@@ -1333,7 +1342,7 @@ const char kWaitForMutex[]                  = "wait-for-mutex";
 const char kWindows8Search[]                = "windows8-search";
 #endif
 
-#if defined(ENABLE_FULL_PRINTING) && !defined(OFFICIAL_BUILD)
+#if defined(ENABLE_PRINT_PREVIEW) && !defined(OFFICIAL_BUILD)
 // Enables support to debug printing subsystem.
 const char kDebugPrint[] = "debug-print";
 #endif
@@ -1358,6 +1367,13 @@ bool SettingsWindowEnabled() {
       ::switches::kEnableSettingsWindow);
 #endif
 }
+
+#if defined(OS_CHROMEOS)
+bool PowerOverlayEnabled() {
+  return CommandLine::ForCurrentProcess()->HasSwitch(
+      ::switches::kEnablePowerOverlay);
+}
+#endif
 
 // -----------------------------------------------------------------------------
 // DO NOT ADD YOUR CRAP TO THE BOTTOM OF THIS FILE.

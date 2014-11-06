@@ -143,6 +143,12 @@ bool BrowserAccessibilityAndroid::IsDismissable() const {
   return false;  // No concept of "dismissable" on the web currently.
 }
 
+bool BrowserAccessibilityAndroid::IsEditableText() const {
+  return (GetRole() == ui::AX_ROLE_EDITABLE_TEXT ||
+          GetRole() == ui::AX_ROLE_TEXT_AREA ||
+          GetRole() == ui::AX_ROLE_TEXT_FIELD);
+}
+
 bool BrowserAccessibilityAndroid::IsEnabled() const {
   return HasState(ui::AX_STATE_ENABLED);
 }
@@ -289,7 +295,7 @@ base::string16 BrowserAccessibilityAndroid::GetText() const {
   // name on Android, not 2 or 3 like on Windows or Mac.
 
   // First, always return the |value| attribute if this is an
-  // accessible text.
+  // editable text field.
   if (!value().empty() &&
       (GetRole() == ui::AX_ROLE_EDITABLE_TEXT ||
        GetRole() == ui::AX_ROLE_TEXT_AREA ||
@@ -297,6 +303,12 @@ base::string16 BrowserAccessibilityAndroid::GetText() const {
        HasState(ui::AX_STATE_EDITABLE))) {
     return base::UTF8ToUTF16(value());
   }
+
+  // Always prefer visible text if this is a link. Sites sometimes add
+  // a "title" attribute to a link with more information, but we can't
+  // lose the link text.
+  if (!name().empty() && GetRole() == ui::AX_ROLE_LINK)
+    return base::UTF8ToUTF16(name());
 
   // If there's no text value, the basic rule is: prefer description
   // (aria-labelledby or aria-label), then help (title), then name
@@ -327,14 +339,16 @@ base::string16 BrowserAccessibilityAndroid::GetText() const {
 
   // This is called from PlatformIsLeaf, so don't call PlatformChildCount
   // from within this!
-  if (text.empty() && HasOnlyStaticTextChildren()) {
+  if (text.empty() &&
+      (HasOnlyStaticTextChildren() ||
+       (IsFocusable() && HasOnlyTextAndImageChildren()))) {
     for (uint32 i = 0; i < InternalChildCount(); i++) {
       BrowserAccessibility* child = InternalGetChild(i);
       text += static_cast<BrowserAccessibilityAndroid*>(child)->GetText();
     }
   }
 
-  if (text.empty() && IsLink()) {
+  if (text.empty() && (IsLink() || GetRole() == ui::AX_ROLE_IMAGE)) {
     base::string16 url = GetString16Attribute(ui::AX_ATTR_URL);
     // Given a url like http://foo.com/bar/baz.png, just return the
     // base name, e.g., "baz".
@@ -617,6 +631,19 @@ bool BrowserAccessibilityAndroid::HasOnlyStaticTextChildren() const {
     BrowserAccessibility* child = InternalGetChild(i);
     if (child->GetRole() != ui::AX_ROLE_STATIC_TEXT)
       return false;
+  }
+  return true;
+}
+
+bool BrowserAccessibilityAndroid::HasOnlyTextAndImageChildren() const {
+  // This is called from PlatformIsLeaf, so don't call PlatformChildCount
+  // from within this!
+  for (uint32 i = 0; i < InternalChildCount(); i++) {
+    BrowserAccessibility* child = InternalGetChild(i);
+    if (child->GetRole() != ui::AX_ROLE_STATIC_TEXT &&
+        child->GetRole() != ui::AX_ROLE_IMAGE) {
+      return false;
+    }
   }
   return true;
 }

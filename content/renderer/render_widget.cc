@@ -77,6 +77,7 @@
 
 #if defined(OS_ANDROID)
 #include <android/keycodes.h>
+#include "base/android/build_info.h"
 #include "content/renderer/android/synchronous_compositor_factory.h"
 #endif
 
@@ -717,11 +718,13 @@ void RenderWidget::Resize(const gfx::Size& new_size,
   DCHECK(resize_ack != SEND_RESIZE_ACK || next_paint_is_resize_ack());
 }
 
-void RenderWidget::ResizeSynchronously(const gfx::Rect& new_position) {
+void RenderWidget::ResizeSynchronously(
+    const gfx::Rect& new_position,
+    const gfx::Size& visible_viewport_size) {
   Resize(new_position.size(),
          new_position.size(),
          top_controls_layout_height_,
-         visible_viewport_size_,
+         visible_viewport_size,
          gfx::Rect(),
          is_fullscreen_,
          NO_RESIZE_ACK);
@@ -1478,7 +1481,7 @@ void RenderWidget::setWindowRect(const WebRect& rect) {
       initial_pos_ = pos;
     }
   } else {
-    ResizeSynchronously(pos);
+    ResizeSynchronously(pos, visible_viewport_size_);
   }
 }
 
@@ -1538,7 +1541,7 @@ void RenderWidget::OnImeSetComposition(
     // sure we are in a consistent state.
     Send(new InputHostMsg_ImeCancelComposition(routing_id()));
   }
-#if defined(OS_MACOSX) || defined(USE_AURA)
+#if defined(OS_MACOSX) || defined(USE_AURA) || defined(OS_ANDROID)
   UpdateCompositionInfo(true);
 #endif
 }
@@ -1557,7 +1560,7 @@ void RenderWidget::OnImeConfirmComposition(const base::string16& text,
   else
     webwidget_->confirmComposition(WebWidget::DoNotKeepSelection);
   handling_input_event_ = false;
-#if defined(OS_MACOSX) || defined(USE_AURA)
+#if defined(OS_MACOSX) || defined(USE_AURA) || defined(OS_ANDROID)
   UpdateCompositionInfo(true);
 #endif
 }
@@ -1889,7 +1892,7 @@ void RenderWidget::UpdateSelectionBounds() {
     }
   }
 
-#if defined(OS_MACOSX) || defined(USE_AURA)
+#if defined(OS_MACOSX) || defined(USE_AURA) || defined(OS_ANDROID)
   UpdateCompositionInfo(false);
 #endif
 }
@@ -1944,8 +1947,15 @@ ui::TextInputType RenderWidget::GetTextInputType() {
   return ui::TEXT_INPUT_TYPE_NONE;
 }
 
-#if defined(OS_MACOSX) || defined(USE_AURA)
+#if defined(OS_MACOSX) || defined(USE_AURA) || defined(OS_ANDROID)
 void RenderWidget::UpdateCompositionInfo(bool should_update_range) {
+#if defined(OS_ANDROID)
+  // Sending composition info makes sense only in Lollipop (API level 21)
+  // and above due to the API availability.
+  if (base::android::BuildInfo::GetInstance()->sdk_int() < 21)
+    return;
+#endif
+
   gfx::Range range = gfx::Range();
   if (should_update_range) {
     GetCompositionRange(&range);
@@ -2037,7 +2047,7 @@ void RenderWidget::resetInputMethod() {
       Send(new InputHostMsg_ImeCancelComposition(routing_id()));
   }
 
-#if defined(OS_MACOSX) || defined(USE_AURA)
+#if defined(OS_MACOSX) || defined(USE_AURA) || defined(OS_ANDROID)
   UpdateCompositionInfo(true);
 #endif
 }

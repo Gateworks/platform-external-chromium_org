@@ -104,7 +104,7 @@ class TestingBrowserProcess : public BrowserProcess {
   DownloadRequestLimiter* download_request_limiter() override;
 
 #if (defined(OS_WIN) || defined(OS_LINUX)) && !defined(OS_CHROMEOS)
-  virtual void StartAutoupdateTimer() override {}
+  void StartAutoupdateTimer() override {}
 #endif
 
   ChromeNetLog* net_log() override;
@@ -156,7 +156,7 @@ class TestingBrowserProcess : public BrowserProcess {
   scoped_ptr<printing::PrintJobManager> print_job_manager_;
 #endif
 
-#if defined(ENABLE_FULL_PRINTING)
+#if defined(ENABLE_PRINT_PREVIEW)
   scoped_ptr<printing::BackgroundPrintingManager> background_printing_manager_;
   scoped_refptr<printing::PrintPreviewDialogController>
       print_preview_dialog_controller_;

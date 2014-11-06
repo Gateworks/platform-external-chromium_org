@@ -66,7 +66,7 @@ class PolicyBase : public Dispatcher, public TargetPolicy {
   virtual ResultCode SetStderrHandle(HANDLE handle) override;
   virtual ResultCode AddRule(SubSystem subsystem, Semantics semantics,
                              const wchar_t* pattern) override;
-  virtual ResultCode AddDllToUnload(const wchar_t* dll_name);
+  virtual ResultCode AddDllToUnload(const wchar_t* dll_name) override;
   virtual ResultCode AddKernelObjectToClose(
       const base::char16* handle_type,
       const base::char16* handle_name) override;
@@ -84,7 +84,7 @@ class PolicyBase : public Dispatcher, public TargetPolicy {
   // SetTokenLevel().
   ResultCode MakeTokens(HANDLE* initial, HANDLE* lockdown);
 
-  const AppContainerAttributes* GetAppContainer();
+  const AppContainerAttributes* GetAppContainer() const;
 
   // Adds a target process to the internal list of targets. Internally a
   // call to TargetProcess::Init() is issued.

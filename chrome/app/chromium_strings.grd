@@ -278,7 +278,7 @@ be available for now. -->
         Task Manager - Chromium
       </message>
       <message name="IDS_SESSION_CRASHED_VIEW_MESSAGE" desc="Message shown when the last session didn't exit cleanly.">
-        Chromium didn't shut down correctly. To reopen the pages you had open, click Restore.
+        Chromium didn't shut down correctly.
       </message>
       <message name="IDS_SESSION_CRASHED_VIEW_UMA_OPTIN" desc="Text besides the checkbox to let users optin to UMA in the restore from previous crash bubble.">
         Help make Chromium better by sending crash reports and <ph name="UMA_LINK">$1<ex>usage statistics</ex></ph> to Google
@@ -429,7 +429,7 @@ be available for now. -->
         Use hardware acceleration when available
       </message>
       <message name="IDS_OPTIONS_SYSTEM_ENABLE_HARDWARE_ACCELERATION_MODE_RESTART" desc="The restart string after changing hardware acceleration mode">
-        (requires Chromium <ph name="BEGIN_BUTTON">&lt;a is="action-link" id="gpu-mode-reset-restart-button" class="standalone-action-link"&gt;</ph>restart<ph name="END_BUTTON">&lt;/a&gt;</ph>)
+        (requires Chromium <ph name="BEGIN_BUTTON">&lt;a is="action-link" role="button" id="gpu-mode-reset-restart-button" class="standalone-action-link"&gt;</ph>restart<ph name="END_BUTTON">&lt;/a&gt;</ph>)
       </message>
       <message name="IDS_CANT_WRITE_USER_DIRECTORY_SUMMARY" desc="Summary of problem displayed in dialog when we can't create a directory for this user.">
 Chromium cannot read and write to its data directory:
@@ -991,16 +991,26 @@ Signing in anyway will merge Chromium information like bookmarks, history, and o
       </message>
 
       <!-- Network Error Pages -->
-      <message name="IDS_ERRORPAGES_SUGGESTION_NETWORK_PREDICTION_BODY" desc="When a page fails to load, sometimes we suggest disabling predicting network actions.  These are details below a header.">
-        Go to
-        the Chromium menu &gt;
-        <ph name="SETTINGS_TITLE">&lt;span jscontent="settingsTitle"&gt;&lt;/span&gt;<ex>Settings</ex></ph>
-        &gt;
-        <ph name="ADVANCED_TITLE">&lt;span jscontent="advancedTitle"&gt;&lt;/span&gt;<ex>Under the Hood</ex></ph>
-        and deselect &quot;<ph name="NO_PREFETCH_DESCRIPTION">&lt;span jscontent="noNetworkPredictionTitle"&gt;&lt;/span&gt;<ex>Predict network actions to improve page load performance</ex></ph>.&quot;
-        If this does not resolve the issue, we recommend selecting this option
-        again for improved performance.
-      </message>
+      <if expr="not is_android">
+        <message name="IDS_ERRORPAGES_SUGGESTION_NETWORK_PREDICTION_BODY" desc="When a page fails to load, sometimes we suggest disabling predicting network actions.  These are details below a header for non Android devices.">
+          Go to
+          the Chromium menu &gt;
+          <ph name="SETTINGS_TITLE">&lt;span jscontent="settingsTitle"&gt;&lt;/span&gt;<ex>Settings</ex></ph>
+          &gt;
+          <ph name="ADVANCED_TITLE">&lt;span jscontent="advancedTitle"&gt;&lt;/span&gt;<ex>Under the Hood</ex></ph>
+          and deselect &quot;<ph name="NO_PREFETCH_DESCRIPTION">&lt;span jscontent="noNetworkPredictionTitle"&gt;&lt;/span&gt;<ex>Predict network actions to improve page load performance</ex></ph>.&quot;
+          If this does not resolve the issue, we recommend selecting this option
+          again for improved performance.
+        </message>
+      </if>
+      <if expr="is_android">
+        <message name="IDS_ERRORPAGES_SUGGESTION_NETWORK_PREDICTION_BODY" desc="When a page fails to load, sometimes we suggest disabling predicting network actions.  These are details below a header for Android devices.  Note that on devices without mobile network (3G) capability, the setting is a checkbox, while on other devices, it is a list of three items.  The words _disable_ and _re-enabling_ can be used for both cases.">
+          Go to the Chromium menu &gt; Settings &gt; (Advanced) Privacy
+          and disable &quot;Network action predictions.&quot;
+          If this does not resolve the issue, we recommend re-enabling this option
+          again for improved performance.
+        </message>
+      </if>
       <message name="IDS_ERRORPAGES_SUGGESTION_FIREWALL_CONFIG_HEADER" desc="When a webpage fails to load, in some cases we suggest reconfiguring the firewall.  This is a header above some details.">
         Allow Chromium to access the network in your firewall or antivirus
         settings.

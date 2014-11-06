@@ -181,12 +181,7 @@ const ui::Compositor* NativeWidgetMac::GetCompositor() const {
   return NULL;
 }
 
-ui::Compositor* NativeWidgetMac::GetCompositor() {
-  NOTIMPLEMENTED();
-  return NULL;
-}
-
-ui::Layer* NativeWidgetMac::GetLayer() {
+const ui::Layer* NativeWidgetMac::GetLayer() const {
   NOTIMPLEMENTED();
   return NULL;
 }
@@ -514,6 +509,16 @@ void NativeWidgetMac::EndMoveLoop() {
 }
 
 void NativeWidgetMac::SetVisibilityChangedAnimationsEnabled(bool value) {
+  NOTIMPLEMENTED();
+}
+
+void NativeWidgetMac::SetVisibilityAnimationDuration(
+    const base::TimeDelta& duration) {
+  NOTIMPLEMENTED();
+}
+
+void NativeWidgetMac::SetVisibilityAnimationTransition(
+    Widget::VisibilityTransition transition) {
   NOTIMPLEMENTED();
 }
 

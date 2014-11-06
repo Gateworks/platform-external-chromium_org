@@ -13,15 +13,45 @@ gyp_shared_intermediate_dir := $(call intermediates-dir-for,GYP,shared,,,$(GYP_V
 # Make sure our deps are built first.
 GYP_TARGET_DEPENDENCIES :=
 
-GYP_GENERATED_OUTPUTS :=
+
+### Generated for rule "ipc_mojo_ipc_mojo_gyp_ipc_mojo_target_ipc_mojo_mojom_bindings_generator":
+# "{'inputs': ['../../mojo/public/tools/bindings/mojom_bindings_generator.py', '../../mojo/public/tools/bindings/generators/cpp_templates/enum_declaration.tmpl', '../../mojo/public/tools/bindings/generators/cpp_templates/interface_declaration.tmpl', '../../mojo/public/tools/bindings/generators/cpp_templates/interface_definition.tmpl', '../../mojo/public/tools/bindings/generators/cpp_templates/interface_macros.tmpl', '../../mojo/public/tools/bindings/generators/cpp_templates/interface_proxy_declaration.tmpl', '../../mojo/public/tools/bindings/generators/cpp_templates/interface_request_validator_declaration.tmpl', '../../mojo/public/tools/bindings/generators/cpp_templates/interface_response_validator_declaration.tmpl', '../../mojo/public/tools/bindings/generators/cpp_templates/interface_stub_declaration.tmpl', '../../mojo/public/tools/bindings/generators/cpp_templates/module.cc.tmpl', '../../mojo/public/tools/bindings/generators/cpp_templates/module.h.tmpl', '../../mojo/public/tools/bindings/generators/cpp_templates/module-internal.h.tmpl', '../../mojo/public/tools/bindings/generators/cpp_templates/params_definition.tmpl', '../../mojo/public/tools/bindings/generators/cpp_templates/struct_declaration.tmpl', '../../mojo/public/tools/bindings/generators/cpp_templates/struct_definition.tmpl', '../../mojo/public/tools/bindings/generators/cpp_templates/struct_macros.tmpl', '../../mojo/public/tools/bindings/generators/cpp_templates/struct_serialization_declaration.tmpl', '../../mojo/public/tools/bindings/generators/cpp_templates/struct_serialization_definition.tmpl', '../../mojo/public/tools/bindings/generators/cpp_templates/wrapper_class_declaration.tmpl', '../../mojo/public/tools/bindings/generators/cpp_templates/wrapper_class_definition.tmpl', '../../mojo/public/tools/bindings/generators/java_templates/constant_definition.tmpl', '../../mojo/public/tools/bindings/generators/java_templates/constants.java.tmpl', '../../mojo/public/tools/bindings/generators/java_templates/enum_definition.tmpl', '../../mojo/public/tools/bindings/generators/java_templates/enum.java.tmpl', '../../mojo/public/tools/bindings/generators/java_templates/header.java.tmpl', '../../mojo/public/tools/bindings/generators/java_templates/interface_definition.tmpl', '../../mojo/public/tools/bindings/generators/java_templates/interface.java.tmpl', '../../mojo/public/tools/bindings/generators/java_templates/interface_internal.java.tmpl', '../../mojo/public/tools/bindings/generators/java_templates/struct_definition.tmpl', '../../mojo/public/tools/bindings/generators/java_templates/struct.java.tmpl', '../../mojo/public/tools/bindings/generators/js_templates/enum_definition.tmpl', '../../mojo/public/tools/bindings/generators/js_templates/interface_definition.tmpl', '../../mojo/public/tools/bindings/generators/js_templates/module_definition.tmpl', '../../mojo/public/tools/bindings/generators/js_templates/module.amd.tmpl', '../../mojo/public/tools/bindings/generators/js_templates/module.sky.tmpl', '../../mojo/public/tools/bindings/generators/js_templates/struct_definition.tmpl', '../../mojo/public/tools/bindings/generators/python_templates/module_macros.tmpl', '../../mojo/public/tools/bindings/generators/python_templates/module.py.tmpl', '../../mojo/public/tools/bindings/generators/mojom_cpp_generator.py', '../../mojo/public/tools/bindings/generators/mojom_java_generator.py', '../../mojo/public/tools/bindings/generators/mojom_js_generator.py', '../../mojo/public/tools/bindings/generators/mojom_python_generator.py', '../../mojo/public/tools/bindings/pylib/mojom/__init__.py', '../../mojo/public/tools/bindings/pylib/mojom/error.py', '../../mojo/public/tools/bindings/pylib/mojom/generate/__init__.py', '../../mojo/public/tools/bindings/pylib/mojom/generate/data.py', '../../mojo/public/tools/bindings/pylib/mojom/generate/generator.py', '../../mojo/public/tools/bindings/pylib/mojom/generate/module.py', '../../mojo/public/tools/bindings/pylib/mojom/generate/pack.py', '../../mojo/public/tools/bindings/pylib/mojom/generate/template_expander.py', '../../mojo/public/tools/bindings/pylib/mojom/parse/__init__.py', '../../mojo/public/tools/bindings/pylib/mojom/parse/ast.py', '../../mojo/public/tools/bindings/pylib/mojom/parse/lexer.py', '../../mojo/public/tools/bindings/pylib/mojom/parse/parser.py', '../../mojo/public/tools/bindings/pylib/mojom/parse/translate.py'], 'process_outputs_as_sources': '1', 'extension': 'mojom', 'outputs': ['$(gyp_shared_intermediate_dir)/ipc/mojo/%(INPUT_DIRNAME)s/%(INPUT_ROOT)s.mojom.cc', '$(gyp_shared_intermediate_dir)/ipc/mojo/%(INPUT_DIRNAME)s/%(INPUT_ROOT)s.mojom.h', '$(gyp_shared_intermediate_dir)/ipc/mojo/%(INPUT_DIRNAME)s/%(INPUT_ROOT)s.mojom.js', '$(gyp_shared_intermediate_dir)/ipc/mojo/%(INPUT_DIRNAME)s/%(INPUT_ROOT)s_mojom.py', '$(gyp_shared_intermediate_dir)/ipc/mojo/%(INPUT_DIRNAME)s/%(INPUT_ROOT)s.mojom-internal.h'], 'variables': {'java_out_dir': '$(gyp_shared_intermediate_dir)/java_mojo/ipc_mojo/src', 'mojom_base_output_dir': 'ipc/mojo', 'mojom_bindings_generator': '../../mojo/public/tools/bindings/mojom_bindings_generator.py', 'mojom_import_args%': ['-I../..']}, 'rule_name': 'ipc_mojo_mojom_bindings_generator', 'rule_sources': ['client_channel.mojom'], 'action': ['python', '../../mojo/public/tools/bindings/mojom_bindings_generator.py', './%(INPUT_DIRNAME)s/%(INPUT_ROOT)s.mojom', '--use_chromium_bundled_pylibs', '-d', '../..', '-I../..', '-o', '$(gyp_shared_intermediate_dir)', '--java_output_directory=$(gyp_shared_intermediate_dir)/java_mojo/ipc_mojo/src'], 'message': 'Generating Mojo bindings from %(INPUT_DIRNAME)s/%(INPUT_ROOT)s.mojom'}":
+$(gyp_shared_intermediate_dir)/ipc/mojo/client_channel.mojom.cc: gyp_local_path := $(LOCAL_PATH)
+$(gyp_shared_intermediate_dir)/ipc/mojo/client_channel.mojom.cc: gyp_var_prefix := $(GYP_VAR_PREFIX)
+$(gyp_shared_intermediate_dir)/ipc/mojo/client_channel.mojom.cc: gyp_intermediate_dir := $(abspath $(gyp_intermediate_dir))
+$(gyp_shared_intermediate_dir)/ipc/mojo/client_channel.mojom.cc: gyp_shared_intermediate_dir := $(abspath $(gyp_shared_intermediate_dir))
+$(gyp_shared_intermediate_dir)/ipc/mojo/client_channel.mojom.cc: export PATH := $(subst $(ANDROID_BUILD_PATHS),,$(PATH))
+$(gyp_shared_intermediate_dir)/ipc/mojo/client_channel.mojom.cc: $(LOCAL_PATH)/ipc/mojo/client_channel.mojom $(LOCAL_PATH)/mojo/public/tools/bindings/mojom_bindings_generator.py $(LOCAL_PATH)/mojo/public/tools/bindings/generators/cpp_templates/enum_declaration.tmpl $(LOCAL_PATH)/mojo/public/tools/bindings/generators/cpp_templates/interface_declaration.tmpl $(LOCAL_PATH)/mojo/public/tools/bindings/generators/cpp_templates/interface_definition.tmpl $(LOCAL_PATH)/mojo/public/tools/bindings/generators/cpp_templates/interface_macros.tmpl $(LOCAL_PATH)/mojo/public/tools/bindings/generators/cpp_templates/interface_proxy_declaration.tmpl $(LOCAL_PATH)/mojo/public/tools/bindings/generators/cpp_templates/interface_request_validator_declaration.tmpl $(LOCAL_PATH)/mojo/public/tools/bindings/generators/cpp_templates/interface_response_validator_declaration.tmpl $(LOCAL_PATH)/mojo/public/tools/bindings/generators/cpp_templates/interface_stub_declaration.tmpl $(LOCAL_PATH)/mojo/public/tools/bindings/generators/cpp_templates/module.cc.tmpl $(LOCAL_PATH)/mojo/public/tools/bindings/generators/cpp_templates/module.h.tmpl $(LOCAL_PATH)/mojo/public/tools/bindings/generators/cpp_templates/module-internal.h.tmpl $(LOCAL_PATH)/mojo/public/tools/bindings/generators/cpp_templates/params_definition.tmpl $(LOCAL_PATH)/mojo/public/tools/bindings/generators/cpp_templates/struct_declaration.tmpl $(LOCAL_PATH)/mojo/public/tools/bindings/generators/cpp_templates/struct_definition.tmpl $(LOCAL_PATH)/mojo/public/tools/bindings/generators/cpp_templates/struct_macros.tmpl $(LOCAL_PATH)/mojo/public/tools/bindings/generators/cpp_templates/struct_serialization_declaration.tmpl $(LOCAL_PATH)/mojo/public/tools/bindings/generators/cpp_templates/struct_serialization_definition.tmpl $(LOCAL_PATH)/mojo/public/tools/bindings/generators/cpp_templates/wrapper_class_declaration.tmpl $(LOCAL_PATH)/mojo/public/tools/bindings/generators/cpp_templates/wrapper_class_definition.tmpl $(LOCAL_PATH)/mojo/public/tools/bindings/generators/java_templates/constant_definition.tmpl $(LOCAL_PATH)/mojo/public/tools/bindings/generators/java_templates/constants.java.tmpl $(LOCAL_PATH)/mojo/public/tools/bindings/generators/java_templates/enum_definition.tmpl $(LOCAL_PATH)/mojo/public/tools/bindings/generators/java_templates/enum.java.tmpl $(LOCAL_PATH)/mojo/public/tools/bindings/generators/java_templates/header.java.tmpl $(LOCAL_PATH)/mojo/public/tools/bindings/generators/java_templates/interface_definition.tmpl $(LOCAL_PATH)/mojo/public/tools/bindings/generators/java_templates/interface.java.tmpl $(LOCAL_PATH)/mojo/public/tools/bindings/generators/java_templates/interface_internal.java.tmpl $(LOCAL_PATH)/mojo/public/tools/bindings/generators/java_templates/struct_definition.tmpl $(LOCAL_PATH)/mojo/public/tools/bindings/generators/java_templates/struct.java.tmpl $(LOCAL_PATH)/mojo/public/tools/bindings/generators/js_templates/enum_definition.tmpl $(LOCAL_PATH)/mojo/public/tools/bindings/generators/js_templates/interface_definition.tmpl $(LOCAL_PATH)/mojo/public/tools/bindings/generators/js_templates/module_definition.tmpl $(LOCAL_PATH)/mojo/public/tools/bindings/generators/js_templates/module.amd.tmpl $(LOCAL_PATH)/mojo/public/tools/bindings/generators/js_templates/module.sky.tmpl $(LOCAL_PATH)/mojo/public/tools/bindings/generators/js_templates/struct_definition.tmpl $(LOCAL_PATH)/mojo/public/tools/bindings/generators/python_templates/module_macros.tmpl $(LOCAL_PATH)/mojo/public/tools/bindings/generators/python_templates/module.py.tmpl $(LOCAL_PATH)/mojo/public/tools/bindings/generators/mojom_cpp_generator.py $(LOCAL_PATH)/mojo/public/tools/bindings/generators/mojom_java_generator.py $(LOCAL_PATH)/mojo/public/tools/bindings/generators/mojom_js_generator.py $(LOCAL_PATH)/mojo/public/tools/bindings/generators/mojom_python_generator.py $(LOCAL_PATH)/mojo/public/tools/bindings/pylib/mojom/__init__.py $(LOCAL_PATH)/mojo/public/tools/bindings/pylib/mojom/error.py $(LOCAL_PATH)/mojo/public/tools/bindings/pylib/mojom/generate/__init__.py $(LOCAL_PATH)/mojo/public/tools/bindings/pylib/mojom/generate/data.py $(LOCAL_PATH)/mojo/public/tools/bindings/pylib/mojom/generate/generator.py $(LOCAL_PATH)/mojo/public/tools/bindings/pylib/mojom/generate/module.py $(LOCAL_PATH)/mojo/public/tools/bindings/pylib/mojom/generate/pack.py $(LOCAL_PATH)/mojo/public/tools/bindings/pylib/mojom/generate/template_expander.py $(LOCAL_PATH)/mojo/public/tools/bindings/pylib/mojom/parse/__init__.py $(LOCAL_PATH)/mojo/public/tools/bindings/pylib/mojom/parse/ast.py $(LOCAL_PATH)/mojo/public/tools/bindings/pylib/mojom/parse/lexer.py $(LOCAL_PATH)/mojo/public/tools/bindings/pylib/mojom/parse/parser.py $(LOCAL_PATH)/mojo/public/tools/bindings/pylib/mojom/parse/translate.py $(GYP_TARGET_DEPENDENCIES)
+	mkdir -p $(gyp_shared_intermediate_dir)/ipc/mojo; cd $(gyp_local_path)/ipc/mojo; python ../../mojo/public/tools/bindings/mojom_bindings_generator.py client_channel.mojom --use_chromium_bundled_pylibs -d ../.. -I../.. -o "$(gyp_shared_intermediate_dir)" "--java_output_directory=$(gyp_shared_intermediate_dir)/java_mojo/ipc_mojo/src"
+
+$(gyp_shared_intermediate_dir)/ipc/mojo/client_channel.mojom.h: $(gyp_shared_intermediate_dir)/ipc/mojo/client_channel.mojom.cc ;
+$(gyp_shared_intermediate_dir)/ipc/mojo/client_channel.mojom.js: $(gyp_shared_intermediate_dir)/ipc/mojo/client_channel.mojom.cc ;
+$(gyp_shared_intermediate_dir)/ipc/mojo/client_channel_mojom.py: $(gyp_shared_intermediate_dir)/ipc/mojo/client_channel.mojom.cc ;
+$(gyp_shared_intermediate_dir)/ipc/mojo/client_channel.mojom-internal.h: $(gyp_shared_intermediate_dir)/ipc/mojo/client_channel.mojom.cc ;
+
+
+GYP_GENERATED_OUTPUTS := \
+	$(gyp_shared_intermediate_dir)/ipc/mojo/client_channel.mojom.cc \
+	$(gyp_shared_intermediate_dir)/ipc/mojo/client_channel.mojom.h \
+	$(gyp_shared_intermediate_dir)/ipc/mojo/client_channel.mojom.js \
+	$(gyp_shared_intermediate_dir)/ipc/mojo/client_channel_mojom.py \
+	$(gyp_shared_intermediate_dir)/ipc/mojo/client_channel.mojom-internal.h
 
 # Make sure our deps and generated files are built first.
 LOCAL_ADDITIONAL_DEPENDENCIES := $(GYP_TARGET_DEPENDENCIES) $(GYP_GENERATED_OUTPUTS)
 
 LOCAL_CPP_EXTENSION := .cc
-LOCAL_GENERATED_SOURCES :=
+$(gyp_intermediate_dir)/client_channel.mojom.cc: $(gyp_shared_intermediate_dir)/ipc/mojo/client_channel.mojom.cc
+	mkdir -p $(@D); cp $< $@
+LOCAL_GENERATED_SOURCES := \
+	$(gyp_intermediate_dir)/client_channel.mojom.cc \
+	$(gyp_shared_intermediate_dir)/ipc/mojo/client_channel.mojom.h \
+	$(gyp_shared_intermediate_dir)/ipc/mojo/client_channel.mojom.js \
+	$(gyp_shared_intermediate_dir)/ipc/mojo/client_channel_mojom.py \
+	$(gyp_shared_intermediate_dir)/ipc/mojo/client_channel.mojom-internal.h
 
-GYP_COPIED_SOURCE_ORIGIN_DIRS :=
+GYP_COPIED_SOURCE_ORIGIN_DIRS := \
+	$(gyp_shared_intermediate_dir)/ipc/mojo
 
 LOCAL_SRC_FILES := \
 	ipc/mojo/ipc_channel_mojo.cc \
@@ -75,16 +105,19 @@ MY_DEFS_Debug := \
 	'-DUSE_PROPRIETARY_CODECS' \
 	'-DENABLE_BROWSER_CDMS' \
 	'-DENABLE_CONFIGURATION_POLICY' \
+	'-DENABLE_NOTIFICATIONS' \
 	'-DDISCARDABLE_MEMORY_ALWAYS_SUPPORTED_NATIVELY' \
 	'-DSYSTEM_NATIVELY_SIGNALS_MEMORY_PRESSURE' \
-	'-DENABLE_EGLIMAGE=1' \
+	'-DDONT_EMBED_BUILD_METADATA' \
 	'-DCLD_VERSION=1' \
 	'-DENABLE_PRINTING=1' \
+	'-DENABLE_BASIC_PRINTING=1' \
 	'-DENABLE_MANAGED_USERS=1' \
 	'-DVIDEO_HOLE=1' \
 	'-DENABLE_LOAD_COMPLETION_HACKS=1' \
 	'-DIPC_MOJO_IMPLEMENTATION' \
 	'-DMOJO_USE_SYSTEM_IMPL' \
+	'-DUSE_LIBPCI=1' \
 	'-DUSE_OPENSSL=1' \
 	'-DUSE_OPENSSL_CERTS=1' \
 	'-D__STDC_CONSTANT_MACROS' \
@@ -163,16 +196,19 @@ MY_DEFS_Release := \
 	'-DUSE_PROPRIETARY_CODECS' \
 	'-DENABLE_BROWSER_CDMS' \
 	'-DENABLE_CONFIGURATION_POLICY' \
+	'-DENABLE_NOTIFICATIONS' \
 	'-DDISCARDABLE_MEMORY_ALWAYS_SUPPORTED_NATIVELY' \
 	'-DSYSTEM_NATIVELY_SIGNALS_MEMORY_PRESSURE' \
-	'-DENABLE_EGLIMAGE=1' \
+	'-DDONT_EMBED_BUILD_METADATA' \
 	'-DCLD_VERSION=1' \
 	'-DENABLE_PRINTING=1' \
+	'-DENABLE_BASIC_PRINTING=1' \
 	'-DENABLE_MANAGED_USERS=1' \
 	'-DVIDEO_HOLE=1' \
 	'-DENABLE_LOAD_COMPLETION_HACKS=1' \
 	'-DIPC_MOJO_IMPLEMENTATION' \
 	'-DMOJO_USE_SYSTEM_IMPL' \
+	'-DUSE_LIBPCI=1' \
 	'-DUSE_OPENSSL=1' \
 	'-DUSE_OPENSSL_CERTS=1' \
 	'-D__STDC_CONSTANT_MACROS' \

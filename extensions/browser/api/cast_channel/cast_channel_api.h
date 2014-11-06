@@ -129,9 +129,6 @@ class CastChannelAsyncApiFunction : public AsyncApiFunction {
 
   // The API resource manager for CastSockets.
   ApiResourceManager<cast_channel::CastSocket>* manager_;
-
-  // The result of the function.
-  cast_channel::ChannelError error_;
 };
 
 class CastChannelOpenFunction : public CastChannelAsyncApiFunction {
@@ -232,11 +229,29 @@ class CastChannelGetLogsFunction : public CastChannelAsyncApiFunction {
  private:
   DECLARE_EXTENSION_FUNCTION("cast.channel.getLogs", CAST_CHANNEL_GETLOGS)
 
-  void OnClose(int result);
-
   CastChannelAPI* api_;
 
   DISALLOW_COPY_AND_ASSIGN(CastChannelGetLogsFunction);
+};
+
+class CastChannelSetAuthorityKeysFunction : public CastChannelAsyncApiFunction {
+ public:
+  CastChannelSetAuthorityKeysFunction();
+
+ protected:
+  virtual ~CastChannelSetAuthorityKeysFunction();
+
+  // AsyncApiFunction:
+  virtual bool Prepare() override;
+  virtual void AsyncWorkStart() override;
+
+ private:
+  DECLARE_EXTENSION_FUNCTION("cast.channel.setAuthorityKeys",
+                             CAST_CHANNEL_SETAUTHORITYKEYS)
+
+  scoped_ptr<cast_channel::SetAuthorityKeys::Params> params_;
+
+  DISALLOW_COPY_AND_ASSIGN(CastChannelSetAuthorityKeysFunction);
 };
 
 }  // namespace extensions

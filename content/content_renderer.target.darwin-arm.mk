@@ -14,6 +14,7 @@ gyp_shared_intermediate_dir := $(call intermediates-dir-for,GYP,shared,,,$(GYP_V
 GYP_TARGET_DEPENDENCIES := \
 	$(call intermediates-dir-for,GYP,content_content_resources_gyp,,,$(GYP_VAR_PREFIX))/content_resources.stamp \
 	$(call intermediates-dir-for,STATIC_LIBRARIES,content_content_common_mojo_bindings_gyp,,,$(GYP_VAR_PREFIX))/content_content_common_mojo_bindings_gyp.a \
+	$(call intermediates-dir-for,STATIC_LIBRARIES,device_battery_device_battery_mojo_bindings_gyp,,,$(GYP_VAR_PREFIX))/device_battery_device_battery_mojo_bindings_gyp.a \
 	$(call intermediates-dir-for,GYP,gpu_gpu_gyp,,,$(GYP_VAR_PREFIX))/gpu.stamp \
 	$(call intermediates-dir-for,STATIC_LIBRARIES,mojo_public_mojo_application_bindings_gyp,,,$(GYP_VAR_PREFIX))/mojo_public_mojo_application_bindings_gyp.a \
 	$(call intermediates-dir-for,GYP,skia_skia_gyp,,,$(GYP_VAR_PREFIX))/skia.stamp \
@@ -49,7 +50,7 @@ LOCAL_SRC_FILES := \
 	content/renderer/accessibility/blink_ax_enum_conversion.cc \
 	content/renderer/accessibility/blink_ax_tree_source.cc \
 	content/renderer/accessibility/renderer_accessibility.cc \
-	content/renderer/accessibility/renderer_accessibility_complete.cc \
+	content/renderer/active_notification_tracker.cc \
 	content/renderer/android/address_detector.cc \
 	content/renderer/android/content_detector.cc \
 	content/renderer/android/email_detector.cc \
@@ -106,6 +107,7 @@ LOCAL_SRC_FILES := \
 	content/renderer/input/input_handler_manager.cc \
 	content/renderer/input/input_handler_proxy.cc \
 	content/renderer/input/input_handler_wrapper.cc \
+	content/renderer/input/input_scroll_elasticity_controller.cc \
 	content/renderer/internal_document_state_data.cc \
 	content/renderer/java/gin_java_bridge_dispatcher.cc \
 	content/renderer/java/gin_java_bridge_object.cc \
@@ -156,6 +158,7 @@ LOCAL_SRC_FILES := \
 	content/renderer/net_info_helper.cc \
 	content/renderer/notification_icon_loader.cc \
 	content/renderer/notification_permission_dispatcher.cc \
+	content/renderer/notification_provider.cc \
 	content/renderer/push_messaging_dispatcher.cc \
 	content/renderer/render_frame_impl.cc \
 	content/renderer/render_frame_proxy.cc \
@@ -178,7 +181,13 @@ LOCAL_SRC_FILES := \
 	content/renderer/resizing_mode_selector.cc \
 	content/renderer/sad_plugin.cc \
 	content/renderer/savable_resources.cc \
+	content/renderer/scheduler/null_renderer_scheduler.cc \
+	content/renderer/scheduler/renderer_scheduler.cc \
+	content/renderer/scheduler/renderer_scheduler_impl.cc \
+	content/renderer/scheduler/renderer_task_queue_selector.cc \
+	content/renderer/scheduler/single_thread_idle_task_runner.cc \
 	content/renderer/scheduler/task_queue_manager.cc \
+	content/renderer/scheduler/web_scheduler_impl.cc \
 	content/renderer/screen_orientation/screen_orientation_dispatcher.cc \
 	content/renderer/screen_orientation/screen_orientation_observer.cc \
 	content/renderer/scoped_clipboard_writer_glue.cc \
@@ -323,11 +332,13 @@ MY_DEFS_Debug := \
 	'-DUSE_PROPRIETARY_CODECS' \
 	'-DENABLE_BROWSER_CDMS' \
 	'-DENABLE_CONFIGURATION_POLICY' \
+	'-DENABLE_NOTIFICATIONS' \
 	'-DDISCARDABLE_MEMORY_ALWAYS_SUPPORTED_NATIVELY' \
 	'-DSYSTEM_NATIVELY_SIGNALS_MEMORY_PRESSURE' \
-	'-DENABLE_EGLIMAGE=1' \
+	'-DDONT_EMBED_BUILD_METADATA' \
 	'-DCLD_VERSION=1' \
 	'-DENABLE_PRINTING=1' \
+	'-DENABLE_BASIC_PRINTING=1' \
 	'-DENABLE_MANAGED_USERS=1' \
 	'-DVIDEO_HOLE=1' \
 	'-DENABLE_LOAD_COMPLETION_HACKS=1' \
@@ -344,7 +355,7 @@ MY_DEFS_Debug := \
 	'-DSK_WILL_NEVER_DRAW_PERSPECTIVE_TEXT' \
 	'-DSK_FM_NEW_MATCH_FAMILY_STYLE_CHARACTER=1' \
 	'-DSK_SUPPORT_LEGACY_TEXTRENDERMODE' \
-	'-DSK_LEGACY_NO_DISTANCE_FIELD_PATHS' \
+	'-DSK_IGNORE_GPU_LAYER_HOISTING' \
 	'-DSK_BUILD_FOR_ANDROID' \
 	'-DSK_USE_POSIX_THREADS' \
 	'-DCHROME_PNG_WRITE_SUPPORT' \
@@ -371,6 +382,7 @@ MY_DEFS_Debug := \
 	'-DWEBRTC_LINUX' \
 	'-DWEBRTC_ANDROID' \
 	'-DWEBRTC_ANDROID_OPENSLES' \
+	'-DUSE_LIBPCI=1' \
 	'-DUSE_OPENSSL=1' \
 	'-DUSE_OPENSSL_CERTS=1' \
 	'-D__STDC_CONSTANT_MACROS' \
@@ -501,11 +513,13 @@ MY_DEFS_Release := \
 	'-DUSE_PROPRIETARY_CODECS' \
 	'-DENABLE_BROWSER_CDMS' \
 	'-DENABLE_CONFIGURATION_POLICY' \
+	'-DENABLE_NOTIFICATIONS' \
 	'-DDISCARDABLE_MEMORY_ALWAYS_SUPPORTED_NATIVELY' \
 	'-DSYSTEM_NATIVELY_SIGNALS_MEMORY_PRESSURE' \
-	'-DENABLE_EGLIMAGE=1' \
+	'-DDONT_EMBED_BUILD_METADATA' \
 	'-DCLD_VERSION=1' \
 	'-DENABLE_PRINTING=1' \
+	'-DENABLE_BASIC_PRINTING=1' \
 	'-DENABLE_MANAGED_USERS=1' \
 	'-DVIDEO_HOLE=1' \
 	'-DENABLE_LOAD_COMPLETION_HACKS=1' \
@@ -522,7 +536,7 @@ MY_DEFS_Release := \
 	'-DSK_WILL_NEVER_DRAW_PERSPECTIVE_TEXT' \
 	'-DSK_FM_NEW_MATCH_FAMILY_STYLE_CHARACTER=1' \
 	'-DSK_SUPPORT_LEGACY_TEXTRENDERMODE' \
-	'-DSK_LEGACY_NO_DISTANCE_FIELD_PATHS' \
+	'-DSK_IGNORE_GPU_LAYER_HOISTING' \
 	'-DSK_BUILD_FOR_ANDROID' \
 	'-DSK_USE_POSIX_THREADS' \
 	'-DCHROME_PNG_WRITE_SUPPORT' \
@@ -549,6 +563,7 @@ MY_DEFS_Release := \
 	'-DWEBRTC_LINUX' \
 	'-DWEBRTC_ANDROID' \
 	'-DWEBRTC_ANDROID_OPENSLES' \
+	'-DUSE_LIBPCI=1' \
 	'-DUSE_OPENSSL=1' \
 	'-DUSE_OPENSSL_CERTS=1' \
 	'-D__STDC_CONSTANT_MACROS' \

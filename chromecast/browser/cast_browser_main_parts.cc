@@ -7,6 +7,7 @@
 #include "base/command_line.h"
 #include "base/message_loop/message_loop.h"
 #include "base/prefs/pref_registry_simple.h"
+#include "cc/base/switches.h"
 #include "chromecast/base/metrics/cast_metrics_helper.h"
 #include "chromecast/browser/cast_browser_context.h"
 #include "chromecast/browser/cast_browser_process.h"
@@ -17,6 +18,7 @@
 #include "chromecast/browser/url_request_context_factory.h"
 #include "chromecast/browser/webui/webui_cast.h"
 #include "chromecast/common/chromecast_config.h"
+#include "chromecast/common/platform_client_auth.h"
 #include "chromecast/net/network_change_notifier_cast.h"
 #include "chromecast/net/network_change_notifier_factory_cast.h"
 #include "content/public/browser/browser_thread.h"
@@ -51,6 +53,14 @@ DefaultCommandLineSwitch g_default_switches[] = {
   { switches::kDisablePlugins, "" },
   // Always enable HTMLMediaElement logs.
   { switches::kBlinkPlatformLogChannels, "Media"},
+#if defined(OS_LINUX) && defined(ARCH_CPU_X86_FAMILY)
+  // This is needed for now to enable the egltest Ozone platform to work with
+  // current Linux/NVidia OpenGL drivers.
+  { switches::kIgnoreGpuBlacklist, ""},
+  // TODO(gusfernandez): This is needed to fix a bug with
+  // glPostSubBufferCHROMIUM (crbug.com/429200)
+  { cc::switches::kUIDisablePartialSwap, ""},
+#endif
   { NULL, NULL },  // Termination
 };
 
@@ -125,6 +135,10 @@ void CastBrowserMainParts::PreMainMessageLoopRun() {
   cast_browser_process_->SetCrashDumpManager(
       new breakpad::CrashDumpManager(crash_dumps_dir));
 #endif
+
+  if (!PlatformClientAuth::Initialize()) {
+    LOG(ERROR) << "PlatformClientAuth::Initialize failed.";
+  }
 
   cast_browser_process_->SetRemoteDebuggingServer(new RemoteDebuggingServer());
 

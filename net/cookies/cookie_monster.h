@@ -315,7 +315,7 @@ class NET_EXPORT CookieMonster : public CookieStore {
   // See comment on keys before the CookieMap typedef.
   std::string GetKey(const std::string& domain) const;
 
-  virtual scoped_ptr<CookieChangedSubscription> AddCallbackForCookie(
+  scoped_ptr<CookieChangedSubscription> AddCallbackForCookie(
       const GURL& url,
       const std::string& name,
       const CookieChangedCallback& callback) override;
@@ -620,6 +620,10 @@ class NET_EXPORT CookieMonster : public CookieStore {
   void DoCookieTaskForURL(const scoped_refptr<CookieMonsterTask>& task_item,
     const GURL& url);
 
+  // Run all cookie changed callbacks that are monitoring |cookie|.
+  // |removed| is true if the cookie was deleted.
+  void RunCallbacks(const CanonicalCookie& cookie, bool removed);
+
   // Histogram variables; see CookieMonster::InitializeHistograms() in
   // cookie_monster.cc for details.
   base::HistogramBase* histogram_expiration_duration_minutes_;
@@ -703,8 +707,6 @@ class NET_EXPORT CookieMonster : public CookieStore {
   typedef std::map<std::pair<GURL, std::string>,
                    linked_ptr<CookieChangedCallbackList>> CookieChangedHookMap;
   CookieChangedHookMap hook_map_;
-
-  void RunCallbacks(const CanonicalCookie& cookie);
 
   DISALLOW_COPY_AND_ASSIGN(CookieMonster);
 };

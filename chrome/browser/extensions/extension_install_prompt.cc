@@ -10,16 +10,17 @@
 #include "base/message_loop/message_loop.h"
 #include "base/prefs/pref_service.h"
 #include "base/strings/string_number_conversions.h"
+#include "base/strings/string_split.h"
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
 #include "chrome/browser/extensions/bundle_installer.h"
+#include "chrome/browser/extensions/extension_install_prompt_show_params.h"
 #include "chrome/browser/extensions/extension_util.h"
 #include "chrome/browser/extensions/permissions_updater.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/extensions/extension_install_ui_factory.h"
 #include "chrome/common/chrome_switches.h"
-#include "chrome/common/pref_names.h"
 #include "chrome/grit/chromium_strings.h"
 #include "chrome/grit/generated_resources.h"
 #include "content/public/browser/web_contents.h"
@@ -176,13 +177,6 @@ Profile* ProfileForWebContents(content::WebContents* web_contents) {
   return Profile::FromBrowserContext(web_contents->GetBrowserContext());
 }
 
-gfx::NativeWindow NativeWindowForWebContents(content::WebContents* contents) {
-  if (!contents)
-    return NULL;
-
-  return contents->GetTopLevelNativeWindow();
-}
-
 }  // namespace
 
 ExtensionInstallPrompt::Prompt::InstallPromptPermissions::
@@ -252,7 +246,25 @@ void ExtensionInstallPrompt::Prompt::SetPermissionsDetails(
     PermissionsType permissions_type) {
   InstallPromptPermissions& install_permissions =
       GetPermissionsForType(permissions_type);
-  install_permissions.details = details;
+
+  // Add a dash to the front of each permission detail.
+  for (const auto& details_entry : details) {
+    if (!details_entry.empty()) {
+      std::vector<base::string16> detail_lines;
+      base::SplitString(details_entry, base::char16('\n'), &detail_lines);
+
+      std::vector<base::string16> detail_lines_with_bullets;
+      for (const auto& detail_line : detail_lines)
+        detail_lines_with_bullets.push_back(base::ASCIIToUTF16("- ") +
+                                            detail_line);
+
+      install_permissions.details.push_back(
+          JoinString(detail_lines_with_bullets, '\n'));
+    } else {
+      install_permissions.details.push_back(details_entry);
+    }
+  }
+
   install_permissions.is_showing_details.clear();
   install_permissions.is_showing_details.insert(
       install_permissions.is_showing_details.begin(), details.size(), false);
@@ -613,19 +625,6 @@ bool ExtensionInstallPrompt::Prompt::ShouldDisplayRevokeFilesButton() const {
   return !retained_files_.empty();
 }
 
-ExtensionInstallPrompt::ShowParams::ShowParams(content::WebContents* contents)
-    : profile(ProfileForWebContents(contents)),
-      parent_web_contents(contents),
-      parent_window(NativeWindowForWebContents(contents)) {
-}
-
-ExtensionInstallPrompt::ShowParams::ShowParams(Profile* profile,
-                                               gfx::NativeWindow window)
-    : profile(profile),
-      parent_web_contents(NULL),
-      parent_window(window) {
-}
-
 // static
 scoped_refptr<Extension>
     ExtensionInstallPrompt::GetLocalizedExtensionForDisplay(
@@ -664,7 +663,7 @@ ExtensionInstallPrompt::ExtensionInstallPrompt(content::WebContents* contents)
       bundle_(NULL),
       install_ui_(extensions::CreateExtensionInstallUI(
           ProfileForWebContents(contents))),
-      show_params_(contents),
+      show_params_(new ExtensionInstallPromptShowParams(contents)),
       delegate_(NULL) {
 }
 
@@ -675,7 +674,8 @@ ExtensionInstallPrompt::ExtensionInstallPrompt(Profile* profile,
       extension_(NULL),
       bundle_(NULL),
       install_ui_(extensions::CreateExtensionInstallUI(profile)),
-      show_params_(profile, native_window),
+      show_params_(
+          new ExtensionInstallPromptShowParams(profile, native_window)),
       delegate_(NULL) {
 }
 
@@ -945,8 +945,13 @@ void ExtensionInstallPrompt::ShowConfirmation() {
   if (AutoConfirmPrompt(delegate_))
     return;
 
+  if (show_params_->WasParentDestroyed()) {
+    delegate_->InstallUIAbort(false);
+    return;
+  }
+
   if (show_dialog_callback_.is_null())
-    GetDefaultShowDialogCallback().Run(show_params_, delegate_, prompt_);
+    GetDefaultShowDialogCallback().Run(show_params_.get(), delegate_, prompt_);
   else
-    show_dialog_callback_.Run(show_params_, delegate_, prompt_);
+    show_dialog_callback_.Run(show_params_.get(), delegate_, prompt_);
 }

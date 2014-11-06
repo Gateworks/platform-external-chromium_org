@@ -157,13 +157,13 @@
 #if defined(OS_CHROMEOS)
 #include "ash/accelerators/accelerator_controller.h"
 #include "ash/accelerators/accelerator_table.h"
-#include "ash/magnifier/magnifier_constants.h"
 #include "ash/shell.h"
 #include "chrome/browser/chromeos/accessibility/accessibility_manager.h"
 #include "chrome/browser/chromeos/accessibility/magnification_manager.h"
 #include "chrome/browser/profiles/profile_manager.h"
 #include "chrome/browser/ui/ash/screenshot_taker.h"
 #include "chromeos/audio/cras_audio_handler.h"
+#include "ui/chromeos/accessibility_types.h"
 #include "ui/keyboard/keyboard_util.h"
 #endif
 
@@ -558,10 +558,10 @@ class TestAddAppWindowObserver
     : public extensions::AppWindowRegistry::Observer {
  public:
   explicit TestAddAppWindowObserver(extensions::AppWindowRegistry* registry);
-  virtual ~TestAddAppWindowObserver();
+  ~TestAddAppWindowObserver() override;
 
   // extensions::AppWindowRegistry::Observer:
-  virtual void OnAppWindowAdded(extensions::AppWindow* app_window) override;
+  void OnAppWindowAdded(extensions::AppWindow* app_window) override;
 
   extensions::AppWindow* WaitForAppWindow();
 
@@ -601,9 +601,9 @@ extensions::AppWindow* TestAddAppWindowObserver::WaitForAppWindow() {
 class PolicyTest : public InProcessBrowserTest {
  protected:
   PolicyTest() {}
-  virtual ~PolicyTest() {}
+  ~PolicyTest() override {}
 
-  virtual void SetUp() override {
+  void SetUp() override {
     test_extension_cache_.reset(new extensions::ExtensionCacheFake());
     InProcessBrowserTest::SetUp();
   }
@@ -1785,7 +1785,7 @@ IN_PROC_BROWSER_TEST_F(PolicyTest, ExtensionInstallForcelist) {
   // Wait until any background pages belonging to force-installed extensions
   // have been loaded.
   extensions::ProcessManager* manager =
-      extensions::ExtensionSystem::Get(browser()->profile())->process_manager();
+      extensions::ProcessManager::Get(browser()->profile());
   extensions::ProcessManager::ViewSet all_views = manager->GetAllViews();
   for (extensions::ProcessManager::ViewSet::const_iterator iter =
            all_views.begin();
@@ -1816,8 +1816,8 @@ IN_PROC_BROWSER_TEST_F(PolicyTest, ExtensionInstallForcelist) {
       extensions::NOTIFICATION_EXTENSION_LOADED_DEPRECATED,
       content::NotificationService::AllSources());
   extensions::ExtensionHost* extension_host =
-      extensions::ExtensionSystem::Get(browser()->profile())->
-          process_manager()->GetBackgroundHostForExtension(kGoodCrxId);
+      extensions::ProcessManager::Get(browser()->profile())
+          ->GetBackgroundHostForExtension(kGoodCrxId);
   base::KillProcess(extension_host->render_process_host()->GetHandle(),
                     content::RESULT_CODE_KILLED, false);
   extension_crashed_observer.Wait();
@@ -2688,7 +2688,7 @@ IN_PROC_BROWSER_TEST_F(PolicyTest, SpokenFeedbackEnabled) {
 
   // Manually enable spoken feedback.
   accessibility_manager->EnableSpokenFeedback(
-      true, ash::A11Y_NOTIFICATION_NONE);
+      true, ui::A11Y_NOTIFICATION_NONE);
   EXPECT_TRUE(accessibility_manager->IsSpokenFeedbackEnabled());
 
   // Verify that policy overrides the manual setting.
@@ -2703,7 +2703,7 @@ IN_PROC_BROWSER_TEST_F(PolicyTest, SpokenFeedbackEnabled) {
 
   // Verify that spoken feedback cannot be enabled manually anymore.
   accessibility_manager->EnableSpokenFeedback(
-      true, ash::A11Y_NOTIFICATION_NONE);
+      true, ui::A11Y_NOTIFICATION_NONE);
   EXPECT_FALSE(accessibility_manager->IsSpokenFeedbackEnabled());
 }
 
@@ -2738,9 +2738,9 @@ IN_PROC_BROWSER_TEST_F(PolicyTest, ScreenMagnifierTypeNone) {
       chromeos::MagnificationManager::Get();
 
   // Manually enable the full-screen magnifier.
-  magnification_manager->SetMagnifierType(ash::MAGNIFIER_FULL);
+  magnification_manager->SetMagnifierType(ui::MAGNIFIER_FULL);
   magnification_manager->SetMagnifierEnabled(true);
-  EXPECT_EQ(ash::MAGNIFIER_FULL, magnification_manager->GetMagnifierType());
+  EXPECT_EQ(ui::MAGNIFIER_FULL, magnification_manager->GetMagnifierType());
   EXPECT_TRUE(magnification_manager->IsMagnifierEnabled());
 
   // Verify that policy overrides the manual setting.
@@ -2771,10 +2771,10 @@ IN_PROC_BROWSER_TEST_F(PolicyTest, ScreenMagnifierTypeFull) {
   policies.Set(key::kScreenMagnifierType,
                POLICY_LEVEL_MANDATORY,
                POLICY_SCOPE_USER,
-               new base::FundamentalValue(ash::MAGNIFIER_FULL),
+               new base::FundamentalValue(ui::MAGNIFIER_FULL),
                NULL);
   UpdateProviderPolicy(policies);
-  EXPECT_EQ(ash::MAGNIFIER_FULL, magnification_manager->GetMagnifierType());
+  EXPECT_EQ(ui::MAGNIFIER_FULL, magnification_manager->GetMagnifierType());
   EXPECT_TRUE(magnification_manager->IsMagnifierEnabled());
 
   // Verify that the screen magnifier cannot be disabled manually anymore.
@@ -3038,7 +3038,7 @@ INSTANTIATE_TEST_CASE_P(
 class PolicyStatisticsCollectorTest : public PolicyTest {
  public:
   PolicyStatisticsCollectorTest() {}
-  virtual ~PolicyStatisticsCollectorTest() {}
+  ~PolicyStatisticsCollectorTest() override {}
 
   void SetUpInProcessBrowserTestFixture() override {
     PolicyTest::SetUpInProcessBrowserTestFixture();

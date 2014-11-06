@@ -7,11 +7,10 @@
 #include "base/path_service.h"
 #include "base/run_loop.h"
 #include "chrome/browser/chromeos/login/enrollment/enrollment_screen.h"
-#include "chrome/browser/chromeos/login/screens/mock_screen_observer.h"
+#include "chrome/browser/chromeos/login/screens/mock_base_screen_delegate.h"
 #include "chrome/browser/chromeos/login/startup_utils.h"
 #include "chrome/browser/chromeos/login/test/wizard_in_process_browser_test.h"
 #include "chrome/browser/chromeos/login/wizard_controller.h"
-#include "chrome/test/base/ui_test_utils.h"
 #include "chromeos/chromeos_switches.h"
 #include "chromeos/chromeos_test_utils.h"
 #include "content/public/test/test_utils.h"
@@ -41,21 +40,21 @@ IN_PROC_BROWSER_TEST_F(EnrollmentScreenTest, TestCancel) {
   ASSERT_TRUE(enrollment_screen != NULL);
 
   base::RunLoop run_loop;
-  MockScreenObserver mock_screen_observer;
-  static_cast<BaseScreen*>(enrollment_screen)->screen_observer_ =
-      &mock_screen_observer;
+  MockBaseScreenDelegate mock_base_screen_delegate;
+  static_cast<BaseScreen*>(enrollment_screen)->base_screen_delegate_ =
+      &mock_base_screen_delegate;
 
   ASSERT_EQ(WizardController::default_controller()->current_screen(),
             enrollment_screen);
 
-  EXPECT_CALL(mock_screen_observer,
-              OnExit(ScreenObserver::ENTERPRISE_ENROLLMENT_COMPLETED))
+  EXPECT_CALL(mock_base_screen_delegate,
+              OnExit(BaseScreenDelegate::ENTERPRISE_ENROLLMENT_COMPLETED))
       .WillOnce(InvokeWithoutArgs(&run_loop, &base::RunLoop::Quit));
   enrollment_screen->OnCancel();
   content::RunThisRunLoop(&run_loop);
-  Mock::VerifyAndClearExpectations(&mock_screen_observer);
+  Mock::VerifyAndClearExpectations(&mock_base_screen_delegate);
 
-  static_cast<BaseScreen*>(enrollment_screen)->screen_observer_ =
+  static_cast<BaseScreen*>(enrollment_screen)->base_screen_delegate_ =
       WizardController::default_controller();
 }
 
@@ -69,9 +68,9 @@ IN_PROC_BROWSER_TEST_F(EnrollmentScreenTest, DISABLED_TestSuccess) {
   ASSERT_TRUE(enrollment_screen != NULL);
 
   base::RunLoop run_loop;
-  MockScreenObserver mock_screen_observer;
-  static_cast<BaseScreen*>(enrollment_screen)->screen_observer_ =
-      &mock_screen_observer;
+  MockBaseScreenDelegate mock_base_screen_delegate;
+  static_cast<BaseScreen*>(enrollment_screen)->base_screen_delegate_ =
+      &mock_base_screen_delegate;
 
   ASSERT_EQ(WizardController::default_controller()->current_screen(),
             enrollment_screen);
@@ -81,7 +80,7 @@ IN_PROC_BROWSER_TEST_F(EnrollmentScreenTest, DISABLED_TestSuccess) {
   run_loop.RunUntilIdle();
   EXPECT_TRUE(StartupUtils::IsOobeCompleted());
 
-  static_cast<BaseScreen*>(enrollment_screen)->screen_observer_ =
+  static_cast<BaseScreen*>(enrollment_screen)->base_screen_delegate_ =
       WizardController::default_controller();
 }
 
@@ -111,21 +110,21 @@ IN_PROC_BROWSER_TEST_F(ProvisionedEnrollmentScreenTest, TestBackButton) {
   ASSERT_TRUE(enrollment_screen != NULL);
 
   base::RunLoop run_loop;
-  MockScreenObserver mock_screen_observer;
-  static_cast<BaseScreen*>(enrollment_screen)->screen_observer_ =
-      &mock_screen_observer;
+  MockBaseScreenDelegate mock_base_screen_delegate;
+  static_cast<BaseScreen*>(enrollment_screen)->base_screen_delegate_ =
+      &mock_base_screen_delegate;
 
   ASSERT_EQ(WizardController::default_controller()->current_screen(),
             enrollment_screen);
 
-  EXPECT_CALL(mock_screen_observer,
-              OnExit(ScreenObserver::ENTERPRISE_ENROLLMENT_BACK))
+  EXPECT_CALL(mock_base_screen_delegate,
+              OnExit(BaseScreenDelegate::ENTERPRISE_ENROLLMENT_BACK))
       .WillOnce(InvokeWithoutArgs(&run_loop, &base::RunLoop::Quit));
   enrollment_screen->OnCancel();
   content::RunThisRunLoop(&run_loop);
-  Mock::VerifyAndClearExpectations(&mock_screen_observer);
+  Mock::VerifyAndClearExpectations(&mock_base_screen_delegate);
 
-  static_cast<BaseScreen*>(enrollment_screen)->screen_observer_ =
+  static_cast<BaseScreen*>(enrollment_screen)->base_screen_delegate_ =
       WizardController::default_controller();
 }
 

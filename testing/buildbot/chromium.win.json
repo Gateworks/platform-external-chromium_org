@@ -8,13 +8,8 @@
           "can_use_on_swarming_builders": true
         }
       },
+      "app_shell_browsertests",
       "app_shell_unittests",
-      {
-        "test": "ash_unittests",
-        "swarming": {
-          "can_use_on_swarming_builders": true
-        }
-      },
       "aura_unittests",
       {
         "test": "browser_tests",
@@ -91,13 +86,27 @@
       "url_unittests",
       "views_unittests",
       "wm_unittests"
+    ],
+    "scripts": [
+      {
+        "name": "telemetry_unittests",
+        "script": "telemetry_unittests.py"
+      },
+      {
+        "name": "telemetry_perf_unittests",
+        "script": "telemetry_perf_unittests.py"
+      },
+      {
+        "name": "nacl_integration",
+        "script": "nacl_integration.py"
+      }
     ]
   },
   "Vista Tests (1)": {
     "gtest_tests": [
       "accessibility_unittests",
+      "app_shell_browsertests",
       "app_shell_unittests",
-      "ash_unittests",
       "aura_unittests",
       {
         "test": "base_unittests",
@@ -186,14 +195,16 @@
       "url_unittests",
       "views_unittests",
       "wm_unittests"
-    ]
-  },
-  "Vista Tests (2)": {
-    "gtest_tests": [
-    ]
-  },
-  "Vista Tests (3)": {
-    "gtest_tests": [
+    ],
+    "scripts": [
+      {
+        "name": "telemetry_unittests",
+        "script": "telemetry_unittests.py"
+      },
+      {
+        "name": "telemetry_perf_unittests",
+        "script": "telemetry_perf_unittests.py"
+      }
     ]
   },
   "Win7 Tests (1)": {
@@ -205,6 +216,7 @@
           "can_use_on_swarming_builders": true
         }
       },
+      "app_shell_browsertests",
       "app_shell_unittests",
       "aura_unittests",
       {
@@ -294,6 +306,20 @@
       "url_unittests",
       "views_unittests",
       "wm_unittests"
+    ],
+    "scripts": [
+      {
+        "name": "telemetry_unittests",
+        "script": "telemetry_unittests.py"
+      },
+      {
+        "name": "telemetry_perf_unittests",
+        "script": "telemetry_perf_unittests.py"
+      },
+      {
+        "name": "nacl_integration",
+        "script": "nacl_integration.py"
+      }
     ]
   },
   "Win 7 Tests x64 (1)": {
@@ -313,6 +339,7 @@
         }
       },
       "app_list_unittests",
+      "app_shell_browsertests",
       "app_shell_unittests",
       "cacheinvalidation_unittests",
       "cast_unittests",
@@ -385,6 +412,16 @@
       "url_unittests",
       "views_unittests",
       "wm_unittests"
+    ],
+    "scripts": [
+      {
+        "name": "telemetry_unittests",
+        "script": "telemetry_unittests.py"
+      },
+      {
+        "name": "nacl_integration",
+        "script": "nacl_integration.py"
+      }
     ]
   },
   "Win7 Tests (dbg)(1)": {
@@ -396,6 +433,7 @@
           "can_use_on_swarming_builders": true
         }
       },
+      "app_shell_browsertests",
       "app_shell_unittests",
       "aura_unittests",
       {
@@ -485,6 +523,16 @@
       "url_unittests",
       "views_unittests",
       "wm_unittests"
+    ],
+    "scripts": [
+      {
+        "name": "telemetry_unittests",
+        "script": "telemetry_unittests.py"
+      },
+      {
+        "name": "telemetry_perf_unittests",
+        "script": "telemetry_perf_unittests.py"
+      }
     ]
   },
   "Win8 Aura": {

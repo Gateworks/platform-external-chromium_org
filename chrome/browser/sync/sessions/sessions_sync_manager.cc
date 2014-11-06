@@ -652,6 +652,16 @@ void SessionsSyncManager::UpdateTrackerWithForeignSession(
   } else if (specifics.has_tab()) {
     const sync_pb::SessionTab& tab_s = specifics.tab();
     SessionID::id_type tab_id = tab_s.tab_id();
+
+    const SessionTab* existing_tab;
+    if (session_tracker_.LookupSessionTab(
+            foreign_session_tag, tab_id, &existing_tab) &&
+        existing_tab->timestamp > modification_time) {
+      DVLOG(1) << "Ignoring " << foreign_session_tag << "'s session tab "
+               << tab_id << " with earlier modification time";
+      return;
+    }
+
     SessionTab* tab =
         session_tracker_.GetTab(foreign_session_tag,
                                 tab_id,
@@ -740,11 +750,13 @@ void SessionsSyncManager::BuildSyncedSessionFromSpecifics(
   if (specifics.has_selected_tab_index())
     session_window->selected_tab_index = specifics.selected_tab_index();
   if (specifics.has_browser_type()) {
+    // TODO(skuhne): Sync data writes |BrowserType| not
+    // |SessionWindow::WindowType|. This should get changed.
     if (specifics.browser_type() ==
         sync_pb::SessionWindow_BrowserType_TYPE_TABBED) {
-      session_window->type = 1;
+      session_window->type = SessionWindow::TYPE_TABBED;
     } else {
-      session_window->type = 2;
+      session_window->type = SessionWindow::TYPE_POPUP;
     }
   }
   session_window->timestamp = mtime;

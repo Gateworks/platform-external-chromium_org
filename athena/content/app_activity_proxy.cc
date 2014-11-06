@@ -24,10 +24,6 @@ AppActivityProxy::AppActivityProxy(AppActivity* replaced_activity,
     restart_called_(false) {
 }
 
-AppActivityProxy::~AppActivityProxy() {
-  app_activity_registry_->ProxyDestroyed(this);
-}
-
 ActivityViewModel* AppActivityProxy::GetActivityViewModel() {
   return this;
 }
@@ -56,7 +52,7 @@ Activity::ActivityMediaState AppActivityProxy::GetMediaState() {
 }
 
 aura::Window* AppActivityProxy::GetWindow() {
-  return view_->GetWidget()->GetNativeWindow();
+  return view_->GetWidget() ? view_->GetWidget()->GetNativeWindow() : nullptr;
 }
 
 content::WebContents* AppActivityProxy::GetWebContents() {
@@ -88,16 +84,15 @@ gfx::ImageSkia AppActivityProxy::GetIcon() const {
   return gfx::ImageSkia();
 }
 
+void AppActivityProxy::SetActivityView(ActivityView* view) {
+}
+
 bool AppActivityProxy::UsesFrame() const {
   return true;
 }
 
 views::View* AppActivityProxy::GetContentsView() {
   return view_;
-}
-
-views::Widget* AppActivityProxy::CreateWidget() {
-  return nullptr;
 }
 
 gfx::ImageSkia AppActivityProxy::GetOverviewModeImage() {
@@ -108,6 +103,10 @@ void AppActivityProxy::PrepareContentsForOverview() {
 }
 
 void AppActivityProxy::ResetContentsView() {
+}
+
+AppActivityProxy::~AppActivityProxy() {
+  app_activity_registry_->ProxyDestroyed(this);
 }
 
 }  // namespace athena

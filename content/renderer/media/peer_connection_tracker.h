@@ -8,6 +8,8 @@
 #include <map>
 
 #include "base/compiler_specific.h"
+#include "base/memory/weak_ptr.h"
+#include "base/threading/thread_checker.h"
 #include "content/public/renderer/render_process_observer.h"
 #include "third_party/WebKit/public/platform/WebMediaStream.h"
 #include "third_party/WebKit/public/platform/WebRTCPeerConnectionHandlerClient.h"
@@ -33,7 +35,9 @@ class RTCPeerConnectionHandler;
 // This class collects data about each peer connection,
 // sends it to the browser process, and handles messages
 // from the browser process.
-class CONTENT_EXPORT PeerConnectionTracker : public RenderProcessObserver {
+class CONTENT_EXPORT PeerConnectionTracker
+    : public RenderProcessObserver,
+      public base::SupportsWeakPtr<PeerConnectionTracker> {
  public:
   PeerConnectionTracker();
   ~PeerConnectionTracker() override;
@@ -87,7 +91,7 @@ class CONTENT_EXPORT PeerConnectionTracker : public RenderProcessObserver {
   // Sends an update when setLocalDescription or setRemoteDescription is called.
   virtual void TrackSetSessionDescription(
       RTCPeerConnectionHandler* pc_handler,
-      const blink::WebRTCSessionDescription& desc, Source source);
+      const std::string& sdp, const std::string& type, Source source);
 
   // Sends an update when Ice candidates are updated.
   virtual void TrackUpdateIce(
@@ -176,6 +180,7 @@ class CONTENT_EXPORT PeerConnectionTracker : public RenderProcessObserver {
 
   // This keeps track of the next available local ID.
   int next_lid_;
+  base::ThreadChecker main_thread_;
 
   DISALLOW_COPY_AND_ASSIGN(PeerConnectionTracker);
 };

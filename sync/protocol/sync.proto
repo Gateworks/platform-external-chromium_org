@@ -27,7 +27,6 @@ import "client_debug_info.proto";
 import "device_info_specifics.proto";
 import "dictionary_specifics.proto";
 import "encryption.proto";
-import "enhanced_bookmark_specifics.proto";
 import "experiments_specifics.proto";
 import "extension_setting_specifics.proto";
 import "extension_specifics.proto";
@@ -50,6 +49,7 @@ import "synced_notification_specifics.proto";
 import "theme_specifics.proto";
 import "typed_url_specifics.proto";
 import "unique_position.proto";
+import "wifi_credential_specifics.proto";
 
 // Used for inspecting how long we spent performing operations in different
 // backends. All times must be in millis.
@@ -130,7 +130,7 @@ message EntitySpecifics {
       202026;
   optional ArticleSpecifics article = 223759;
   optional AppListSpecifics app_list = 229170;
-  optional EnhancedBookmarkSpecifics enhanced_bookmark = 294694;
+  optional WifiCredentialSpecifics wifi_credential = 218175;
 }
 
 message SyncEntity {

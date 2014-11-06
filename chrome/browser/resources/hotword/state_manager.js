@@ -81,6 +81,19 @@ cr.define('hotword', function() {
     this.chime_ =
         /** @type {!HTMLAudioElement} */(document.createElement('audio'));
 
+    /**
+     * Chrome event listeners. Saved so that they can be de-registered when
+     * hotwording is disabled.
+     * @private
+     */
+    this.idleStateChangedListener_ = this.handleIdleStateChanged_.bind(this);
+
+    /**
+     * Whether this user is locked.
+     * @private {boolean}
+     */
+    this.isLocked_ = false;
+
     // Get the initial status.
     chrome.hotwordPrivate.getStatus(this.handleStatus_.bind(this));
 
@@ -140,11 +153,15 @@ cr.define('hotword', function() {
     },
 
     /**
-     * @return {boolean} True if hotwording is enabled.
+     * @return {boolean} True if google.com/NTP/launcher hotwording is enabled.
      */
-    isEnabled: function() {
-      assert(this.hotwordStatus_, 'No hotwording status (isEnabled)');
-      return this.hotwordStatus_.enabled;
+    isSometimesOnEnabled: function() {
+      assert(this.hotwordStatus_,
+             'No hotwording status (isSometimesOnEnabled)');
+      // Although the two settings are supposed to be mutually exclusive, it's
+      // possible for both to be set. In that case, always-on takes precedence.
+      return this.hotwordStatus_.enabled &&
+          !this.hotwordStatus_.alwaysOnEnabled;
     },
 
     /**
@@ -152,8 +169,15 @@ cr.define('hotword', function() {
      */
     isAlwaysOnEnabled: function() {
       assert(this.hotwordStatus_, 'No hotword status (isAlwaysOnEnabled)');
-      return this.hotwordStatus_.enabled &&
-          this.hotwordStatus_.alwaysOnEnabled;
+      return this.hotwordStatus_.alwaysOnEnabled;
+    },
+
+    /**
+     * @return {boolean} True if training is enabled.
+     */
+    isTrainingEnabled: function() {
+      assert(this.hotwordStatus_, 'No hotword status (isTrainingEnabled)');
+      return this.hotwordStatus_.trainingEnabled;
     },
 
     /**
@@ -178,21 +202,27 @@ cr.define('hotword', function() {
       if (!this.hotwordStatus_)
         return;
 
-      if (this.hotwordStatus_.enabled) {
-        // Start the detector if there's a session, and shut it down if there
-        // isn't.
-        // NOTE(amistry): With always-on, we want a different behaviour with
-        // sessions since the detector should always be running. The exception
-        // being when the user triggers by saying 'Ok Google'. In that case, the
-        // detector stops, so starting/stopping the launcher session should
-        // restart the detector.
-        if (this.sessions_.length)
+      if (this.hotwordStatus_.enabled ||
+          this.hotwordStatus_.alwaysOnEnabled ||
+          this.hotwordStatus_.trainingEnabled) {
+        // Start the detector if there's a session and the user is unlocked, and
+        // shut it down otherwise.
+        if (this.sessions_.length && !this.isLocked_)
           this.startDetector_();
         else
           this.shutdownDetector_();
+
+        if (!chrome.idle.onStateChanged.hasListener(
+                this.idleStateChangedListener_)) {
+          chrome.idle.onStateChanged.addListener(
+              this.idleStateChangedListener_);
+        }
       } else {
         // Not enabled. Shut down if running.
         this.shutdownDetector_();
+
+        chrome.idle.onStateChanged.removeListener(
+            this.idleStateChangedListener_);
       }
     },
 
@@ -385,6 +415,23 @@ cr.define('hotword', function() {
       hotword.debug('Stopping session for source: ' + source);
       this.removeSession_(source);
       this.updateStateFromStatus_();
+    },
+
+    /**
+     * Handles a chrome.idle.onStateChanged event.
+     * @param {!string} state State, one of "active", "idle", or "locked".
+     * @private
+     */
+    handleIdleStateChanged_: function(state) {
+      hotword.debug('Idle state changed: ' + state);
+      var oldLocked = this.isLocked_;
+      if (state == 'locked')
+        this.isLocked_ = true;
+      else
+        this.isLocked_ = false;
+
+      if (oldLocked != this.isLocked_)
+        this.updateStateFromStatus_();
     }
   };
 

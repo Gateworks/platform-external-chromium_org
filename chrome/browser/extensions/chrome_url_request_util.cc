@@ -9,7 +9,7 @@
 #include "base/files/file_path.h"
 #include "base/memory/weak_ptr.h"
 #include "base/path_service.h"
-#include "base/profiler/scoped_profile.h"
+#include "base/profiler/scoped_tracker.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
@@ -63,19 +63,43 @@ class URLRequestResourceBundleJob : public net::URLRequestSimpleJob {
               std::string* charset,
               std::string* data,
               const net::CompletionCallback& callback) const override {
-    // TODO(vadimt): Remove ScopedProfile below once crbug.com/422489 is fixed.
-    tracked_objects::ScopedProfile tracking_profile(
+    // TODO(vadimt): Remove ScopedTracker below once crbug.com/422489 is fixed.
+    tracked_objects::ScopedTracker tracking_profile(
         FROM_HERE_WITH_EXPLICIT_FUNCTION(
             "422489 URLRequestResourceBundleJob::GetData"));
 
     const ResourceBundle& rb = ResourceBundle::GetSharedInstance();
-    *data = rb.GetRawDataResource(resource_id_).as_string();
+
+    // TODO(vadimt): Remove ScopedTracker below once crbug.com/422489 is fixed.
+    tracked_objects::ScopedTracker tracking_profile1(
+        FROM_HERE_WITH_EXPLICIT_FUNCTION(
+            "422489 URLRequestResourceBundleJob::GetData 1"));
+
+    const base::StringPiece resource_as_string_piece =
+        rb.GetRawDataResource(resource_id_);
+
+    // TODO(vadimt): Remove ScopedTracker below once crbug.com/422489 is fixed.
+    tracked_objects::ScopedTracker tracking_profile15(
+        FROM_HERE_WITH_EXPLICIT_FUNCTION(
+            "422489 URLRequestResourceBundleJob::GetData 1.5"));
+
+    *data = resource_as_string_piece.as_string();
+
+    // TODO(vadimt): Remove ScopedTracker below once crbug.com/422489 is fixed.
+    tracked_objects::ScopedTracker tracking_profile2(
+        FROM_HERE_WITH_EXPLICIT_FUNCTION(
+            "422489 URLRequestResourceBundleJob::GetData 2"));
 
     // Add the Content-Length header now that we know the resource length.
     response_info_.headers->AddHeader(
         base::StringPrintf("%s: %s",
                            net::HttpRequestHeaders::kContentLength,
                            base::UintToString(data->size()).c_str()));
+
+    // TODO(vadimt): Remove ScopedTracker below once crbug.com/422489 is fixed.
+    tracked_objects::ScopedTracker tracking_profile3(
+        FROM_HERE_WITH_EXPLICIT_FUNCTION(
+            "422489 URLRequestResourceBundleJob::GetData 3"));
 
     std::string* read_mime_type = new std::string;
     bool posted = base::PostTaskAndReplyWithResult(

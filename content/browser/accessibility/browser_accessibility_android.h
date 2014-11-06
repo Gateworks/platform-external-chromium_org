@@ -26,6 +26,7 @@ class BrowserAccessibilityAndroid : public BrowserAccessibility {
   bool IsCollectionItem() const;
   bool IsContentInvalid() const;
   bool IsDismissable() const;
+  bool IsEditableText() const;
   bool IsEnabled() const;
   bool IsFocusable() const;
   bool IsFocused() const;
@@ -86,6 +87,7 @@ class BrowserAccessibilityAndroid : public BrowserAccessibility {
   BrowserAccessibilityAndroid();
 
   bool HasOnlyStaticTextChildren() const;
+  bool HasOnlyTextAndImageChildren() const;
   bool IsIframe() const;
 
   void NotifyLiveRegionUpdate(base::string16& aria_live);

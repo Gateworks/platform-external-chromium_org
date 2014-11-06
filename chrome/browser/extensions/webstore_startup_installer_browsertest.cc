@@ -14,7 +14,6 @@
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/common/chrome_switches.h"
-#include "chrome/common/pref_names.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/test_switches.h"
 #include "chrome/test/base/ui_test_utils.h"
@@ -244,7 +243,7 @@ class CommandLineWebstoreInstall
       public extensions::ExtensionRegistryObserver {
  public:
   CommandLineWebstoreInstall() : saw_install_(false), browser_open_count_(0) {}
-  virtual ~CommandLineWebstoreInstall() {}
+  ~CommandLineWebstoreInstall() override {}
 
   void SetUpOnMainThread() override {
     WebstoreStartupInstallerTest::SetUpOnMainThread();

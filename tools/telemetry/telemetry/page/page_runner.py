@@ -1,4 +1,4 @@
-# Copyright 2014 The Chromium Authors. All rights reserved.
+#  Copyright 2014 The Chromium Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
@@ -27,39 +27,102 @@ from telemetry.value import skip
 
 
 class _RunState(object):
-  def __init__(self, test):
+  def __init__(self, test, finder_options):
     self.browser = None
+    self._finder_options = finder_options
+    self._possible_browser = self._GetPossibleBrowser(test, finder_options)
 
+    # TODO(slamm): Remove _append_to_existing_wpr when replay lifetime changes.
     self._append_to_existing_wpr = False
-    self._last_archive_path = None
     self._first_browser = True
     self._test = test
     self._did_login_for_current_page = False
     self._current_page = None
     self._current_tab = None
 
-  def StartBrowserIfNeeded(self, test, page_set, page, possible_browser,
-                          finder_options):
-    started_browser = not self.browser
-    # Create a browser.
-    if not self.browser:
-      test.CustomizeBrowserOptionsForSinglePage(page, finder_options)
-      possible_browser.SetReplayArchivePath(page.archive_path,
-                                        self._append_to_existing_wpr,
-                                        page_set.make_javascript_deterministic)
-      possible_browser.SetCredentialsPath(page.credentials_path)
-      self._last_archive_path = page.archive_path
+  def _GetPossibleBrowser(self, test, finder_options):
+    ''' Return a possible_browser with the given options. '''
+    possible_browser = browser_finder.FindBrowser(finder_options)
+    if not possible_browser:
+      raise browser_finder.BrowserFinderException(
+          'No browser found.\n\nAvailable browsers:\n%s\n' %
+          '\n'.join(browser_finder.GetAllAvailableBrowserTypes(finder_options)))
+    finder_options.browser_options.browser_type = (
+        possible_browser.browser_type)
 
-      test.WillStartBrowser(possible_browser.platform)
-      self.browser = possible_browser.Create()
+    if (not decorators.IsEnabled(test, possible_browser) and
+        not finder_options.run_disabled_tests):
+      logging.warning('You are trying to run a disabled test.')
+      logging.warning('Pass --also-run-disabled-tests to squelch this message.')
+      sys.exit(0)
+
+    if possible_browser.IsRemote():
+      possible_browser.RunRemote()
+      sys.exit(0)
+    return possible_browser
+
+  def WillRunPage(self, page):
+    self._current_page = page
+    if self._finder_options.profiler:
+      self._StartProfiling(self._current_page)
+
+  def DidRunPage(self):
+    if self._finder_options.profiler:
+      self._StopProfiling()
+
+    if self._test.StopBrowserAfterPage(self.browser, self._current_page):
+      self.StopBrowser()
+    self._current_page = None
+    self._current_tab = None
+
+  @property
+  def platform(self):
+    return self._possible_browser.platform
+
+  def _PrepareWpr(self, network_controller, archive_path,
+                  make_javascript_deterministic):
+    browser_options = self._finder_options.browser_options
+    if self._finder_options.use_live_sites:
+      browser_options.wpr_mode = wpr_modes.WPR_OFF
+    elif browser_options.wpr_mode != wpr_modes.WPR_RECORD:
+      browser_options.wpr_mode = (
+          wpr_modes.WPR_REPLAY
+          if archive_path and os.path.isfile(archive_path)
+          else wpr_modes.WPR_OFF)
+
+    # Replay's life-cycle is tied to the browser. Start and Stop are handled by
+    # platform_backend.DidCreateBrowser and platform_backend.WillCloseBrowser,
+    # respectively.
+    # TODO(slamm): Update life-cycle comment with https://crbug.com/424777 fix.
+    wpr_mode = browser_options.wpr_mode
+    if self._append_to_existing_wpr and wpr_mode == wpr_modes.WPR_RECORD:
+      wpr_mode = wpr_modes.WPR_APPEND
+    network_controller.SetReplayArgs(
+        archive_path, wpr_mode, browser_options.netsim,
+        browser_options.extra_wpr_args, make_javascript_deterministic)
+
+  def StartBrowserIfNeeded(self, test, page_set, page):
+    started_browser = not self.browser
+    self._PrepareWpr(self.platform.network_controller, page.archive_path,
+                     page_set.make_javascript_deterministic)
+    if self.browser:
+      # Set new credential path for browser.
+      self.browser.credentials.credentials_path = page.credentials_path
+      self.platform.network_controller.UpdateReplayForExistingBrowser()
+    else:
+      test.CustomizeBrowserOptionsForSinglePage(page, self._finder_options)
+      self._possible_browser.SetCredentialsPath(page.credentials_path)
+
+      test.WillStartBrowser(self.platform)
+      self.browser = self._possible_browser.Create(self._finder_options)
       test.DidStartBrowser(self.browser)
 
       if self._first_browser:
         self._first_browser = False
         self.browser.credentials.WarnIfMissingCredentials(page)
         logging.info('OS: %s %s',
-                     self.browser.platform.GetOSName(),
-                     self.browser.platform.GetOSVersionName())
+                     self.platform.GetOSName(),
+                     self.platform.GetOSVersionName())
         if self.browser.supports_system_info:
           system_info = self.browser.GetSystemInfo()
           if system_info.model_name:
@@ -83,16 +146,6 @@ class _RunState(object):
             logging.info('No GPU devices')
         else:
           logging.warning('System info not supported')
-    else:
-      # Set new credential path for browser.
-      self.browser.credentials.credentials_path = page.credentials_path
-      # Set up WPR path if it changed.
-      if page.archive_path and self._last_archive_path != page.archive_path:
-        self.browser.SetReplayArchivePath(
-            page.archive_path,
-            self._append_to_existing_wpr,
-            page_set.make_javascript_deterministic)
-        self._last_archive_path = page.archive_path
 
     if self.browser.supports_tab_control and test.close_tabs_before_run:
       # Create a tab if there's none.
@@ -115,9 +168,8 @@ class _RunState(object):
       if started_browser:
         self.browser.tabs[0].WaitForDocumentReadyStateToBeComplete()
 
-  def PreparePage(self, page):
-    self._current_page = page
-    self._current_tab = self._test.TabForPage(page, self.browser)
+  def PreparePage(self):
+    self._current_tab = self._test.TabForPage(self._current_page, self.browser)
     if self._current_page.is_file:
       self.browser.SetHTTPServerDirectories(
           self._current_page.page_set.serving_dirs |
@@ -126,7 +178,8 @@ class _RunState(object):
     if self._current_page.credentials:
       if not self.browser.credentials.LoginNeeded(
           self._current_tab, self._current_page.credentials):
-        raise page_test.Failure('Login as ' + self.page.credentials + ' failed')
+        raise page_test.Failure(
+            'Login as ' + self._current_page.credentials + ' failed')
       self._did_login_for_current_page = True
 
     if self._test.clear_cache_before_each_run:
@@ -150,8 +203,6 @@ class _RunState(object):
     if self._current_page.credentials and self._did_login_for_current_page:
       self.browser.credentials.LoginNoLongerNeeded(
           self._current_tab, self._current_page.credentials)
-    self._current_page = None
-    self._current_tab = None
 
   def StopBrowser(self):
     if self.browser:
@@ -163,18 +214,19 @@ class _RunState(object):
       # not overwrite it.
       self._append_to_existing_wpr = True
 
-  def StartProfiling(self, page, finder_options):
-    output_file = os.path.join(finder_options.output_dir, page.file_safe_name)
-    is_repeating = (finder_options.page_repeat != 1 or
-                    finder_options.pageset_repeat != 1)
+  def _StartProfiling(self, page):
+    output_file = os.path.join(self._finder_options.output_dir,
+                               page.file_safe_name)
+    is_repeating = (self._finder_options.page_repeat != 1 or
+                    self._finder_options.pageset_repeat != 1)
     if is_repeating:
       output_file = util.GetSequentialFileName(output_file)
-    self.browser.platform.profiling_controller.Start(
-        finder_options.profiler, output_file)
+    self.platform.profiling_controller.Start(
+        self._finder_options.profiler, output_file)
 
-  def StopProfiling(self):
+  def _StopProfiling(self):
     if self.browser:
-      self.browser.platform.profiling_controller.Stop()
+      self.platform.profiling_controller.Stop()
 
 
 def AddCommandLineArgs(parser):
@@ -228,68 +280,34 @@ def ProcessCommandLineArgs(parser, args):
     parser.error('--pageset-repeat must be a positive integer.')
 
 
-def _RunPageAndRetryRunIfNeeded(test, page_set, expectations, finder_options,
-                       browser_options, page, possible_browser, results, state):
-  if finder_options.use_live_sites:
-    browser_options.wpr_mode = wpr_modes.WPR_OFF
-  elif browser_options.wpr_mode != wpr_modes.WPR_RECORD:
-    browser_options.wpr_mode = (
-        wpr_modes.WPR_REPLAY
-        if page.archive_path and os.path.isfile(page.archive_path)
-        else wpr_modes.WPR_OFF)
-
-  max_attempts = test.attempts
-  attempt_num = 0
-  while attempt_num < max_attempts:
-    attempt_num += 1
-    try:
-      results.WillAttemptPageRun(attempt_num, max_attempts)
-
-      if test.RestartBrowserBeforeEachPage() or page.startup_url:
-        state.StopBrowser()
-        # If we are restarting the browser for each page customize the per page
-        # options for just the current page before starting the browser.
-      state.StartBrowserIfNeeded(
-          test, page_set, page, possible_browser, finder_options)
-      if not page.CanRunOnBrowser(browser_info.BrowserInfo(state.browser)):
-        logging.info('Skip test for page %s because browser is not supported.'
-                     % page.url)
-        return
-
-      expectation = expectations.GetExpectationForPage(state.browser, page)
-
-      _WaitForThermalThrottlingIfNeeded(state.browser.platform)
-
-      if finder_options.profiler:
-        state.StartProfiling(page, finder_options)
-
-      try:
-        _RunPageAndProcessErrorIfNeeded(page, state, expectation, results)
-        _CheckThermalThrottling(state.browser.platform)
-      except exceptions.TabCrashException as e:
-        if test.is_multi_tab_test:
-          logging.error('Aborting multi-tab test after tab %s crashed',
-                        page.url)
-          raise
-        logging.warning(str(e))
-        state.StopBrowser()
-
-      if finder_options.profiler:
-        state.StopProfiling()
-
-      if (test.StopBrowserAfterPage(state.browser, page)):
-        state.StopBrowser()
-
-      return
-    except exceptions.BrowserGoneException as e:
+def _RunPageAndHandleExceptionIfNeeded(test, page_set, expectations,
+                                       page, results, state):
+  try:
+    expectation = None
+    if test.RestartBrowserBeforeEachPage() or page.startup_url:
       state.StopBrowser()
-      if attempt_num == max_attempts:
-        logging.error('Aborting after too many retries')
-        raise
-      if test.is_multi_tab_test:
-        logging.error('Aborting multi-tab test after browser crashed')
-        raise
-      logging.warning(str(e))
+      # If we are restarting the browser for each page customize the per page
+      # options for just the current page before starting the browser.
+    state.StartBrowserIfNeeded(test, page_set, page)
+    if not page.CanRunOnBrowser(browser_info.BrowserInfo(state.browser)):
+      logging.info('Skip test for page %s because browser is not supported.'
+                   % page.url)
+      return
+
+    expectation = expectations.GetExpectationForPage(state.browser, page)
+    _WaitForThermalThrottlingIfNeeded(state.platform)
+    state.WillRunPage(page)
+    _RunPageAndProcessErrorIfNeeded(page, state, expectation, results)
+    _CheckThermalThrottling(state.platform)
+    state.DidRunPage()
+  except (exceptions.BrowserGoneException, exceptions.TabCrashException):
+    state.StopBrowser()
+    if expectation != 'fail' and not results.current_page_run.failed:
+      results.AddValue(failure.FailureValue(page, sys.exc_info()))
+    if test.is_multi_tab_test:
+      logging.error('Aborting multi-tab test after browser or tab crashed at '
+                    'page %s' % page.url)
+      raise
 
 
 @decorators.Cache
@@ -318,31 +336,8 @@ def Run(test, page_set, expectations, finder_options, results):
   """Runs a given test against a given page_set with the given options."""
   test.ValidatePageSet(page_set)
 
-  # Create a possible_browser with the given options.
-  try:
-    possible_browser = browser_finder.FindBrowser(finder_options)
-  except browser_finder.BrowserTypeRequiredException, e:
-    sys.stderr.write(str(e) + '\n')
-    sys.exit(-1)
-  if not possible_browser:
-    sys.stderr.write(
-        'No browser found. Available browsers:\n%s\n' %
-        '\n'.join(browser_finder.GetAllAvailableBrowserTypes(finder_options)))
-    sys.exit(-1)
-
-  browser_options = possible_browser.finder_options.browser_options
-  browser_options.browser_type = possible_browser.browser_type
+  browser_options = finder_options.browser_options
   test.CustomizeBrowserOptions(browser_options)
-
-  if (not decorators.IsEnabled(test, possible_browser) and
-      not finder_options.run_disabled_tests):
-    logging.warning('You are trying to run a disabled test.')
-    logging.warning('Pass --also-run-disabled-tests to squelch this message.')
-    return
-
-  if possible_browser.IsRemote():
-    possible_browser.RunRemote()
-    sys.exit(0)
 
   # Reorder page set based on options.
   pages = _ShuffleAndFilterPageSet(page_set, finder_options)
@@ -371,7 +366,7 @@ def Run(test, page_set, expectations, finder_options, results):
   if not pages:
     return
 
-  state = _RunState(test)
+  state = _RunState(test, finder_options)
   pages_with_discarded_first_result = set()
   max_failures = finder_options.max_failures  # command-line gets priority
   if max_failures is None:
@@ -386,9 +381,8 @@ def Run(test, page_set, expectations, finder_options, results):
         for _ in xrange(finder_options.page_repeat):
           results.WillRunPage(page)
           try:
-            _RunPageAndRetryRunIfNeeded(
-                test, page_set, expectations, finder_options, browser_options,
-                page, possible_browser, results, state)
+            _RunPageAndHandleExceptionIfNeeded(
+                test, page_set, expectations, page, results, state)
           finally:
             discard_run = (test.discard_first_result and
                            page not in pages_with_discarded_first_result)
@@ -475,7 +469,7 @@ def _RunPageAndProcessErrorIfNeeded(page, state, expectation, results):
     exception_formatter.PrintFormattedException(msg=msg)
 
   try:
-    state.PreparePage(page)
+    state.PreparePage()
     state.ImplicitPageNavigation()
     state.RunPage(results)
   except page_test.TestNotSupportedOnPlatformFailure:

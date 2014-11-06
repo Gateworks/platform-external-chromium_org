@@ -12,7 +12,6 @@ SRC = os.path.join(os.path.dirname(__file__), os.path.pardir, os.path.pardir)
 sys.path.append(os.path.join(SRC, 'third_party', 'pymock'))
 
 import bisect_perf_regression
-import bisect_printer
 import bisect_utils
 import mock
 import source_control
@@ -91,7 +90,7 @@ def _MockRunTests(*args, **kwargs):
 def _GetBisectPerformanceMetricsInstance(options_dict):
   """Returns an instance of the BisectPerformanceMetrics class."""
   opts = bisect_perf_regression.BisectOptions.FromDict(options_dict)
-  return bisect_perf_regression.BisectPerformanceMetrics(opts)
+  return bisect_perf_regression.BisectPerformanceMetrics(opts, os.getcwd())
 
 
 def _GetExtendedOptions(improvement_dir, fake_first, ignore_confidence=True):
@@ -124,9 +123,7 @@ def _GenericDryRun(options, print_results=False):
         bisect_instance.opts.good_revision, bisect_instance.opts.metric)
 
     if print_results:
-      printer = bisect_printer.BisectPrinter(bisect_instance.opts,
-                                             bisect_instance.depot_registry)
-      printer.FormatAndPrintResults(results)
+      bisect_instance.printer.FormatAndPrintResults(results)
 
     return results
   finally:
@@ -237,7 +234,7 @@ class BisectPerfRegressionTest(unittest.TestCase):
     bisect_options = bisect_perf_regression.BisectOptions()
     bisect_options.output_buildbot_annotations = None
     bisect_instance = bisect_perf_regression.BisectPerformanceMetrics(
-        bisect_options)
+        bisect_options, os.getcwd())
     bisect_instance.opts.target_platform = target_platform
     git_revision = source_control.ResolveToRevision(
         revision, 'chromium', bisect_utils.DEPOT_DEPS_NAME, 100)
@@ -317,13 +314,15 @@ class BisectPerfRegressionTest(unittest.TestCase):
     global _MockResultsGenerator
     _MockResultsGenerator = (rs for rs in CLEAR_NON_REGRESSION)
     results = _GenericDryRun(_GetExtendedOptions(0, 0, False))
-    self.assertIsNotNone(results.error)
-    self.assertIn('could not reproduce the regression', results.error)
+    confidence_warnings = [x for x in results.warnings if x.startswith(
+        '\nWe could not reproduce the regression')]
+    self.assertGreater(len(confidence_warnings), 0)
 
     _MockResultsGenerator = (rs for rs in ALMOST_REGRESSION)
     results = _GenericDryRun(_GetExtendedOptions(0, 0, False))
-    self.assertIsNotNone(results.error)
-    self.assertIn('could not reproduce the regression', results.error)
+    confidence_warnings = [x for x in results.warnings if x.startswith(
+        '\nWe could not reproduce the regression')]
+    self.assertGreater(len(confidence_warnings), 0)
 
   @mock.patch('bisect_perf_regression.BisectPerformanceMetrics.'
               'RunPerformanceTestAndParseResults', _MockRunTests)
@@ -401,9 +400,6 @@ class DepotDirectoryRegistryTest(unittest.TestCase):
   def testReturnsCorrectResultForChrome(self):
     self.assertEqual(self.registry.GetDepotDir('chromium'), '/mock/src')
 
-  def testReturnsCorrectResultForChromeOS(self):
-    self.assertEqual(self.registry.GetDepotDir('cros'), '/mock/src/tools/cros')
-
   def testUsesDepotSpecToInitializeRegistry(self):
     self.assertEqual(self.registry.GetDepotDir('mock_depot'), '/mock/src/foo')
 
@@ -415,6 +411,7 @@ class DepotDirectoryRegistryTest(unittest.TestCase):
 # The tests below test private functions (W0212).
 # pylint: disable=W0212
 class GitTryJobTestCases(unittest.TestCase):
+
   """Test case for bisect try job."""
   def setUp(self):
     bisect_utils_patcher = mock.patch('bisect_perf_regression.bisect_utils')
@@ -432,10 +429,10 @@ class GitTryJobTestCases(unittest.TestCase):
   def _AssertRunGitExceptions(self, git_cmds, func, *args):
     """Setup RunGit mock and tests RunGitException.
 
-      Args:
-        git_cmds: List of tuples with git command and expected output.
-        func: Callback function to be executed.
-        args: List of arguments to be passed to the function.
+    Args:
+      git_cmds: List of tuples with git command and expected output.
+      func: Callback function to be executed.
+      args: List of arguments to be passed to the function.
     """
     self._SetupRunGitMock(git_cmds)
     self.assertRaises(bisect_perf_regression.RunGitError,
@@ -455,7 +452,8 @@ class GitTryJobTestCases(unittest.TestCase):
     parent_branch = bisect_perf_regression.BISECT_MASTER_BRANCH
     cmds = [
         (['rev-parse', '--abbrev-ref', 'HEAD'], (new_branch, 0)),
-        (['checkout', '-f', parent_branch], ('Checkout Failed', 1))]
+        (['checkout', '-f', parent_branch], ('Checkout Failed', 1)),
+    ]
     self._AssertRunGitExceptions(cmds,
                                  bisect_perf_regression._PrepareBisectBranch,
                                  parent_branch, new_branch)
@@ -465,9 +463,9 @@ class GitTryJobTestCases(unittest.TestCase):
     parent_branch = bisect_perf_regression.BISECT_MASTER_BRANCH
     cmds = [
         (['rev-parse', '--abbrev-ref', 'HEAD'], (parent_branch, 0)),
-        (['branch', '--list' ], ('bisect-tryjob\n*master\nsomebranch', 0)),
-        (['branch', '-D', new_branch], ('Failed to delete branch', 128))
-        ]
+        (['branch', '--list'], ('bisect-tryjob\n*master\nsomebranch', 0)),
+        (['branch', '-D', new_branch], ('Failed to delete branch', 128)),
+    ]
     self._AssertRunGitExceptions(cmds,
                                  bisect_perf_regression._PrepareBisectBranch,
                                  parent_branch, new_branch)
@@ -477,13 +475,12 @@ class GitTryJobTestCases(unittest.TestCase):
     parent_branch = bisect_perf_regression.BISECT_MASTER_BRANCH
     cmds = [
         (['rev-parse', '--abbrev-ref', 'HEAD'], (parent_branch, 0)),
-        (['branch', '--list' ], ('bisect-tryjob\n*master\nsomebranch', 0)),
+        (['branch', '--list'], ('bisect-tryjob\n*master\nsomebranch', 0)),
         (['branch', '-D', new_branch], ('None', 0)),
         (['update-index', '--refresh', '-q'], (None, 0)),
         (['diff-index', 'HEAD'], (None, 0)),
-        (['checkout', '-b', new_branch], ('Failed to create branch', 128))
-        ]
-
+        (['checkout', '-b', new_branch], ('Failed to create branch', 128)),
+    ]
     self._AssertRunGitExceptions(cmds,
                                  bisect_perf_regression._PrepareBisectBranch,
                                  parent_branch, new_branch)
@@ -493,17 +490,18 @@ class GitTryJobTestCases(unittest.TestCase):
     parent_branch = bisect_perf_regression.BISECT_MASTER_BRANCH
     cmds = [
         (['rev-parse', '--abbrev-ref', 'HEAD'], (parent_branch, 0)),
-        (['branch', '--list' ], ('bisect-tryjob\n*master\nsomebranch', 0)),
+        (['branch', '--list'], ('bisect-tryjob\n*master\nsomebranch', 0)),
         (['branch', '-D', new_branch], ('None', 0)),
         (['update-index', '--refresh', '-q'], (None, 0)),
         (['diff-index', 'HEAD'], (None, 0)),
         (['checkout', '-b', new_branch], ('None', 0)),
         (['branch', '--set-upstream-to', parent_branch],
-         ('Setuptream fails', 1))
-        ]
+         ('Setuptream fails', 1)),
+    ]
     self._AssertRunGitExceptions(cmds,
                                  bisect_perf_regression._PrepareBisectBranch,
                                  parent_branch, new_branch)
+
   def testBuilderTryJobForException(self):
     git_revision = 'ac4a9f31fe2610bd146857bbd55d7a260003a888'
     bot_name = 'linux_perf_bisect_builder'
@@ -514,7 +512,7 @@ class GitTryJobTestCases(unittest.TestCase):
     parent_branch = bisect_perf_regression.BISECT_MASTER_BRANCH
     try_cmd = [
         (['rev-parse', '--abbrev-ref', 'HEAD'], (parent_branch, 0)),
-        (['branch', '--list' ], ('bisect-tryjob\n*master\nsomebranch', 0)),
+        (['branch', '--list'], ('bisect-tryjob\n*master\nsomebranch', 0)),
         (['branch', '-D', new_branch], ('None', 0)),
         (['update-index', '--refresh', '-q'], (None, 0)),
         (['diff-index', 'HEAD'], (None, 0)),
@@ -527,8 +525,8 @@ class GitTryJobTestCases(unittest.TestCase):
           '-n', bisect_job_name,
           '--svn_repo=%s' % bisect_perf_regression.SVN_REPO_URL,
           '--diff=%s' % patch_content
-          ], (None, 1))
-        ]
+         ], (None, 1)),
+    ]
     self._AssertRunGitExceptions(try_cmd,
                                  bisect_perf_regression._BuilderTryjob,
                                  git_revision, bot_name, bisect_job_name, patch)
@@ -543,7 +541,7 @@ class GitTryJobTestCases(unittest.TestCase):
     parent_branch = bisect_perf_regression.BISECT_MASTER_BRANCH
     try_cmd = [
         (['rev-parse', '--abbrev-ref', 'HEAD'], (parent_branch, 0)),
-        (['branch', '--list' ], ('bisect-tryjob\n*master\nsomebranch', 0)),
+        (['branch', '--list'], ('bisect-tryjob\n*master\nsomebranch', 0)),
         (['branch', '-D', new_branch], ('None', 0)),
         (['update-index', '--refresh', '-q'], (None, 0)),
         (['diff-index', 'HEAD'], (None, 0)),
@@ -556,8 +554,8 @@ class GitTryJobTestCases(unittest.TestCase):
           '-n', bisect_job_name,
           '--svn_repo=%s' % bisect_perf_regression.SVN_REPO_URL,
           '--diff=%s' % patch_content
-          ], (None, 0))
-        ]
+         ], (None, 0)),
+    ]
     self._SetupRunGitMock(try_cmd)
     bisect_perf_regression._BuilderTryjob(
         git_revision, bot_name, bisect_job_name, patch)
@@ -565,3 +563,4 @@ class GitTryJobTestCases(unittest.TestCase):
 
 if __name__ == '__main__':
   unittest.main()
+

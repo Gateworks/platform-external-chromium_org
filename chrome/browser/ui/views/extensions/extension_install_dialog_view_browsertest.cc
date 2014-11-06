@@ -33,8 +33,8 @@ class MockExtensionInstallPromptDelegate
         abort_count_(0) {}
 
   // ExtensionInstallPrompt::Delegate overrides.
-  virtual void InstallUIProceed() override;
-  virtual void InstallUIAbort(bool user_initiated) override;
+  void InstallUIProceed() override;
+  void InstallUIAbort(bool user_initiated) override;
 
   int proceed_count() { return proceed_count_; }
   int abort_count() { return abort_count_; }
@@ -58,7 +58,7 @@ class MockExtensionInstallPrompt : public ExtensionInstallPrompt {
  public:
   explicit MockExtensionInstallPrompt(content::WebContents* web_contents)
       : ExtensionInstallPrompt(web_contents), prompt_(NULL) {}
-  virtual ~MockExtensionInstallPrompt() {}
+  ~MockExtensionInstallPrompt() override {}
   void set_prompt(ExtensionInstallPrompt::Prompt* prompt) {
     prompt_ = prompt;
   }
@@ -74,9 +74,9 @@ class ExtensionInstallDialogViewTestBase : public ExtensionBrowserTest {
  protected:
   explicit ExtensionInstallDialogViewTestBase(
       ExtensionInstallPrompt::PromptType prompt_type);
-  virtual ~ExtensionInstallDialogViewTestBase() {}
+  ~ExtensionInstallDialogViewTestBase() override {}
 
-  virtual void SetUpOnMainThread() override;
+  void SetUpOnMainThread() override;
 
   ExtensionInstallPrompt::Prompt* prompt() { return prompt_.get(); }
   content::WebContents* web_contents() { return web_contents_; }
@@ -147,7 +147,7 @@ void ExtensionInstallDialogViewTestBase::SetPromptRetainedFiles(
 class ScrollbarTest : public ExtensionInstallDialogViewTestBase {
  protected:
   ScrollbarTest();
-  virtual ~ScrollbarTest() {}
+  ~ScrollbarTest() override {}
 
   bool IsScrollbarVisible();
 
@@ -161,16 +161,16 @@ ScrollbarTest::ScrollbarTest()
 }
 
 bool ScrollbarTest::IsScrollbarVisible() {
-  ExtensionInstallPrompt::ShowParams show_params(web_contents());
   ExtensionInstallDialogView* dialog = new ExtensionInstallDialogView(
-      show_params.profile,
-      show_params.parent_web_contents,
+      profile(),
+      web_contents(),
       delegate(),
       prompt());
 
   // Create the modal view around the install dialog view.
   views::Widget* modal =
-      CreateBrowserModalDialogViews(dialog, show_params.parent_window);
+      CreateBrowserModalDialogViews(dialog,
+                                    web_contents()->GetTopLevelNativeWindow());
   modal->Show();
   content::RunAllBlockingPoolTasksUntilIdle();
 
@@ -213,7 +213,7 @@ class ExtensionInstallDialogViewTest
   ExtensionInstallDialogViewTest()
       : ExtensionInstallDialogViewTestBase(
             ExtensionInstallPrompt::INSTALL_PROMPT) {}
-  virtual ~ExtensionInstallDialogViewTest() {}
+  ~ExtensionInstallDialogViewTest() override {}
 
  private:
   DISALLOW_COPY_AND_ASSIGN(ExtensionInstallDialogViewTest);

@@ -35,15 +35,15 @@
 #include "ui/compositor/compositor.h"
 #include "ui/compositor/dip_util.h"
 #include "ui/compositor/layer.h"
+#include "ui/events/devices/x11/device_data_manager_x11.h"
+#include "ui/events/devices/x11/device_list_cache_x11.h"
+#include "ui/events/devices/x11/touch_factory_x11.h"
 #include "ui/events/event.h"
 #include "ui/events/event_switches.h"
 #include "ui/events/event_utils.h"
 #include "ui/events/keycodes/keyboard_codes.h"
 #include "ui/events/platform/platform_event_observer.h"
 #include "ui/events/platform/x11/x11_event_source.h"
-#include "ui/events/x/device_data_manager_x11.h"
-#include "ui/events/x/device_list_cache_x.h"
-#include "ui/events/x/touch_factory_x11.h"
 #include "ui/gfx/screen.h"
 
 using std::max;
@@ -133,7 +133,7 @@ class TouchEventCalibrate : public ui::PlatformEventObserver {
 #endif  // defined(USE_XI2_MT)
   }
 
-  virtual ~TouchEventCalibrate() {
+  ~TouchEventCalibrate() override {
     if (ui::PlatformEventSource::GetInstance())
       ui::PlatformEventSource::GetInstance()->RemovePlatformEventObserver(this);
   }
@@ -202,7 +202,7 @@ class TouchEventCalibrate : public ui::PlatformEventObserver {
 
  private:
   // ui::PlatformEventObserver:
-  virtual void WillProcessEvent(const ui::PlatformEvent& event) override {
+  void WillProcessEvent(const ui::PlatformEvent& event) override {
 #if defined(USE_XI2_MT)
     if (event->type == GenericEvent &&
         (event->xgeneric.evtype == XI_TouchBegin ||
@@ -216,7 +216,7 @@ class TouchEventCalibrate : public ui::PlatformEventObserver {
 #endif  // defined(USE_XI2_MT)
   }
 
-  virtual void DidProcessEvent(const ui::PlatformEvent& event) override {}
+  void DidProcessEvent(const ui::PlatformEvent& event) override {}
 
   // The difference in screen's native resolution pixels between
   // the border of the touchscreen and the border of the screen,

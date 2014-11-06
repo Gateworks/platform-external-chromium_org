@@ -184,11 +184,11 @@ class BookmarkButtonBase : public views::LabelButton {
     }
   }
 
-  virtual View* GetTooltipHandlerForPoint(const gfx::Point& point) override {
+  View* GetTooltipHandlerForPoint(const gfx::Point& point) override {
     return HitTestPoint(point) && CanProcessEventsWithinSubtree() ? this : NULL;
   }
 
-  virtual scoped_ptr<LabelButtonBorder> CreateDefaultBorder() const override {
+  scoped_ptr<LabelButtonBorder> CreateDefaultBorder() const override {
     scoped_ptr<LabelButtonBorder> border = LabelButton::CreateDefaultBorder();
     border->set_insets(gfx::Insets(kButtonPaddingVertical,
                                    kButtonPaddingHorizontal,
@@ -197,7 +197,7 @@ class BookmarkButtonBase : public views::LabelButton {
     return border.Pass();
   }
 
-  virtual bool IsTriggerableEvent(const ui::Event& e) override {
+  bool IsTriggerableEvent(const ui::Event& e) override {
     return e.type() == ui::ET_GESTURE_TAP ||
            e.type() == ui::ET_GESTURE_TAP_DOWN ||
            event_utils::IsPossibleDispositionEvent(e);
@@ -227,8 +227,8 @@ class BookmarkButton : public BookmarkButtonBase {
         profile_(profile) {
   }
 
-  virtual bool GetTooltipText(const gfx::Point& p,
-                              base::string16* tooltip) const override {
+  bool GetTooltipText(const gfx::Point& p,
+                      base::string16* tooltip) const override {
     gfx::Point location(p);
     ConvertPointToScreen(this, &location);
     *tooltip = BookmarkBarView::CreateToolTipForURLAndTitle(
@@ -236,9 +236,7 @@ class BookmarkButton : public BookmarkButtonBase {
     return !tooltip->empty();
   }
 
-  virtual const char* GetClassName() const override {
-    return kViewClassName;
-  }
+  const char* GetClassName() const override { return kViewClassName; }
 
  private:
   const GURL& url_;
@@ -264,9 +262,7 @@ class ShortcutButton : public BookmarkButtonBase {
       : BookmarkButtonBase(listener, title) {
   }
 
-  virtual const char* GetClassName() const override {
-    return kViewClassName;
-  }
+  const char* GetClassName() const override { return kViewClassName; }
 
  private:
   DISALLOW_COPY_AND_ASSIGN(ShortcutButton);
@@ -297,14 +293,14 @@ class BookmarkFolderButton : public views::MenuButton {
     }
   }
 
-  virtual bool GetTooltipText(const gfx::Point& p,
-                              base::string16* tooltip) const override {
+  bool GetTooltipText(const gfx::Point& p,
+                      base::string16* tooltip) const override {
     if (label()->GetPreferredSize().width() > label()->size().width())
       *tooltip = GetText();
     return !tooltip->empty();
   }
 
-  virtual bool IsTriggerableEvent(const ui::Event& e) override {
+  bool IsTriggerableEvent(const ui::Event& e) override {
     // Left clicks and taps should show the menu contents and right clicks
     // should show the context menu. They should not trigger the opening of
     // underlying urls.
@@ -332,7 +328,7 @@ class OverFlowButton : public views::MenuButton {
       : MenuButton(NULL, base::string16(), owner, false),
         owner_(owner) {}
 
-  virtual bool OnMousePressed(const ui::MouseEvent& e) override {
+  bool OnMousePressed(const ui::MouseEvent& e) override {
     owner_->StopThrobbing(true);
     return views::MenuButton::OnMousePressed(e);
   }
@@ -418,9 +414,9 @@ struct BookmarkBarView::DropInfo {
 class BookmarkBarView::ButtonSeparatorView : public views::View {
  public:
   ButtonSeparatorView() {}
-  virtual ~ButtonSeparatorView() {}
+  ~ButtonSeparatorView() override {}
 
-  virtual void OnPaint(gfx::Canvas* canvas) override {
+  void OnPaint(gfx::Canvas* canvas) override {
     DetachableToolbarView::PaintVerticalDivider(
         canvas, kSeparatorStartX, height(), 1,
         DetachableToolbarView::kEdgeDividerColor,
@@ -428,13 +424,13 @@ class BookmarkBarView::ButtonSeparatorView : public views::View {
         GetThemeProvider()->GetColor(ThemeProperties::COLOR_TOOLBAR));
   }
 
-  virtual gfx::Size GetPreferredSize() const override {
+  gfx::Size GetPreferredSize() const override {
     // We get the full height of the bookmark bar, so that the height returned
     // here doesn't matter.
     return gfx::Size(kSeparatorWidth, 1);
   }
 
-  virtual void GetAccessibleState(ui::AXViewState* state) override {
+  void GetAccessibleState(ui::AXViewState* state) override {
     state->name = l10n_util::GetStringUTF16(IDS_ACCNAME_SEPARATOR);
     state->role = ui::AX_ROLE_SPLITTER;
   }
@@ -783,6 +779,10 @@ gfx::Size BookmarkBarView::GetMinimumSize() const {
 }
 
 void BookmarkBarView::Layout() {
+  // Skip layout during destruction, when no model exists.
+  if (!model_)
+    return;
+
   int x = kLeftMargin;
   int top_margin = IsDetached() ? kDetachedTopMargin : 0;
   int y = top_margin;
@@ -844,26 +844,42 @@ void BookmarkBarView::Layout() {
                  max_x - x),
         height);
   } else {
-    for (int i = 0; i < GetBookmarkButtonCount(); ++i) {
+    bool last_visible = x < max_x;
+    int button_count = GetBookmarkButtonCount();
+    for (int i = 0; i <= button_count; ++i) {
+      if (i == button_count) {
+        // Add another button if there is room for it (and there is another
+        // button to load).
+        if (!last_visible || !model_->loaded() ||
+            model_->bookmark_bar_node()->child_count() <= button_count)
+          break;
+        AddChildViewAt(
+            CreateBookmarkButton(model_->bookmark_bar_node()->GetChild(i)), i);
+        button_count = GetBookmarkButtonCount();
+      }
       views::View* child = child_at(i);
       gfx::Size pref = child->GetPreferredSize();
       int next_x = x + pref.width() + kButtonPadding;
-      child->SetVisible(next_x < max_x);
-      child->SetBounds(x, y, pref.width(), height);
+      last_visible = next_x < max_x;
+      child->SetVisible(last_visible);
+      // Only need to set bounds if the view is actually visible.
+      if (last_visible)
+        child->SetBounds(x, y, pref.width(), height);
       x = next_x;
     }
   }
-
-  // Layout the right side of the bar.
-  const bool all_visible = (GetBookmarkButtonCount() == 0 ||
-                            child_at(GetBookmarkButtonCount() - 1)->visible());
 
   // Layout the right side buttons.
   x = max_x + kButtonPadding;
 
   // The overflow button.
   overflow_button_->SetBounds(x, y, overflow_pref.width(), height);
-  overflow_button_->SetVisible(!all_visible);
+  const bool show_overflow =
+      model_->loaded() &&
+      (model_->bookmark_bar_node()->child_count() > GetBookmarkButtonCount() ||
+       (GetBookmarkButtonCount() > 0 &&
+        !GetBookmarkButton(GetBookmarkButtonCount() - 1)->visible()));
+  overflow_button_->SetVisible(show_overflow);
   x += overflow_pref.width();
 
   // Separator.
@@ -1151,12 +1167,8 @@ void BookmarkBarView::BookmarkModelLoaded(BookmarkModel* model,
                                           bool ids_reassigned) {
   // There should be no buttons. If non-zero it means Load was invoked more than
   // once, or we didn't properly clear things. Either of which shouldn't happen.
+  // The actual bookmark buttons are added from Layout().
   DCHECK_EQ(0, GetBookmarkButtonCount());
-  const BookmarkNode* node = model->bookmark_bar_node();
-  DCHECK(node);
-  // Create a button for each of the children on the bookmark bar.
-  for (int i = 0, child_count = node->child_count(); i < child_count; ++i)
-    AddChildViewAt(CreateBookmarkButton(node->GetChild(i)), i);
   DCHECK(model->other_node());
   other_bookmarked_button_->SetAccessibleName(model->other_node()->GetTitle());
   other_bookmarked_button_->SetText(model->other_node()->GetTitle());
@@ -1190,7 +1202,7 @@ void BookmarkBarView::BookmarkNodeMoved(BookmarkModel* model,
       BookmarkNodeRemovedImpl(model, old_parent, old_index);
   if (BookmarkNodeAddedImpl(model, new_parent, new_index))
     needs_layout_and_paint = true;
-  if (was_throbbing)
+  if (was_throbbing && new_index < GetBookmarkButtonCount())
     StartThrobbing(new_parent->GetChild(new_index), false);
   if (needs_layout_and_paint)
     LayoutAndPaint();
@@ -1507,7 +1519,8 @@ int BookmarkBarView::GetBookmarkButtonCount() const {
 }
 
 views::LabelButton* BookmarkBarView::GetBookmarkButton(int index) {
-  DCHECK(index >= 0 && index < GetBookmarkButtonCount());
+  // CHECK as otherwise we may do the wrong cast.
+  CHECK(index >= 0 && index < GetBookmarkButtonCount());
   return static_cast<views::LabelButton*>(child_at(index));
 }
 
@@ -1630,18 +1643,17 @@ bool BookmarkBarView::BookmarkNodeAddedImpl(BookmarkModel* model,
                                             const BookmarkNode* parent,
                                             int index) {
   const bool needs_layout_and_paint = UpdateOtherAndManagedButtonsVisibility();
-  if (parent != model->bookmark_bar_node()) {
-    // Only children of the bookmark_bar_node get buttons.
+  if (parent != model->bookmark_bar_node())
     return needs_layout_and_paint;
+  if (index < GetBookmarkButtonCount()) {
+    const BookmarkNode* node = parent->GetChild(index);
+    AddChildViewAt(CreateBookmarkButton(node), index);
+    return true;
   }
-  DCHECK(index >= 0 && index <= GetBookmarkButtonCount());
-  const BookmarkNode* node = parent->GetChild(index);
-  ProfileSyncService* sync_service(ProfileSyncServiceFactory::
-      GetInstance()->GetForProfile(browser_->profile()));
-  if (!throbbing_view_ && sync_service && sync_service->FirstSetupInProgress())
-    StartThrobbing(node, true);
-  AddChildViewAt(CreateBookmarkButton(node), index);
-  return true;
+  // If the new node was added after the last button we've created we may be
+  // able to fit it. Assume we can by returning true, which forces a Layout()
+  // and creation of the button (if it fits).
+  return index == GetBookmarkButtonCount();
 }
 
 bool BookmarkBarView::BookmarkNodeRemovedImpl(BookmarkModel* model,
@@ -1657,6 +1669,9 @@ bool BookmarkBarView::BookmarkNodeRemovedImpl(BookmarkModel* model,
     // Only children of the bookmark_bar_node get buttons.
     return needs_layout;
   }
+  if (index >= GetBookmarkButtonCount())
+    return needs_layout;
+
   delete child_at(index);
   return true;
 }
@@ -1677,15 +1692,13 @@ void BookmarkBarView::BookmarkNodeChangedImpl(BookmarkModel* model,
   }
   int index = model->bookmark_bar_node()->GetIndexOf(node);
   DCHECK_NE(-1, index);
+  if (index >= GetBookmarkButtonCount())
+    return;  // Buttons are created as needed.
   views::LabelButton* button = GetBookmarkButton(index);
-  gfx::Size old_pref = button->GetPreferredSize();
+  const int old_pref_width = button->GetPreferredSize().width();
   ConfigureButton(node, button);
-  gfx::Size new_pref = button->GetPreferredSize();
-  if (old_pref.width() != new_pref.width()) {
+  if (old_pref_width != button->GetPreferredSize().width())
     LayoutAndPaint();
-  } else if (button->visible()) {
-    button->SchedulePaint();
-  }
 }
 
 void BookmarkBarView::ShowDropFolderForNode(const BookmarkNode* node) {

@@ -254,7 +254,7 @@ class MockDownloadWebContentsDelegate : public content::WebContentsDelegate {
 
 class WebViewTest : public extensions::PlatformAppBrowserTest {
  protected:
-  virtual void SetUp() override {
+  void SetUp() override {
     if (UsesFakeSpeech()) {
       // SpeechRecognition test specific SetUp.
       fake_speech_recognition_manager_.reset(
@@ -268,7 +268,7 @@ class WebViewTest : public extensions::PlatformAppBrowserTest {
     extensions::PlatformAppBrowserTest::SetUp();
   }
 
-  virtual void TearDown() override {
+  void TearDown() override {
     if (UsesFakeSpeech()) {
       // SpeechRecognition test specific TearDown.
       content::SpeechRecognitionManager::SetManagerForTesting(NULL);
@@ -950,8 +950,10 @@ IN_PROC_BROWSER_TEST_F(WebViewTest, Shim_TestCannotMutateEventName) {
   TestHelper("testCannotMutateEventName", "web_view/shim", NO_TEST_SERVER);
 }
 
-IN_PROC_BROWSER_TEST_F(WebViewTest, Shim_TestPartitionRaisesException) {
-  TestHelper("testPartitionRaisesException", "web_view/shim", NO_TEST_SERVER);
+IN_PROC_BROWSER_TEST_F(WebViewTest, Shim_TestPartitionChangeAfterNavigation) {
+  TestHelper("testPartitionChangeAfterNavigation",
+             "web_view/shim",
+             NO_TEST_SERVER);
 }
 
 IN_PROC_BROWSER_TEST_F(WebViewTest,
@@ -1881,7 +1883,7 @@ IN_PROC_BROWSER_TEST_F(WebViewTest, ChromeVoxInjection) {
 
   chromeos::SpeechMonitor monitor;
   chromeos::AccessibilityManager::Get()->EnableSpokenFeedback(
-      true, ash::A11Y_NOTIFICATION_NONE);
+      true, ui::A11Y_NOTIFICATION_NONE);
   EXPECT_TRUE(monitor.SkipChromeVoxEnabledMessage());
 
   EXPECT_EQ("chrome vox test title", monitor.GetNextUtterance());
@@ -2264,8 +2266,8 @@ IN_PROC_BROWSER_TEST_F(WebViewPluginTest, TestLoadPluginEvent) {
 class WebViewCaptureTest : public WebViewTest {
  public:
   WebViewCaptureTest() {}
-  virtual ~WebViewCaptureTest() {}
-  virtual void SetUp() override {
+  ~WebViewCaptureTest() override {}
+  void SetUp() override {
     EnablePixelOutput();
     WebViewTest::SetUp();
   }

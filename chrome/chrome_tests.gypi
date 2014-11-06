@@ -40,12 +40,9 @@
       '../extensions/browser/api/cast_channel/cast_channel_apitest.cc',
       '../extensions/browser/api/runtime/runtime_apitest.cc',
       '../extensions/browser/api/serial/serial_apitest.cc',
-      '../extensions/browser/api/usb/usb_apitest.cc',
       '../extensions/browser/api/usb/usb_manual_apitest.cc',
       '../extensions/browser/app_window/app_window_browsertest.cc',
       '../extensions/browser/guest_view/extension_options/extension_options_apitest.cc',
-      '../extensions/browser/test_extension_registry_observer.h',
-      '../extensions/browser/test_extension_registry_observer.cc',
       '../extensions/renderer/script_context_browsertest.cc',
       'app/chrome_command_ids.h',
       'app/chrome_dll.rc',
@@ -157,14 +154,14 @@
       #'browser/chromeos/login/resource_loader_browsertest.cc',
       'browser/chromeos/login/saml/saml_browsertest.cc',
       'browser/chromeos/login/session_login_browsertest.cc',
+      'browser/chromeos/login/screens/mock_base_screen_delegate.cc',
+      'browser/chromeos/login/screens/mock_base_screen_delegate.h',
       'browser/chromeos/login/screens/mock_error_screen.cc',
       'browser/chromeos/login/screens/mock_error_screen.h',
       'browser/chromeos/login/screens/mock_eula_screen.cc',
       'browser/chromeos/login/screens/mock_eula_screen.h',
       'browser/chromeos/login/screens/mock_network_screen.cc',
       'browser/chromeos/login/screens/mock_network_screen.h',
-      'browser/chromeos/login/screens/mock_screen_observer.cc',
-      'browser/chromeos/login/screens/mock_screen_observer.h',
       'browser/chromeos/login/screens/mock_update_screen.cc',
       'browser/chromeos/login/screens/mock_update_screen.h',
       'browser/chromeos/login/screens/network_screen_browsertest.cc',
@@ -376,9 +373,12 @@
       'browser/extensions/extension_get_views_apitest.cc',
       'browser/extensions/extension_icon_source_apitest.cc',
       'browser/extensions/extension_incognito_apitest.cc',
+      'browser/extensions/extension_install_prompt_browsertest.cc',
       'browser/extensions/extension_install_ui_browsertest.cc',
       'browser/extensions/extension_javascript_url_apitest.cc',
       'browser/extensions/extension_loading_browsertest.cc',
+      'browser/extensions/extension_management_test_util.cc',
+      'browser/extensions/extension_management_test_util.h',
       'browser/extensions/extension_messages_apitest.cc',
       'browser/extensions/extension_override_apitest.cc',
       'browser/extensions/extension_resource_request_policy_apitest.cc',
@@ -407,8 +407,6 @@
       'browser/extensions/startup_helper_browsertest.cc',
       'browser/extensions/stubs_apitest.cc',
       'browser/extensions/subscribe_page_action_browsertest.cc',
-      'browser/extensions/test_extension_dir.cc',
-      'browser/extensions/test_extension_dir.h',
       'browser/extensions/web_contents_browsertest.cc',
       'browser/extensions/webstore_inline_installer_browsertest.cc',
       'browser/extensions/webstore_installer_test.cc',
@@ -452,6 +450,7 @@
       'browser/media/chrome_webrtc_video_quality_browsertest.cc',
       'browser/media/chrome_webrtc_webcam_browsertest.cc',
       'browser/media/encrypted_media_istypesupported_browsertest.cc',
+      'browser/media/media_stream_devices_controller_browsertest.cc',
       'browser/media/test_license_server.cc',
       'browser/media/test_license_server.h',
       'browser/media/test_license_server_config.h',
@@ -558,6 +557,7 @@
       'browser/ui/app_list/app_list_service_views_browsertest.cc',
       'browser/ui/app_list/search/people/people_provider_browsertest.cc',
       'browser/ui/app_list/search/webstore/webstore_provider_browsertest.cc',
+      'browser/ui/app_list/speech_recognizer_browsertest.cc',
       'browser/ui/ash/accelerator_commands_browsertest.cc',
       'browser/ui/ash/launcher/chrome_launcher_controller_browsertest.cc',
       'browser/ui/ash/launcher/launcher_favicon_loader_browsertest.cc',
@@ -618,6 +618,7 @@
       'browser/ui/global_error/global_error_service_browsertest.cc',
       'browser/ui/login/login_prompt_browsertest.cc',
       'browser/ui/location_bar/location_bar_browsertest.cc',
+      'browser/ui/native_window_tracker_browsertest.cc',
       'browser/ui/panels/panel_extension_browsertest.cc',
       'browser/ui/passwords/manage_passwords_test.cc',
       'browser/ui/pdf/pdf_browsertest.cc',
@@ -638,6 +639,7 @@
       'browser/ui/views/autofill/password_generation_popup_view_tester_views.cc',
       'browser/ui/views/autofill/password_generation_popup_view_tester_views.h',
       'browser/ui/views/extensions/extension_install_dialog_view_browsertest.cc',
+      'browser/ui/views/extensions/extension_uninstall_dialog_view_browsertest.cc',
       'browser/ui/views/frame/browser_non_client_frame_view_ash_browsertest.cc',
       'browser/ui/views/frame/browser_view_browsertest.cc',
       'browser/ui/views/frame/browser_window_property_manager_browsertest_win.cc',
@@ -1416,6 +1418,7 @@
             # TODO(tapted): Enable toolkit-views tests on Mac when their
             # respective implementations are ported.
             'browser/ui/views/bookmarks/bookmark_bar_view_test.cc',
+            'browser/ui/views/bookmarks/bookmark_bar_view_test_helper.h',
             'browser/ui/views/constrained_window_views_browsertest.cc',
             'browser/ui/views/find_bar_host_interactive_uitest.cc',
             'browser/ui/views/keyboard_access_browsertest.cc',
@@ -1441,6 +1444,15 @@
             ['exclude', '^browser/notifications/'],
             ['exclude', '^browser/extensions/notifications_apitest.cc'],
           ],
+        }],
+        ['OS=="android"', {
+          'sources!': [
+            # Android does not use the message center-based Notification system.
+            'browser/notifications/message_center_notifications_browsertest.cc',
+
+            # TODO(peter): Enable the Notification browser tests.
+            'browser/notifications/notification_browsertest.cc',
+          ]
         }],
         ['toolkit_views==1', {
           'dependencies': [
@@ -1879,6 +1891,15 @@
           'rule_name': 'js2webui',
           'extension': 'js',
           'msvs_external_rule': 1,
+          'variables': {
+            'conditions': [
+              ['v8_use_external_startup_data==1', {
+                'external_v8': 'y',
+              }, {
+                'external_v8': 'n',
+              }],
+            ],
+          },
           'inputs': [
             '<(gypv8sh)',
             '<(PRODUCT_DIR)/d8<(EXECUTABLE_SUFFIX)',
@@ -1894,6 +1915,7 @@
           'action': [
             'python',
             '<@(_inputs)',
+            '--external', '<(external_v8)',
             'webui',
             '<(RULE_INPUT_PATH)',
             'chrome/<(RULE_INPUT_DIRNAME)/<(RULE_INPUT_ROOT).js',
@@ -1964,6 +1986,7 @@
                 '../ppapi/ppapi_nacl.gyp:ppapi_nacl_tests',
                 '../ppapi/tests/extensions/extensions.gyp:ppapi_tests_extensions_background_keepalive',
                 '../ppapi/tests/extensions/extensions.gyp:ppapi_tests_extensions_media_galleries',
+                '../ppapi/tests/extensions/extensions.gyp:ppapi_tests_extensions_packaged_app',
               ],
               'conditions': [
                 ['chromeos==1', {
@@ -2337,7 +2360,7 @@
             '../media/media.gyp:clearkeycdmadapter',
           ],
         }],
-        ['enable_printing!=1', {
+        ['enable_print_preview==0', {
           'sources/': [
             ['exclude', '^browser/extensions/api/cloud_print_private/cloud_print_private_apitest.cc'],
             ['exclude', '^browser/printing/cloud_print/test/.*'],
@@ -2350,7 +2373,7 @@
             ['exclude', '^test/data/webui/print_preview.js'],
           ],
         }],
-        ['enable_printing==0', {
+        ['enable_basic_printing==0 and enable_print_preview==0', {
           'sources/': [
             ['exclude', '^renderer/printing/print_web_view_helper_browsertest.cc'],
           ],
@@ -2449,6 +2472,15 @@
           'rule_name': 'js2webui',
           'extension': 'js',
           'msvs_external_rule': 1,
+          'variables': {
+            'conditions': [
+              ['v8_use_external_startup_data==1', {
+                'external_v8': 'y',
+              }, {
+                'external_v8': 'n',
+              }],
+            ],
+          },
           'inputs': [
             '<(gypv8sh)',
             '<(PRODUCT_DIR)/d8<(EXECUTABLE_SUFFIX)',
@@ -2465,6 +2497,7 @@
             'python',
             '<@(_inputs)',
             'webui',
+            '--external', '<(external_v8)',
             '<(RULE_INPUT_PATH)',
             'chrome/<(RULE_INPUT_DIRNAME)/<(RULE_INPUT_ROOT).js',
             '<@(_outputs)',
@@ -2545,6 +2578,11 @@
                 '../base/allocator/allocator.gyp:allocator',
               ],
             }],
+          ],
+        }],
+        ['OS=="win" and component!="shared_library" and win_use_allocator_shim==1', {
+          'dependencies': [
+            '<(DEPTH)/base/allocator/allocator.gyp:allocator',
           ],
         }],
       ],  # conditions
@@ -2691,7 +2729,7 @@
             '../ui/views/views.gyp:views',
           ],
         }],
-        ['enable_printing!=0', {
+        ['enable_basic_printing==1 or enable_print_preview==1', {
           'dependencies': [
             '../printing/printing.gyp:printing',
           ],

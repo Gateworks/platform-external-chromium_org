@@ -5,73 +5,134 @@
 #include "components/copresence/copresence_manager_impl.h"
 
 #include "base/bind.h"
-#include "components/copresence/public/copresence_delegate.h"
+#include "base/strings/stringprintf.h"
+#include "components/copresence/handlers/directive_handler.h"
+#include "components/copresence/proto/rpcs.pb.h"
 #include "components/copresence/public/whispernet_client.h"
 #include "components/copresence/rpc/rpc_handler.h"
 
+namespace {
+
+// Number of characters of suffix to log for auth tokens
+const int kTokenSuffix = 5;
+
+}  // namespace
+
 namespace copresence {
 
-PendingRequest::PendingRequest(const copresence::ReportRequest& report,
-                               const std::string app_id,
+PendingRequest::PendingRequest(const ReportRequest& report,
+                               const std::string& app_id,
+                               const std::string& auth_token,
                                const StatusCallback& callback)
-    : report(report), app_id(app_id), callback(callback) {
+    : report(new ReportRequest(report)),
+      app_id(app_id),
+      auth_token(auth_token),
+      callback(callback) {}
+
+PendingRequest::~PendingRequest() {}
+
+// static
+scoped_ptr<CopresenceManager> CopresenceManager::Create(
+    CopresenceDelegate* delegate) {
+  return make_scoped_ptr(new CopresenceManagerImpl(delegate));
 }
 
-PendingRequest::~PendingRequest() {
+
+// Public functions.
+
+CopresenceManagerImpl::~CopresenceManagerImpl() {
+  whispernet_init_callback_.Cancel();
 }
-
-// Public methods
-
-CopresenceManagerImpl::~CopresenceManagerImpl() {}
 
 // Returns false if any operations were malformed.
 void CopresenceManagerImpl::ExecuteReportRequest(
-    ReportRequest request,
+    const ReportRequest& request,
     const std::string& app_id,
     const StatusCallback& callback) {
-  // Don't take on any more requests. We can't execute them since init failed.
+  // If initialization has failed, reject all requests.
   if (init_failed_) {
     callback.Run(FAIL);
     return;
   }
 
-  DCHECK(rpc_handler_.get());
+  // Check if we are initialized enough to execute this request.
+  // If we haven't seen this auth token yet, we need to register for it.
+  // TODO(ckehoe): Queue per device ID instead of globally.
+  const std::string& auth_token = delegate_->GetAuthToken();
+  if (!rpc_handler_->IsRegisteredForToken(auth_token)) {
+    std::string token_str = auth_token.empty() ? "(anonymous)" :
+        base::StringPrintf("(token ...%s)",
+                           auth_token.substr(auth_token.length() - kTokenSuffix,
+                                             kTokenSuffix).c_str());
+    rpc_handler_->RegisterForToken(
+        auth_token,
+        // The manager owns the RpcHandler, so this callback cannot outlive us.
+        base::Bind(&CopresenceManagerImpl::InitStepComplete,
+                   base::Unretained(this),
+                   "Device registration " + token_str));
+    pending_init_operations_++;
+  }
+
+  // Execute the request if possible, or queue it
+  // if initialization is still in progress.
   if (pending_init_operations_) {
     pending_requests_queue_.push_back(
-        PendingRequest(request, app_id, callback));
+        new PendingRequest(request, app_id, auth_token, callback));
   } else {
     rpc_handler_->SendReportRequest(
-        make_scoped_ptr(new copresence::ReportRequest(request)),
+        make_scoped_ptr(new ReportRequest(request)),
         app_id,
+        auth_token,
         callback);
   }
 }
 
-// Private methods
+
+// Private functions.
 
 CopresenceManagerImpl::CopresenceManagerImpl(CopresenceDelegate* delegate)
-    : init_failed_(false),
+    : delegate_(delegate),
       pending_init_operations_(0),
-      delegate_(delegate) {
+      // This callback gets cancelled when we are destroyed.
+      whispernet_init_callback_(
+          base::Bind(&CopresenceManagerImpl::InitStepComplete,
+                     base::Unretained(this),
+                     "Whispernet proxy initialization")),
+      init_failed_(false),
+      directive_handler_(new DirectiveHandler),
+      rpc_handler_(new RpcHandler(delegate, directive_handler_.get())) {
   DCHECK(delegate);
+  DCHECK(delegate->GetWhispernetClient());
+
+  delegate->GetWhispernetClient()->Initialize(
+      whispernet_init_callback_.callback());
+  pending_init_operations_++;
 }
 
 void CopresenceManagerImpl::CompleteInitialization() {
   if (pending_init_operations_)
     return;
 
-  DCHECK(rpc_handler_.get());
-  if (!init_failed_)
-    rpc_handler_->ConnectToWhispernet();
+  if (!init_failed_) {
+    // When RpcHandler is destroyed, it disconnects this callback.
+    // TODO(ckehoe): Use a CancelableCallback instead.
+    delegate_->GetWhispernetClient()->RegisterTokensCallback(
+        base::Bind(&RpcHandler::ReportTokens,
+                   base::Unretained(rpc_handler_.get())));
+    directive_handler_->Start(delegate_->GetWhispernetClient());
+  }
 
-  for (PendingRequest& request : pending_requests_queue_) {
+  // Not const because SendReportRequest takes ownership of the ReportRequests.
+  // This is ok though, as the entire queue is deleted afterwards.
+  for (PendingRequest* request : pending_requests_queue_) {
     if (init_failed_) {
-      request.callback.Run(FAIL);
+      request->callback.Run(FAIL);
     } else {
       rpc_handler_->SendReportRequest(
-          make_scoped_ptr(new copresence::ReportRequest(request.report)),
-          request.app_id,
-          request.callback);
+          request->report.Pass(),
+          request->app_id,
+          request->auth_token,
+          request->callback);
     }
   }
   pending_requests_queue_.clear();
@@ -82,9 +143,11 @@ void CopresenceManagerImpl::InitStepComplete(
   if (!success) {
     LOG(ERROR) << step << " failed!";
     init_failed_ = true;
+    // TODO(ckehoe): Retry for registration failures. But maybe not here.
   }
 
-  DVLOG(3) << "Init step: " << step << " complete.";
+  DVLOG(3) << step << " complete.";
+  DCHECK(pending_init_operations_ > 0);
   pending_init_operations_--;
   CompleteInitialization();
 }

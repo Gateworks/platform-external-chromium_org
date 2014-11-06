@@ -9,6 +9,7 @@
 #include "base/basictypes.h"
 #include "base/logging.h"
 #include "base/mac/mac_logging.h"
+#include "base/metrics/sparse_histogram.h"
 #include "media/audio/mac/audio_manager_mac.h"
 #include "media/base/audio_bus.h"
 #include "media/base/data_buffer.h"
@@ -179,38 +180,9 @@ bool AUAudioInputStream::Open() {
     return false;
   }
 
-  // Set the desired number of frames in the IO buffer (output scope).
-  // WARNING: Setting this value changes the frame size for all input audio
-  // units in the current process.  As a result, the AURenderCallback must be
-  // able to handle arbitrary buffer sizes and FIFO appropriately.
-  UInt32 buffer_size = 0;
-  UInt32 property_size = sizeof(buffer_size);
-  result = AudioUnitGetProperty(audio_unit_,
-                                kAudioDevicePropertyBufferFrameSize,
-                                kAudioUnitScope_Output,
-                                1,
-                                &buffer_size,
-                                &property_size);
-  if (result != noErr) {
-    HandleError(result);
+  if (!manager_->MaybeChangeBufferSize(
+          input_device_id_, audio_unit_, 1, number_of_frames_))
     return false;
-  }
-
-  // Only set the buffer size if we're the only active stream or the buffer size
-  // is lower than the current buffer size.
-  if (manager_->input_stream_count() == 1 || number_of_frames_ < buffer_size) {
-    buffer_size = number_of_frames_;
-    result = AudioUnitSetProperty(audio_unit_,
-                                  kAudioDevicePropertyBufferFrameSize,
-                                  kAudioUnitScope_Output,
-                                  1,
-                                  &buffer_size,
-                                  sizeof(buffer_size));
-    if (result != noErr) {
-      HandleError(result);
-      return false;
-    }
-  }
 
   // Register the input procedure for the AUHAL.
   // This procedure will be called when the AUHAL has received new data
@@ -496,8 +468,11 @@ OSStatus AUAudioInputStream::InputProc(void* user_data,
                                     bus_number,
                                     number_of_frames,
                                     audio_input->audio_buffer_list());
-  if (result)
+  if (result) {
+    UMA_HISTOGRAM_SPARSE_SLOWLY("Media.AudioInputCbErrorMac", result);
+    OSSTATUS_DLOG(ERROR, result) << "AudioUnitRender() failed.";
     return result;
+  }
 
   // Deliver recorded data to the consumer as a callback.
   return audio_input->Provide(number_of_frames,

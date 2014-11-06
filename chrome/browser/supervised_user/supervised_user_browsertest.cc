@@ -22,7 +22,6 @@
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/tabs/tab_strip_model_observer.h"
 #include "chrome/common/chrome_switches.h"
-#include "chrome/common/pref_names.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/ui_test_utils.h"
 #include "components/infobars/core/confirm_infobar_delegate.h"
@@ -54,7 +53,7 @@ class SupervisedUserBlockModeTest : public InProcessBrowserTest {
   };
 
   SupervisedUserBlockModeTest() : supervised_user_service_(NULL) {}
-  virtual ~SupervisedUserBlockModeTest() {}
+  ~SupervisedUserBlockModeTest() override {}
 
   void CheckShownPageIsInterstitial(WebContents* tab) {
     CheckShownPage(tab, content::PAGE_TYPE_INTERSTITIAL);

@@ -57,7 +57,6 @@
       'common/icon_with_badge_image_source.h',
       'common/ini_parser.cc',
       'common/ini_parser.h',
-      'common/instant_restricted_id_cache.h',
       'common/instant_types.cc',
       'common/instant_types.h',
       'common/localized_error.cc',
@@ -270,6 +269,7 @@
   },
   'targets': [
     {
+      # GN: //chrome/common:common
       'target_name': 'common',
       'type': 'static_library',
       'variables': {
@@ -414,7 +414,7 @@
             'common/pepper_permission_util.h',
           ],
         }],
-        ['enable_printing==0', {
+        ['enable_basic_printing==0 and enable_print_preview==0', {
           'sources!': [
             'common/print_messages.cc',
             'common/print_messages.h',
@@ -424,7 +424,7 @@
             '<(DEPTH)/printing/printing.gyp:printing',
           ],
         }],
-        ['enable_printing==1', {
+        ['enable_print_preview==1', {
           'sources': [ '<@(chrome_common_service_process_sources)' ],
         }],
         ['enable_service_discovery==1', {

@@ -9,7 +9,7 @@ if (cpu_arch == "arm") {
 }
 
 skia_support_gpu = !is_ios
-skia_support_pdf = !is_ios && printing_mode != 0
+skia_support_pdf = !is_ios && (enable_basic_printing || enable_print_preview)
 
 # The list of Skia defines that are to be set for blink.
 gypi_blink_skia_defines = exec_script(
@@ -338,10 +338,6 @@ component("skia") {
 
   # Remove unused util files include in utils.gypi
   sources -= [
-  "//third_party/skia/src/utils/SkCondVar.cpp",
-  "//third_party/skia/src/utils/SkCondVar.h",
-  "//third_party/skia/src/utils/SkRunnable.h",
-
   "//third_party/skia/include/utils/SkBoundaryPatch.h",
   "//third_party/skia/include/utils/SkFrontBufferedStream.h",
   "//third_party/skia/include/utils/SkCamera.h",
@@ -386,27 +382,35 @@ component("skia") {
   "//third_party/skia/src/utils/SkPathUtils.cpp",
   "//third_party/skia/src/utils/SkSHA1.cpp",
   "//third_party/skia/src/utils/SkSHA1.h",
-  "//third_party/skia/src/utils/SkThreadUtils.h",
-  "//third_party/skia/src/utils/SkThreadUtils_pthread.cpp",
-  "//third_party/skia/src/utils/SkThreadUtils_pthread.h",
-  "//third_party/skia/src/utils/SkThreadUtils_pthread_linux.cpp",
-  "//third_party/skia/src/utils/SkThreadUtils_pthread_mach.cpp",
-  "//third_party/skia/src/utils/SkThreadUtils_pthread_other.cpp",
-  "//third_party/skia/src/utils/SkThreadUtils_win.cpp",
   "//third_party/skia/src/utils/SkTFitsIn.h",
   "//third_party/skia/src/utils/SkTLogic.h",
+
+  # We don't currently need to change thread affinity, so leave out this complexity for now.
+  "//third_party/skia/src/utils/SkThreadUtils_pthread_mach.cpp",
+  "//third_party/skia/src/utils/SkThreadUtils_pthread_linux.cpp",
 
   #testing
   "//third_party/skia/src/fonts/SkGScalerContext.cpp",
   "//third_party/skia/src/fonts/SkGScalerContext.h",
   ]
 
+  if (is_win) {
+    sources -= [
+      # Keeping _win.cpp
+      "//third_party/skia/src/utils/SkThreadUtils_pthread.cpp",
+      "//third_party/skia/src/utils/SkThreadUtils_pthread_other.cpp",
+    ]
+  } else {
+    sources -= [
+      # Keeping _pthread.cpp and _pthread_other.cpp.
+      "//third_party/skia/src/utils/SkThreadUtils_win.cpp",
+    ]
+  }
+
   # need separate win section to handle chromes auto gn filter
   # (build/config/BUILDCONFIG.gn)
   if (is_win) {
     sources -= [
-      "//third_party/skia/src/utils/SkThreadUtils_win.h",
-
       #windows
       "//third_party/skia/include/utils/win/SkAutoCoInitialize.h",
       "//third_party/skia/include/utils/win/SkHRESULT.h",
@@ -428,7 +432,7 @@ component("skia") {
   if (is_win) {
     sources -= [ "ext/SkThread_chrome.cc" ]
   }
-  if (is_android && printing_mode == 0) {
+  if (is_android && (!enable_basic_printing && !enable_print_preview)) {
     sources -= [
       "ext/skia_utils_base.cc",
       "ext/vector_platform_device_skia.cc"

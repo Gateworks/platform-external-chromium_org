@@ -21,7 +21,6 @@
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
-#include "chrome/common/pref_names.h"
 #include "content/public/browser/notification_details.h"
 #include "content/public/browser/notification_source.h"
 #include "content/public/browser/web_contents.h"
@@ -122,9 +121,8 @@ void ExtensionToolbarModel::MoveExtensionIcon(const std::string& id,
   UpdatePrefs();
 }
 
-void ExtensionToolbarModel::SetVisibleIconCount(int count) {
-  visible_icon_count_ =
-      count == static_cast<int>(toolbar_items_.size()) ? -1 : count;
+void ExtensionToolbarModel::SetVisibleIconCount(size_t count) {
+  visible_icon_count_ = (count == toolbar_items_.size()) ? -1 : count;
 
   // Only set the prefs if we're not in highlight mode and the profile is not
   // incognito. Highlight mode is designed to be a transitory state, and should
@@ -153,11 +151,18 @@ void ExtensionToolbarModel::OnExtensionActionUpdated(
       ExtensionRegistry::Get(profile_)->enabled_extensions().GetByID(
           extension_action->extension_id());
   // Notify observers if the extension exists and is in the model.
-  if (extension &&
-      std::find(toolbar_items_.begin(),
-                toolbar_items_.end(),
-                extension) != toolbar_items_.end()) {
-    FOR_EACH_OBSERVER(Observer, observers_, ToolbarExtensionUpdated(extension));
+  ExtensionList::const_iterator iter =
+      std::find(toolbar_items_.begin(), toolbar_items_.end(), extension);
+  if (iter != toolbar_items_.end()) {
+    FOR_EACH_OBSERVER(
+        Observer, observers_, ToolbarExtensionUpdated(extension));
+    // If the action was in the overflow menu, we have to alert observers that
+    // the toolbar needs to be reordered (to show the action).
+    if (static_cast<size_t>(iter - toolbar_items_.begin()) >=
+            visible_icon_count()) {
+      FOR_EACH_OBSERVER(
+          Observer, observers_, OnToolbarReorderNecessary(web_contents));
+    }
   }
 }
 
@@ -212,6 +217,12 @@ void ExtensionToolbarModel::Observe(
                      extension_prefs_, extension->id());
   // Hiding works differently with the new and old toolbars.
   if (include_all_extensions_) {
+    // It's possible that we haven't added this extension yet, if its
+    // visibility was adjusted in the course of its initialization.
+    if (std::find(toolbar_items_.begin(), toolbar_items_.end(), extension) ==
+            toolbar_items_.end())
+      return;
+
     int new_size = 0;
     int new_index = 0;
     if (visible) {
@@ -325,6 +336,28 @@ void ExtensionToolbarModel::AddExtension(const Extension* extension) {
   if (!is_highlighting_) {
     FOR_EACH_OBSERVER(
         Observer, observers_, ToolbarExtensionAdded(extension, new_index));
+
+    // If this is an incognito profile, we also have to check to make sure the
+    // overflow matches the main bar's status.
+    if (profile_->IsOffTheRecord()) {
+      ExtensionToolbarModel* main_model =
+          ExtensionToolbarModel::Get(profile_->GetOriginalProfile());
+      // Find what the index will be in the main bar. Because Observer calls are
+      // nondeterministic, we can't just assume the main bar will have the
+      // extension and look it up.
+      int main_index = is_new_extension ?
+          main_model->toolbar_items_.size() :
+          main_model->FindNewPositionFromLastKnownGood(extension);
+      bool visible = main_index < main_model->visible_icon_count_ ||
+                     main_model->visible_icon_count_ == -1;
+      // We may need to adjust the visible count if the incognito bar isn't
+      // showing all icons and this one is visible, or if it is showing all
+      // icons and this is hidden.
+      if (visible && visible_icon_count_ != -1)
+        SetVisibleIconCount(visible_icon_count_ + 1);
+      else if (!visible && visible_icon_count_ == -1)
+        SetVisibleIconCount(toolbar_items_.size() - 1);
+    }
   }
 }
 
@@ -333,6 +366,10 @@ void ExtensionToolbarModel::RemoveExtension(const Extension* extension) {
       std::find(toolbar_items_.begin(), toolbar_items_.end(), extension);
   if (pos == toolbar_items_.end())
     return;
+
+  // If our visible count is set to the current size, we need to decrement it.
+  if (visible_icon_count_ == static_cast<int>(toolbar_items_.size()))
+    SetVisibleIconCount(toolbar_items_.size() - 1);
 
   toolbar_items_.erase(pos);
 
@@ -469,9 +506,7 @@ void ExtensionToolbarModel::IncognitoPopulate() {
       ExtensionToolbarModel::Get(profile_->GetOriginalProfile());
 
   // Find the absolute value of the original model's count.
-  int original_visible = original_model->GetVisibleIconCount();
-  if (original_visible == -1)
-    original_visible = original_model->toolbar_items_.size();
+  int original_visible = original_model->visible_icon_count();
 
   // In incognito mode, we show only those extensions that are
   // incognito-enabled. Further, any actions that were overflowed in regular
@@ -566,6 +601,49 @@ void ExtensionToolbarModel::OnExtensionToolbarPrefChange() {
         base::Bind(&ExtensionToolbarModel::UpdatePrefs,
                    weak_ptr_factory_.GetWeakPtr()));
   }
+}
+
+size_t ExtensionToolbarModel::GetVisibleIconCountForTab(
+    content::WebContents* web_contents) const {
+  if (all_icons_visible())
+    return visible_icon_count();  // Already displaying all actions.
+
+  ExtensionActionAPI* extension_action_api = ExtensionActionAPI::Get(profile_);
+  size_t total_icons = visible_icon_count_;
+  for (size_t i = total_icons; i < toolbar_items_.size(); ++i) {
+    if (extension_action_api->ExtensionWantsToRun(toolbar_items_[i].get(),
+                                                  web_contents))
+      ++total_icons;
+  }
+  return total_icons;
+}
+
+ExtensionList ExtensionToolbarModel::GetItemOrderForTab(
+    content::WebContents* web_contents) const {
+  // If we're highlighting, the items are always the same.
+  if (is_highlighting_)
+    return highlighted_items_;
+
+  // Start by initializing the array to be the same as toolbar items (this isn't
+  // any more expensive than initializing it to be of the same size with all
+  // nulls, and saves us time at the end).
+  ExtensionList result = toolbar_items_;
+  if (toolbar_items_.empty())
+    return result;
+
+  ExtensionList overflowed_actions_wanting_to_run;
+  ExtensionActionAPI* extension_action_api = ExtensionActionAPI::Get(profile_);
+  size_t boundary = visible_icon_count();
+  // Rotate any actions that want to run to the boundary between visible and
+  // overflowed actions.
+  for (ExtensionList::iterator iter = result.begin() + boundary;
+       iter != result.end(); ++iter) {
+    if (extension_action_api->ExtensionWantsToRun(iter->get(), web_contents)) {
+      std::rotate(result.begin() + boundary, iter, iter + 1);
+      ++boundary;
+    }
+  }
+  return result;
 }
 
 bool ExtensionToolbarModel::ShowExtensionActionPopup(

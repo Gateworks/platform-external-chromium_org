@@ -70,6 +70,7 @@
 #include "chrome/grit/generated_resources.h"
 #include "chrome/grit/locale_settings.h"
 #include "chromeos/chromeos_switches.h"
+#include "components/proximity_auth/switches.h"
 #include "components/search_engines/template_url.h"
 #include "components/search_engines/template_url_service.h"
 #include "components/signin/core/browser/signin_manager.h"
@@ -100,12 +101,10 @@
 #if defined(OS_CHROMEOS)
 #include "ash/ash_switches.h"
 #include "ash/desktop_background/user_wallpaper_delegate.h"
-#include "ash/magnifier/magnifier_constants.h"
 #include "ash/shell.h"
 #include "chrome/browser/browser_process_platform_part.h"
 #include "chrome/browser/chromeos/accessibility/accessibility_util.h"
 #include "chrome/browser/chromeos/chromeos_utils.h"
-#include "chrome/browser/chromeos/login/users/wallpaper/wallpaper_manager.h"
 #include "chrome/browser/chromeos/policy/browser_policy_connector_chromeos.h"
 #include "chrome/browser/chromeos/profiles/profile_helper.h"
 #include "chrome/browser/chromeos/reset/metrics.h"
@@ -122,8 +121,13 @@
 #include "components/user_manager/user.h"
 #include "components/user_manager/user_manager.h"
 #include "policy/policy_constants.h"
+#include "ui/chromeos/accessibility_types.h"
 #include "ui/gfx/image/image_skia.h"
 #endif  // defined(OS_CHROMEOS)
+
+#if defined(OS_CHROMEOS) && !defined(USE_ATHENA)
+#include "chrome/browser/chromeos/login/users/wallpaper/wallpaper_manager.h"
+#endif
 
 #if defined(OS_WIN)
 #include "chrome/browser/extensions/settings_api_helpers.h"
@@ -249,6 +253,9 @@ void BrowserOptionsHandler::GetLocalizedValues(base::DictionaryValue* values) {
     { "metricsReportingResetRestart", IDS_OPTIONS_ENABLE_LOGGING_RESTART },
     { "easyUnlockDescription", IDS_OPTIONS_EASY_UNLOCK_DESCRIPTION,
       device_type_resource_id },
+    { "easyUnlockRequireProximityLabel",
+      IDS_OPTIONS_EASY_UNLOCK_REQUIRE_PROXIMITY_LABEL,
+      device_type_resource_id },
     { "easyUnlockSectionTitle", IDS_OPTIONS_EASY_UNLOCK_SECTION_TITLE },
     { "easyUnlockSetupButton", IDS_OPTIONS_EASY_UNLOCK_SETUP_BUTTON },
     { "easyUnlockSetupIntro", IDS_OPTIONS_EASY_UNLOCK_SETUP_INTRO,
@@ -268,12 +275,13 @@ void BrowserOptionsHandler::GetLocalizedValues(base::DictionaryValue* values) {
     { "homePageShowHomeButton", IDS_OPTIONS_TOOLBAR_SHOW_HOME_BUTTON },
     { "homePageUseNewTab", IDS_OPTIONS_HOMEPAGE_USE_NEWTAB },
     { "homePageUseURL", IDS_OPTIONS_HOMEPAGE_USE_URL },
-    { "hotwordAlwaysOnSearchEnable", IDS_HOTWORD_ALWAYS_ON_SEARCH_PREF_CHKBOX },
     { "hotwordAudioHistoryEnable", IDS_HOTWORD_AUDIO_HISTORY_PREF_CHKBOX },
     { "hotwordSearchEnable", IDS_HOTWORD_SEARCH_PREF_CHKBOX },
     { "hotwordConfirmEnable", IDS_HOTWORD_CONFIRM_BUBBLE_ENABLE },
     { "hotwordConfirmDisable", IDS_HOTWORD_CONFIRM_BUBBLE_DISABLE },
     { "hotwordConfirmMessage", IDS_HOTWORD_SEARCH_PREF_DESCRIPTION },
+    { "hotwordNoDSPDesc", IDS_HOTWORD_SEARCH_NO_DSP_DESCRIPTION },
+    { "hotwordAlwaysOnDesc", IDS_HOTWORD_SEARCH_ALWAYS_ON_DESCRIPTION },
     { "hotwordAudioLoggingEnable", IDS_HOTWORD_AUDIO_LOGGING_ENABLE },
     { "importData", IDS_OPTIONS_IMPORT_DATA_BUTTON },
     { "improveBrowsingExperience", IDS_OPTIONS_IMPROVE_BROWSING_EXPERIENCE },
@@ -322,7 +330,6 @@ void BrowserOptionsHandler::GetLocalizedValues(base::DictionaryValue* values) {
     { "sectionTitleSearch", IDS_OPTIONS_DEFAULTSEARCH_GROUP_NAME },
     { "sectionTitleStartup", IDS_OPTIONS_STARTUP_GROUP_NAME },
     { "sectionTitleSync", IDS_SYNC_OPTIONS_GROUP_NAME },
-    { "sectionTitleVoice", IDS_OPTIONS_VOICE_GROUP_NAME },
     { "settingsTitle", IDS_SETTINGS_TITLE },
     { "showAdvancedSettings", IDS_SETTINGS_SHOW_ADVANCED_SETTINGS },
     { "spellingConfirmMessage", IDS_CONTENT_CONTEXT_SPELLING_BUBBLE_TEXT },
@@ -420,6 +427,8 @@ void BrowserOptionsHandler::GetLocalizedValues(base::DictionaryValue* values) {
     { "changePictureCaption", IDS_OPTIONS_CHANGE_PICTURE_CAPTION },
     { "datetimeTitle", IDS_OPTIONS_SETTINGS_SECTION_TITLE_DATETIME },
     { "deviceGroupDescription", IDS_OPTIONS_DEVICE_GROUP_DESCRIPTION },
+    { "powerSettingsButton",
+      IDS_OPTIONS_DEVICE_GROUP_POWER_SETTINGS_BUTTON },
     { "deviceGroupPointer", IDS_OPTIONS_DEVICE_GROUP_POINTER_SECTION },
     { "mouseSpeed", IDS_OPTIONS_SETTINGS_MOUSE_SPEED_DESCRIPTION },
     { "touchpadSpeed", IDS_OPTIONS_SETTINGS_TOUCHPAD_SPEED_DESCRIPTION },
@@ -504,7 +513,7 @@ void BrowserOptionsHandler::GetLocalizedValues(base::DictionaryValue* values) {
                 IDS_OPTIONS_ENABLE_DO_NOT_TRACK_BUBBLE_TITLE);
   RegisterTitle(values, "spellingConfirmOverlay",
                 IDS_CONTENT_CONTEXT_SPELLING_ASK_GOOGLE);
-#if defined(ENABLE_FULL_PRINTING)
+#if defined(ENABLE_PRINT_PREVIEW)
   RegisterCloudPrintValues(values);
 #endif
 
@@ -565,13 +574,13 @@ void BrowserOptionsHandler::GetLocalizedValues(base::DictionaryValue* values) {
   scoped_ptr<base::ListValue> magnifier_list(new base::ListValue);
 
   scoped_ptr<base::ListValue> option_full(new base::ListValue);
-  option_full->AppendInteger(ash::MAGNIFIER_FULL);
+  option_full->AppendInteger(ui::MAGNIFIER_FULL);
   option_full->AppendString(l10n_util::GetStringUTF16(
       IDS_OPTIONS_SETTINGS_ACCESSIBILITY_SCREEN_MAGNIFIER_FULL));
   magnifier_list->Append(option_full.release());
 
   scoped_ptr<base::ListValue> option_partial(new base::ListValue);
-  option_partial->AppendInteger(ash::MAGNIFIER_PARTIAL);
+  option_partial->AppendInteger(ui::MAGNIFIER_PARTIAL);
   option_partial->Append(new base::StringValue(l10n_util::GetStringUTF16(
       IDS_OPTIONS_SETTINGS_ACCESSIBILITY_SCREEN_MAGNIFIER_PARTIAL)));
   magnifier_list->Append(option_partial.release());
@@ -618,6 +627,10 @@ void BrowserOptionsHandler::GetLocalizedValues(base::DictionaryValue* values) {
       "easyUnlockAllowed",
       EasyUnlockService::Get(Profile::FromWebUI(web_ui()))->IsAllowed());
   values->SetString("easyUnlockLearnMoreURL", chrome::kEasyUnlockLearnMoreUrl);
+  values->SetBoolean(
+      "easyUnlockProximityDetectionAllowed",
+      CommandLine::ForCurrentProcess()->HasSwitch(
+          proximity_auth::switches::kEnableProximityDetection));
 
 #if defined(OS_CHROMEOS)
   values->SetBoolean(
@@ -640,7 +653,7 @@ void BrowserOptionsHandler::GetLocalizedValues(base::DictionaryValue* values) {
   values->SetBoolean("usingNewProfilesUI", switches::IsNewAvatarMenu());
 }
 
-#if defined(ENABLE_FULL_PRINTING)
+#if defined(ENABLE_PRINT_PREVIEW)
 void BrowserOptionsHandler::RegisterCloudPrintValues(
     base::DictionaryValue* values) {
   values->SetString("cloudPrintOptionLabel",
@@ -648,7 +661,7 @@ void BrowserOptionsHandler::RegisterCloudPrintValues(
                         IDS_CLOUD_PRINT_CHROMEOS_OPTION_LABEL,
                         l10n_util::GetStringUTF16(IDS_GOOGLE_CLOUD_PRINT)));
 }
-#endif  // defined(ENABLE_FULL_PRINTING)
+#endif  // defined(ENABLE_PRINT_PREVIEW)
 
 void BrowserOptionsHandler::RegisterMessages() {
   web_ui()->RegisterMessageCallback(
@@ -966,9 +979,11 @@ void BrowserOptionsHandler::InitializePage() {
                                       std::string()))
              .Get(policy::key::kUserAvatarImage));
 
+#if !defined(USE_ATHENA)
   OnWallpaperManagedChanged(
       chromeos::WallpaperManager::Get()->IsPolicyControlled(
           user_manager::UserManager::Get()->GetActiveUser()->email()));
+#endif
 
   policy::ConsumerManagementService* consumer_management =
       g_browser_process->platform_part()->browser_policy_connector_chromeos()->
@@ -1614,16 +1629,25 @@ void BrowserOptionsHandler::HandleRequestHotwordAvailable(
     const base::ListValue* args) {
   Profile* profile = Profile::FromWebUI(web_ui());
   std::string group = base::FieldTrialList::FindFullName("VoiceTrigger");
-  base::FundamentalValue enabled(
-      profile->GetPrefs()->GetBoolean(prefs::kHotwordSearchEnabled));
   if (group != "" && group != "Disabled" &&
       HotwordServiceFactory::IsHotwordAllowed(profile)) {
     // Update the current error value.
     HotwordServiceFactory::IsServiceAvailable(profile);
     int error = HotwordServiceFactory::GetCurrentError(profile);
+
+    std::string function_name;
+    if (HotwordService::IsExperimentalHotwordingEnabled()) {
+      if (HotwordServiceFactory::IsHotwordHardwareAvailable()) {
+        function_name = "BrowserOptions.showHotwordAlwaysOnSection";
+      } else {
+        function_name = "BrowserOptions.showHotwordNoDspSection";
+      }
+    } else {
+      function_name = "BrowserOptions.showHotwordSection";
+    }
+
     if (!error) {
-      web_ui()->CallJavascriptFunction("BrowserOptions.showHotwordSection",
-                                       enabled);
+      web_ui()->CallJavascriptFunction(function_name);
     } else {
       base::string16 hotword_help_url =
           base::ASCIIToUTF16(chrome::kHotwordLearnMoreURL);
@@ -1632,13 +1656,7 @@ void BrowserOptionsHandler::HandleRequestHotwordAvailable(
         error_message = base::StringValue(
             l10n_util::GetStringFUTF16(error, hotword_help_url));
       }
-      web_ui()->CallJavascriptFunction("BrowserOptions.showHotwordSection",
-                                       enabled, error_message);
-    }
-    if (CommandLine::ForCurrentProcess()->HasSwitch(
-            switches::kEnableExperimentalHotwording)) {
-      web_ui()->CallJavascriptFunction(
-          "BrowserOptions.showHotwordAlwaysOnSection");
+      web_ui()->CallJavascriptFunction(function_name, error_message);
     }
   }
 }
@@ -1659,7 +1677,7 @@ void BrowserOptionsHandler::HandleLaunchHotwordAudioVerificationApp(
     DCHECK(profile->GetPrefs()->GetBoolean(
         prefs::kHotwordAudioLoggingEnabled));
 
-    launch_mode = HotwordService::SPEECH_TRAINING;
+    launch_mode = HotwordService::RETRAIN;
   } else if (profile->GetPrefs()->GetBoolean(
       prefs::kHotwordAudioLoggingEnabled)) {
     DCHECK(!profile->GetPrefs()->GetBoolean(
@@ -1694,7 +1712,11 @@ void BrowserOptionsHandler::HandleRefreshExtensionControlIndicators(
 #if defined(OS_CHROMEOS)
 void BrowserOptionsHandler::HandleOpenWallpaperManager(
     const base::ListValue* args) {
+#if !defined(USE_ATHENA)
   ash::Shell::GetInstance()->user_wallpaper_delegate()->OpenSetWallpaperPage();
+#else
+  NOTIMPLEMENTED();
+#endif
 }
 
 void BrowserOptionsHandler::VirtualKeyboardChangeCallback(

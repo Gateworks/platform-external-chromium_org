@@ -18,6 +18,7 @@ GYP_TARGET_DEPENDENCIES := \
 	$(call intermediates-dir-for,STATIC_LIBRARIES,ui_accessibility_accessibility_gyp,,,$(GYP_VAR_PREFIX))/ui_accessibility_accessibility_gyp.a \
 	$(call intermediates-dir-for,STATIC_LIBRARIES,ui_accessibility_ax_gen_gyp,,,$(GYP_VAR_PREFIX))/ui_accessibility_ax_gen_gyp.a \
 	$(call intermediates-dir-for,GYP,content_content_resources_gyp,,,$(GYP_VAR_PREFIX))/content_resources.stamp \
+	$(call intermediates-dir-for,STATIC_LIBRARIES,ipc_mojo_ipc_mojo_gyp,,,$(GYP_VAR_PREFIX))/ipc_mojo_ipc_mojo_gyp.a \
 	$(call intermediates-dir-for,STATIC_LIBRARIES,mojo_public_mojo_application_bindings_gyp,,,$(GYP_VAR_PREFIX))/mojo_public_mojo_application_bindings_gyp.a \
 	$(call intermediates-dir-for,GYP,third_party_WebKit_public_blink_gyp,,,$(GYP_VAR_PREFIX))/blink.stamp \
 	$(call intermediates-dir-for,STATIC_LIBRARIES,ui_gl_gl_gyp,,,$(GYP_VAR_PREFIX))/ui_gl_gl_gyp.a \
@@ -69,6 +70,7 @@ LOCAL_SRC_FILES := \
 	content/public/common/push_messaging_status.cc \
 	content/public/common/renderer_preferences.cc \
 	content/public/common/resource_devtools_info.cc \
+	content/public/common/resource_response.cc \
 	content/public/common/resource_response_info.cc \
 	content/public/common/resource_type.cc \
 	content/public/common/sandboxed_process_launcher_delegate.cc \
@@ -240,11 +242,13 @@ MY_DEFS_Debug := \
 	'-DUSE_PROPRIETARY_CODECS' \
 	'-DENABLE_BROWSER_CDMS' \
 	'-DENABLE_CONFIGURATION_POLICY' \
+	'-DENABLE_NOTIFICATIONS' \
 	'-DDISCARDABLE_MEMORY_ALWAYS_SUPPORTED_NATIVELY' \
 	'-DSYSTEM_NATIVELY_SIGNALS_MEMORY_PRESSURE' \
-	'-DENABLE_EGLIMAGE=1' \
+	'-DDONT_EMBED_BUILD_METADATA' \
 	'-DCLD_VERSION=1' \
 	'-DENABLE_PRINTING=1' \
+	'-DENABLE_BASIC_PRINTING=1' \
 	'-DENABLE_MANAGED_USERS=1' \
 	'-DVIDEO_HOLE=1' \
 	'-DENABLE_LOAD_COMPLETION_HACKS=1' \
@@ -260,7 +264,7 @@ MY_DEFS_Debug := \
 	'-DSK_WILL_NEVER_DRAW_PERSPECTIVE_TEXT' \
 	'-DSK_FM_NEW_MATCH_FAMILY_STYLE_CHARACTER=1' \
 	'-DSK_SUPPORT_LEGACY_TEXTRENDERMODE' \
-	'-DSK_LEGACY_NO_DISTANCE_FIELD_PATHS' \
+	'-DSK_IGNORE_GPU_LAYER_HOISTING' \
 	'-DSK_BUILD_FOR_ANDROID' \
 	'-DSK_USE_POSIX_THREADS' \
 	'-DU_USING_ICU_NAMESPACE=0' \
@@ -281,6 +285,7 @@ MY_DEFS_Debug := \
 	'-DPOSIX' \
 	'-DWEBRTC_POSIX' \
 	'-DXML_STATIC' \
+	'-DUSE_LIBPCI=1' \
 	'-DUSE_OPENSSL=1' \
 	'-DUSE_OPENSSL_CERTS=1' \
 	'-D__STDC_CONSTANT_MACROS' \
@@ -401,11 +406,13 @@ MY_DEFS_Release := \
 	'-DUSE_PROPRIETARY_CODECS' \
 	'-DENABLE_BROWSER_CDMS' \
 	'-DENABLE_CONFIGURATION_POLICY' \
+	'-DENABLE_NOTIFICATIONS' \
 	'-DDISCARDABLE_MEMORY_ALWAYS_SUPPORTED_NATIVELY' \
 	'-DSYSTEM_NATIVELY_SIGNALS_MEMORY_PRESSURE' \
-	'-DENABLE_EGLIMAGE=1' \
+	'-DDONT_EMBED_BUILD_METADATA' \
 	'-DCLD_VERSION=1' \
 	'-DENABLE_PRINTING=1' \
+	'-DENABLE_BASIC_PRINTING=1' \
 	'-DENABLE_MANAGED_USERS=1' \
 	'-DVIDEO_HOLE=1' \
 	'-DENABLE_LOAD_COMPLETION_HACKS=1' \
@@ -421,7 +428,7 @@ MY_DEFS_Release := \
 	'-DSK_WILL_NEVER_DRAW_PERSPECTIVE_TEXT' \
 	'-DSK_FM_NEW_MATCH_FAMILY_STYLE_CHARACTER=1' \
 	'-DSK_SUPPORT_LEGACY_TEXTRENDERMODE' \
-	'-DSK_LEGACY_NO_DISTANCE_FIELD_PATHS' \
+	'-DSK_IGNORE_GPU_LAYER_HOISTING' \
 	'-DSK_BUILD_FOR_ANDROID' \
 	'-DSK_USE_POSIX_THREADS' \
 	'-DU_USING_ICU_NAMESPACE=0' \
@@ -442,6 +449,7 @@ MY_DEFS_Release := \
 	'-DPOSIX' \
 	'-DWEBRTC_POSIX' \
 	'-DXML_STATIC' \
+	'-DUSE_LIBPCI=1' \
 	'-DUSE_OPENSSL=1' \
 	'-DUSE_OPENSSL_CERTS=1' \
 	'-D__STDC_CONSTANT_MACROS' \

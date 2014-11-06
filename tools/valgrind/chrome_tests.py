@@ -148,6 +148,8 @@ class ChromeTests:
       cmd.append("--gtest_repeat=%s" % self._options.gtest_repeat)
     if self._options.gtest_shuffle:
       cmd.append("--gtest_shuffle")
+    if self._options.gtest_break_on_failure:
+      cmd.append("--gtest_break_on_failure")
     if self._options.brave_new_test_launcher:
       cmd.append("--brave-new-test-launcher")
     if self._options.test_launcher_bot_mode:
@@ -690,6 +692,7 @@ class ChromeTests:
     "message_center": TestMessageCenter,
     "message_center_unittests" : TestMessageCenter,
     "mojo_common": TestMojoCommon,
+    "mojo_system": TestMojoSystem,
     "mojo_public_system": TestMojoPublicSystem,
     "mojo_public_utility": TestMojoPublicUtility,
     "mojo_public_bindings": TestMojoPublicBindings,
@@ -736,6 +739,12 @@ def _main():
   parser.add_option("--gtest_repeat", help="argument for --gtest_repeat")
   parser.add_option("--gtest_shuffle", action="store_true", default=False,
                     help="Randomize tests' orders on every iteration.")
+  parser.add_option("--gtest_break_on_failure", action="store_true",
+                    default=False,
+                    help="Drop in to debugger on assertion failure. Also "
+                         "useful for forcing tests to exit with a stack dump "
+                         "on the first assertion failure when running with "
+                         "--gtest_repeat=-1")
   parser.add_option("-v", "--verbose", action="store_true", default=False,
                     help="verbose output - enable debug log messages")
   parser.add_option("--tool", dest="valgrind_tool", default="memcheck",

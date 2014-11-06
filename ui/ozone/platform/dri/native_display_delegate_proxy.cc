@@ -41,6 +41,16 @@ void NativeDisplayDelegateProxy::GrabServer() {
 void NativeDisplayDelegateProxy::UngrabServer() {
 }
 
+bool NativeDisplayDelegateProxy::TakeDisplayControl() {
+  proxy_->Send(new OzoneGpuMsg_TakeDisplayControl());
+  return true;
+}
+
+bool NativeDisplayDelegateProxy::RelinquishDisplayControl() {
+  proxy_->Send(new OzoneGpuMsg_RelinquishDisplayControl());
+  return true;
+}
+
 void NativeDisplayDelegateProxy::SyncWithServer() {
 }
 
@@ -155,8 +165,8 @@ void NativeDisplayDelegateProxy::OnUpdateNativeDisplays(
   for (size_t i = 0; i < displays.size(); ++i)
     displays_.push_back(new DisplaySnapshotProxy(displays[i]));
 
-  FOR_EACH_OBSERVER(
-      NativeDisplayObserver, observers_, OnConfigurationChanged());
+  FOR_EACH_OBSERVER(NativeDisplayObserver, observers_,
+                    OnConfigurationChanged());
 }
 
 }  // namespace ui

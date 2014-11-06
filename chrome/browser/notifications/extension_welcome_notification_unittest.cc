@@ -128,7 +128,7 @@ class ExtensionWelcomeNotificationTest : public testing::Test {
     ExtensionWelcomeNotification::RegisterProfilePrefs(pref_registry.get());
   }
 
-  virtual void SetUp() {
+  void SetUp() override {
     task_runner_ = new base::TestSimpleTaskRunner();
     thread_task_runner_handle_.reset(
         new base::ThreadTaskRunnerHandle(task_runner_));
@@ -138,7 +138,7 @@ class ExtensionWelcomeNotificationTest : public testing::Test {
         ExtensionWelcomeNotification::Create(profile_.get(), delegate_));
   }
 
-  virtual void TearDown() {
+  void TearDown() override {
     delegate_ = NULL;
     welcome_notification_.reset();
     profile_.reset();
@@ -205,12 +205,6 @@ class ExtensionWelcomeNotificationTest : public testing::Test {
     explicit TestNotificationDelegate(const std::string& id) : id_(id) {}
 
     // Overridden from NotificationDelegate:
-    void Display() override {}
-    void Error() override {}
-    void Close(bool by_user) override {}
-    void Click() override {}
-    void ButtonClick(int index) override {}
-
     std::string id() const override { return id_; }
 
    private:

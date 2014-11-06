@@ -45,16 +45,12 @@ class SyncNotificationDelegate : public NotificationDelegate {
                            Profile* profile);
 
   // NotificationDelegate:
-  virtual void Display() override;
-  virtual void Error() override;
-  virtual void Close(bool by_user) override;
-  virtual bool HasClickedListener() override;
-  virtual void Click() override;
-  virtual void ButtonClick(int button_index) override;
-  virtual std::string id() const override;
+  void Click() override;
+  void ButtonClick(int button_index) override;
+  std::string id() const override;
 
  protected:
-  virtual ~SyncNotificationDelegate();
+  ~SyncNotificationDelegate() override;
 
  private:
   void ShowSyncSetup();
@@ -76,20 +72,6 @@ SyncNotificationDelegate::SyncNotificationDelegate(
 
 SyncNotificationDelegate::~SyncNotificationDelegate() {
 }
-
-void SyncNotificationDelegate::Display() {
-}
-
-void SyncNotificationDelegate::Error() {
-}
-
-void SyncNotificationDelegate::Close(bool by_user) {
-}
-
-bool SyncNotificationDelegate::HasClickedListener() {
-  return false;
-}
-
 void SyncNotificationDelegate::Click() {
   ShowSyncSetup();
 }

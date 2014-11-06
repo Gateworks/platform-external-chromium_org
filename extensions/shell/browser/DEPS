@@ -20,15 +20,20 @@ include_rules = [
   "+device/hid",
   "+device/usb",
 
-  # Only used in API tests that should be moved to extensions/browser/api/...
+  "+google_apis/gaia",
+
   "+net",
 
   "+ppapi",
   "+storage/browser/quota",
   "+sync/api",
 
-  # Disallow views to keep the binary size down.
-  "-ui/views",
+  # Additional UI dependencies for app_shell. Note that no particular UI toolkit
+  # is supported; only Aura and some necessary bits to set up display surfaces.
+  "+ui/aura",
+  "+ui/chromeos",
+  "+ui/display",
+  "+ui/wm",
 
   "+third_party/cros_system_api",
 

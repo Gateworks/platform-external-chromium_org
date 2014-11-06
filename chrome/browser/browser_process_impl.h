@@ -120,7 +120,7 @@ class BrowserProcessImpl : public BrowserProcess,
       override;
 
 #if (defined(OS_WIN) || defined(OS_LINUX)) && !defined(OS_CHROMEOS)
-  virtual void StartAutoupdateTimer() override;
+  void StartAutoupdateTimer() override;
 #endif
 
   ChromeNetLog* net_log() override;
@@ -204,7 +204,7 @@ class BrowserProcessImpl : public BrowserProcess,
   scoped_ptr<RemoteDebuggingServer> remote_debugging_server_;
 #endif
 
-#if defined(ENABLE_FULL_PRINTING)
+#if defined(ENABLE_PRINT_PREVIEW)
   scoped_refptr<printing::PrintPreviewDialogController>
       print_preview_dialog_controller_;
 

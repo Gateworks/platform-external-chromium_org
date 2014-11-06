@@ -231,7 +231,7 @@ class SessionsSyncManagerTest
         "device_id"));
   }
 
-  virtual void SetUp() override {
+  void SetUp() override {
     BrowserWithTestWindowTest::SetUp();
     browser_sync::NotificationServiceSessionsRouter* router(
         new browser_sync::NotificationServiceSessionsRouter(
@@ -240,7 +240,7 @@ class SessionsSyncManagerTest
       scoped_ptr<LocalSessionEventRouter>(router)));
   }
 
-  virtual void TearDown() override {
+  void TearDown() override {
     test_processor_ = NULL;
     helper()->Reset();
     manager_.reset();
@@ -335,7 +335,7 @@ TEST_F(SessionsSyncManagerTest, PopulateSessionWindow) {
       tag, window_s, base::Time(), session->windows[0]);
   ASSERT_EQ(1U, session->windows[0]->tabs.size());
   ASSERT_EQ(1, session->windows[0]->selected_tab_index);
-  ASSERT_EQ(1, session->windows[0]->type);
+  ASSERT_EQ(SessionWindow::TYPE_TABBED, session->windows[0]->type);
   ASSERT_EQ(1U, manager()->session_tracker_.num_synced_sessions());
   ASSERT_EQ(1U,
             manager()->session_tracker_.num_synced_tabs(std::string("tag")));
@@ -1967,6 +1967,83 @@ TEST_F(SessionsSyncManagerTest, ReceiveDuplicateTabInOtherWindow) {
 
   syncer::SyncChangeList output;
   InitWithSyncDataTakeOutput(initial_data, &output);
+}
+
+// Tests receipt of multiple unassociated tabs and makes sure that
+// the ones with later timestamp win
+TEST_F(SessionsSyncManagerTest, ReceiveDuplicateUnassociatedTabs) {
+  std::string tag = "tag1";
+
+  SessionID::id_type n1[] = {5, 10, 17};
+  std::vector<SessionID::id_type> tab_list1(n1, n1 + arraysize(n1));
+  std::vector<sync_pb::SessionSpecifics> tabs1;
+  sync_pb::SessionSpecifics meta(
+      helper()->BuildForeignSession(tag, tab_list1, &tabs1));
+
+  // Set up initial data.
+  syncer::SyncDataList initial_data;
+  sync_pb::EntitySpecifics entity;
+  entity.mutable_session()->CopyFrom(meta);
+  initial_data.push_back(SyncData::CreateRemoteData(
+      1,
+      entity,
+      base::Time(),
+      syncer::AttachmentIdList(),
+      syncer::AttachmentServiceProxyForTest::Create()));
+
+  int node_id = 2;
+
+  for (size_t i = 0; i < tabs1.size(); i++) {
+    entity.mutable_session()->CopyFrom(tabs1[i]);
+    initial_data.push_back(SyncData::CreateRemoteData(
+        node_id++,
+        entity,
+        base::Time::FromDoubleT(2000),
+        syncer::AttachmentIdList(),
+        syncer::AttachmentServiceProxyForTest::Create()));
+  }
+
+  // Add two more tabs with duplicating IDs but with different modification
+  // times, one before and one after the tabs above.
+  // These two tabs get a different visual indices to distinguish them from the
+  // tabs above that get visual index 1 by default.
+  sync_pb::SessionSpecifics duplicating_tab1;
+  helper()->BuildTabSpecifics(tag, 0, 10, &duplicating_tab1);
+  duplicating_tab1.mutable_tab()->set_tab_visual_index(2);
+  entity.mutable_session()->CopyFrom(duplicating_tab1);
+  initial_data.push_back(SyncData::CreateRemoteData(
+      node_id++,
+      entity,
+      base::Time::FromDoubleT(1000),
+      syncer::AttachmentIdList(),
+      syncer::AttachmentServiceProxyForTest::Create()));
+
+  sync_pb::SessionSpecifics duplicating_tab2;
+  helper()->BuildTabSpecifics(tag, 0, 17, &duplicating_tab2);
+  duplicating_tab2.mutable_tab()->set_tab_visual_index(3);
+  entity.mutable_session()->CopyFrom(duplicating_tab2);
+  initial_data.push_back(SyncData::CreateRemoteData(
+      node_id++,
+      entity,
+      base::Time::FromDoubleT(3000),
+      syncer::AttachmentIdList(),
+      syncer::AttachmentServiceProxyForTest::Create()));
+
+  syncer::SyncChangeList output;
+  InitWithSyncDataTakeOutput(initial_data, &output);
+
+  std::vector<const SyncedSession*> foreign_sessions;
+  ASSERT_TRUE(manager()->GetAllForeignSessions(&foreign_sessions));
+
+  const std::vector<SessionTab*>& window_tabs =
+      foreign_sessions[0]->windows.find(0)->second->tabs;
+  ASSERT_EQ(3U, window_tabs.size());
+  // The first one is from the original set of tabs.
+  ASSERT_EQ(1, window_tabs[0]->tab_visual_index);
+  // The one from the original set of tabs wins over duplicating_tab1.
+  ASSERT_EQ(1, window_tabs[1]->tab_visual_index);
+  // duplicating_tab2 wins due to the later timestamp.
+  ASSERT_EQ(3, window_tabs[2]->tab_visual_index);
 }
 
 }  // namespace browser_sync

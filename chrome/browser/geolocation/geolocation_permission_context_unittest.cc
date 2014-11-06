@@ -40,7 +40,6 @@
 #if defined(OS_ANDROID)
 #include "base/prefs/pref_service.h"
 #include "chrome/browser/android/mock_google_location_settings_helper.h"
-#include "chrome/common/pref_names.h"
 #endif
 
 #if defined(ENABLE_EXTENSIONS)
@@ -106,8 +105,8 @@ class GeolocationPermissionContextTests
     : public ChromeRenderViewHostTestHarness {
  protected:
   // ChromeRenderViewHostTestHarness:
-  virtual void SetUp() override;
-  virtual void TearDown() override;
+  void SetUp() override;
+  void TearDown() override;
 
   PermissionRequestID RequestID(int bridge_id);
   PermissionRequestID RequestIDForTab(int tab, int bridge_id);

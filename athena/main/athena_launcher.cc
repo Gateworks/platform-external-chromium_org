@@ -16,6 +16,7 @@
 #include "athena/home/public/search_controller_factory.h"
 #include "athena/input/public/input_manager.h"
 #include "athena/main/athena_views_delegate.h"
+#include "athena/main/debug_accelerator_handler.h"
 #include "athena/main/placeholder.h"
 #include "athena/main/placeholder.h"
 #include "athena/resource_manager/public/resource_manager.h"
@@ -36,7 +37,7 @@
 #include "ui/wm/core/visibility_controller.h"
 
 #if defined(USE_X11)
-#include "ui/events/x/touch_factory_x11.h"
+#include "ui/events/devices/x11/touch_factory_x11.h"
 #endif
 
 namespace athena {
@@ -59,6 +60,7 @@ class VirtualKeyboardObserver;
 struct AthenaEnvState {
   scoped_ptr< ::wm::VisibilityController> visibility_client;
   scoped_ptr<VirtualKeyboardObserver> virtual_keyboard_observer;
+  scoped_ptr<DebugAcceleratorHandler> debug_accelerator_handler;
 };
 
 DEFINE_OWNED_WINDOW_PROPERTY_KEY(athena::AthenaEnvState,
@@ -119,6 +121,9 @@ void StartAthenaEnv(scoped_refptr<base::TaskRunner> blocking_task_runner) {
   athena::SystemUI::Create(blocking_task_runner);
   athena::AppRegistry::Create();
   SetupBackgroundImage();
+
+  env_state->debug_accelerator_handler.reset(
+      new DebugAcceleratorHandler(root_window));
 
   athena::ScreenManager::Get()->GetContext()->SetProperty(
       kAthenaEnvStateKey, env_state);

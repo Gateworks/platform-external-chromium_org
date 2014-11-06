@@ -36,8 +36,7 @@ class VIEWS_EXPORT NativeWidgetMac : public internal::NativeWidgetPrivate {
   virtual gfx::NativeWindow GetNativeWindow() const override;
   virtual Widget* GetTopLevelWidget() override;
   virtual const ui::Compositor* GetCompositor() const override;
-  virtual ui::Compositor* GetCompositor() override;
-  virtual ui::Layer* GetLayer() override;
+  virtual const ui::Layer* GetLayer() const override;
   virtual void ReorderNativeViews() override;
   virtual void ViewRemoved(View* view) override;
   virtual void SetNativeWindowProperty(const char* name, void* value) override;
@@ -106,6 +105,10 @@ class VIEWS_EXPORT NativeWidgetMac : public internal::NativeWidgetPrivate {
       Widget::MoveLoopEscapeBehavior escape_behavior) override;
   virtual void EndMoveLoop() override;
   virtual void SetVisibilityChangedAnimationsEnabled(bool value) override;
+  virtual void SetVisibilityAnimationDuration(
+      const base::TimeDelta& duration) override;
+  virtual void SetVisibilityAnimationTransition(
+      Widget::VisibilityTransition transition) override;
   virtual ui::NativeTheme* GetNativeTheme() const override;
   virtual void OnRootViewLayout() override;
   virtual bool IsTranslucentWindowOpacitySupported() const override;

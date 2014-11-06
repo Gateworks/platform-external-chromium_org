@@ -7,11 +7,13 @@
 
 #include <set>
 #include <string>
+#include <vector>
 
 #include "base/basictypes.h"
 #include "base/gtest_prod_util.h"
 #include "base/metrics/field_trial.h"
 #include "base/synchronization/lock.h"
+#include "components/metrics/metrics_service.h"
 #include "components/variations/variations_associated_data.h"
 
 namespace content {
@@ -31,7 +33,8 @@ namespace variations {
 // A helper class for maintaining client experiments and metrics state
 // transmitted in custom HTTP request headers.
 // This class is a thread-safe singleton.
-class VariationsHttpHeaderProvider : base::FieldTrialList::Observer {
+class VariationsHttpHeaderProvider : public base::FieldTrialList::Observer,
+                                     public metrics::SyntheticTrialObserver {
  public:
   static VariationsHttpHeaderProvider* GetInstance();
 
@@ -51,6 +54,9 @@ class VariationsHttpHeaderProvider : base::FieldTrialList::Observer {
   // with "t" it will be treated as a trigger experiment id.
   bool SetDefaultVariationIds(const std::string& variation_ids);
 
+  // Returns the HTTP header names which are added in this class.
+  std::set<std::string> GetVariationHeaderNames() const;
+
  private:
   friend struct DefaultSingletonTraits<VariationsHttpHeaderProvider>;
 
@@ -66,11 +72,15 @@ class VariationsHttpHeaderProvider : base::FieldTrialList::Observer {
   VariationsHttpHeaderProvider();
   ~VariationsHttpHeaderProvider() override;
 
-  // base::FieldTrialList::Observer implementation.
+  // base::FieldTrialList::Observer:
   // This will add the variation ID associated with |trial_name| and
   // |group_name| to the variation ID cache.
   void OnFieldTrialGroupFinalized(const std::string& trial_name,
                                   const std::string& group_name) override;
+
+  // metrics::SyntheticTrialObserver:
+  void OnSyntheticTrialsChanged(
+      const std::vector<metrics::SyntheticTrialGroup>& groups) override;
 
   // Prepares the variation IDs cache with initial values if not already done.
   // This method also registers the caller with the FieldTrialList to receive
@@ -101,6 +111,9 @@ class VariationsHttpHeaderProvider : base::FieldTrialList::Observer {
   // Provides the google experiment ids forced from command line.
   std::set<VariationID> default_variation_ids_set_;
   std::set<VariationID> default_trigger_id_set_;
+
+  // Variations ids from synthetic field trials.
+  std::set<VariationID> synthetic_variation_ids_set_;
 
   std::string variation_ids_header_;
 

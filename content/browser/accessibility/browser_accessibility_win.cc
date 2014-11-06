@@ -2859,35 +2859,38 @@ STDMETHODIMP BrowserAccessibilityWin::GetPropertyValue(PROPERTYID id,
 // CComObjectRootEx methods.
 //
 
+// static
 HRESULT WINAPI BrowserAccessibilityWin::InternalQueryInterface(
     void* this_ptr,
     const _ATL_INTMAP_ENTRY* entries,
     REFIID iid,
     void** object) {
+  int32 ia_role =
+      reinterpret_cast<BrowserAccessibilityWin*>(this_ptr)->ia_role_;
   if (iid == IID_IAccessibleImage) {
-    if (ia_role_ != ROLE_SYSTEM_GRAPHIC) {
+    if (ia_role != ROLE_SYSTEM_GRAPHIC) {
       *object = NULL;
       return E_NOINTERFACE;
     }
   } else if (iid == IID_IAccessibleTable || iid == IID_IAccessibleTable2) {
-    if (ia_role_ != ROLE_SYSTEM_TABLE) {
+    if (ia_role != ROLE_SYSTEM_TABLE) {
       *object = NULL;
       return E_NOINTERFACE;
     }
   } else if (iid == IID_IAccessibleTableCell) {
-    if (ia_role_ != ROLE_SYSTEM_CELL) {
+    if (ia_role != ROLE_SYSTEM_CELL) {
       *object = NULL;
       return E_NOINTERFACE;
     }
   } else if (iid == IID_IAccessibleValue) {
-    if (ia_role_ != ROLE_SYSTEM_PROGRESSBAR &&
-        ia_role_ != ROLE_SYSTEM_SCROLLBAR &&
-        ia_role_ != ROLE_SYSTEM_SLIDER) {
+    if (ia_role != ROLE_SYSTEM_PROGRESSBAR &&
+        ia_role != ROLE_SYSTEM_SCROLLBAR &&
+        ia_role != ROLE_SYSTEM_SLIDER) {
       *object = NULL;
       return E_NOINTERFACE;
     }
   } else if (iid == IID_ISimpleDOMDocument) {
-    if (ia_role_ != ROLE_SYSTEM_DOCUMENT) {
+    if (ia_role != ROLE_SYSTEM_DOCUMENT) {
       *object = NULL;
       return E_NOINTERFACE;
     }
@@ -3441,11 +3444,9 @@ void BrowserAccessibilityWin::InitRoleAndState() {
       break;
     case ui::AX_ROLE_COLUMN:
       ia_role_ = ROLE_SYSTEM_COLUMN;
-      ia_state_ |= STATE_SYSTEM_READONLY;
       break;
     case ui::AX_ROLE_COLUMN_HEADER:
       ia_role_ = ROLE_SYSTEM_COLUMNHEADER;
-      ia_state_ |= STATE_SYSTEM_READONLY;
       break;
     case ui::AX_ROLE_COMBO_BOX:
       ia_role_ = ROLE_SYSTEM_COMBOBOX;
@@ -3496,7 +3497,6 @@ void BrowserAccessibilityWin::InitRoleAndState() {
       break;
     case ui::AX_ROLE_DIALOG:
       ia_role_ = ROLE_SYSTEM_DIALOG;
-      ia_state_ |= STATE_SYSTEM_READONLY;
       break;
     case ui::AX_ROLE_DISCLOSURE_TRIANGLE:
       ia_role_ = ROLE_SYSTEM_PUSHBUTTON;
@@ -3541,6 +3541,7 @@ void BrowserAccessibilityWin::InitRoleAndState() {
         ia_role_ = ROLE_SYSTEM_GROUPING;
       } else if (html_tag == L"li") {
         ia_role_ = ROLE_SYSTEM_LISTITEM;
+        ia_state_ |= STATE_SYSTEM_READONLY;
       } else {
         if (html_tag.empty())
           role_name_ = L"div";
@@ -3548,7 +3549,6 @@ void BrowserAccessibilityWin::InitRoleAndState() {
           role_name_ = html_tag;
         ia2_role_ = IA2_ROLE_SECTION;
       }
-      ia_state_ |= STATE_SYSTEM_READONLY;
       break;
     }
     case ui::AX_ROLE_GROW_AREA:
@@ -3558,14 +3558,14 @@ void BrowserAccessibilityWin::InitRoleAndState() {
     case ui::AX_ROLE_HEADING:
       role_name_ = html_tag;
       ia2_role_ = IA2_ROLE_HEADING;
-      ia_state_ |= STATE_SYSTEM_READONLY;
       break;
     case ui::AX_ROLE_HORIZONTAL_RULE:
       ia_role_ = ROLE_SYSTEM_SEPARATOR;
       break;
     case ui::AX_ROLE_IFRAME:
-      ia_role_ = ROLE_SYSTEM_CLIENT;
+      ia_role_ = ROLE_SYSTEM_DOCUMENT;
       ia2_role_ = IA2_ROLE_INTERNAL_FRAME;
+      ia_state_ = STATE_SYSTEM_READONLY;
       break;
     case ui::AX_ROLE_IMAGE:
       ia_role_ = ROLE_SYSTEM_GRAPHIC;
@@ -3620,9 +3620,8 @@ void BrowserAccessibilityWin::InitRoleAndState() {
     case ui::AX_ROLE_MARQUEE:
       ia_role_ = ROLE_SYSTEM_ANIMATION;
       break;
-    case ui::AX_ROLE_MATH_ELEMENT:
+    case ui::AX_ROLE_MATH:
       ia_role_ = ROLE_SYSTEM_EQUATION;
-      ia_state_ |= STATE_SYSTEM_READONLY;
       break;
     case ui::AX_ROLE_MENU:
     case ui::AX_ROLE_MENU_BUTTON:
@@ -3669,7 +3668,6 @@ void BrowserAccessibilityWin::InitRoleAndState() {
       break;
     case ui::AX_ROLE_OUTLINE:
       ia_role_ = ROLE_SYSTEM_OUTLINE;
-      ia_state_ |= STATE_SYSTEM_READONLY;
       break;
     case ui::AX_ROLE_PARAGRAPH:
       role_name_ = L"P";
@@ -3696,7 +3694,6 @@ void BrowserAccessibilityWin::InitRoleAndState() {
       break;
     case ui::AX_ROLE_RADIO_GROUP:
       ia_role_ = ROLE_SYSTEM_GROUPING;
-      ia2_role_ = IA2_ROLE_SECTION;
       break;
     case ui::AX_ROLE_REGION:
       if (html_tag == L"section") {
@@ -3708,11 +3705,9 @@ void BrowserAccessibilityWin::InitRoleAndState() {
       break;
     case ui::AX_ROLE_ROW:
       ia_role_ = ROLE_SYSTEM_ROW;
-      ia_state_ |= STATE_SYSTEM_READONLY;
       break;
     case ui::AX_ROLE_ROW_HEADER:
       ia_role_ = ROLE_SYSTEM_ROWHEADER;
-      ia_state_ |= STATE_SYSTEM_READONLY;
       break;
     case ui::AX_ROLE_RULER:
       ia_role_ = ROLE_SYSTEM_CLIENT;
@@ -3767,7 +3762,6 @@ void BrowserAccessibilityWin::InitRoleAndState() {
         ia_role_ = ROLE_SYSTEM_OUTLINE;
       } else {
         ia_role_ = ROLE_SYSTEM_TABLE;
-        ia_state_ |= STATE_SYSTEM_READONLY;
       }
       break;
     }
@@ -3815,15 +3809,12 @@ void BrowserAccessibilityWin::InitRoleAndState() {
       break;
     case ui::AX_ROLE_TREE:
       ia_role_ = ROLE_SYSTEM_OUTLINE;
-      ia_state_ |= STATE_SYSTEM_READONLY;
       break;
     case ui::AX_ROLE_TREE_GRID:
       ia_role_ = ROLE_SYSTEM_OUTLINE;
-      ia_state_ |= STATE_SYSTEM_READONLY;
       break;
     case ui::AX_ROLE_TREE_ITEM:
       ia_role_ = ROLE_SYSTEM_OUTLINEITEM;
-      ia_state_ |= STATE_SYSTEM_READONLY;
       break;
     case ui::AX_ROLE_WINDOW:
       ia_role_ = ROLE_SYSTEM_WINDOW;

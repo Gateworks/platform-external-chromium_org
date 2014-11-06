@@ -5,27 +5,35 @@
 #include "content/common/gpu/gpu_memory_buffer_factory.h"
 
 #include "base/logging.h"
+#include "gpu/command_buffer/service/image_factory.h"
 #include "ui/gl/gl_image.h"
 #include "ui/gl/gl_image_shared_memory.h"
 
 namespace content {
 namespace {
 
-class GpuMemoryBufferFactoryImpl : public GpuMemoryBufferFactory {
+class GpuMemoryBufferFactoryImpl : public GpuMemoryBufferFactory,
+                                   public gpu::ImageFactory {
  public:
   // Overridden from GpuMemoryBufferFactory:
   virtual gfx::GpuMemoryBufferHandle CreateGpuMemoryBuffer(
-      const gfx::GpuMemoryBufferHandle& handle,
+      gfx::GpuMemoryBufferType type,
+      gfx::GpuMemoryBufferId id,
       const gfx::Size& size,
       gfx::GpuMemoryBuffer::Format format,
-      gfx::GpuMemoryBuffer::Usage usage) override {
+      gfx::GpuMemoryBuffer::Usage usage,
+      int client_id) override {
     NOTREACHED();
     return gfx::GpuMemoryBufferHandle();
   }
-  virtual void DestroyGpuMemoryBuffer(
-      const gfx::GpuMemoryBufferHandle& handle) override {
+  virtual void DestroyGpuMemoryBuffer(gfx::GpuMemoryBufferType type,
+                                      gfx::GpuMemoryBufferId id,
+                                      int client_id) override {
     NOTREACHED();
   }
+  virtual gpu::ImageFactory* AsImageFactory() override { return this; }
+
+  // Overridden from gpu::ImageFactory:
   virtual scoped_refptr<gfx::GLImage> CreateImageForGpuMemoryBuffer(
       const gfx::GpuMemoryBufferHandle& handle,
       const gfx::Size& size,

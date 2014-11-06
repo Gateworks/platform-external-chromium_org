@@ -34,7 +34,6 @@ class RunLoop;
 
 namespace cc {
 class ContextProvider;
-class GpuMemoryBufferManager;
 class Layer;
 class LayerTreeDebugState;
 class LayerTreeHost;
@@ -48,6 +47,7 @@ class Size;
 }
 
 namespace gpu {
+class GpuMemoryBufferManager;
 struct Mailbox;
 }
 
@@ -69,8 +69,8 @@ class COMPOSITOR_EXPORT ContextFactory {
   // Creates an output surface for the given compositor. The factory may keep
   // per-compositor data (e.g. a shared context), that needs to be cleaned up
   // by calling RemoveCompositor when the compositor gets destroyed.
-  virtual scoped_ptr<cc::OutputSurface> CreateOutputSurface(
-      Compositor* compositor, bool software_fallback) = 0;
+  virtual void CreateOutputSurface(base::WeakPtr<Compositor> compositor,
+                                   bool software_fallback) = 0;
 
   // Creates a reflector that copies the content of the |mirrored_compositor|
   // onto |mirroing_layer|.
@@ -96,7 +96,7 @@ class COMPOSITOR_EXPORT ContextFactory {
   virtual cc::SharedBitmapManager* GetSharedBitmapManager() = 0;
 
   // Gets the GPU memory buffer manager.
-  virtual cc::GpuMemoryBufferManager* GetGpuMemoryBufferManager() = 0;
+  virtual gpu::GpuMemoryBufferManager* GetGpuMemoryBufferManager() = 0;
 
   // Gets the compositor message loop, or NULL if not using threaded
   // compositing.
@@ -146,6 +146,8 @@ class COMPOSITOR_EXPORT Compositor
   ~Compositor() override;
 
   ui::ContextFactory* context_factory() { return context_factory_; }
+
+  void SetOutputSurface(scoped_ptr<cc::OutputSurface> surface);
 
   // Schedules a redraw of the layer tree associated with this compositor.
   void ScheduleDraw();
@@ -337,7 +339,7 @@ class COMPOSITOR_EXPORT Compositor
 
   LayerAnimatorCollection layer_animator_collection_;
 
-  base::WeakPtrFactory<Compositor> schedule_draw_factory_;
+  base::WeakPtrFactory<Compositor> weak_ptr_factory_;
 
   DISALLOW_COPY_AND_ASSIGN(Compositor);
 };

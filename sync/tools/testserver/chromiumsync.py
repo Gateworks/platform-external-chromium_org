@@ -33,7 +33,6 @@ import bookmark_specifics_pb2
 import client_commands_pb2
 import dictionary_specifics_pb2
 import get_updates_caller_info_pb2
-import enhanced_bookmark_specifics_pb2
 import extension_setting_specifics_pb2
 import extension_specifics_pb2
 import favicon_image_specifics_pb2
@@ -56,6 +55,7 @@ import synced_notification_render_pb2
 import synced_notification_specifics_pb2
 import theme_specifics_pb2
 import typed_url_specifics_pb2
+import wifi_credential_specifics_pb2
 
 # An enumeration of the various kinds of data that can be synced.
 # Over the wire, this enumeration is not used: a sync object's type is
@@ -73,7 +73,6 @@ ALL_TYPES = (
     BOOKMARK,
     DEVICE_INFO,
     DICTIONARY,
-    ENHANCED_BOOKMARK,
     EXPERIMENTS,
     EXTENSIONS,
     HISTORY_DELETE_DIRECTIVE,
@@ -92,7 +91,8 @@ ALL_TYPES = (
     TYPED_URL,
     EXTENSION_SETTINGS,
     FAVICON_IMAGES,
-    FAVICON_TRACKING) = range(31)
+    FAVICON_TRACKING,
+    WIFI_CREDENTIAL) = range(31)
 
 # An enumeration on the frequency at which the server should send errors
 # to the client. This would be specified by the url that triggers the error.
@@ -119,7 +119,6 @@ SYNC_TYPE_TO_DESCRIPTOR = {
     BOOKMARK: SYNC_TYPE_FIELDS['bookmark'],
     DEVICE_INFO: SYNC_TYPE_FIELDS['device_info'],
     DICTIONARY: SYNC_TYPE_FIELDS['dictionary'],
-    ENHANCED_BOOKMARK: SYNC_TYPE_FIELDS['enhanced_bookmark'],
     EXPERIMENTS: SYNC_TYPE_FIELDS['experiments'],
     EXTENSION_SETTINGS: SYNC_TYPE_FIELDS['extension_setting'],
     EXTENSIONS: SYNC_TYPE_FIELDS['extension'],
@@ -141,6 +140,7 @@ SYNC_TYPE_TO_DESCRIPTOR = {
         SYNC_TYPE_FIELDS["synced_notification_app_info"],
     THEME: SYNC_TYPE_FIELDS['theme'],
     TYPED_URL: SYNC_TYPE_FIELDS['typed_url'],
+    WIFI_CREDENTIAL: SYNC_TYPE_FIELDS["wifi_credential"],
     }
 
 # The parent ID used to indicate a top-level node.
@@ -512,9 +512,6 @@ class SyncDataModel(object):
                     parent_tag=ROOT_ID, sync_type=AUTOFILL_PROFILE),
       PermanentItem('google_chrome_device_info', name='Device Info',
                     parent_tag=ROOT_ID, sync_type=DEVICE_INFO),
-      PermanentItem('google_chrome_enhanced_bookmarks',
-                    name='Enhanced_Bookmarks',
-                    parent_tag=ROOT_ID, sync_type=ENHANCED_BOOKMARK),
       PermanentItem('google_chrome_experiments', name='Experiments',
                     parent_tag=ROOT_ID, sync_type=EXPERIMENTS),
       PermanentItem('google_chrome_extension_settings',
@@ -566,6 +563,8 @@ class SyncDataModel(object):
                     parent_tag=ROOT_ID, sync_type=THEME),
       PermanentItem('google_chrome_typed_urls', name='Typed URLs',
                     parent_tag=ROOT_ID, sync_type=TYPED_URL),
+      PermanentItem('google_chrome_wifi_credentials', name='WiFi Credentials',
+                    parent_tag=ROOT_ID, sync_type=WIFI_CREDENTIAL),
       PermanentItem('google_chrome_dictionary', name='Dictionary',
                     parent_tag=ROOT_ID, sync_type=DICTIONARY),
       PermanentItem('google_chrome_articles', name='Articles',

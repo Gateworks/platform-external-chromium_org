@@ -52,6 +52,47 @@
       ],
     },
     {
+      'target_name': 'android_webview_version',
+      'type': 'none',
+      'direct_dependent_settings': {
+        'include_dirs': [
+          '<(SHARED_INTERMEDIATE_DIR)',
+        ],
+      },
+      # Because generate_version generates a header, we must set the
+      # hard_dependency flag.
+      'hard_dependency': 1,
+      'actions': [
+        {
+          'action_name': 'generate_version',
+          'includes': [
+            '../build/util/version.gypi',
+          ],
+          'variables': {
+            'template_input_path': 'common/aw_version_info_values.h.version',
+          },
+          'inputs': [
+            '<(version_py_path)',
+            '<(template_input_path)',
+            '<(version_path)',
+            '<(lastchange_path)',
+          ],
+          'outputs': [
+            '<(SHARED_INTERMEDIATE_DIR)/android_webview/common/aw_version_info_values.h',
+          ],
+          'action': [
+            'python',
+            '<(version_py_path)',
+            '-f', '<(version_path)',
+            '-f', '<(lastchange_path)',
+            '<(template_input_path)',
+            '<@(_outputs)',
+          ],
+          'message': 'Generating version information',
+        },
+      ],
+    },
+    {
       'target_name': 'android_webview_common',
       'type': 'static_library',
       'dependencies': [
@@ -79,6 +120,7 @@
         '../ui/shell_dialogs/shell_dialogs.gyp:shell_dialogs',
         '../webkit/common/gpu/webkit_gpu.gyp:webkit_gpu',
         'android_webview_pak',
+        'android_webview_version',
       ],
       'include_dirs': [
         '..',
@@ -134,9 +176,6 @@
         'browser/deferred_gpu_command_service.h',
         'browser/find_helper.cc',
         'browser/find_helper.h',
-        'browser/global_tile_manager.cc',
-        'browser/global_tile_manager.h',
-        'browser/global_tile_manager_client.h',
         'browser/hardware_renderer.cc',
         'browser/hardware_renderer.h',
         'browser/icon_helper.cc',
@@ -177,6 +216,8 @@
         'common/android_webview_message_generator.h',
         'common/aw_content_client.cc',
         'common/aw_content_client.h',
+        'common/aw_crash_handler.cc',
+        'common/aw_crash_handler.h',
         'common/aw_hit_test_data.cc',
         'common/aw_hit_test_data.h',
         'common/aw_resource.h',

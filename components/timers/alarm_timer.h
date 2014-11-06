@@ -59,7 +59,9 @@ class AlarmTimer : public base::Timer,
              const base::Closure& user_task,
              bool is_repeating);
 
-  virtual ~AlarmTimer();
+  ~AlarmTimer() override;
+
+  bool can_wake_from_suspend() { return can_wake_from_suspend_; }
 
   // Timer overrides.
   void Stop() override;

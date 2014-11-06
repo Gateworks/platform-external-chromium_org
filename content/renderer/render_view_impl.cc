@@ -751,6 +751,8 @@ void RenderViewImpl::Initialize(RenderViewImplParams* params) {
       ShouldUseTransitionCompositing(device_scale_factor_));
   webview()->settings()->setThreadedScrollingEnabled(
       !command_line.HasSwitch(switches::kDisableThreadedScrolling));
+  webview()->settings()->setRootLayerScrolls(
+      command_line.HasSwitch(switches::kRootLayerScrolls));
 
   ApplyWebPreferences(webkit_preferences_, webview());
 
@@ -947,6 +949,7 @@ void RenderView::ApplyWebPreferences(const WebPreferences& prefs,
   settings->setJavaScriptCanAccessClipboard(
       prefs.javascript_can_access_clipboard);
   WebRuntimeFeatures::enableXSLT(prefs.xslt_enabled);
+  WebRuntimeFeatures::enableSlimmingPaint(prefs.slimming_paint_enabled);
   settings->setXSSAuditorEnabled(prefs.xss_auditor_enabled);
   settings->setDNSPrefetchingEnabled(prefs.dns_prefetching_enabled);
   settings->setLocalStorageEnabled(prefs.local_storage_enabled);
@@ -1041,6 +1044,8 @@ void RenderView::ApplyWebPreferences(const WebPreferences& prefs,
 
   settings->setDeferredImageDecodingEnabled(
       prefs.deferred_image_decoding_enabled);
+  WebRuntimeFeatures::enableImageColorProfiles(
+      prefs.image_color_profiles_enabled);
   settings->setShouldRespectImageOrientation(
       prefs.should_respect_image_orientation);
 
@@ -1066,6 +1071,9 @@ void RenderView::ApplyWebPreferences(const WebPreferences& prefs,
       static_cast<WebSettings::V8CacheOptions>(prefs.v8_cache_options));
 
   settings->setV8ScriptStreamingEnabled(prefs.v8_script_streaming_enabled);
+  settings->setV8ScriptStreamingMode(
+      static_cast<WebSettings::V8ScriptStreamingMode>(
+          prefs.v8_script_streaming_mode));
 
 #if defined(OS_ANDROID)
   settings->setAllowCustomScrollbarInMainFrame(false);
@@ -1461,7 +1469,7 @@ void RenderViewImpl::OnMoveCaret(const gfx::Point& point) {
   if (!webview())
     return;
 
-  Send(new ViewHostMsg_MoveCaret_ACK(routing_id_));
+  Send(new InputHostMsg_MoveCaret_ACK(routing_id_));
 
   webview()->focusedFrame()->moveCaretSelection(point);
 }
@@ -3739,7 +3747,7 @@ void RenderViewImpl::GetSelectionBounds(gfx::Rect* start, gfx::Rect* end) {
   RenderWidget::GetSelectionBounds(start, end);
 }
 
-#if defined(OS_MACOSX) || defined(USE_AURA)
+#if defined(OS_MACOSX) || defined(USE_AURA) || defined(OS_ANDROID)
 void RenderViewImpl::GetCompositionCharacterBounds(
     std::vector<gfx::Rect>* bounds) {
   DCHECK(bounds);
@@ -4141,6 +4149,7 @@ void RenderViewImpl::SetDeviceScaleFactorForTesting(float factor) {
   params.screen_info = screen_info_;
   params.screen_info.deviceScaleFactor = factor;
   params.new_size = size();
+  params.visible_viewport_size = visible_viewport_size_;
   params.physical_backing_size =
       gfx::ToCeiledSize(gfx::ScaleSize(size(), factor));
   params.top_controls_layout_height = 0.f;
@@ -4159,7 +4168,7 @@ void RenderViewImpl::ForceResizeForTesting(const gfx::Size& new_size) {
                          rootWindowRect().y,
                          new_size.width(),
                          new_size.height());
-  ResizeSynchronously(new_position);
+  ResizeSynchronously(new_position, new_size);
 }
 
 void RenderViewImpl::UseSynchronousResizeModeForTesting(bool enable) {

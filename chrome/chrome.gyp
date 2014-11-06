@@ -40,12 +40,12 @@
           '../third_party/WebKit/public/blink_devtools.gyp:blink_devtools_frontend_resources',
         ],
       }],
-      ['enable_printing!=0', {
+      ['enable_basic_printing==1 or enable_print_preview==1', {
         'chromium_browser_dependencies': [
           '../printing/printing.gyp:printing',
         ],
       }],
-      ['enable_printing==1', {
+      ['enable_print_preview==1', {
         'chromium_browser_dependencies': [
           'service',
         ],
@@ -103,6 +103,7 @@
     ['OS!="ios"', {
       'includes': [
         '../apps/apps.gypi',
+        'app_installer/app_installer.gypi',
         'chrome_debugger.gypi',
         'chrome_dll.gypi',
         'chrome_exe.gypi',
@@ -510,6 +511,7 @@
         },
       ],  # 'targets'
       'includes': [
+        'app_shim/app_shim_win.gypi',
         'chrome_process_finder.gypi',
         'metro_utils.gypi',
       ],
@@ -673,7 +675,7 @@
         'chrome_browser_extensions.gypi',
       ],
     }],
-    ['enable_printing==1', {
+    ['enable_print_preview==1', {
       'targets': [
         {
           # GN version: //chrome/service

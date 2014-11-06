@@ -59,10 +59,10 @@ class ExtensionServiceTestBase : public testing::Test {
 
  protected:
   ExtensionServiceTestBase();
-  virtual ~ExtensionServiceTestBase();
+  ~ExtensionServiceTestBase() override;
 
   // testing::Test implementation.
-  virtual void SetUp() override;
+  void SetUp() override;
 
   // Create a set of InitParams to install an ExtensionService into |temp_dir_|.
   ExtensionServiceInitParams CreateDefaultInitParams();
@@ -84,9 +84,6 @@ class ExtensionServiceTestBase : public testing::Test {
 
   // Initialize an ExtensionService with autoupdate enabled.
   void InitializeExtensionServiceWithUpdater();
-
-  // Initialize the associated ProcessManager.
-  void InitializeProcessManager();
 
   // TODO(rdevlin.cronin): Pull out more methods from ExtensionServiceTest that
   // are commonly used and/or reimplemented. For instance, methods to install

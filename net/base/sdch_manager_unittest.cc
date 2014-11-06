@@ -34,7 +34,7 @@ class SdchManagerTest : public testing::Test {
   SdchManager* sdch_manager() { return sdch_manager_.get(); }
 
   // Reset globals back to default state.
-  virtual void TearDown() {
+  void TearDown() override {
     SdchManager::EnableSdchSupport(default_support_);
     SdchManager::EnableSecureSchemeSupport(default_https_support_);
   }
@@ -59,7 +59,6 @@ class SdchManagerTest : public testing::Test {
   bool default_https_support_;
 };
 
-//------------------------------------------------------------------------------
 static std::string NewSdchDictionary(const std::string& domain) {
   std::string dictionary;
   if (!domain.empty()) {
@@ -518,12 +517,7 @@ TEST_F(SdchManagerTest, HttpsCorrectlySupported) {
   GURL url("http://www.google.com");
   GURL secure_url("https://www.google.com");
 
-#if !defined(OS_IOS)
-  // Workaround for http://crbug.com/418975; remove when fixed.
   bool expect_https_support = true;
-#else
-  bool expect_https_support = false;
-#endif
 
   EXPECT_TRUE(sdch_manager()->IsInSupportedDomain(url));
   EXPECT_EQ(expect_https_support,

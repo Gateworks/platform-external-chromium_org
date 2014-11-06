@@ -441,9 +441,9 @@ void WebURLLoaderImpl::Context::Start(const WebURLRequest& request,
   request_info.first_party_for_cookies = request.firstPartyForCookies();
   request_info.referrer = referrer_url;
   request_info.headers = GetWebURLRequestHeaders(request);
-  ;
   request_info.load_flags = GetLoadFlagsForWebURLRequest(request);
   request_info.enable_load_timing = true;
+  request_info.enable_upload_progress = request.reportUploadProgress();
   // requestor_pid only needs to be non-zero if the request originates outside
   // the render process, so we can use requestorProcessID even for requests
   // from in-process plugins.
@@ -848,6 +848,7 @@ void WebURLLoaderImpl::PopulateURLResponse(const GURL& url,
       info.was_alternate_protocol_available);
   extra_data->set_connection_info(info.connection_info);
   extra_data->set_was_fetched_via_proxy(info.was_fetched_via_proxy);
+  extra_data->set_proxy_server(info.proxy_server);
 
   // If there's no received headers end time, don't set load timing.  This is
   // the case for non-HTTP requests, requests that don't go over the wire, and

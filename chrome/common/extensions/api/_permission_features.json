@@ -129,10 +129,20 @@
     "extension_types": ["extension", "legacy_packaged_app", "platform_app"],
     "location": "component"
   },
-  "browser": {
-    "channel": "dev",
-    "extension_types": ["platform_app"]
-  },
+  "browser": [
+    {
+      "channel": "dev",
+      "extension_types": ["platform_app"]
+    },
+    {
+      "channel": "stable",
+      "extension_types": ["platform_app"],
+      "whitelist": [
+        // hotword_audio_verification
+        "B6356EFF4047BC5F868C7D91868B6F5C01951A8A"
+      ]
+    }
+  ],
   "browsingData": {
     "channel": "stable",
     "extension_types": ["extension", "legacy_packaged_app"]
@@ -328,6 +338,10 @@
   },
   "desktopCapture": {
     "channel": "stable",
+    "extension_types": ["extension", "platform_app"]
+  },
+  "documentScan": {
+    "channel": "dev",
     "extension_types": ["extension", "platform_app"]
   },
   "downloads": {
@@ -819,19 +833,26 @@
     "channel": "stable",
     "extension_types": ["extension", "legacy_packaged_app"]
   },
-  "preferencesPrivate": {
-    "channel": "stable",
-    "extension_types": [
-      "extension"
-    ],
-    "whitelist": [
-      "C41AD9DCD670210295614257EF8C9945AD68D86E",  // Google Now
-      "D5736E4B5CF695CB93A2FB57E4FDC6E5AFAB6FE2",  // http://crbug.com/312900
-      "D57DE394F36DC1C3220E7604C575D29C51A6C495",  // http://crbug.com/319444
-      "3F65507A3B39259B38C8173C6FFA3D12DF64CCE9",  // http://crbug.com/371562
-      "852290F2442EEE45EF673B8DA6090112079012A2"   // http://crbug.com/375484
-    ]
-  },
+  "preferencesPrivate": [
+    {
+      "channel": "stable",
+      "extension_types": [
+        "extension"
+      ],
+      "whitelist": [
+        "C41AD9DCD670210295614257EF8C9945AD68D86E",  // Google Now
+        "D5736E4B5CF695CB93A2FB57E4FDC6E5AFAB6FE2",  // http://crbug.com/312900
+        "D57DE394F36DC1C3220E7604C575D29C51A6C495",  // http://crbug.com/319444
+        "3F65507A3B39259B38C8173C6FFA3D12DF64CCE9",  // http://crbug.com/371562
+        "852290F2442EEE45EF673B8DA6090112079012A2"   // http://crbug.com/375484
+      ]
+    },
+    {
+      "channel": "stable",
+      "extension_types": ["platform_app"],
+      "location": "component"
+    }
+  ],
   "principalsPrivate": {
     "channel": "stable",
     "extension_types": ["extension"],

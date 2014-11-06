@@ -85,11 +85,13 @@
         '--config-variable',
           'internal_gles2_conform_tests=<(internal_gles2_conform_tests)',
         '--config-variable', 'icu_use_data_file_flag=<(icu_use_data_file_flag)',
+        '--config-variable', 'v8_use_external_startup_data=<(v8_use_external_startup_data)',
         '--config-variable', 'lsan=<(lsan)',
         '--config-variable', 'libpeer_target_type=<(libpeer_target_type)',
         '--config-variable', 'use_openssl=<(use_openssl)',
         '--config-variable', 'target_arch=<(target_arch)',
         '--config-variable', 'use_ozone=<(use_ozone)',
+        '--config-variable', 'disable_nacl=<(disable_nacl)',
       ],
       'conditions': [
         # Note: When gyp merges lists, it appends them to the old value.

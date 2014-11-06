@@ -310,7 +310,9 @@ extern const char kPluginsDisabledPluginsExceptions[];
 extern const char kPluginsEnabledPlugins[];
 extern const char kPluginsMigratedToPepperFlash[];
 extern const char kPluginsRemovedOldComponentPepperFlashSettings[];
+#if !defined(OS_ANDROID)
 extern const char kPluginsShowDetails[];
+#endif
 extern const char kPluginsAllowOutdated[];
 extern const char kPluginsAlwaysAuthorize[];
 #if defined(ENABLE_PLUGIN_INSTALLATION)
@@ -323,7 +325,9 @@ extern const char kDefaultBrowserSettingEnabled[];
 extern const char kShowUpdatePromotionInfoBar[];
 #endif
 extern const char kUseCustomChromeFrame[];
+#if !defined(OS_ANDROID)
 extern const char kContentSettingsPluginWhitelist[];
+#endif
 extern const char kBlockThirdPartyCookies[];
 extern const char kClearSiteDataOnExit[];
 extern const char kPartitionDefaultZoomLevel[];
@@ -338,7 +342,9 @@ extern const char kAutofillDialogWalletShippingSameAsBilling[];
 extern const char kAutofillGeneratedCardBubbleTimesShown[];
 extern const char kAutofillDialogDefaults[];
 
+#if !defined(OS_ANDROID)
 extern const char kPinnedTabs[];
+#endif
 
 extern const char kDisable3DAPIs[];
 extern const char kEnableDeprecatedWebPlatformFeatures[];
@@ -393,10 +399,11 @@ extern const char kPreferenceResetTime[];
 extern const char kGCMChannelEnabled[];
 extern const char kPushMessagingRegistrationCount[];
 
-extern const char kEasyUnlockEnabled[];
-extern const char kEasyUnlockShowTutorial[];
-extern const char kEasyUnlockPairing[];
 extern const char kEasyUnlockAllowed[];
+extern const char kEasyUnlockEnabled[];
+extern const char kEasyUnlockPairing[];
+extern const char kEasyUnlockProximityRequired[];
+extern const char kEasyUnlockShowTutorial[];
 
 extern const char kZeroSuggestCachedResults[];
 
@@ -556,10 +563,12 @@ extern const char kGoogleServicesPasswordHash[];
 
 extern const char kInvalidationServiceUseGCMChannel[];
 
+#if !defined(OS_ANDROID) && !defined(OS_IOS)
 extern const char kSignInPromoStartupCount[];
 extern const char kSignInPromoUserSkipped[];
 extern const char kSignInPromoShowOnFirstRunAllowed[];
 extern const char kSignInPromoShowNTPBubble[];
+#endif
 
 extern const char kWebAppCreateOnDesktop[];
 extern const char kWebAppCreateInAppsMenu[];
@@ -621,6 +630,7 @@ extern const char kVideoCaptureAllowedUrls[];
 extern const char kHotwordSearchEnabled[];
 extern const char kHotwordAlwaysOnSearchEnabled[];
 extern const char kHotwordAudioLoggingEnabled[];
+extern const char kHotwordAudioHistoryEnabled[];
 extern const char kHotwordPreviousLanguage[];
 
 #if defined(OS_ANDROID)
@@ -660,7 +670,7 @@ extern const char kServerBackedDeviceState[];
 extern const char kCustomizationDefaultWallpaperURL[];
 extern const char kLogoutStartedLast[];
 extern const char kConsumerManagementEnrollmentStage[];
-#endif
+#endif  // defined(OS_CHROMEOS)
 
 extern const char kClearPluginLSODataEnabled[];
 extern const char kPepperFlashSettingsEnabled[];
@@ -676,7 +686,9 @@ extern const char kTabStripStackedLayout[];
 
 extern const char kRegisteredBackgroundContents[];
 
+#if !defined(OS_ANDROID)
 extern const char kShownAutoLaunchInfobar[];
+#endif
 
 extern const char kAuthSchemes[];
 extern const char kDisableAuthNegotiateCnameLookup[];
@@ -781,8 +793,6 @@ extern const char kDRMSalt[];
 extern const char kEnableDRM[];
 
 extern const char kWatchdogExtensionActive[];
-// TODO(felt): Remove old string in M34.
-extern const char kWatchdogExtensionActiveOld[];
 
 #if defined(OS_ANDROID)
 extern const char kPartnerBookmarkMappings[];

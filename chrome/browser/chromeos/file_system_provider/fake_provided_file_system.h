@@ -14,10 +14,13 @@
 #include "base/memory/weak_ptr.h"
 #include "base/observer_list.h"
 #include "base/task/cancelable_task_tracker.h"
-#include "chrome/browser/chromeos/file_system_provider/observed_entry.h"
 #include "chrome/browser/chromeos/file_system_provider/provided_file_system_info.h"
 #include "chrome/browser/chromeos/file_system_provider/provided_file_system_interface.h"
 #include "chrome/browser/chromeos/file_system_provider/provided_file_system_observer.h"
+#include "chrome/browser/chromeos/file_system_provider/watcher.h"
+#include "storage/browser/fileapi/async_file_util.h"
+#include "storage/browser/fileapi/watcher_manager.h"
+#include "url/gurl.h"
 
 class Profile;
 
@@ -125,23 +128,29 @@ class FakeProvidedFileSystem : public ProvidedFileSystemInterface {
       int64 offset,
       int length,
       const storage::AsyncFileUtil::StatusCallback& callback) override;
-  virtual AbortCallback ObserveDirectory(
-      const base::FilePath& directory_path,
-      bool recursive,
-      const storage::AsyncFileUtil::StatusCallback& callback) override;
-  virtual void UnobserveEntry(
+  virtual AbortCallback AddWatcher(
+      const GURL& origin,
       const base::FilePath& entry_path,
+      bool recursive,
+      bool persistent,
+      const storage::AsyncFileUtil::StatusCallback& callback,
+      const storage::WatcherManager::NotificationCallback&
+          notification_callback) override;
+  virtual void RemoveWatcher(
+      const GURL& origin,
+      const base::FilePath& entry_path,
+      bool recursive,
       const storage::AsyncFileUtil::StatusCallback& callback) override;
   virtual const ProvidedFileSystemInfo& GetFileSystemInfo() const override;
   virtual RequestManager* GetRequestManager() override;
-  virtual ObservedEntries* GetObservedEntries() override;
+  virtual Watchers* GetWatchers() override;
   virtual void AddObserver(ProvidedFileSystemObserver* observer) override;
   virtual void RemoveObserver(ProvidedFileSystemObserver* observer) override;
-  virtual bool Notify(
-      const base::FilePath& observed_path,
-      ProvidedFileSystemObserver::ChangeType change_type,
-      scoped_ptr<ProvidedFileSystemObserver::ChildChanges> child_changes,
-      const std::string& tag) override;
+  virtual bool Notify(const base::FilePath& entry_path,
+                      bool recursive,
+                      storage::WatcherManager::ChangeType change_type,
+                      scoped_ptr<ProvidedFileSystemObserver::Changes> changes,
+                      const std::string& tag) override;
   virtual base::WeakPtr<ProvidedFileSystemInterface> GetWeakPtr() override;
 
   // Factory callback, to be used in Service::SetFileSystemFactory(). The
@@ -175,7 +184,7 @@ class FakeProvidedFileSystem : public ProvidedFileSystemInterface {
   int last_file_handle_;
   base::CancelableTaskTracker tracker_;
   ObserverList<ProvidedFileSystemObserver> observers_;
-  ObservedEntries observed_entries_;
+  Watchers watchers_;
 
   base::WeakPtrFactory<FakeProvidedFileSystem> weak_ptr_factory_;
   DISALLOW_COPY_AND_ASSIGN(FakeProvidedFileSystem);

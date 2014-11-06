@@ -93,7 +93,6 @@
             'data_reduction_proxy/core/browser/data_reduction_proxy_auth_request_handler_unittest.cc',
             'data_reduction_proxy/core/browser/data_reduction_proxy_config_service_unittest.cc',
             'data_reduction_proxy/core/browser/data_reduction_proxy_metrics_unittest.cc',
-            'data_reduction_proxy/core/browser/data_reduction_proxy_params_unittest.cc',
             'data_reduction_proxy/core/browser/data_reduction_proxy_prefs_unittest.cc',
             'data_reduction_proxy/core/browser/data_reduction_proxy_protocol_unittest.cc',
             'data_reduction_proxy/core/browser/data_reduction_proxy_settings_unittest.cc',
@@ -101,6 +100,7 @@
             'data_reduction_proxy/core/browser/data_reduction_proxy_tamper_detection_unittest.cc',
             'data_reduction_proxy/core/browser/data_reduction_proxy_usage_stats_unittest.cc',
             'data_reduction_proxy/core/common/data_reduction_proxy_headers_unittest.cc',
+            'data_reduction_proxy/core/common/data_reduction_proxy_params_unittest.cc',
             'dom_distiller/core/article_entry_unittest.cc',
             'dom_distiller/core/distilled_content_store_unittest.cc',
             'dom_distiller/core/distilled_page_prefs_unittests.cc',
@@ -172,7 +172,7 @@
             'omnibox/autocomplete_result_unittest.cc',
             'omnibox/keyword_provider_unittest.cc',
             'omnibox/omnibox_field_trial_unittest.cc',
-            'omnibox/search_suggestion_parser_unittest.cc',
+            'omnibox/suggestion_answer_unittest.cc',
             'os_crypt/ie7_password_win_unittest.cc',
             'os_crypt/keychain_password_mac_unittest.mm',
             'os_crypt/os_crypt_unittest.cc',
@@ -476,10 +476,16 @@
                 'components.gyp:constrained_window',
               ]
             }],
+            ['OS=="win" and component!="shared_library" and win_use_allocator_shim==1', {
+              'dependencies': [
+                '<(DEPTH)/base/allocator/allocator.gyp:allocator',
+              ],
+            }],
             ['OS != "ios"', {
               'sources': [
                 'autofill/content/renderer/renderer_save_password_progress_logger_unittest.cc',
                 'dom_distiller/content/dom_distiller_viewer_source_unittest.cc',
+                'dom_distiller/content/web_contents_main_frame_observer_unittest.cc',
                 'error_page/renderer/net_error_helper_core_unittest.cc',
                 'metrics/gpu/gpu_metrics_provider_unittest.cc',
                 'password_manager/content/browser/content_credential_manager_dispatcher_unittest.cc',
@@ -563,6 +569,7 @@
                 ['include', '^network_time/'],
                 ['include', '^password_manager/'],
                 ['include', '^precache/core/'],
+                ['include', '^query_parser/'],
                 ['include', '^search/'],
                 ['include', '^search_engines/'],
                 ['include', '^search_provider_logos/'],
@@ -877,6 +884,11 @@
            ['OS == "android"', {
              'dependencies': [
                '../testing/android/native_test.gyp:native_test_native_code',
+             ],
+           }],
+           ['OS=="win" and component!="shared_library" and win_use_allocator_shim==1', {
+             'dependencies': [
+               '<(DEPTH)/base/allocator/allocator.gyp:allocator',
              ],
            }],
          ],

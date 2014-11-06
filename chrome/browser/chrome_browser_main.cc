@@ -25,6 +25,7 @@
 #include "base/prefs/pref_value_store.h"
 #include "base/prefs/scoped_user_pref_update.h"
 #include "base/process/process_info.h"
+#include "base/profiler/scoped_tracker.h"
 #include "base/run_loop.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_piece.h"
@@ -91,6 +92,7 @@
 #include "chrome/common/chrome_paths.h"
 #include "chrome/common/chrome_result_codes.h"
 #include "chrome/common/chrome_switches.h"
+#include "chrome/common/chrome_version_info.h"
 #include "chrome/common/crash_keys.h"
 #include "chrome/common/env_vars.h"
 #include "chrome/common/logging_chrome.h"
@@ -190,7 +192,7 @@
 #include "extensions/browser/extension_protocols.h"
 #endif
 
-#if defined(ENABLE_FULL_PRINTING) && !defined(OFFICIAL_BUILD)
+#if defined(ENABLE_PRINT_PREVIEW) && !defined(OFFICIAL_BUILD)
 #include "printing/printed_document.h"
 #endif
 
@@ -621,6 +623,7 @@ void ChromeBrowserMainParts::SetupMetricsAndFieldTrials() {
         command_line->GetSwitchValueASCII(switches::kForceVariationIds));
     CHECK(result) << "Invalid --" << switches::kForceVariationIds
                   << " list specified.";
+    metrics->AddSyntheticTrialObserver(provider);
   }
   chrome_variations::VariationsService* variations_service =
       browser_process_->variations_service();
@@ -639,6 +642,20 @@ void ChromeBrowserMainParts::SetupMetricsAndFieldTrials() {
 
   // Now that field trials have been created, initializes metrics recording.
   metrics->InitializeMetricsRecordingState();
+
+  // Enable profiler instrumentation depending on the channel.
+  switch (chrome::VersionInfo::GetChannel()) {
+    case chrome::VersionInfo::CHANNEL_UNKNOWN:
+    case chrome::VersionInfo::CHANNEL_CANARY:
+      tracked_objects::ScopedTracker::Enable();
+      break;
+
+    case chrome::VersionInfo::CHANNEL_DEV:
+    case chrome::VersionInfo::CHANNEL_BETA:
+    case chrome::VersionInfo::CHANNEL_STABLE:
+      // Don't enable instrumentation.
+      break;
+  }
 }
 
 // ChromeBrowserMainParts: |SetupMetricsAndFieldTrials()| related --------------
@@ -1401,7 +1418,7 @@ int ChromeBrowserMainParts::PreMainMessageLoopRunImpl() {
     net::SdchManager::EnableSdchSupport(false);
   }
 
-#if defined(ENABLE_FULL_PRINTING) && !defined(OFFICIAL_BUILD)
+#if defined(ENABLE_PRINT_PREVIEW) && !defined(OFFICIAL_BUILD)
   if (parsed_command_line().HasSwitch(switches::kDebugPrint)) {
     base::FilePath path =
         parsed_command_line().GetSwitchValuePath(switches::kDebugPrint);
@@ -1434,7 +1451,7 @@ int ChromeBrowserMainParts::PreMainMessageLoopRunImpl() {
   browser_process_->metrics_service()->LogNeedForCleanShutdown();
 #endif
 
-#if defined(ENABLE_FULL_PRINTING)
+#if defined(ENABLE_PRINT_PREVIEW)
   // Create the instance of the cloud print proxy service so that it can launch
   // the service process if needed. This is needed because the service process
   // might have shutdown because an update was available.
@@ -1558,12 +1575,10 @@ int ChromeBrowserMainParts::PreMainMessageLoopRunImpl() {
     run_message_loop_ = false;
   }
   browser_creator_.reset();
-#endif  // !defined(OS_ANDROID)
 
-#if !defined(OS_ANDROID)
   process_power_collector_.reset(new ProcessPowerCollector);
   process_power_collector_->Initialize();
-#endif
+#endif  // !defined(OS_ANDROID)
 
   PostBrowserStart();
 

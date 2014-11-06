@@ -24,11 +24,14 @@ LOCAL_GENERATED_SOURCES :=
 GYP_COPIED_SOURCE_ORIGIN_DIRS :=
 
 LOCAL_SRC_FILES := \
-	sandbox/linux/services/broker_process.cc \
 	sandbox/linux/services/init_process_reaper.cc \
 	sandbox/linux/services/scoped_process.cc \
 	sandbox/linux/services/thread_helpers.cc \
-	sandbox/linux/services/yama.cc
+	sandbox/linux/services/yama.cc \
+	sandbox/linux/syscall_broker/broker_client.cc \
+	sandbox/linux/syscall_broker/broker_host.cc \
+	sandbox/linux/syscall_broker/broker_policy.cc \
+	sandbox/linux/syscall_broker/broker_process.cc
 
 
 # Flags passed to both C and C++ files.
@@ -77,15 +80,18 @@ MY_DEFS_Debug := \
 	'-DUSE_PROPRIETARY_CODECS' \
 	'-DENABLE_BROWSER_CDMS' \
 	'-DENABLE_CONFIGURATION_POLICY' \
+	'-DENABLE_NOTIFICATIONS' \
 	'-DDISCARDABLE_MEMORY_ALWAYS_SUPPORTED_NATIVELY' \
 	'-DSYSTEM_NATIVELY_SIGNALS_MEMORY_PRESSURE' \
-	'-DENABLE_EGLIMAGE=1' \
+	'-DDONT_EMBED_BUILD_METADATA' \
 	'-DCLD_VERSION=1' \
 	'-DENABLE_PRINTING=1' \
+	'-DENABLE_BASIC_PRINTING=1' \
 	'-DENABLE_MANAGED_USERS=1' \
 	'-DVIDEO_HOLE=1' \
 	'-DENABLE_LOAD_COMPLETION_HACKS=1' \
 	'-DSANDBOX_IMPLEMENTATION' \
+	'-DUSE_LIBPCI=1' \
 	'-DUSE_OPENSSL=1' \
 	'-DUSE_OPENSSL_CERTS=1' \
 	'-D__STDC_CONSTANT_MACROS' \
@@ -166,15 +172,18 @@ MY_DEFS_Release := \
 	'-DUSE_PROPRIETARY_CODECS' \
 	'-DENABLE_BROWSER_CDMS' \
 	'-DENABLE_CONFIGURATION_POLICY' \
+	'-DENABLE_NOTIFICATIONS' \
 	'-DDISCARDABLE_MEMORY_ALWAYS_SUPPORTED_NATIVELY' \
 	'-DSYSTEM_NATIVELY_SIGNALS_MEMORY_PRESSURE' \
-	'-DENABLE_EGLIMAGE=1' \
+	'-DDONT_EMBED_BUILD_METADATA' \
 	'-DCLD_VERSION=1' \
 	'-DENABLE_PRINTING=1' \
+	'-DENABLE_BASIC_PRINTING=1' \
 	'-DENABLE_MANAGED_USERS=1' \
 	'-DVIDEO_HOLE=1' \
 	'-DENABLE_LOAD_COMPLETION_HACKS=1' \
 	'-DSANDBOX_IMPLEMENTATION' \
+	'-DUSE_LIBPCI=1' \
 	'-DUSE_OPENSSL=1' \
 	'-DUSE_OPENSSL_CERTS=1' \
 	'-D__STDC_CONSTANT_MACROS' \

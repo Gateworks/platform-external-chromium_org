@@ -56,11 +56,11 @@ class SCTListModel : public ui::ComboboxModel {
  public:
   explicit SCTListModel(
       const net::SignedCertificateTimestampAndStatusList& sct_list);
-  virtual ~SCTListModel();
+  ~SCTListModel() override;
 
   // Overridden from ui::ComboboxModel:
-  virtual int GetItemCount() const override;
-  virtual base::string16 GetItemAt(int index) override;
+  int GetItemCount() const override;
+  base::string16 GetItemAt(int index) override;
 
  private:
   net::SignedCertificateTimestampAndStatusList sct_list_;
@@ -122,6 +122,7 @@ void SignedCertificateTimestampsViews::OnPerformAction(
 
 void SignedCertificateTimestampsViews::ViewHierarchyChanged(
     const ViewHierarchyChangedDetails& details) {
+  views::DialogDelegateView::ViewHierarchyChanged(details);
   if (details.is_add && details.child == this)
     Init();
 }

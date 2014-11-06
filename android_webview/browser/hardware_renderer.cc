@@ -62,7 +62,9 @@ scoped_refptr<cc::ContextProvider> CreateContext(
       false /* share_resources */,
       attribs_for_gles2,
       gpu_preference,
-      gpu::GLInProcessContextSharedMemoryLimits()));
+      gpu::GLInProcessContextSharedMemoryLimits(),
+      nullptr,
+      nullptr));
   DCHECK(context.get());
 
   return webkit::gpu::ContextProviderInProcess::Create(
@@ -148,7 +150,7 @@ void HardwareRenderer::CommitFrame() {
     return;
   }
 
-  committed_frame_ = shared_renderer_state_->PassCompositorFrame();
+  committed_frame_ = shared_renderer_state_->PassCompositorFrameOnRT();
   // Happens with empty global visible rect.
   if (!committed_frame_.get())
     return;

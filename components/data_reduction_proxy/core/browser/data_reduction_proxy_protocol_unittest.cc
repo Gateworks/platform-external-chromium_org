@@ -11,9 +11,9 @@
 #include "base/metrics/field_trial.h"
 #include "base/run_loop.h"
 #include "base/strings/stringprintf.h"
-#include "components/data_reduction_proxy/core/browser/data_reduction_proxy_params_test_utils.h"
 #include "components/data_reduction_proxy/core/common/data_reduction_proxy_headers.h"
 #include "components/data_reduction_proxy/core/common/data_reduction_proxy_headers_test_utils.h"
+#include "components/data_reduction_proxy/core/common/data_reduction_proxy_params_test_utils.h"
 #include "net/base/completion_callback.h"
 #include "net/base/host_port_pair.h"
 #include "net/base/load_flags.h"
@@ -884,6 +884,7 @@ class BadEntropyProvider : public base::FieldTrial::EntropyProvider {
 TEST_F(DataReductionProxyProtocolTest, OnResolveProxyHandler) {
   int load_flags = net::LOAD_NORMAL;
   GURL url("http://www.google.com/");
+  net::ProxyConfig proxy_config_direct = net::ProxyConfig::CreateDirect();
 
   TestDataReductionProxyParams test_params(
             DataReductionProxyParams::kAllowed |
@@ -933,54 +934,62 @@ TEST_F(DataReductionProxyProtocolTest, OnResolveProxyHandler) {
    // The data reduction proxy is used. It should be used afterwards.
    result.Use(data_reduction_proxy_info);
    OnResolveProxyHandler(url, load_flags, data_reduction_proxy_config,
-                         empty_proxy_retry_info, &test_params, &result);
+                         proxy_config_direct, empty_proxy_retry_info,
+                         &test_params, &result);
    EXPECT_EQ(data_reduction_proxy_info.proxy_server(), result.proxy_server());
 
    // Another proxy is used. It should be used afterwards.
    result.Use(other_proxy_info);
    OnResolveProxyHandler(url, load_flags, data_reduction_proxy_config,
-                         empty_proxy_retry_info, &test_params, &result);
+                         proxy_config_direct, empty_proxy_retry_info,
+                         &test_params, &result);
    EXPECT_EQ(other_proxy_info.proxy_server(), result.proxy_server());
 
    // A direct connection is used. The data reduction proxy should be used
    // afterwards.
    // Another proxy is used. It should be used afterwards.
    result.Use(direct_proxy_info);
+   net::ProxyConfig::ID prev_id = result.config_id();
    OnResolveProxyHandler(url, load_flags, data_reduction_proxy_config,
-                         empty_proxy_retry_info, &test_params, &result);
+                         proxy_config_direct, empty_proxy_retry_info,
+                         &test_params, &result);
    EXPECT_EQ(data_reduction_proxy_info.proxy_server(), result.proxy_server());
+   // Only the proxy list should be updated, not he proxy info.
+   EXPECT_EQ(result.config_id(), prev_id);
 
    // A direct connection is used, but the data reduction proxy is on the retry
    // list. A direct connection should be used afterwards.
    result.Use(direct_proxy_info);
+   prev_id = result.config_id();
    OnResolveProxyHandler(url, load_flags, data_reduction_proxy_config,
-                         data_reduction_proxy_retry_info, &test_params,
-                         &result);
+                         proxy_config_direct, data_reduction_proxy_retry_info,
+                         &test_params, &result);
    EXPECT_TRUE(result.proxy_server().is_direct());
+   EXPECT_EQ(result.config_id(), prev_id);
 
 
   // Without DataCompressionProxyCriticalBypass Finch trial set, should never
   // bypass.
   OnResolveProxyHandler(url, load_flags, data_reduction_proxy_config,
-                        empty_proxy_retry_info, &test_params,
-                        &data_reduction_proxy_info);
+                        proxy_config_direct, empty_proxy_retry_info,
+                        &test_params, &data_reduction_proxy_info);
   EXPECT_FALSE(data_reduction_proxy_info.is_direct());
 
   OnResolveProxyHandler(url, load_flags, data_reduction_proxy_config,
-                        empty_proxy_retry_info, &test_params,
-                        &other_proxy_info);
+                        proxy_config_direct, empty_proxy_retry_info,
+                        &test_params, &other_proxy_info);
   EXPECT_FALSE(other_proxy_info.is_direct());
 
   load_flags |= net::LOAD_BYPASS_DATA_REDUCTION_PROXY;
 
   OnResolveProxyHandler(url, load_flags, data_reduction_proxy_config,
-                        empty_proxy_retry_info, &test_params,
-                        &data_reduction_proxy_info);
+                        proxy_config_direct, empty_proxy_retry_info,
+                        &test_params, &data_reduction_proxy_info);
   EXPECT_FALSE(data_reduction_proxy_info.is_direct());
 
   OnResolveProxyHandler(url, load_flags, data_reduction_proxy_config,
-                        empty_proxy_retry_info, &test_params,
-                        &other_proxy_info);
+                        proxy_config_direct, empty_proxy_retry_info,
+                        &test_params, &other_proxy_info);
   EXPECT_FALSE(other_proxy_info.is_direct());
 
   // With Finch trial set, should only bypass if LOAD flag is set and the
@@ -994,25 +1003,25 @@ TEST_F(DataReductionProxyProtocolTest, OnResolveProxyHandler) {
   load_flags = net::LOAD_NORMAL;
 
   OnResolveProxyHandler(url, load_flags, data_reduction_proxy_config,
-                        empty_proxy_retry_info, &test_params,
-                        &data_reduction_proxy_info);
+                        proxy_config_direct, empty_proxy_retry_info,
+                        &test_params, &data_reduction_proxy_info);
   EXPECT_FALSE(data_reduction_proxy_info.is_direct());
 
   OnResolveProxyHandler(url, load_flags, data_reduction_proxy_config,
-                        empty_proxy_retry_info, &test_params,
-                        &other_proxy_info);
+                        proxy_config_direct, empty_proxy_retry_info,
+                        &test_params, &other_proxy_info);
   EXPECT_FALSE(other_proxy_info.is_direct());
 
   load_flags |= net::LOAD_BYPASS_DATA_REDUCTION_PROXY;
 
   OnResolveProxyHandler(url, load_flags, data_reduction_proxy_config,
-                        empty_proxy_retry_info, &test_params,
-                        &other_proxy_info);
+                        proxy_config_direct, empty_proxy_retry_info,
+                        &test_params, &other_proxy_info);
   EXPECT_FALSE(other_proxy_info.is_direct());
 
   OnResolveProxyHandler(url, load_flags, data_reduction_proxy_config,
-                        empty_proxy_retry_info, &test_params,
-                        &data_reduction_proxy_info);
+                        proxy_config_direct, empty_proxy_retry_info,
+                        &test_params, &data_reduction_proxy_info);
   EXPECT_TRUE(data_reduction_proxy_info.is_direct());
 }
 

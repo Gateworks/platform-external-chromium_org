@@ -23,6 +23,7 @@
 #include "ui/app_list/views/contents_view.h"
 #include "ui/app_list/views/search_box_view.h"
 #include "ui/app_list/views/search_result_list_view.h"
+#include "ui/app_list/views/search_result_tile_item_view.h"
 #include "ui/app_list/views/start_page_view.h"
 #include "ui/app_list/views/test/apps_grid_view_test_api.h"
 #include "ui/app_list/views/tile_item_view.h"
@@ -44,15 +45,28 @@ enum TestType {
   TEST_TYPE_END,
 };
 
-size_t GetVisibleTileItemViews(const std::vector<TileItemView*>& tiles) {
+template <class T>
+size_t GetVisibleViews(const std::vector<T*>& tiles) {
   size_t count = 0;
-  for (std::vector<TileItemView*>::const_iterator it = tiles.begin();
-       it != tiles.end();
-       ++it) {
-    if ((*it)->visible())
+  for (const auto& tile : tiles) {
+    if (tile->visible())
       count++;
   }
   return count;
+}
+
+void SimulateClick(views::View* view) {
+  gfx::Point center = view->GetLocalBounds().CenterPoint();
+  view->OnMousePressed(ui::MouseEvent(ui::ET_MOUSE_PRESSED,
+                                      center,
+                                      center,
+                                      ui::EF_LEFT_MOUSE_BUTTON,
+                                      ui::EF_LEFT_MOUSE_BUTTON));
+  view->OnMouseReleased(ui::MouseEvent(ui::ET_MOUSE_RELEASED,
+                                       center,
+                                       center,
+                                       ui::EF_LEFT_MOUSE_BUTTON,
+                                       ui::EF_LEFT_MOUSE_BUTTON));
 }
 
 // Choose a set that is 3 regular app list pages and 2 landscape app list pages.
@@ -61,7 +75,7 @@ const int kInitialItems = 34;
 class TestTileSearchResult : public TestSearchResult {
  public:
   TestTileSearchResult() { set_display_type(DISPLAY_TILE); }
-  virtual ~TestTileSearchResult() {}
+  ~TestTileSearchResult() override {}
 
  private:
   DISALLOW_COPY_AND_ASSIGN(TestTileSearchResult);
@@ -113,7 +127,10 @@ class AppListViewTestContext {
  private:
   // Switches the active launcher page in the contents view and lays out to
   // ensure all launcher pages are in the correct position.
-  void ShowContentsViewPageAndVerify(int index);
+  void ShowContentsViewPageAndVerify(AppListModel::State state);
+
+  // Tests that the app list is in |state|.
+  void VerifyPageActive(AppListModel::State state);
 
   // Shows the app list and waits until a paint occurs.
   void Show();
@@ -140,12 +157,12 @@ class UnitTestViewDelegate : public app_list::test::AppListTestViewDelegate {
   UnitTestViewDelegate(AppListViewTestContext* parent) : parent_(parent) {}
 
   // Overridden from app_list::AppListViewDelegate:
-  virtual bool ShouldCenterWindow() const override {
+  bool ShouldCenterWindow() const override {
     return app_list::switches::IsCenteredAppListEnabled();
   }
 
   // Overridden from app_list::test::AppListTestViewDelegate:
-  virtual void ViewClosing() override { parent_->NativeWidgetClosing(); }
+  void ViewClosing() override { parent_->NativeWidgetClosing(); }
 
  private:
   AppListViewTestContext* parent_;
@@ -198,15 +215,24 @@ void AppListViewTestContext::CheckView(views::View* subview) {
   EXPECT_TRUE(subview->IsDrawn());
 }
 
-void AppListViewTestContext::ShowContentsViewPageAndVerify(int index) {
+void AppListViewTestContext::ShowContentsViewPageAndVerify(
+    AppListModel::State state) {
   ContentsView* contents_view = view_->app_list_main_view()->contents_view();
+  int index = contents_view->GetPageIndexForState(state);
   contents_view->SetActivePage(index);
   contents_view->Layout();
+  VerifyPageActive(state);
+}
+
+void AppListViewTestContext::VerifyPageActive(AppListModel::State state) {
+  ContentsView* contents_view = view_->app_list_main_view()->contents_view();
+  int index = contents_view->GetPageIndexForState(state);
   for (int i = 0; i < contents_view->NumLauncherPages(); ++i) {
     EXPECT_EQ(i == index,
               contents_view->GetDefaultContentsBounds() ==
                   contents_view->GetPageView(i)->bounds());
   }
+  EXPECT_EQ(state, delegate_->GetTestModel()->state());
 }
 
 void AppListViewTestContext::Show() {
@@ -270,9 +296,11 @@ void AppListViewTestContext::RunDisplayTest() {
   EXPECT_NO_FATAL_FAILURE(CheckView(main_view));
   EXPECT_NO_FATAL_FAILURE(CheckView(main_view->contents_view()));
 
-  EXPECT_TRUE(main_view->contents_view()->IsStateActive(
-      test_type_ == EXPERIMENTAL ? AppListModel::STATE_START
-                                 : AppListModel::STATE_APPS));
+  AppListModel::State expected = test_type_ == EXPERIMENTAL
+                                     ? AppListModel::STATE_START
+                                     : AppListModel::STATE_APPS;
+  EXPECT_TRUE(main_view->contents_view()->IsStateActive(expected));
+  EXPECT_EQ(expected, delegate_->GetTestModel()->state());
 
   Close();
 }
@@ -339,14 +367,15 @@ void AppListViewTestContext::RunStartPageTest() {
     EXPECT_NO_FATAL_FAILURE(CheckView(start_page_view));
 
     // Show the start page view.
-    ContentsView* contents_view = main_view->contents_view();
-    ShowContentsViewPageAndVerify(
-        contents_view->GetPageIndexForState(AppListModel::STATE_START));
+    ShowContentsViewPageAndVerify(AppListModel::STATE_START);
     EXPECT_FALSE(main_view->search_box_view()->visible());
-
     gfx::Size view_size(view_->GetPreferredSize());
-    ShowContentsViewPageAndVerify(
-        contents_view->GetPageIndexForState(AppListModel::STATE_APPS));
+
+    // Simulate clicking the "All apps" button. Check that we navigate to the
+    // apps grid view.
+    SimulateClick(start_page_view->all_apps_button());
+    main_view->contents_view()->Layout();
+    VerifyPageActive(AppListModel::STATE_APPS);
     EXPECT_TRUE(main_view->search_box_view()->visible());
 
     // Hiding and showing the search box should not affect the app list's
@@ -356,10 +385,10 @@ void AppListViewTestContext::RunStartPageTest() {
     // Check tiles hide and show on deletion and addition.
     model->results()->Add(new TestTileSearchResult());
     start_page_view->UpdateForTesting();
-    EXPECT_EQ(1u, GetVisibleTileItemViews(start_page_view->tile_views()));
+    EXPECT_EQ(1u, GetVisibleViews(start_page_view->tile_views()));
     model->results()->DeleteAll();
     start_page_view->UpdateForTesting();
-    EXPECT_EQ(0u, GetVisibleTileItemViews(start_page_view->tile_views()));
+    EXPECT_EQ(0u, GetVisibleViews(start_page_view->tile_views()));
   } else {
     EXPECT_EQ(NULL, start_page_view);
   }
@@ -453,7 +482,7 @@ void AppListViewTestContext::RunProfileChangeTest() {
   delegate_->GetTestModel()->results()->Add(new TestTileSearchResult());
   if (test_type_ == EXPERIMENTAL) {
     start_page_view->UpdateForTesting();
-    EXPECT_EQ(1u, GetVisibleTileItemViews(start_page_view->tile_views()));
+    EXPECT_EQ(1u, GetVisibleViews(start_page_view->tile_views()));
   }
 
   // Old model updates should be ignored.
@@ -461,7 +490,7 @@ void AppListViewTestContext::RunProfileChangeTest() {
   original_test_model->results()->Add(new TestTileSearchResult());
   if (test_type_ == EXPERIMENTAL) {
     start_page_view->UpdateForTesting();
-    EXPECT_EQ(1u, GetVisibleTileItemViews(start_page_view->tile_views()));
+    EXPECT_EQ(1u, GetVisibleViews(start_page_view->tile_views()));
   }
 
   Close();
@@ -477,8 +506,7 @@ void AppListViewTestContext::RunSearchResultsTest() {
 
   AppListMainView* main_view = view_->app_list_main_view();
   ContentsView* contents_view = main_view->contents_view();
-  ShowContentsViewPageAndVerify(
-      contents_view->GetPageIndexForState(AppListModel::STATE_APPS));
+  ShowContentsViewPageAndVerify(AppListModel::STATE_APPS);
   EXPECT_TRUE(main_view->search_box_view()->visible());
 
   // Show the search results.
@@ -491,11 +519,14 @@ void AppListViewTestContext::RunSearchResultsTest() {
       contents_view->GetDefaultContentsBounds();
   if (test_type_ == EXPERIMENTAL) {
     EXPECT_TRUE(contents_view->IsStateActive(AppListModel::STATE_START));
+    EXPECT_EQ(AppListModel::STATE_START, delegate_->GetTestModel()->state());
     EXPECT_EQ(default_contents_bounds,
               contents_view->start_page_view()->bounds());
   } else {
     EXPECT_TRUE(
         contents_view->IsStateActive(AppListModel::STATE_SEARCH_RESULTS));
+    EXPECT_EQ(AppListModel::STATE_SEARCH_RESULTS,
+              delegate_->GetTestModel()->state());
     EXPECT_EQ(default_contents_bounds,
               contents_view->search_results_view()->bounds());
   }
@@ -507,13 +538,13 @@ void AppListViewTestContext::RunSearchResultsTest() {
 
   // Check that we return to the page that we were on before the search.
   EXPECT_TRUE(contents_view->IsStateActive(AppListModel::STATE_APPS));
+  EXPECT_EQ(AppListModel::STATE_APPS, delegate_->GetTestModel()->state());
   EXPECT_EQ(default_contents_bounds,
             contents_view->apps_container_view()->bounds());
   EXPECT_TRUE(main_view->search_box_view()->visible());
 
   if (test_type_ == EXPERIMENTAL) {
-    ShowContentsViewPageAndVerify(
-        contents_view->GetPageIndexForState(AppListModel::STATE_START));
+    ShowContentsViewPageAndVerify(AppListModel::STATE_START);
 
     // Check that typing into the dummy search box triggers the search page.
     base::string16 search_text = base::UTF8ToUTF16("test");
@@ -529,12 +560,12 @@ void AppListViewTestContext::RunSearchResultsTest() {
     EXPECT_TRUE(main_view->search_box_view()->visible());
     EXPECT_EQ(search_text, main_view->search_box_view()->search_box()->text());
     EXPECT_TRUE(contents_view->IsStateActive(AppListModel::STATE_START));
+    EXPECT_EQ(AppListModel::STATE_START, delegate_->GetTestModel()->state());
     EXPECT_EQ(default_contents_bounds,
               contents_view->start_page_view()->bounds());
 
     // Check that typing into the real search box triggers the search page.
-    ShowContentsViewPageAndVerify(
-        contents_view->GetPageIndexForState(AppListModel::STATE_APPS));
+    ShowContentsViewPageAndVerify(AppListModel::STATE_APPS);
     EXPECT_EQ(default_contents_bounds,
               contents_view->apps_container_view()->bounds());
 
@@ -551,10 +582,8 @@ void AppListViewTestContext::RunSearchResultsTest() {
     EXPECT_TRUE(dummy_search_box->search_box()->text().empty());
 
     // Check that the dummy search box is clear when reshowing the start page.
-    ShowContentsViewPageAndVerify(
-        contents_view->GetPageIndexForState(AppListModel::STATE_APPS));
-    ShowContentsViewPageAndVerify(
-        contents_view->GetPageIndexForState(AppListModel::STATE_START));
+    ShowContentsViewPageAndVerify(AppListModel::STATE_APPS);
+    ShowContentsViewPageAndVerify(AppListModel::STATE_START);
     EXPECT_TRUE(dummy_search_box->IsDrawn());
     EXPECT_TRUE(dummy_search_box->search_box()->text().empty());
   }
@@ -569,7 +598,7 @@ class AppListViewTestAura : public views::ViewsTestBase,
   virtual ~AppListViewTestAura() {}
 
   // testing::Test overrides:
-  virtual void SetUp() override {
+  void SetUp() override {
     views::ViewsTestBase::SetUp();
 
     // On Ash (only) the app list is placed into an aura::Window "container",
@@ -584,7 +613,7 @@ class AppListViewTestAura : public views::ViewsTestBase,
     test_context_.reset(new AppListViewTestContext(GetParam(), container));
   }
 
-  virtual void TearDown() override {
+  void TearDown() override {
     test_context_.reset();
     views::ViewsTestBase::TearDown();
   }
@@ -603,13 +632,13 @@ class AppListViewTestDesktop : public views::ViewsTestBase,
   virtual ~AppListViewTestDesktop() {}
 
   // testing::Test overrides:
-  virtual void SetUp() override {
+  void SetUp() override {
     set_views_delegate(new AppListViewTestViewsDelegate(this));
     views::ViewsTestBase::SetUp();
     test_context_.reset(new AppListViewTestContext(GetParam(), NULL));
   }
 
-  virtual void TearDown() override {
+  void TearDown() override {
     test_context_.reset();
     views::ViewsTestBase::TearDown();
   }
@@ -624,7 +653,7 @@ class AppListViewTestDesktop : public views::ViewsTestBase,
         : parent_(parent) {}
 
     // Overridden from views::ViewsDelegate:
-    virtual void OnBeforeWidgetInit(
+    void OnBeforeWidgetInit(
         views::Widget::InitParams* params,
         views::internal::NativeWidgetDelegate* delegate) override;
 

@@ -47,7 +47,7 @@ class VideoDecodeAccelerator;
 class VideoEncodeAccelerator;
 }
 
-namespace cc {
+namespace gpu {
 class GpuMemoryBufferManager;
 }
 
@@ -90,7 +90,7 @@ class GpuChannelHost : public IPC::Sender,
       const gpu::GPUInfo& gpu_info,
       const IPC::ChannelHandle& channel_handle,
       base::WaitableEvent* shutdown_event,
-      cc::GpuMemoryBufferManager* gpu_memory_buffer_manager);
+      gpu::GpuMemoryBufferManager* gpu_memory_buffer_manager);
 
   bool IsLost() const {
     DCHECK(channel_filter_.get());
@@ -136,7 +136,7 @@ class GpuChannelHost : public IPC::Sender,
 
   GpuChannelHostFactory* factory() const { return factory_; }
 
-  cc::GpuMemoryBufferManager* gpu_memory_buffer_manager() const {
+  gpu::GpuMemoryBufferManager* gpu_memory_buffer_manager() const {
     return gpu_memory_buffer_manager_;
   }
 
@@ -153,7 +153,8 @@ class GpuChannelHost : public IPC::Sender,
   // IPC to the GPU process. The caller is responsible for ensuring it is
   // closed. Returns an invalid handle on failure.
   gfx::GpuMemoryBufferHandle ShareGpuMemoryBufferToGpuProcess(
-      gfx::GpuMemoryBufferHandle source_handle);
+      const gfx::GpuMemoryBufferHandle& source_handle,
+      bool* requires_sync_point);
 
   // Reserve one unused image ID.
   int32 ReserveImageId();
@@ -165,7 +166,7 @@ class GpuChannelHost : public IPC::Sender,
   friend class base::RefCountedThreadSafe<GpuChannelHost>;
   GpuChannelHost(GpuChannelHostFactory* factory,
                  const gpu::GPUInfo& gpu_info,
-                 cc::GpuMemoryBufferManager* gpu_memory_buffer_manager);
+                 gpu::GpuMemoryBufferManager* gpu_memory_buffer_manager);
   ~GpuChannelHost() override;
   void Connect(const IPC::ChannelHandle& channel_handle,
                base::WaitableEvent* shutdown_event);
@@ -222,7 +223,7 @@ class GpuChannelHost : public IPC::Sender,
   scoped_ptr<IPC::SyncChannel> channel_;
   scoped_refptr<MessageFilter> channel_filter_;
 
-  cc::GpuMemoryBufferManager* gpu_memory_buffer_manager_;
+  gpu::GpuMemoryBufferManager* gpu_memory_buffer_manager_;
 
   // A filter for sending messages from thread other than the main thread.
   scoped_refptr<IPC::SyncMessageFilter> sync_filter_;

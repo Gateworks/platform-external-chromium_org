@@ -25,6 +25,7 @@ import org.chromium.base.CommandLine;
 import org.chromium.chrome.browser.EmptyTabObserver;
 import org.chromium.chrome.browser.Tab;
 import org.chromium.chrome.browser.TabObserver;
+import org.chromium.chrome.browser.UrlUtilities;
 import org.chromium.chrome.browser.appmenu.AppMenuButtonHelper;
 import org.chromium.chrome.browser.appmenu.AppMenuHandler;
 import org.chromium.chrome.shell.omnibox.SuggestionPopup;
@@ -48,9 +49,10 @@ public class ChromeShellToolbar extends LinearLayout {
         public void run() {
             mProgressDrawable.setLevel(100 * mProgress);
             if (mLoading) {
-                mStopReloadButton.setImageResource(R.drawable.btn_stop_normal);
+                mStopReloadButton.setImageResource(
+                        R.drawable.btn_toolbar_stop);
             } else {
-                mStopReloadButton.setImageResource(R.drawable.btn_reload_normal);
+                mStopReloadButton.setImageResource(R.drawable.btn_toolbar_reload);
                 ApiCompatibilityUtils.postOnAnimationDelayed(ChromeShellToolbar.this,
                         mClearProgressRunnable, COMPLETED_PROGRESS_TIMEOUT_MS);
             }
@@ -155,15 +157,16 @@ public class ChromeShellToolbar extends LinearLayout {
         mUrlTextView.setOnEditorActionListener(new OnEditorActionListener() {
             @Override
             public boolean onEditorAction(TextView v, int actionId, KeyEvent event) {
-                if ((actionId != EditorInfo.IME_ACTION_GO) && (event == null ||
-                        event.getKeyCode() != KeyEvent.KEYCODE_ENTER ||
-                        event.getAction() != KeyEvent.ACTION_DOWN)) {
+                if ((actionId != EditorInfo.IME_ACTION_GO) && (event == null
+                        || event.getKeyCode() != KeyEvent.KEYCODE_ENTER
+                        || event.getAction() != KeyEvent.ACTION_DOWN)) {
                     return false;
                 }
 
                 // This will set |mTab| by calling showTab().
                 // TODO(aurimas): Factor out initial tab creation to the activity level.
-                Tab tab = mTabManager.openUrl(mUrlTextView.getText().toString());
+                Tab tab = mTabManager.openUrl(
+                        UrlUtilities.fixupUrl(mUrlTextView.getText().toString()));
                 mUrlTextView.clearFocus();
                 setKeyboardVisibilityForUrl(false);
                 tab.getView().requestFocus();
@@ -174,6 +177,7 @@ public class ChromeShellToolbar extends LinearLayout {
             @Override
             public void onFocusChange(View v, boolean hasFocus) {
                 setKeyboardVisibilityForUrl(hasFocus);
+                mStopReloadButton.setVisibility(hasFocus ? GONE : VISIBLE);
                 if (!hasFocus && mTab != null) {
                     mUrlTextView.setText(mTab.getWebContents().getUrl());
                     mSuggestionPopup.dismissPopup();

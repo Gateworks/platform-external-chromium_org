@@ -126,8 +126,7 @@ class AppBackgroundPageNaClTest : public AppBackgroundPageApiTest {
  public:
   AppBackgroundPageNaClTest()
       : extension_(NULL) {}
-  virtual ~AppBackgroundPageNaClTest() {
-  }
+  ~AppBackgroundPageNaClTest() override {}
 
   void SetUpOnMainThread() override {
     AppBackgroundPageApiTest::SetUpOnMainThread();
@@ -614,7 +613,7 @@ IN_PROC_BROWSER_TEST_F(AppBackgroundPageNaClTest,
   ExtensionTestMessageListener nacl_modules_loaded("nacl_modules_loaded", true);
   LaunchTestingApp();
   extensions::ProcessManager* manager =
-    extensions::ExtensionSystem::Get(browser()->profile())->process_manager();
+      extensions::ProcessManager::Get(browser()->profile());
   ImpulseCallbackCounter active_impulse_counter(manager, extension()->id());
   EXPECT_TRUE(nacl_modules_loaded.WaitUntilSatisfied());
 
@@ -640,7 +639,7 @@ IN_PROC_BROWSER_TEST_F(AppBackgroundPageNaClTest,
   ExtensionTestMessageListener nacl_modules_loaded("nacl_modules_loaded", true);
   LaunchTestingApp();
   extensions::ProcessManager* manager =
-    extensions::ExtensionSystem::Get(browser()->profile())->process_manager();
+      extensions::ProcessManager::Get(browser()->profile());
   ImpulseCallbackCounter idle_impulse_counter(manager, extension()->id());
   EXPECT_TRUE(nacl_modules_loaded.WaitUntilSatisfied());
 

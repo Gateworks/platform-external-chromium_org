@@ -13,6 +13,7 @@ include $(LOCAL_PATH)/android_webview/android_webview_jarjar_ui_resources.target
 include $(LOCAL_PATH)/android_webview/android_webview_pak.target.linux-arm64.mk
 include $(LOCAL_PATH)/android_webview/android_webview_resources.target.linux-arm64.mk
 include $(LOCAL_PATH)/android_webview/android_webview_strings_grd.target.linux-arm64.mk
+include $(LOCAL_PATH)/android_webview/android_webview_version.target.linux-arm64.mk
 include $(LOCAL_PATH)/android_webview/libwebviewchromium.target.linux-arm64.mk
 include $(LOCAL_PATH)/android_webview/native/android_webview_native_jni.target.linux-arm64.mk
 include $(LOCAL_PATH)/android_webview/native/cancellation_signal_android_jar_jni_headers.target.linux-arm64.mk
@@ -90,6 +91,9 @@ include $(LOCAL_PATH)/content/speech_recognition_error_java.target.linux-arm64.m
 include $(LOCAL_PATH)/content/top_controls_state_java.target.linux-arm64.mk
 include $(LOCAL_PATH)/courgette/courgette_lib.target.linux-arm64.mk
 include $(LOCAL_PATH)/crypto/crypto.target.linux-arm64.mk
+include $(LOCAL_PATH)/device/battery/device_battery.target.linux-arm64.mk
+include $(LOCAL_PATH)/device/battery/device_battery_jni_headers.target.linux-arm64.mk
+include $(LOCAL_PATH)/device/battery/device_battery_mojo_bindings.target.linux-arm64.mk
 include $(LOCAL_PATH)/gin/gin.target.linux-arm64.mk
 include $(LOCAL_PATH)/google_apis/google_apis.target.linux-arm64.mk
 include $(LOCAL_PATH)/gpu/command_buffer/gles2_utils.target.linux-arm64.mk
@@ -156,7 +160,7 @@ include $(LOCAL_PATH)/testing/gtest_prod.target.linux-arm64.mk
 include $(LOCAL_PATH)/third_party/WebKit/Source/bindings/core/core_global_constructors_idls.target.linux-arm64.mk
 include $(LOCAL_PATH)/third_party/WebKit/Source/bindings/core/core_global_objects.target.linux-arm64.mk
 include $(LOCAL_PATH)/third_party/WebKit/Source/bindings/core/interfaces_info_individual_core.target.linux-arm64.mk
-include $(LOCAL_PATH)/third_party/WebKit/Source/bindings/core/v8/bindings_core_dictionary_impl_generated.target.linux-arm64.mk
+include $(LOCAL_PATH)/third_party/WebKit/Source/bindings/core/v8/bindings_core_impl_generated.target.linux-arm64.mk
 include $(LOCAL_PATH)/third_party/WebKit/Source/bindings/core/v8/bindings_core_v8_generated.target.linux-arm64.mk
 include $(LOCAL_PATH)/third_party/WebKit/Source/bindings/core/v8/bindings_core_v8_generated_aggregate.target.linux-arm64.mk
 include $(LOCAL_PATH)/third_party/WebKit/Source/bindings/core/v8/bindings_core_v8_generated_individual.target.linux-arm64.mk
@@ -166,7 +170,7 @@ include $(LOCAL_PATH)/third_party/WebKit/Source/bindings/modules/modules_core_gl
 include $(LOCAL_PATH)/third_party/WebKit/Source/bindings/modules/modules_event_generated.target.linux-arm64.mk
 include $(LOCAL_PATH)/third_party/WebKit/Source/bindings/modules/modules_global_constructors_idls.target.linux-arm64.mk
 include $(LOCAL_PATH)/third_party/WebKit/Source/bindings/modules/modules_global_objects.target.linux-arm64.mk
-include $(LOCAL_PATH)/third_party/WebKit/Source/bindings/modules/v8/bindings_modules_dictionary_impl_generated.target.linux-arm64.mk
+include $(LOCAL_PATH)/third_party/WebKit/Source/bindings/modules/v8/bindings_modules_impl_generated.target.linux-arm64.mk
 include $(LOCAL_PATH)/third_party/WebKit/Source/bindings/modules/v8/bindings_modules_v8_generated.target.linux-arm64.mk
 include $(LOCAL_PATH)/third_party/WebKit/Source/bindings/modules/v8/bindings_modules_v8_generated_aggregate.target.linux-arm64.mk
 include $(LOCAL_PATH)/third_party/WebKit/Source/bindings/modules/v8/bindings_modules_v8_generated_individual.target.linux-arm64.mk
@@ -306,6 +310,7 @@ include $(LOCAL_PATH)/third_party/webrtc/modules/rtp_rtcp.target.linux-arm64.mk
 include $(LOCAL_PATH)/third_party/webrtc/modules/video_capture_module.target.linux-arm64.mk
 include $(LOCAL_PATH)/third_party/webrtc/modules/video_capture_module_impl.target.linux-arm64.mk
 include $(LOCAL_PATH)/third_party/webrtc/modules/video_coding/codecs/vp8/webrtc_vp8.target.linux-arm64.mk
+include $(LOCAL_PATH)/third_party/webrtc/modules/video_coding/codecs/vp9/webrtc_vp9.target.linux-arm64.mk
 include $(LOCAL_PATH)/third_party/webrtc/modules/video_coding/utility/video_coding_utility.target.linux-arm64.mk
 include $(LOCAL_PATH)/third_party/webrtc/modules/video_processing.target.linux-arm64.mk
 include $(LOCAL_PATH)/third_party/webrtc/modules/video_render_module.target.linux-arm64.mk
@@ -324,6 +329,7 @@ include $(LOCAL_PATH)/third_party/widevine/cdm/widevine_cdm_version_h.target.lin
 include $(LOCAL_PATH)/third_party/zlib/google/zip.target.linux-arm64.mk
 include $(LOCAL_PATH)/third_party/zlib/minizip.target.linux-arm64.mk
 include $(LOCAL_PATH)/third_party/zlib/zlib.target.linux-arm64.mk
+include $(LOCAL_PATH)/third_party/zlib/zlib_x86_simd.target.linux-arm64.mk
 include $(LOCAL_PATH)/tools/json_schema_compiler/api_gen_util.target.linux-arm64.mk
 include $(LOCAL_PATH)/ui/accessibility/accessibility.target.linux-arm64.mk
 include $(LOCAL_PATH)/ui/accessibility/ax_gen.target.linux-arm64.mk

@@ -10,7 +10,6 @@
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/zoom/chrome_zoom_level_prefs.h"
-#include "chrome/common/pref_names.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/ui_test_utils.h"
 #include "content/public/browser/navigation_entry.h"
@@ -115,7 +114,7 @@ IN_PROC_BROWSER_TEST_F(ZoomControllerBrowserTest, OnPreferenceChanged) {
   zoom_change_watcher.Wait();
 }
 
-IN_PROC_BROWSER_TEST_F(ZoomControllerBrowserTest, ErrorPagesDoNotZoom) {
+IN_PROC_BROWSER_TEST_F(ZoomControllerBrowserTest, ErrorPagesCanZoom) {
   ui_test_utils::NavigateToURL(browser(), GURL("http://kjfhkjsdf.com"));
   content::WebContents* web_contents =
       browser()->tab_strip_model()->GetActiveWebContents();
@@ -132,5 +131,5 @@ IN_PROC_BROWSER_TEST_F(ZoomControllerBrowserTest, ErrorPagesDoNotZoom) {
   // The following attempt to change the zoom level for an error page should
   // fail.
   zoom_controller->SetZoomLevel(new_zoom_level);
-  EXPECT_FLOAT_EQ(old_zoom_level, zoom_controller->GetZoomLevel());
+  EXPECT_FLOAT_EQ(new_zoom_level, zoom_controller->GetZoomLevel());
 }

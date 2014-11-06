@@ -39,6 +39,7 @@ LOCAL_SRC_FILES := \
 	content/child/appcache/web_application_cache_host_impl.cc \
 	content/child/assert_matching_enums.cc \
 	content/child/blink_platform_impl.cc \
+	content/child/bluetooth/web_bluetooth_impl.cc \
 	content/child/child_discardable_shared_memory_manager.cc \
 	content/child/child_gpu_memory_buffer_manager.cc \
 	content/child/child_histogram_message_filter.cc \
@@ -68,6 +69,8 @@ LOCAL_SRC_FILES := \
 	content/child/indexed_db/webidbfactory_impl.cc \
 	content/child/mojo/mojo_application.cc \
 	content/child/multipart_response_delegate.cc \
+	content/child/notifications/notification_dispatcher.cc \
+	content/child/notifications/notification_manager.cc \
 	content/child/npapi/np_channel_base.cc \
 	content/child/npapi/npobject_proxy.cc \
 	content/child/npapi/npobject_stub.cc \
@@ -99,6 +102,7 @@ LOCAL_SRC_FILES := \
 	content/child/sync_load_response.cc \
 	content/child/thread_safe_sender.cc \
 	content/child/threaded_data_provider.cc \
+	content/child/web_data_consumer_handle_impl.cc \
 	content/child/web_database_observer_impl.cc \
 	content/child/web_discardable_memory_impl.cc \
 	content/child/web_gesture_curve_impl.cc \
@@ -190,11 +194,13 @@ MY_DEFS_Debug := \
 	'-DUSE_PROPRIETARY_CODECS' \
 	'-DENABLE_BROWSER_CDMS' \
 	'-DENABLE_CONFIGURATION_POLICY' \
+	'-DENABLE_NOTIFICATIONS' \
 	'-DDISCARDABLE_MEMORY_ALWAYS_SUPPORTED_NATIVELY' \
 	'-DSYSTEM_NATIVELY_SIGNALS_MEMORY_PRESSURE' \
-	'-DENABLE_EGLIMAGE=1' \
+	'-DDONT_EMBED_BUILD_METADATA' \
 	'-DCLD_VERSION=1' \
 	'-DENABLE_PRINTING=1' \
+	'-DENABLE_BASIC_PRINTING=1' \
 	'-DENABLE_MANAGED_USERS=1' \
 	'-DVIDEO_HOLE=1' \
 	'-DENABLE_LOAD_COMPLETION_HACKS=1' \
@@ -207,7 +213,7 @@ MY_DEFS_Debug := \
 	'-DSK_WILL_NEVER_DRAW_PERSPECTIVE_TEXT' \
 	'-DSK_FM_NEW_MATCH_FAMILY_STYLE_CHARACTER=1' \
 	'-DSK_SUPPORT_LEGACY_TEXTRENDERMODE' \
-	'-DSK_LEGACY_NO_DISTANCE_FIELD_PATHS' \
+	'-DSK_IGNORE_GPU_LAYER_HOISTING' \
 	'-DSK_BUILD_FOR_ANDROID' \
 	'-DSK_USE_POSIX_THREADS' \
 	'-DU_USING_ICU_NAMESPACE=0' \
@@ -216,6 +222,7 @@ MY_DEFS_Debug := \
 	'-DCHROME_PNG_WRITE_SUPPORT' \
 	'-DPNG_USER_CONFIG' \
 	'-DCHROME_PNG_READ_PACK_SUPPORT' \
+	'-DUSE_LIBPCI=1' \
 	'-DUSE_OPENSSL=1' \
 	'-DUSE_OPENSSL_CERTS=1' \
 	'-D__STDC_CONSTANT_MACROS' \
@@ -327,11 +334,13 @@ MY_DEFS_Release := \
 	'-DUSE_PROPRIETARY_CODECS' \
 	'-DENABLE_BROWSER_CDMS' \
 	'-DENABLE_CONFIGURATION_POLICY' \
+	'-DENABLE_NOTIFICATIONS' \
 	'-DDISCARDABLE_MEMORY_ALWAYS_SUPPORTED_NATIVELY' \
 	'-DSYSTEM_NATIVELY_SIGNALS_MEMORY_PRESSURE' \
-	'-DENABLE_EGLIMAGE=1' \
+	'-DDONT_EMBED_BUILD_METADATA' \
 	'-DCLD_VERSION=1' \
 	'-DENABLE_PRINTING=1' \
+	'-DENABLE_BASIC_PRINTING=1' \
 	'-DENABLE_MANAGED_USERS=1' \
 	'-DVIDEO_HOLE=1' \
 	'-DENABLE_LOAD_COMPLETION_HACKS=1' \
@@ -344,7 +353,7 @@ MY_DEFS_Release := \
 	'-DSK_WILL_NEVER_DRAW_PERSPECTIVE_TEXT' \
 	'-DSK_FM_NEW_MATCH_FAMILY_STYLE_CHARACTER=1' \
 	'-DSK_SUPPORT_LEGACY_TEXTRENDERMODE' \
-	'-DSK_LEGACY_NO_DISTANCE_FIELD_PATHS' \
+	'-DSK_IGNORE_GPU_LAYER_HOISTING' \
 	'-DSK_BUILD_FOR_ANDROID' \
 	'-DSK_USE_POSIX_THREADS' \
 	'-DU_USING_ICU_NAMESPACE=0' \
@@ -353,6 +362,7 @@ MY_DEFS_Release := \
 	'-DCHROME_PNG_WRITE_SUPPORT' \
 	'-DPNG_USER_CONFIG' \
 	'-DCHROME_PNG_READ_PACK_SUPPORT' \
+	'-DUSE_LIBPCI=1' \
 	'-DUSE_OPENSSL=1' \
 	'-DUSE_OPENSSL_CERTS=1' \
 	'-D__STDC_CONSTANT_MACROS' \

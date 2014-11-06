@@ -27,7 +27,6 @@
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/common/chrome_paths.h"
 #include "chrome/common/chrome_switches.h"
-#include "chrome/common/pref_names.h"
 #include "chrome/common/url_constants.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/test_switches.h"
@@ -352,8 +351,7 @@ class DevToolsExtensionTest : public DevToolsSanityTest,
         FROM_HERE, timeout.callback(), TestTimeouts::action_timeout());
 
     extensions::ProcessManager* manager =
-        extensions::ExtensionSystem::Get(browser()->profile())->
-            process_manager();
+        extensions::ProcessManager::Get(browser()->profile());
     extensions::ProcessManager::ViewSet all_views = manager->GetAllViews();
     for (extensions::ProcessManager::ViewSet::const_iterator iter =
              all_views.begin();
@@ -868,7 +866,6 @@ IN_PROC_BROWSER_TEST_F(DevToolsSanityTest, TestPageWithNoJavaScript) {
   CloseDevToolsWindow();
 }
 
-// Flakily fails: http://crbug.com/403007 http://crbug.com/89845
 IN_PROC_BROWSER_TEST_F(WorkerDevToolsSanityTest, InspectSharedWorker) {
 #if defined(OS_WIN) && defined(USE_ASH)
   // Disable this test in Metro+Ash for now (http://crbug.com/262796).
@@ -879,9 +876,8 @@ IN_PROC_BROWSER_TEST_F(WorkerDevToolsSanityTest, InspectSharedWorker) {
   RunTest("testSharedWorker", kSharedWorkerTestPage, kSharedWorkerTestWorker);
 }
 
-// http://crbug.com/100538
 IN_PROC_BROWSER_TEST_F(WorkerDevToolsSanityTest,
-                       DISABLED_PauseInSharedWorkerInitialization) {
+                       PauseInSharedWorkerInitialization) {
   ASSERT_TRUE(test_server()->Start());
   GURL url = test_server()->GetURL(kReloadSharedWorkerTestPage);
   ui_test_utils::NavigateToURL(browser(), url);
@@ -890,13 +886,17 @@ IN_PROC_BROWSER_TEST_F(WorkerDevToolsSanityTest,
       WaitForFirstSharedWorker(kReloadSharedWorkerTestWorker);
   OpenDevToolsWindowForSharedWorker(worker_data.get());
 
+  // We should make sure that the worker inspector has loaded before
+  // terminating worker.
+  RunTestFunction(window_, "testPauseInSharedWorkerInitialization1");
+
   TerminateWorker(worker_data);
 
   // Reload page to restart the worker.
   ui_test_utils::NavigateToURL(browser(), url);
 
   // Wait until worker script is paused on the debugger statement.
-  RunTestFunction(window_, "testPauseInSharedWorkerInitialization");
+  RunTestFunction(window_, "testPauseInSharedWorkerInitialization2");
   CloseDevToolsWindow();
 }
 

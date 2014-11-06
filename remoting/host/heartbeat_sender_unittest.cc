@@ -18,8 +18,8 @@
 #include "remoting/signaling/mock_signal_strategy.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/libjingle/source/talk/xmpp/constants.h"
 #include "third_party/webrtc/libjingle/xmllite/xmlelement.h"
+#include "third_party/webrtc/libjingle/xmpp/constants.h"
 
 using buzz::QName;
 using buzz::XmlElement;
@@ -65,7 +65,7 @@ ACTION_P(RemoveListener, list) {
 class HeartbeatSenderTest
     : public testing::Test {
  protected:
-  virtual void SetUp() override {
+  void SetUp() override {
     key_pair_ = RsaKeyPair::FromString(kTestRsaKeyPair);
     ASSERT_TRUE(key_pair_.get());
 
@@ -82,7 +82,7 @@ class HeartbeatSenderTest
         &mock_listener_, kHostId, &signal_strategy_, key_pair_, kTestBotJid));
   }
 
-  virtual void TearDown() override {
+  void TearDown() override {
     heartbeat_sender_.reset();
     EXPECT_TRUE(signal_strategy_listeners_.empty());
   }

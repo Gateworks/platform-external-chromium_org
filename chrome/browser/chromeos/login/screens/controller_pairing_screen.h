@@ -19,8 +19,17 @@ class ControllerPairingScreen
       public pairing_chromeos::ControllerPairingController::Observer,
       public ControllerPairingScreenActor::Delegate {
  public:
+  class Delegate {
+   public:
+    virtual ~Delegate() {}
+
+    // Set remora configuration from shark.
+    virtual void SetHostConfiguration() = 0;
+  };
+
   ControllerPairingScreen(
-      ScreenObserver* observer,
+      BaseScreenDelegate* base_screen_delegate,
+      Delegate* delegate,
       ControllerPairingScreenActor* actor,
       pairing_chromeos::ControllerPairingController* shark_controller);
   virtual ~ControllerPairingScreen();
@@ -50,6 +59,8 @@ class ControllerPairingScreen
   // Context for sharing data between C++ and JS.
   // TODO(dzhioev): move to BaseScreen when possible.
   ::login::ScreenContext context_;
+
+  Delegate* delegate_;
 
   ControllerPairingScreenActor* actor_;
 

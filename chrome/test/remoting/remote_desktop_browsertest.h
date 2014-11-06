@@ -53,10 +53,10 @@ namespace remoting {
 class RemoteDesktopBrowserTest : public extensions::PlatformAppBrowserTest {
  public:
   RemoteDesktopBrowserTest();
-  virtual ~RemoteDesktopBrowserTest();
+  ~RemoteDesktopBrowserTest() override;
 
   // InProcessBrowserTest Overrides
-  virtual void SetUp() override;
+  void SetUp() override;
   void SetUpOnMainThread() override;
 
  protected:
@@ -223,7 +223,14 @@ class RemoteDesktopBrowserTest : public extensions::PlatformAppBrowserTest {
 
   // Helper to construct the starting URL of the installed chromoting webapp.
   GURL Chromoting_Main_URL() {
-    return GURL("chrome-extension://" + ChromotingID() + "/main.html");
+    if (is_platform_app())
+      // The v2 remoting app recently (M38 at the latest) started adding a
+      // query-string parameter to the main extension page. So we'll create a
+      // different expected URL for it.
+      return GURL("chrome-extension://" + ChromotingID() +
+        "/main.html?isKioskSession=false");
+    else
+      return GURL("chrome-extension://" + ChromotingID() + "/main.html");
   }
 
   // Helper to retrieve the current URL in the active WebContents.

@@ -64,6 +64,16 @@ import org.chromium.content_public.browser.WebContents;
     }
 
     @Override
+    public boolean isLoading() {
+        return nativeIsLoading(mNativeWebContentsAndroid);
+    }
+
+    @Override
+    public boolean isLoadingToDifferentDocument() {
+        return nativeIsLoadingToDifferentDocument(mNativeWebContentsAndroid);
+    }
+
+    @Override
     public void stop() {
         nativeStop(mNativeWebContentsAndroid);
     }
@@ -187,6 +197,14 @@ import org.chromium.content_public.browser.WebContents;
         nativeBeginExitTransition(mNativeWebContentsAndroid, cssSelector);
     }
 
+    /**
+     * Clear the navigation transition data.
+     */
+    @Override
+    public void clearNavigationTransitionData() {
+        nativeClearNavigationTransitionData(mNativeWebContentsAndroid);
+    }
+
     @CalledByNative
     private void didDeferAfterResponseStarted(String markup, String cssSelector,
             String enteringColor) {
@@ -236,6 +254,8 @@ import org.chromium.content_public.browser.WebContents;
 
     private native String nativeGetTitle(long nativeWebContentsAndroid);
     private native String nativeGetVisibleURL(long nativeWebContentsAndroid);
+    private native boolean nativeIsLoading(long nativeWebContentsAndroid);
+    private native boolean nativeIsLoadingToDifferentDocument(long nativeWebContentsAndroid);
     private native void nativeStop(long nativeWebContentsAndroid);
     private native void nativeInsertCSS(long nativeWebContentsAndroid, String css);
     private native void nativeOnHide(long nativeWebContentsAndroid);
@@ -263,6 +283,7 @@ import org.chromium.content_public.browser.WebContents;
             String markup);
     private native void nativeBeginExitTransition(long nativeWebContentsAndroid,
             String cssSelector);
+    private native void nativeClearNavigationTransitionData(long nativeWebContentsAndroid);
     private native void nativeEvaluateJavaScript(long nativeWebContentsAndroid,
             String script, JavaScriptCallback callback);
     private native void nativePostMessageToFrame(long nativeWebContentsAndroid, String frameId,

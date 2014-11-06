@@ -127,6 +127,7 @@ LOCAL_SRC_FILES := \
 	net/base/mime_sniffer.cc \
 	net/base/mime_util.cc \
 	net/base/net_log_logger.cc \
+	net/base/net_log_util.cc \
 	net/base/network_change_notifier.cc \
 	net/base/network_delegate.cc \
 	net/base/platform_mime_util_linux.cc \
@@ -208,6 +209,7 @@ LOCAL_SRC_FILES := \
 	net/disk_cache/simple/simple_net_log_parameters.cc \
 	net/disk_cache/simple/simple_synchronous_entry.cc \
 	net/disk_cache/simple/simple_util.cc \
+	net/disk_cache/simple/simple_util_posix.cc \
 	net/disk_cache/simple/simple_version_upgrade.cc \
 	net/dns/address_sorter_posix.cc \
 	net/dns/dns_client.cc \
@@ -311,6 +313,7 @@ LOCAL_SRC_FILES := \
 	net/quic/congestion_control/leaky_bucket.cc \
 	net/quic/congestion_control/loss_detection_interface.cc \
 	net/quic/congestion_control/pacing_sender.cc \
+	net/quic/congestion_control/prr_sender.cc \
 	net/quic/congestion_control/receive_algorithm_interface.cc \
 	net/quic/congestion_control/rtt_stats.cc \
 	net/quic/congestion_control/send_algorithm_interface.cc \
@@ -583,11 +586,13 @@ MY_DEFS_Debug := \
 	'-DUSE_PROPRIETARY_CODECS' \
 	'-DENABLE_BROWSER_CDMS' \
 	'-DENABLE_CONFIGURATION_POLICY' \
+	'-DENABLE_NOTIFICATIONS' \
 	'-DDISCARDABLE_MEMORY_ALWAYS_SUPPORTED_NATIVELY' \
 	'-DSYSTEM_NATIVELY_SIGNALS_MEMORY_PRESSURE' \
-	'-DENABLE_EGLIMAGE=1' \
+	'-DDONT_EMBED_BUILD_METADATA' \
 	'-DCLD_VERSION=1' \
 	'-DENABLE_PRINTING=1' \
+	'-DENABLE_BASIC_PRINTING=1' \
 	'-DENABLE_MANAGED_USERS=1' \
 	'-DVIDEO_HOLE=1' \
 	'-DENABLE_LOAD_COMPLETION_HACKS=1' \
@@ -597,6 +602,7 @@ MY_DEFS_Debug := \
 	'-DU_USING_ICU_NAMESPACE=0' \
 	'-DU_ENABLE_DYLOAD=0' \
 	'-DU_STATIC_IMPLEMENTATION' \
+	'-DUSE_LIBPCI=1' \
 	'-DUSE_OPENSSL=1' \
 	'-DUSE_OPENSSL_CERTS=1' \
 	'-D__STDC_CONSTANT_MACROS' \
@@ -689,11 +695,13 @@ MY_DEFS_Release := \
 	'-DUSE_PROPRIETARY_CODECS' \
 	'-DENABLE_BROWSER_CDMS' \
 	'-DENABLE_CONFIGURATION_POLICY' \
+	'-DENABLE_NOTIFICATIONS' \
 	'-DDISCARDABLE_MEMORY_ALWAYS_SUPPORTED_NATIVELY' \
 	'-DSYSTEM_NATIVELY_SIGNALS_MEMORY_PRESSURE' \
-	'-DENABLE_EGLIMAGE=1' \
+	'-DDONT_EMBED_BUILD_METADATA' \
 	'-DCLD_VERSION=1' \
 	'-DENABLE_PRINTING=1' \
+	'-DENABLE_BASIC_PRINTING=1' \
 	'-DENABLE_MANAGED_USERS=1' \
 	'-DVIDEO_HOLE=1' \
 	'-DENABLE_LOAD_COMPLETION_HACKS=1' \
@@ -703,6 +711,7 @@ MY_DEFS_Release := \
 	'-DU_USING_ICU_NAMESPACE=0' \
 	'-DU_ENABLE_DYLOAD=0' \
 	'-DU_STATIC_IMPLEMENTATION' \
+	'-DUSE_LIBPCI=1' \
 	'-DUSE_OPENSSL=1' \
 	'-DUSE_OPENSSL_CERTS=1' \
 	'-D__STDC_CONSTANT_MACROS' \

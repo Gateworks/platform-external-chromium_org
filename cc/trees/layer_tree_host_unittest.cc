@@ -4184,13 +4184,15 @@ class LayerTreeHostTestMaxTransferBufferUsageBytes : public LayerTreeHostTest {
  protected:
   void InitializeSettings(LayerTreeSettings* settings) override {
     settings->impl_side_painting = true;
+    settings->use_zero_copy = false;
+    settings->use_one_copy = false;
   }
 
   scoped_ptr<FakeOutputSurface> CreateFakeOutputSurface(
       bool fallback) override {
     scoped_refptr<TestContextProvider> context_provider =
         TestContextProvider::Create();
-    context_provider->SetMaxTransferBufferUsageBytes(1024 * 1024);
+    context_provider->SetMaxTransferBufferUsageBytes(512 * 512);
     if (delegating_renderer())
       return FakeOutputSurface::CreateDelegating3d(context_provider);
     else
@@ -4201,7 +4203,7 @@ class LayerTreeHostTestMaxTransferBufferUsageBytes : public LayerTreeHostTest {
     client_.set_fill_with_nonsolid_color(true);
     scoped_refptr<FakePictureLayer> root_layer =
         FakePictureLayer::Create(&client_);
-    root_layer->SetBounds(gfx::Size(6000, 6000));
+    root_layer->SetBounds(gfx::Size(1024, 1024));
     root_layer->SetIsDrawable(true);
 
     layer_tree_host()->SetRootLayer(root_layer);
@@ -4215,7 +4217,7 @@ class LayerTreeHostTestMaxTransferBufferUsageBytes : public LayerTreeHostTest {
 
     // Expect that the transfer buffer memory used is equal to the
     // MaxTransferBufferUsageBytes value set in CreateOutputSurface.
-    EXPECT_EQ(1024 * 1024u, context->max_used_transfer_buffer_usage_bytes());
+    EXPECT_EQ(512 * 512u, context->max_used_transfer_buffer_usage_bytes());
     EndTest();
   }
 
@@ -5152,4 +5154,55 @@ class LayerTreeHostTestSynchronousCompositeSwapPromise
 // Impl-side painting is not supported for synchronous compositing.
 SINGLE_THREAD_NOIMPL_TEST_F(LayerTreeHostTestSynchronousCompositeSwapPromise);
 
+// Make sure page scale and top control deltas are applied to the client even
+// when the LayerTreeHost doesn't have a root layer.
+class LayerTreeHostAcceptsDeltasFromImplWithoutRootLayer
+    : public LayerTreeHostTest {
+ public:
+  LayerTreeHostAcceptsDeltasFromImplWithoutRootLayer()
+      : deltas_sent_to_client_(false) {}
+
+  void BeginTest() override {
+    layer_tree_host()->SetRootLayer(nullptr);
+    info_.page_scale_delta = 3.14f;
+    info_.top_controls_delta = 2.73f;
+
+    PostSetNeedsCommitToMainThread();
+  }
+
+  void BeginMainFrame(const BeginFrameArgs& args) override {
+    EXPECT_EQ(nullptr, layer_tree_host()->root_layer());
+
+    layer_tree_host()->ApplyScrollAndScale(&info_);
+    EndTest();
+  }
+
+  void ApplyViewportDeltas(
+      const gfx::Vector2d& inner,
+      const gfx::Vector2d& outer,
+      float scale_delta,
+      float top_controls_delta) override {
+    EXPECT_EQ(info_.page_scale_delta, scale_delta);
+    EXPECT_EQ(info_.top_controls_delta, top_controls_delta);
+    deltas_sent_to_client_ = true;
+  }
+
+  void ApplyViewportDeltas(
+      const gfx::Vector2d& scroll,
+      float scale_delta,
+      float top_controls_delta) override {
+    EXPECT_EQ(info_.page_scale_delta, scale_delta);
+    EXPECT_EQ(info_.top_controls_delta, top_controls_delta);
+    deltas_sent_to_client_ = true;
+  }
+
+  void AfterTest() override {
+    EXPECT_TRUE(deltas_sent_to_client_);
+  }
+
+  ScrollAndScaleSet info_;
+  bool deltas_sent_to_client_;
+};
+
+MULTI_THREAD_TEST_F(LayerTreeHostAcceptsDeltasFromImplWithoutRootLayer);
 }  // namespace cc

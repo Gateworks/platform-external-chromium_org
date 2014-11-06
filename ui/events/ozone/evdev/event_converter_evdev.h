@@ -22,7 +22,7 @@ class EVENTS_OZONE_EVDEV_EXPORT EventConverterEvdev
 
   int id() const { return id_; }
 
-  const base::FilePath& path() { return path_; }
+  const base::FilePath& path() const { return path_; }
 
   // Start reading events.
   void Start();
@@ -36,6 +36,9 @@ class EVENTS_OZONE_EVDEV_EXPORT EventConverterEvdev
   // Returns the size of the touchscreen device if the converter is used for a
   // touchscreen device.
   virtual gfx::Size GetTouchscreenSize() const;
+
+  // Returns true if the converter is used with an internal device.
+  virtual bool IsInternal() const;
 
  protected:
   // base::MessagePumpLibevent::Watcher:

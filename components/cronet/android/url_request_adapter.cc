@@ -15,7 +15,9 @@
 #include "components/cronet/android/wrapped_channel_upload_element_reader.h"
 #include "net/base/elements_upload_data_stream.h"
 #include "net/base/load_flags.h"
+#include "net/base/net_errors.h"
 #include "net/base/upload_bytes_element_reader.h"
+#include "net/http/http_response_headers.h"
 #include "net/http/http_status_code.h"
 
 namespace cronet {
@@ -34,7 +36,8 @@ URLRequestAdapter::URLRequestAdapter(URLRequestContextAdapter* context,
       http_status_code_(0),
       canceled_(false),
       expected_size_(0),
-      chunked_upload_(false) {
+      chunked_upload_(false),
+      disable_redirect_(false) {
   context_ = context;
   delegate_ = delegate;
   url_ = url;
@@ -68,6 +71,10 @@ void URLRequestAdapter::SetUploadChannel(JNIEnv* env, int64 content_length) {
       new WrappedChannelElementReader(delegate_, content_length));
   upload_data_stream_ =
       net::ElementsUploadDataStream::CreateWithReader(reader.Pass(), 0);
+}
+
+void URLRequestAdapter::DisableRedirects() {
+  disable_redirect_ = true;
 }
 
 void URLRequestAdapter::EnableChunkedUpload() {
@@ -203,6 +210,10 @@ void URLRequestAdapter::OnResponseStarted(net::URLRequest* request) {
   http_status_code_ = request->GetResponseCode();
   VLOG(1) << "Response started with status: " << http_status_code_;
 
+  net::HttpResponseHeaders* headers = request->response_headers();
+  if (headers)
+    http_status_text_ = headers->GetStatusText();
+
   request->GetResponseHeaderByName("Content-Type", &content_type_);
   expected_size_ = request->GetExpectedContentSize();
   delegate_->OnResponseStarted(this);
@@ -264,6 +275,20 @@ void URLRequestAdapter::OnReadCompleted(net::URLRequest* request,
   Read();
 }
 
+void URLRequestAdapter::OnReceivedRedirect(net::URLRequest* request,
+                                           const net::RedirectInfo& info,
+                                           bool* defer_redirect) {
+  DCHECK(OnNetworkThread());
+  if (disable_redirect_) {
+    http_status_code_ = request->GetResponseCode();
+    request->CancelWithError(net::ERR_TOO_MANY_REDIRECTS);
+    error_code_ = net::ERR_TOO_MANY_REDIRECTS;
+    canceled_ = true;
+    *defer_redirect = false;
+    OnRequestCompleted();
+  }
+}
+
 void URLRequestAdapter::OnBytesRead(int bytes_read) {
   DCHECK(OnNetworkThread());
   read_buffer_->set_offset(read_buffer_->offset() + bytes_read);
@@ -303,10 +328,10 @@ void URLRequestAdapter::OnRequestCanceled() {
 void URLRequestAdapter::OnRequestCompleted() {
   DCHECK(OnNetworkThread());
   VLOG(1) << "Completed: " << url_.possibly_invalid_spec();
-  url_request_.reset();
 
   delegate_->OnBytesRead(this);
   delegate_->OnRequestFinished(this);
+  url_request_.reset();
 }
 
 unsigned char* URLRequestAdapter::Data() const {

@@ -8,20 +8,20 @@
 #include <string>
 #include <vector>
 
-#include "base/callback.h"
-#include "base/macros.h"
+#include "base/callback_forward.h"
+#include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"
+#include "base/time/default_tick_clock.h"
 #include "base/time/time.h"
-
-namespace base {
-class TickClock;
-}
+#include "components/copresence/handlers/audio/tick_clock_ref_counted.h"
 
 namespace media {
 class AudioBusRefCounted;
 }
 
 namespace copresence {
+
+class TickClockRefCounted;
 
 struct AudioDirective final {
   // Default ctor, required by the priority queue.
@@ -42,7 +42,8 @@ struct AudioDirective final {
 // classes from it.
 class AudioDirectiveList {
  public:
-  AudioDirectiveList();
+  explicit AudioDirectiveList(const scoped_refptr<TickClockRefCounted>& clock =
+      make_scoped_refptr(new TickClockRefCounted(new base::DefaultTickClock)));
   ~AudioDirectiveList();
 
   void AddDirective(const std::string& op_id, base::TimeDelta ttl);
@@ -68,7 +69,7 @@ class AudioDirectiveList {
   // element. Only currently active directives will exist in this list.
   std::vector<AudioDirective> active_directives_;
 
-  scoped_ptr<base::TickClock> clock_;
+  scoped_refptr<TickClockRefCounted> clock_;
 
   DISALLOW_COPY_AND_ASSIGN(AudioDirectiveList);
 };

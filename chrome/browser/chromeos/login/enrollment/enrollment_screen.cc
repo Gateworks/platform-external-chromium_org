@@ -15,7 +15,7 @@
 #include "chrome/browser/browser_process_platform_part.h"
 #include "chrome/browser/chromeos/login/login_utils.h"
 #include "chrome/browser/chromeos/login/screen_manager.h"
-#include "chrome/browser/chromeos/login/screens/screen_observer.h"
+#include "chrome/browser/chromeos/login/screens/base_screen_delegate.h"
 #include "chrome/browser/chromeos/login/startup_utils.h"
 #include "chrome/browser/chromeos/login/wizard_controller.h"
 #include "chrome/browser/chromeos/policy/auto_enrollment_client.h"
@@ -52,9 +52,9 @@ EnrollmentScreen* EnrollmentScreen::Get(ScreenManager* manager) {
       manager->GetScreen(WizardController::kEnrollmentScreenName));
 }
 
-EnrollmentScreen::EnrollmentScreen(ScreenObserver* observer,
+EnrollmentScreen::EnrollmentScreen(BaseScreenDelegate* base_screen_delegate,
                                    EnrollmentScreenActor* actor)
-    : BaseScreen(observer),
+    : BaseScreen(base_screen_delegate),
       shark_controller_(NULL),
       remora_controller_(NULL),
       actor_(actor),
@@ -226,18 +226,18 @@ void EnrollmentScreen::OnCancel() {
   if (enrollment_mode_ == EnrollmentScreenActor::ENROLLMENT_MODE_FORCED ||
       enrollment_mode_ == EnrollmentScreenActor::ENROLLMENT_MODE_RECOVERY) {
     actor_->ResetAuth(
-        base::Bind(&ScreenObserver::OnExit,
-                   base::Unretained(get_screen_observer()),
-                   ScreenObserver::ENTERPRISE_ENROLLMENT_BACK));
+        base::Bind(&BaseScreenDelegate::OnExit,
+                   base::Unretained(get_base_screen_delegate()),
+                   BaseScreenDelegate::ENTERPRISE_ENROLLMENT_BACK));
     return;
   }
 
   if (is_auto_enrollment())
     policy::AutoEnrollmentClient::CancelAutoEnrollment();
   actor_->ResetAuth(
-      base::Bind(&ScreenObserver::OnExit,
-                 base::Unretained(get_screen_observer()),
-                 ScreenObserver::ENTERPRISE_ENROLLMENT_COMPLETED));
+      base::Bind(&BaseScreenDelegate::OnExit,
+                 base::Unretained(get_base_screen_delegate()),
+                 BaseScreenDelegate::ENTERPRISE_ENROLLMENT_COMPLETED));
 }
 
 void EnrollmentScreen::OnConfirmationClosed() {
@@ -255,13 +255,13 @@ void EnrollmentScreen::OnConfirmationClosed() {
       !user_.empty() &&
       LoginUtils::IsWhitelisted(user_, NULL)) {
     actor_->ShowLoginSpinnerScreen();
-    get_screen_observer()->OnExit(
-        ScreenObserver::ENTERPRISE_AUTO_MAGIC_ENROLLMENT_COMPLETED);
+    get_base_screen_delegate()->OnExit(
+        BaseScreenDelegate::ENTERPRISE_AUTO_MAGIC_ENROLLMENT_COMPLETED);
   } else {
     actor_->ResetAuth(
-        base::Bind(&ScreenObserver::OnExit,
-                   base::Unretained(get_screen_observer()),
-                   ScreenObserver::ENTERPRISE_ENROLLMENT_COMPLETED));
+        base::Bind(&BaseScreenDelegate::OnExit,
+                   base::Unretained(get_base_screen_delegate()),
+                   BaseScreenDelegate::ENTERPRISE_ENROLLMENT_COMPLETED));
   }
 }
 
@@ -379,12 +379,6 @@ void EnrollmentScreen::ReportEnrollmentStatus(policy::EnrollmentStatus status) {
     case policy::EnrollmentStatus::STATUS_REGISTRATION_BAD_MODE:
       UMAFailure(policy::kMetricEnrollmentInvalidEnrollmentMode);
       break;
-    case policy::EnrollmentStatus::STATUS_LOCK_TIMEOUT:
-      UMAFailure(policy::kMetricEnrollmentLockboxTimeoutError);
-      break;
-    case policy::EnrollmentStatus::STATUS_LOCK_WRONG_USER:
-      UMAFailure(policy::kMetricEnrollmentLockDomainMismatch);
-      break;
     case policy::EnrollmentStatus::STATUS_NO_STATE_KEYS:
       UMAFailure(policy::kMetricEnrollmentNoStateKeys);
       break;
@@ -395,7 +389,33 @@ void EnrollmentScreen::ReportEnrollmentStatus(policy::EnrollmentStatus status) {
       UMAFailure(policy::kMetricEnrollmentCloudPolicyStoreError);
       break;
     case policy::EnrollmentStatus::STATUS_LOCK_ERROR:
-      UMAFailure(policy::kMetricEnrollmentLockBackendError);
+      switch (status.lock_status()) {
+        case policy::EnterpriseInstallAttributes::LOCK_SUCCESS:
+        case policy::EnterpriseInstallAttributes::LOCK_NOT_READY:
+          NOTREACHED();
+          break;
+        case policy::EnterpriseInstallAttributes::LOCK_TIMEOUT:
+          UMAFailure(policy::kMetricEnrollmentLockboxTimeoutError);
+          break;
+        case policy::EnterpriseInstallAttributes::LOCK_BACKEND_INVALID:
+          UMAFailure(policy::kMetricEnrollmentLockBackendInvalid);
+          break;
+        case policy::EnterpriseInstallAttributes::LOCK_ALREADY_LOCKED:
+          UMAFailure(policy::kMetricEnrollmentLockAlreadyLocked);
+          break;
+        case policy::EnterpriseInstallAttributes::LOCK_SET_ERROR:
+          UMAFailure(policy::kMetricEnrollmentLockSetError);
+          break;
+        case policy::EnterpriseInstallAttributes::LOCK_FINALIZE_ERROR:
+          UMAFailure(policy::kMetricEnrollmentLockFinalizeError);
+          break;
+        case policy::EnterpriseInstallAttributes::LOCK_READBACK_ERROR:
+          UMAFailure(policy::kMetricEnrollmentLockReadbackError);
+          break;
+        case policy::EnterpriseInstallAttributes::LOCK_WRONG_DOMAIN:
+          UMAFailure(policy::kMetricEnrollmentLockDomainMismatch);
+          break;
+      }
       break;
     case policy::EnrollmentStatus::STATUS_ROBOT_AUTH_FETCH_FAILED:
       UMAFailure(policy::kMetricEnrollmentRobotAuthCodeFetchFailed);

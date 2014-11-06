@@ -176,6 +176,8 @@
         'shell/browser/shell_web_contents_view_delegate_win.cc',
         'shell/browser/webkit_test_controller.cc',
         'shell/browser/webkit_test_controller.h',
+        'shell/common/layout_test/layout_test_messages.cc',
+        'shell/common/layout_test/layout_test_messages.h',
         'shell/common/leak_detection_result.h',
         'shell/common/shell_content_client.cc',
         'shell/common/shell_content_client.h',
@@ -312,6 +314,7 @@
         }],
         ['use_x11 == 1', {
           'dependencies': [
+            '../ui/events/devices/events_devices.gyp:events_devices',
             '../tools/xdisplaycheck/xdisplaycheck.gyp:xdisplaycheck',
           ],
         }],
@@ -1048,6 +1051,7 @@
           'dependencies': [
             'content.gyp:content_icudata',
             'content.gyp:content_java',
+            'content.gyp:content_v8_external_data',
             'content_java_test_support',
             'content_shell_java',
             'libcontent_shell_content_view',
@@ -1071,6 +1075,12 @@
               ['icu_use_data_file_flag==1', {
                 'additional_input_paths': [
                   '<(PRODUCT_DIR)/icudtl.dat',
+                ],
+              }],
+              ['v8_use_external_startup_data==1', {
+                'additional_input_paths': [
+                  '<(PRODUCT_DIR)/natives_blob.bin',
+                  '<(PRODUCT_DIR)/snapshot_blob.bin',
                 ],
               }],
             ],

@@ -71,7 +71,7 @@
 #include "base/logging.h"
 #include "base/memory/singleton.h"
 #include "base/metrics/histogram.h"
-#include "base/profiler/scoped_profile.h"
+#include "base/profiler/scoped_tracker.h"
 #include "base/single_thread_task_runner.h"
 #include "base/stl_util.h"
 #include "base/strings/string_number_conversions.h"
@@ -86,7 +86,6 @@
 #include "crypto/rsa_private_key.h"
 #include "crypto/scoped_nss_types.h"
 #include "net/base/address_list.h"
-#include "net/base/connection_type_histograms.h"
 #include "net/base/dns_util.h"
 #include "net/base/io_buffer.h"
 #include "net/base/net_errors.h"
@@ -94,7 +93,7 @@
 #include "net/cert/asn1_util.h"
 #include "net/cert/cert_status_flags.h"
 #include "net/cert/cert_verifier.h"
-#include "net/cert/ct_objects_extractor.h"
+#include "net/cert/ct_ev_whitelist.h"
 #include "net/cert/ct_verifier.h"
 #include "net/cert/ct_verify_result.h"
 #include "net/cert/scoped_nss_types.h"
@@ -1631,6 +1630,11 @@ void SSLClientSocketNSS::Core::HandshakeCallback(
 }
 
 void SSLClientSocketNSS::Core::HandshakeSucceeded() {
+  // TODO(vadimt): Remove ScopedProfile below once crbug.com/424386 is fixed.
+  tracked_objects::ScopedProfile tracking_profile(
+      FROM_HERE_WITH_EXPLICIT_FUNCTION(
+          "424386 SSLClientSocketNSS::Core::HandshakeSucceeded"));
+
   DCHECK(OnNSSTaskRunner());
 
   PRBool last_handshake_resumed;
@@ -1657,6 +1661,11 @@ void SSLClientSocketNSS::Core::HandshakeSucceeded() {
 }
 
 int SSLClientSocketNSS::Core::HandleNSSError(PRErrorCode nss_error) {
+  // TODO(vadimt): Remove ScopedProfile below once crbug.com/424386 is fixed.
+  tracked_objects::ScopedProfile tracking_profile(
+      FROM_HERE_WITH_EXPLICIT_FUNCTION(
+          "424386 SSLClientSocketNSS::Core::HandleNSSError"));
+
   DCHECK(OnNSSTaskRunner());
 
   int net_error = MapNSSClientError(nss_error);
@@ -1689,8 +1698,8 @@ int SSLClientSocketNSS::Core::HandleNSSError(PRErrorCode nss_error) {
 }
 
 int SSLClientSocketNSS::Core::DoHandshakeLoop(int last_io_result) {
-  // TODO(vadimt): Remove ScopedProfile below once crbug.com/424386 is fixed.
-  tracked_objects::ScopedProfile tracking_profile(
+  // TODO(vadimt): Remove ScopedTracker below once crbug.com/424386 is fixed.
+  tracked_objects::ScopedTracker tracking_profile(
       FROM_HERE_WITH_EXPLICIT_FUNCTION(
           "424386 SSLClientSocketNSS::Core::DoHandshakeLoop"));
 
@@ -1730,8 +1739,8 @@ int SSLClientSocketNSS::Core::DoHandshakeLoop(int last_io_result) {
 }
 
 int SSLClientSocketNSS::Core::DoReadLoop(int result) {
-  // TODO(vadimt): Remove ScopedProfile below once crbug.com/424386 is fixed.
-  tracked_objects::ScopedProfile tracking_profile(
+  // TODO(vadimt): Remove ScopedTracker below once crbug.com/424386 is fixed.
+  tracked_objects::ScopedTracker tracking_profile(
       FROM_HERE_WITH_EXPLICIT_FUNCTION(
           "424386 SSLClientSocketNSS::Core::DoReadLoop"));
 
@@ -1794,8 +1803,8 @@ int SSLClientSocketNSS::Core::DoWriteLoop(int result) {
 }
 
 int SSLClientSocketNSS::Core::DoHandshake() {
-  // TODO(vadimt): Remove ScopedProfile below once crbug.com/424386 is fixed.
-  tracked_objects::ScopedProfile tracking_profile(
+  // TODO(vadimt): Remove ScopedTracker below once crbug.com/424386 is fixed.
+  tracked_objects::ScopedTracker tracking_profile(
       FROM_HERE_WITH_EXPLICIT_FUNCTION(
           "424386 SSLClientSocketNSS::Core::DoHandshake"));
 
@@ -1803,6 +1812,11 @@ int SSLClientSocketNSS::Core::DoHandshake() {
 
   int net_error = OK;
   SECStatus rv = SSL_ForceHandshake(nss_fd_);
+
+  // TODO(vadimt): Remove ScopedProfile below once crbug.com/424386 is fixed.
+  tracked_objects::ScopedProfile tracking_profile1(
+      FROM_HERE_WITH_EXPLICIT_FUNCTION(
+          "424386 SSLClientSocketNSS::Core::DoHandshake 1"));
 
   // Note: this function may be called multiple times during the handshake, so
   // even though channel id and client auth are separate else cases, they can
@@ -1850,8 +1864,8 @@ int SSLClientSocketNSS::Core::DoHandshake() {
 }
 
 int SSLClientSocketNSS::Core::DoGetDBCertComplete(int result) {
-  // TODO(vadimt): Remove ScopedProfile below once crbug.com/424386 is fixed.
-  tracked_objects::ScopedProfile tracking_profile(
+  // TODO(vadimt): Remove ScopedTracker below once crbug.com/424386 is fixed.
+  tracked_objects::ScopedTracker tracking_profile(
       FROM_HERE_WITH_EXPLICIT_FUNCTION(
           "424386 SSLClientSocketNSS::Core::DoGetDBCertComplete"));
 
@@ -2039,8 +2053,8 @@ int SSLClientSocketNSS::Core::DoPayloadWrite() {
 // transport socket. Return true if some I/O performed, false
 // otherwise (error or ERR_IO_PENDING).
 bool SSLClientSocketNSS::Core::DoTransportIO() {
-  // TODO(vadimt): Remove ScopedProfile below once crbug.com/424386 is fixed.
-  tracked_objects::ScopedProfile tracking_profile(
+  // TODO(vadimt): Remove ScopedTracker below once crbug.com/424386 is fixed.
+  tracked_objects::ScopedTracker tracking_profile(
       FROM_HERE_WITH_EXPLICIT_FUNCTION(
           "424386 SSLClientSocketNSS::Core::DoTransportIO"));
 
@@ -2220,8 +2234,8 @@ void SSLClientSocketNSS::Core::OnSendComplete(int result) {
 // callback. For Read() and Write(), that's what we want. But for Connect(),
 // the caller expects OK (i.e. 0) for success.
 void SSLClientSocketNSS::Core::DoConnectCallback(int rv) {
-  // TODO(vadimt): Remove ScopedProfile below once crbug.com/424386 is fixed.
-  tracked_objects::ScopedProfile tracking_profile(
+  // TODO(vadimt): Remove ScopedTracker below once crbug.com/424386 is fixed.
+  tracked_objects::ScopedTracker tracking_profile(
       FROM_HERE_WITH_EXPLICIT_FUNCTION(
           "424386 SSLClientSocketNSS::Core::DoConnectCallback"));
 
@@ -2236,8 +2250,8 @@ void SSLClientSocketNSS::Core::DoConnectCallback(int rv) {
 }
 
 void SSLClientSocketNSS::Core::DoReadCallback(int rv) {
-  // TODO(vadimt): Remove ScopedProfile below once crbug.com/424386 is fixed.
-  tracked_objects::ScopedProfile tracking_profile(
+  // TODO(vadimt): Remove ScopedTracker below once crbug.com/424386 is fixed.
+  tracked_objects::ScopedTracker tracking_profile(
       FROM_HERE_WITH_EXPLICIT_FUNCTION(
           "424386 SSLClientSocketNSS::Core::DoReadCallback"));
 
@@ -2256,8 +2270,8 @@ void SSLClientSocketNSS::Core::DoReadCallback(int rv) {
   PostOrRunCallback(
       FROM_HERE,
       base::Bind(&Core::DidNSSRead, this, rv));
-  // TODO(vadimt): Remove ScopedProfile below once crbug.com/418183 is fixed.
-  tracked_objects::ScopedProfile tracking_profile1(
+  // TODO(vadimt): Remove ScopedTracker below once crbug.com/418183 is fixed.
+  tracked_objects::ScopedTracker tracking_profile1(
       FROM_HERE_WITH_EXPLICIT_FUNCTION(
           "SSLClientSocketNSS::Core::DoReadCallback"));
   PostOrRunCallback(
@@ -2473,8 +2487,6 @@ void SSLClientSocketNSS::Core::UpdateConnectionStatus() {
          SSL_CONNECTION_COMPRESSION_MASK) <<
         SSL_CONNECTION_COMPRESSION_SHIFT;
 
-    // NSS 3.14.x doesn't have a version macro for TLS 1.2 (because NSS didn't
-    // support it yet), so use 0x0303 directly.
     int version = SSL_CONNECTION_VERSION_UNKNOWN;
     if (channel_info.protocolVersion < SSL_LIBRARY_VERSION_3_0) {
       // All versions less than SSL_LIBRARY_VERSION_3_0 are treated as SSL
@@ -2482,11 +2494,11 @@ void SSLClientSocketNSS::Core::UpdateConnectionStatus() {
       version = SSL_CONNECTION_VERSION_SSL2;
     } else if (channel_info.protocolVersion == SSL_LIBRARY_VERSION_3_0) {
       version = SSL_CONNECTION_VERSION_SSL3;
-    } else if (channel_info.protocolVersion == SSL_LIBRARY_VERSION_3_1_TLS) {
+    } else if (channel_info.protocolVersion == SSL_LIBRARY_VERSION_TLS_1_0) {
       version = SSL_CONNECTION_VERSION_TLS1;
     } else if (channel_info.protocolVersion == SSL_LIBRARY_VERSION_TLS_1_1) {
       version = SSL_CONNECTION_VERSION_TLS1_1;
-    } else if (channel_info.protocolVersion == 0x0303) {
+    } else if (channel_info.protocolVersion == SSL_LIBRARY_VERSION_TLS_1_2) {
       version = SSL_CONNECTION_VERSION_TLS1_2;
     }
     nss_handshake_state_.ssl_connection_status |=
@@ -2691,8 +2703,8 @@ void SSLClientSocketNSS::Core::DidNSSWrite(int result) {
 }
 
 void SSLClientSocketNSS::Core::BufferSendComplete(int result) {
-  // TODO(vadimt): Remove ScopedProfile below once crbug.com/418183 is fixed.
-  tracked_objects::ScopedProfile tracking_profile(
+  // TODO(vadimt): Remove ScopedTracker below once crbug.com/418183 is fixed.
+  tracked_objects::ScopedTracker tracking_profile(
       FROM_HERE_WITH_EXPLICIT_FUNCTION(
           "418183 DidCompleteReadWrite => Core::BufferSendComplete"));
 
@@ -2739,8 +2751,8 @@ void SSLClientSocketNSS::Core::OnGetChannelIDComplete(int result) {
 void SSLClientSocketNSS::Core::BufferRecvComplete(
     IOBuffer* read_buffer,
     int result) {
-  // TODO(vadimt): Remove ScopedProfile below once crbug.com/418183 is fixed.
-  tracked_objects::ScopedProfile tracking_profile(
+  // TODO(vadimt): Remove ScopedTracker below once crbug.com/418183 is fixed.
+  tracked_objects::ScopedTracker tracking_profile(
       FROM_HERE_WITH_EXPLICIT_FUNCTION(
           "418183 DidCompleteReadWrite => SSLClientSocketNSS::Core::..."));
 
@@ -3492,8 +3504,11 @@ int SSLClientSocketNSS::DoVerifyCertComplete(int result) {
   // TODO(hclam): Skip logging if server cert was expected to be bad because
   // |server_cert_verify_result_| doesn't contain all the information about
   // the cert.
-  if (result == OK)
-    LogConnectionTypeMetrics();
+  if (result == OK) {
+    int ssl_version =
+        SSLConnectionStatusToVersion(core_->state().ssl_connection_status);
+    RecordConnectionTypeMetrics(ssl_version);
+  }
 
   const CertStatus cert_status = server_cert_verify_result_.cert_status;
   if (transport_security_state_ &&
@@ -3505,6 +3520,21 @@ int SSLClientSocketNSS::DoVerifyCertComplete(int result) {
           server_cert_verify_result_.public_key_hashes,
           &pinning_failure_log_)) {
     result = ERR_SSL_PINNED_KEY_NOT_IN_CERT_CHAIN;
+  }
+
+  scoped_refptr<ct::EVCertsWhitelist> ev_whitelist =
+      SSLConfigService::GetEVCertsWhitelist();
+  if (server_cert_verify_result_.cert_status & CERT_STATUS_IS_EV) {
+    if (ev_whitelist.get() && ev_whitelist->IsValid()) {
+      const SHA256HashValue fingerprint(
+          X509Certificate::CalculateFingerprint256(
+              server_cert_verify_result_.verified_cert->os_cert_handle()));
+
+      UMA_HISTOGRAM_BOOLEAN(
+          "Net.SSL_EVCertificateInWhitelist",
+          ev_whitelist->ContainsCertificateHash(
+              std::string(reinterpret_cast<const char*>(fingerprint.data), 8)));
+    }
   }
 
   if (result == OK) {
@@ -3544,29 +3574,6 @@ void SSLClientSocketNSS::VerifyCT() {
           << " Verified scts: " << ct_verify_result_.verified_scts.size()
           << " scts from unknown logs: "
           << ct_verify_result_.unknown_logs_scts.size();
-}
-
-void SSLClientSocketNSS::LogConnectionTypeMetrics() const {
-  UpdateConnectionTypeHistograms(CONNECTION_SSL);
-  int ssl_version = SSLConnectionStatusToVersion(
-      core_->state().ssl_connection_status);
-  switch (ssl_version) {
-    case SSL_CONNECTION_VERSION_SSL2:
-      UpdateConnectionTypeHistograms(CONNECTION_SSL_SSL2);
-      break;
-    case SSL_CONNECTION_VERSION_SSL3:
-      UpdateConnectionTypeHistograms(CONNECTION_SSL_SSL3);
-      break;
-    case SSL_CONNECTION_VERSION_TLS1:
-      UpdateConnectionTypeHistograms(CONNECTION_SSL_TLS1);
-      break;
-    case SSL_CONNECTION_VERSION_TLS1_1:
-      UpdateConnectionTypeHistograms(CONNECTION_SSL_TLS1_1);
-      break;
-    case SSL_CONNECTION_VERSION_TLS1_2:
-      UpdateConnectionTypeHistograms(CONNECTION_SSL_TLS1_2);
-      break;
-  };
 }
 
 void SSLClientSocketNSS::EnsureThreadIdAssigned() const {

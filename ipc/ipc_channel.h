@@ -173,17 +173,17 @@ class IPC_EXPORT Channel : public Sender {
   // Get its own process id. This value is told to the peer.
   virtual base::ProcessId GetSelfPID() const = 0;
 
+  // Overridden from ipc::Sender.
   // Send a message over the Channel to the listener on the other end.
   //
   // |message| must be allocated using operator new.  This object will be
   // deleted once the contents of the Message have been sent.
-  virtual bool Send(Message* message) = 0;
+  virtual bool Send(Message* message) override = 0;
 
   // NaCl in Non-SFI mode runs on Linux directly, and the following functions
   // compiled on Linux are also needed. Please see also comments in
   // components/nacl_nonsfi.gyp for more details.
-#if defined(OS_POSIX) && \
-    (!defined(OS_NACL) || defined(__native_client_nonsfi__))
+#if defined(OS_POSIX) && !defined(OS_NACL_SFI)
   // On POSIX an IPC::Channel wraps a socketpair(), this method returns the
   // FD # for the client end of the socket.
   // This method may only be called on the server side of a channel.
@@ -200,7 +200,7 @@ class IPC_EXPORT Channel : public Sender {
   // ID. Even if true, the server may have already accepted a connection.
   static bool IsNamedServerInitialized(const std::string& channel_id);
 
-#if !defined(OS_NACL) || defined(__native_client_nonsfi__)
+#if !defined(OS_NACL_SFI)
   // Generates a channel ID that's non-predictable and unique.
   static std::string GenerateUniqueRandomChannelID();
 

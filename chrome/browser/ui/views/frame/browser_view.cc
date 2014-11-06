@@ -239,14 +239,14 @@ class BrowserViewLayoutDelegateImpl : public BrowserViewLayoutDelegate {
  public:
   explicit BrowserViewLayoutDelegateImpl(BrowserView* browser_view)
       : browser_view_(browser_view) {}
-  virtual ~BrowserViewLayoutDelegateImpl() {}
+  ~BrowserViewLayoutDelegateImpl() override {}
 
   // BrowserViewLayoutDelegate overrides:
-  virtual views::View* GetContentsWebView() const override {
+  views::View* GetContentsWebView() const override {
     return browser_view_->contents_web_view_;
   }
 
-  virtual bool DownloadShelfNeedsLayout() const override {
+  bool DownloadShelfNeedsLayout() const override {
     DownloadShelfView* download_shelf = browser_view_->download_shelf_.get();
     // Re-layout the shelf either if it is visible or if its close animation
     // is currently running.
@@ -254,11 +254,11 @@ class BrowserViewLayoutDelegateImpl : public BrowserViewLayoutDelegate {
            (download_shelf->IsShowing() || download_shelf->IsClosing());
   }
 
-  virtual bool IsTabStripVisible() const override {
+  bool IsTabStripVisible() const override {
     return browser_view_->IsTabStripVisible();
   }
 
-  virtual gfx::Rect GetBoundsForTabStripInBrowserView() const override {
+  gfx::Rect GetBoundsForTabStripInBrowserView() const override {
     gfx::RectF bounds_f(browser_view_->frame()->GetBoundsForTabStrip(
         browser_view_->tabstrip()));
     views::View::ConvertRectToTarget(browser_view_->parent(), browser_view_,
@@ -266,26 +266,26 @@ class BrowserViewLayoutDelegateImpl : public BrowserViewLayoutDelegate {
     return gfx::ToEnclosingRect(bounds_f);
   }
 
-  virtual int GetTopInsetInBrowserView() const override {
+  int GetTopInsetInBrowserView() const override {
     return browser_view_->frame()->GetTopInset() -
         browser_view_->y();
   }
 
-  virtual int GetThemeBackgroundXInset() const override {
+  int GetThemeBackgroundXInset() const override {
     // TODO(pkotwicz): Return the inset with respect to the left edge of the
     // BrowserView.
     return browser_view_->frame()->GetThemeBackgroundXInset();
   }
 
-  virtual bool IsToolbarVisible() const override {
+  bool IsToolbarVisible() const override {
     return browser_view_->IsToolbarVisible();
   }
 
-  virtual bool IsBookmarkBarVisible() const override {
+  bool IsBookmarkBarVisible() const override {
     return browser_view_->IsBookmarkBarVisible();
   }
 
-  virtual FullscreenExitBubbleViews* GetFullscreenExitBubble() const override {
+  FullscreenExitBubbleViews* GetFullscreenExitBubble() const override {
     return browser_view_->fullscreen_exit_bubble();
   }
 
@@ -306,7 +306,7 @@ class BookmarkExtensionBackground : public views::Background {
                               Browser* browser);
 
   // View methods overridden from views:Background.
-  virtual void Paint(gfx::Canvas* canvas, views::View* view) const override;
+  void Paint(gfx::Canvas* canvas, views::View* view) const override;
 
  private:
   BrowserView* browser_view_;
@@ -399,9 +399,6 @@ BrowserView::BrowserView()
       ticker_(0),
 #endif
       force_location_bar_focus_(false),
-#if defined(OS_CHROMEOS)
-      scroll_end_effect_controller_(ScrollEndEffectController::Create()),
-#endif
       activate_modal_dialog_factory_(this) {
 }
 
@@ -679,7 +676,7 @@ void BrowserView::SetAlwaysOnTop(bool always_on_top) {
   NOTIMPLEMENTED();
 }
 
-gfx::NativeWindow BrowserView::GetNativeWindow() {
+gfx::NativeWindow BrowserView::GetNativeWindow() const {
   // While the browser destruction is going on, the widget can already be gone,
   // but utility functions like FindBrowserWithWindow will come here and crash.
   // We short circuit therefore.
@@ -2434,13 +2431,8 @@ void BrowserView::ShowAvatarBubbleFromAvatarButton(
                                       views::BubbleBorder::PAINT_NORMAL;
     AvatarMenuBubbleView::ShowBubble(anchor_view, arrow, arrow_paint_type,
                                      alignment, bounds, browser());
-    ProfileMetrics::LogProfileOpenMethod(ProfileMetrics::ICON_AVATAR_BUBBLE);
   }
-}
-
-void BrowserView::OverscrollUpdate(float delta_y) {
-  if (scroll_end_effect_controller_)
-    scroll_end_effect_controller_->OverscrollUpdate(delta_y);
+  ProfileMetrics::LogProfileOpenMethod(ProfileMetrics::ICON_AVATAR_BUBBLE);
 }
 
 int BrowserView::GetRenderViewHeightInsetWithDetachedBookmarkBar() {

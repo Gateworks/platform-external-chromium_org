@@ -24,6 +24,7 @@
           'drive_sync_handler.js',
           'file_operation_handler.js',
           'file_operation_manager.js',
+          'import_history.js',
           'progress_center.js',
           'test_util.js',
           'volume_manager.js',
@@ -33,6 +34,10 @@
           '<(CLOSURE_DIR)/externs/chrome_send_externs.js',
           '<(CLOSURE_DIR)/externs/chrome_extensions.js',
           '<(CLOSURE_DIR)/externs/file_manager_private.js',
+          '../../../externs/chrome_file_browser_handler.js',
+          '../../../externs/connection.js',
+          '../../../externs/css_rule.js',
+          '../../../externs/webview_tag.js',
         ],
       },
       'includes': [

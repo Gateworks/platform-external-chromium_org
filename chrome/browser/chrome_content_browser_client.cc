@@ -1338,7 +1338,6 @@ void ChromeContentBrowserClient::AppendExtraCommandLineSwitches(
 
     // Please keep this in alphabetical order.
     static const char* const kSwitchNames[] = {
-      autofill::switches::kDisableIgnoreAutocompleteOff,
       autofill::switches::kDisablePasswordGeneration,
       autofill::switches::kEnablePasswordGeneration,
       autofill::switches::kIgnoreAutocompleteOffForAutofill,
@@ -1358,6 +1357,7 @@ void ChromeContentBrowserClient::AppendExtraCommandLineSwitches(
       switches::kCloudPrintURL,
       switches::kCloudPrintXmppEndpoint,
       switches::kDisableBundledPpapiFlash,
+      switches::kDisableCastStreamingHWEncoding,
       switches::kEnableBenchmarking,
       switches::kEnableNaCl,
 #if !defined(DISABLE_NACL)
@@ -1365,6 +1365,7 @@ void ChromeContentBrowserClient::AppendExtraCommandLineSwitches(
       switches::kEnableNaClNonSfiMode,
 #endif
       switches::kEnableNetBenchmarking,
+      switches::kEnablePluginPlaceholderShadowDom,
       switches::kEnableShowModalDialog,
       switches::kEnableStreamlinedHostedApps,
       switches::kEnableWebBasedSignin,
@@ -1410,8 +1411,10 @@ void ChromeContentBrowserClient::AppendExtraCommandLineSwitches(
       // Load (in-process) Pepper plugins in-process in the zygote pre-sandbox.
       switches::kDisableBundledPpapiFlash,
 #if !defined(DISABLE_NACL)
+      switches::kEnableNaClDebug,
       switches::kEnableNaClNonSfiMode,
       switches::kNaClDangerousNoSandboxNonSfi,
+      switches::kUseNaClHelperNonSfi,
 #endif
       switches::kPpapiFlashPath,
       switches::kPpapiFlashVersion,
@@ -1870,17 +1873,20 @@ ChromeContentBrowserClient::CheckDesktopNotificationPermission(
 
 void ChromeContentBrowserClient::ShowDesktopNotification(
     const content::ShowDesktopNotificationHostMsgParams& params,
-    RenderFrameHost* render_frame_host,
+    content::BrowserContext* browser_context,
+    int render_process_id,
     scoped_ptr<content::DesktopNotificationDelegate> delegate,
     base::Closure* cancel_callback) {
 #if defined(ENABLE_NOTIFICATIONS)
-  content::RenderProcessHost* process = render_frame_host->GetProcess();
-  Profile* profile = Profile::FromBrowserContext(process->GetBrowserContext());
+  Profile* profile = Profile::FromBrowserContext(browser_context);
+  DCHECK(profile);
+
   DesktopNotificationService* service =
       DesktopNotificationServiceFactory::GetForProfile(profile);
-  service->ShowDesktopNotification(
-      params, render_frame_host, delegate.Pass(), cancel_callback);
+  DCHECK(service);
 
+  service->ShowDesktopNotification(
+      params, render_process_id, delegate.Pass(), cancel_callback);
   profile->GetHostContentSettingsMap()->UpdateLastUsage(
       params.origin, params.origin, CONTENT_SETTINGS_TYPE_NOTIFICATIONS);
 #else
@@ -2499,6 +2505,26 @@ void ChromeContentBrowserClient::GetAdditionalMappedFilesForChildProcess(
   DCHECK(icudata_file.IsValid());
   mappings->Transfer(kAndroidICUDataDescriptor,
                      base::ScopedFD(icudata_file.TakePlatformFile()));
+
+#ifdef V8_USE_EXTERNAL_STARTUP_DATA
+  base::FilePath v8_data_path;
+  PathService::Get(base::DIR_ANDROID_APP_DATA, &v8_data_path);
+  DCHECK(!v8_data_path.empty());
+
+  int file_flags = base::File::FLAG_OPEN | base::File::FLAG_READ;
+  base::FilePath v8_natives_data_path =
+      v8_data_path.AppendASCII("natives_blob.bin");
+  base::FilePath v8_snapshot_data_path =
+      v8_data_path.AppendASCII("snapshot_blob.bin");
+  base::File v8_natives_data_file(v8_natives_data_path, file_flags);
+  base::File v8_snapshot_data_file(v8_snapshot_data_path, file_flags);
+  DCHECK(v8_natives_data_file.IsValid());
+  DCHECK(v8_snapshot_data_file.IsValid());
+  mappings->Transfer(kV8NativesDataDescriptor,
+                     base::ScopedFD(v8_natives_data_file.TakePlatformFile()));
+  mappings->Transfer(kV8SnapshotDataDescriptor,
+                     base::ScopedFD(v8_snapshot_data_file.TakePlatformFile()));
+#endif  // V8_USE_EXTERNAL_STARTUP_DATA
 
 #else
   int crash_signal_fd = GetCrashSignalFD(command_line);

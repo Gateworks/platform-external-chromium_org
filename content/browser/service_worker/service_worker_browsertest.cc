@@ -242,11 +242,14 @@ void CountScriptResources(
 
   int version_id;
   size_t index = infos.size() - 1;
-  if (!infos[index].installing_version.is_null)
+  if (infos[index].installing_version.version_id !=
+      kInvalidServiceWorkerVersionId)
     version_id = infos[index].installing_version.version_id;
-  else if (!infos[index].waiting_version.is_null)
+  else if (infos[index].waiting_version.version_id !=
+           kInvalidServiceWorkerVersionId)
     version_id = infos[1].waiting_version.version_id;
-  else if (!infos[index].active_version.is_null)
+  else if (infos[index].active_version.version_id !=
+           kInvalidServiceWorkerVersionId)
     version_id = infos[index].active_version.version_id;
   else
     return;
@@ -311,7 +314,7 @@ class EmbeddedWorkerBrowserTest : public ServiceWorkerBrowserTest,
   EmbeddedWorkerBrowserTest()
       : last_worker_status_(EmbeddedWorkerInstance::STOPPED),
         pause_mode_(DONT_PAUSE) {}
-  virtual ~EmbeddedWorkerBrowserTest() {}
+  ~EmbeddedWorkerBrowserTest() override {}
 
   void TearDownOnIOThread() override {
     if (worker_) {
@@ -416,7 +419,7 @@ class ServiceWorkerVersionBrowserTest : public ServiceWorkerBrowserTest {
  public:
   typedef ServiceWorkerVersionBrowserTest self;
 
-  virtual ~ServiceWorkerVersionBrowserTest() {}
+  ~ServiceWorkerVersionBrowserTest() override {}
 
   void TearDownOnIOThread() override {
     registration_ = NULL;

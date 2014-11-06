@@ -29,10 +29,7 @@ class AppActivityProxy : public Activity,
   AppActivityProxy(AppActivity* replaced_activity,
                    AppActivityRegistry* creator);
 
- protected:
-  ~AppActivityProxy() override;
-
- // Activity overrides:
+  // Activity overrides:
   ActivityViewModel* GetActivityViewModel() override;
   void SetCurrentState(ActivityState state) override;
   ActivityState GetCurrentState() override;
@@ -46,12 +43,15 @@ class AppActivityProxy : public Activity,
   SkColor GetRepresentativeColor() const override;
   base::string16 GetTitle() const override;
   gfx::ImageSkia GetIcon() const override;
+  void SetActivityView(ActivityView* activity_view) override;
   bool UsesFrame() const override;
   views::View* GetContentsView() override;
-  views::Widget* CreateWidget() override;
   gfx::ImageSkia GetOverviewModeImage() override;
   void PrepareContentsForOverview() override;
   void ResetContentsView() override;
+
+ protected:
+  ~AppActivityProxy() override;
 
  private:
   // The creator of this object which needs to be informed if the object gets

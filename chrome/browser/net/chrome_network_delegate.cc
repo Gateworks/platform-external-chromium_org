@@ -9,7 +9,6 @@
 #include <vector>
 
 #include "base/base_paths.h"
-#include "base/debug/alias.h"
 #include "base/debug/dump_without_crashing.h"
 #include "base/debug/trace_event.h"
 #include "base/logging.h"
@@ -34,10 +33,10 @@
 #include "chrome/common/pref_names.h"
 #include "components/data_reduction_proxy/core/browser/data_reduction_proxy_auth_request_handler.h"
 #include "components/data_reduction_proxy/core/browser/data_reduction_proxy_metrics.h"
-#include "components/data_reduction_proxy/core/browser/data_reduction_proxy_params.h"
 #include "components/data_reduction_proxy/core/browser/data_reduction_proxy_protocol.h"
 #include "components/data_reduction_proxy/core/browser/data_reduction_proxy_statistics_prefs.h"
 #include "components/data_reduction_proxy/core/browser/data_reduction_proxy_usage_stats.h"
+#include "components/data_reduction_proxy/core/common/data_reduction_proxy_params.h"
 #include "components/domain_reliability/monitor.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/render_frame_host.h"
@@ -232,13 +231,6 @@ void ReportInvalidReferrerSend(const GURL& target_url,
                                const GURL& referrer_url) {
   base::RecordAction(
       base::UserMetricsAction("Net.URLRequest_StartJob_InvalidReferrer"));
-  // http://crbug.com/422871
-  char url_buf[128];
-  char referrer_buf[128];
-  base::strlcpy(url_buf, target_url.spec().c_str(), arraysize(url_buf));
-  base::strlcpy(referrer_buf, referrer_url.spec().c_str(), arraysize(url_buf));
-  base::debug::Alias(url_buf);
-  base::debug::Alias(referrer_buf);
   base::debug::DumpWithoutCrashing();
   NOTREACHED();
 }
@@ -449,6 +441,7 @@ void ChromeNetworkDelegate::OnResolveProxy(
       !proxy_config_getter_.is_null()) {
     on_resolve_proxy_handler_.Run(url, load_flags,
                                   proxy_config_getter_.Run(),
+                                  proxy_service.config(),
                                   proxy_service.proxy_retry_info(),
                                   data_reduction_proxy_params_, result);
   }
@@ -580,10 +573,8 @@ void ChromeNetworkDelegate::OnCompleted(net::URLRequest* request,
           data_reduction_proxy::GetDataReductionProxyRequestType(request);
 
       base::TimeDelta freshness_lifetime =
-          request->response_info()
-              .headers->GetFreshnessLifetimes(
-                            request->response_info().response_time)
-              .fresh;
+          request->response_info().headers->GetFreshnessLifetimes(
+              request->response_info().response_time).freshness;
       int64 adjusted_original_content_length =
           data_reduction_proxy::GetAdjustedOriginalContentLength(
               request_type, original_content_length,

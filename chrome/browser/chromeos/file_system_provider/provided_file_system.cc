@@ -10,6 +10,7 @@
 #include "base/files/file.h"
 #include "chrome/browser/chromeos/file_system_provider/notification_manager.h"
 #include "chrome/browser/chromeos/file_system_provider/operations/abort.h"
+#include "chrome/browser/chromeos/file_system_provider/operations/add_watcher.h"
 #include "chrome/browser/chromeos/file_system_provider/operations/close_file.h"
 #include "chrome/browser/chromeos/file_system_provider/operations/copy_entry.h"
 #include "chrome/browser/chromeos/file_system_provider/operations/create_directory.h"
@@ -17,13 +18,12 @@
 #include "chrome/browser/chromeos/file_system_provider/operations/delete_entry.h"
 #include "chrome/browser/chromeos/file_system_provider/operations/get_metadata.h"
 #include "chrome/browser/chromeos/file_system_provider/operations/move_entry.h"
-#include "chrome/browser/chromeos/file_system_provider/operations/observe_directory.h"
 #include "chrome/browser/chromeos/file_system_provider/operations/open_file.h"
 #include "chrome/browser/chromeos/file_system_provider/operations/read_directory.h"
 #include "chrome/browser/chromeos/file_system_provider/operations/read_file.h"
+#include "chrome/browser/chromeos/file_system_provider/operations/remove_watcher.h"
 #include "chrome/browser/chromeos/file_system_provider/operations/truncate.h"
 #include "chrome/browser/chromeos/file_system_provider/operations/unmount.h"
-#include "chrome/browser/chromeos/file_system_provider/operations/unobserve_entry.h"
 #include "chrome/browser/chromeos/file_system_provider/operations/write_file.h"
 #include "chrome/browser/chromeos/file_system_provider/request_manager.h"
 #include "chrome/browser/profiles/profile.h"
@@ -40,6 +40,13 @@ namespace {
 
 // Discards the result of Abort() when called from the destructor.
 void EmptyStatusCallback(base::File::Error /* result */) {
+}
+
+// Discards the error code and always calls the callback with a success.
+void AlwaysSuccessCallback(
+    const storage::AsyncFileUtil::StatusCallback& callback,
+    base::File::Error /* result */) {
+  callback.Run(base::File::FILE_OK);
 }
 
 }  // namespace
@@ -357,36 +364,67 @@ ProvidedFileSystem::AbortCallback ProvidedFileSystem::Truncate(
       &ProvidedFileSystem::Abort, weak_ptr_factory_.GetWeakPtr(), request_id);
 }
 
-ProvidedFileSystem::AbortCallback ProvidedFileSystem::ObserveDirectory(
-    const base::FilePath& directory_path,
+ProvidedFileSystem::AbortCallback ProvidedFileSystem::AddWatcher(
+    const GURL& origin,
+    const base::FilePath& entry_path,
     bool recursive,
-    const storage::AsyncFileUtil::StatusCallback& callback) {
+    bool persistent,
+    const storage::AsyncFileUtil::StatusCallback& callback,
+    const storage::WatcherManager::NotificationCallback&
+        notification_callback) {
   // TODO(mtomasz): Wrap the entire method body with an asynchronous queue to
   // avoid races.
-  const ObservedEntries::const_iterator it =
-      observed_entries_.find(directory_path);
-  if (it != observed_entries_.end()) {
-    if (!recursive || it->second.recursive) {
-      callback.Run(base::File::FILE_ERROR_EXISTS);
-      return AbortCallback();
-    }
+  if (persistent && (!file_system_info_.supports_notify_tag() ||
+                     !notification_callback.is_null())) {
+    OnAddWatcherCompleted(entry_path,
+                          recursive,
+                          Subscriber(),
+                          callback,
+                          base::File::FILE_ERROR_INVALID_OPERATION);
+    return AbortCallback();
+  }
+
+  // Create a candidate subscriber. This could be done in OnAddWatcherCompleted,
+  // but base::Bind supports only up to 7 arguments.
+  Subscriber subscriber;
+  subscriber.origin = origin;
+  subscriber.persistent = persistent;
+  subscriber.notification_callback = notification_callback;
+
+  const WatcherKey key(entry_path, recursive);
+  const Watchers::const_iterator it = watchers_.find(key);
+  if (it != watchers_.end()) {
+    const bool exists =
+        it->second.subscribers.find(origin) != it->second.subscribers.end();
+    OnAddWatcherCompleted(
+        entry_path,
+        recursive,
+        subscriber,
+        callback,
+        exists ? base::File::FILE_ERROR_EXISTS : base::File::FILE_OK);
+    return AbortCallback();
   }
 
   const int request_id = request_manager_->CreateRequest(
-      OBSERVE_DIRECTORY,
-      scoped_ptr<RequestManager::HandlerInterface>(
-          new operations::ObserveDirectory(
-              event_router_,
-              file_system_info_,
-              directory_path,
-              recursive,
-              base::Bind(&ProvidedFileSystem::OnObserveDirectoryCompleted,
-                         weak_ptr_factory_.GetWeakPtr(),
-                         directory_path,
-                         recursive,
-                         callback))));
+      ADD_WATCHER,
+      scoped_ptr<RequestManager::HandlerInterface>(new operations::AddWatcher(
+          event_router_,
+          file_system_info_,
+          entry_path,
+          recursive,
+          base::Bind(&ProvidedFileSystem::OnAddWatcherCompleted,
+                     weak_ptr_factory_.GetWeakPtr(),
+                     entry_path,
+                     recursive,
+                     subscriber,
+                     callback))));
+
   if (!request_id) {
-    callback.Run(base::File::FILE_ERROR_SECURITY);
+    OnAddWatcherCompleted(entry_path,
+                          recursive,
+                          subscriber,
+                          callback,
+                          base::File::FILE_ERROR_SECURITY);
     return AbortCallback();
   }
 
@@ -394,34 +432,51 @@ ProvidedFileSystem::AbortCallback ProvidedFileSystem::ObserveDirectory(
       &ProvidedFileSystem::Abort, weak_ptr_factory_.GetWeakPtr(), request_id);
 }
 
-void ProvidedFileSystem::UnobserveEntry(
+void ProvidedFileSystem::RemoveWatcher(
+    const GURL& origin,
     const base::FilePath& entry_path,
+    bool recursive,
     const storage::AsyncFileUtil::StatusCallback& callback) {
-  const ObservedEntries::const_iterator it = observed_entries_.find(entry_path);
-  if (it == observed_entries_.end()) {
+  const WatcherKey key(entry_path, recursive);
+  const Watchers::iterator it = watchers_.find(key);
+  if (it == watchers_.end() ||
+      it->second.subscribers.find(origin) == it->second.subscribers.end()) {
     callback.Run(base::File::FILE_ERROR_NOT_FOUND);
     return;
   }
 
-  // Delete the watcher in advance since the list of observed entries is owned
-  // by the C++ layer, not by the extension.
-  observed_entries_.erase(it);
+  // Delete the subscriber in advance, since the list of watchers is owned by
+  // the C++ layer, not by the extension.
+  it->second.subscribers.erase(origin);
 
-  FOR_EACH_OBSERVER(
-      ProvidedFileSystemObserver,
-      observers_,
-      OnObservedEntryListChanged(file_system_info_, observed_entries_));
+  FOR_EACH_OBSERVER(ProvidedFileSystemObserver,
+                    observers_,
+                    OnWatcherListChanged(file_system_info_, watchers_));
 
-  // TODO(mtomasz): Consider returning always an OK error code, since for the
-  // callers it's important that the entry is not watched anymore. The watcher
-  // is removed even if the extension returns an error.
+  // If there are other subscribers, then do not remove the obsererver, but
+  // simply return a success.
+  if (it->second.subscribers.size()) {
+    callback.Run(base::File::FILE_OK);
+    return;
+  }
+
+  // Delete the watcher in advance.
+  watchers_.erase(it);
+
+  // Even if the extension returns an error, the callback is called with base::
+  // File::FILE_OK. The reason for that is that the entry is not watche anymore
+  // anyway, as it's removed in advance.
   const int request_id = request_manager_->CreateRequest(
-      UNOBSERVE_ENTRY,
+      REMOVE_WATCHER,
       scoped_ptr<RequestManager::HandlerInterface>(
-          new operations::UnobserveEntry(
-              event_router_, file_system_info_, entry_path, callback)));
+          new operations::RemoveWatcher(
+              event_router_,
+              file_system_info_,
+              entry_path,
+              recursive,
+              base::Bind(&AlwaysSuccessCallback, callback))));
   if (!request_id)
-    callback.Run(base::File::FILE_ERROR_SECURITY);
+    callback.Run(base::File::FILE_OK);
 }
 
 const ProvidedFileSystemInfo& ProvidedFileSystem::GetFileSystemInfo() const {
@@ -432,8 +487,8 @@ RequestManager* ProvidedFileSystem::GetRequestManager() {
   return request_manager_.get();
 }
 
-ObservedEntries* ProvidedFileSystem::GetObservedEntries() {
-  return &observed_entries_;
+Watchers* ProvidedFileSystem::GetWatchers() {
+  return &watchers_;
 }
 
 void ProvidedFileSystem::AddObserver(ProvidedFileSystemObserver* observer) {
@@ -447,12 +502,14 @@ void ProvidedFileSystem::RemoveObserver(ProvidedFileSystemObserver* observer) {
 }
 
 bool ProvidedFileSystem::Notify(
-    const base::FilePath& observed_path,
-    ProvidedFileSystemObserver::ChangeType change_type,
-    scoped_ptr<ProvidedFileSystemObserver::ChildChanges> child_changes,
+    const base::FilePath& entry_path,
+    bool recursive,
+    storage::WatcherManager::ChangeType change_type,
+    scoped_ptr<ProvidedFileSystemObserver::Changes> changes,
     const std::string& tag) {
-  const ObservedEntries::iterator it = observed_entries_.find(observed_path);
-  if (it == observed_entries_.end())
+  const WatcherKey key(entry_path, recursive);
+  const auto& watcher_it = watchers_.find(key);
+  if (watcher_it == watchers_.end())
     return false;
 
   // The tag must be provided if and only if it's explicitly supported.
@@ -461,25 +518,34 @@ bool ProvidedFileSystem::Notify(
 
   // The object is owned by AutoUpdated, so the reference is valid as long as
   // callbacks created with AutoUpdater::CreateCallback().
-  const ProvidedFileSystemObserver::ChildChanges& child_changes_ref =
-      *child_changes.get();
+  const ProvidedFileSystemObserver::Changes& changes_ref = *changes.get();
 
   scoped_refptr<AutoUpdater> auto_updater(
       new AutoUpdater(base::Bind(&ProvidedFileSystem::OnNotifyCompleted,
                                  weak_ptr_factory_.GetWeakPtr(),
-                                 observed_path,
+                                 entry_path,
+                                 recursive,
                                  change_type,
-                                 base::Passed(&child_changes),
-                                 it->second.last_tag,
+                                 base::Passed(&changes),
+                                 watcher_it->second.last_tag,
                                  tag)));
 
+  // Call all notification callbacks (if any).
+  for (const auto& subscriber_it : watcher_it->second.subscribers) {
+    const storage::WatcherManager::NotificationCallback& notification_callback =
+        subscriber_it.second.notification_callback;
+    if (!notification_callback.is_null())
+      notification_callback.Run(change_type);
+  }
+
+  // Notify all observers.
   FOR_EACH_OBSERVER(ProvidedFileSystemObserver,
                     observers_,
-                    OnObservedEntryChanged(file_system_info_,
-                                           it->second,
-                                           change_type,
-                                           child_changes_ref,
-                                           auto_updater->CreateCallback()));
+                    OnWatcherChanged(file_system_info_,
+                                     watcher_it->second,
+                                     change_type,
+                                     changes_ref,
+                                     auto_updater->CreateCallback()));
 
   return true;
 }
@@ -505,9 +571,10 @@ void ProvidedFileSystem::Abort(
   }
 }
 
-void ProvidedFileSystem::OnObserveDirectoryCompleted(
-    const base::FilePath& directory_path,
+void ProvidedFileSystem::OnAddWatcherCompleted(
+    const base::FilePath& entry_path,
     bool recursive,
+    const Subscriber& subscriber,
     const storage::AsyncFileUtil::StatusCallback& callback,
     base::File::Error result) {
   if (result != base::File::FILE_OK) {
@@ -515,26 +582,37 @@ void ProvidedFileSystem::OnObserveDirectoryCompleted(
     return;
   }
 
-  observed_entries_[directory_path].entry_path = directory_path;
-  observed_entries_[directory_path].recursive |= recursive;
+  const WatcherKey key(entry_path, recursive);
+  const Watchers::iterator it = watchers_.find(key);
+  if (it != watchers_.end()) {
+    callback.Run(base::File::FILE_OK);
+    return;
+  }
 
-  FOR_EACH_OBSERVER(
-      ProvidedFileSystemObserver,
-      observers_,
-      OnObservedEntryListChanged(file_system_info_, observed_entries_));
+  // TODO(mtomasz): Add a queue to prevent races.
+  Watcher* const watcher = &watchers_[key];
+  watcher->entry_path = entry_path;
+  watcher->recursive = recursive;
+  watcher->subscribers[subscriber.origin] = subscriber;
 
-  callback.Run(result);
+  FOR_EACH_OBSERVER(ProvidedFileSystemObserver,
+                    observers_,
+                    OnWatcherListChanged(file_system_info_, watchers_));
+
+  callback.Run(base::File::FILE_OK);
 }
 
 void ProvidedFileSystem::OnNotifyCompleted(
-    const base::FilePath& observed_path,
-    ProvidedFileSystemObserver::ChangeType change_type,
-    scoped_ptr<ProvidedFileSystemObserver::ChildChanges> /* child_changes */,
+    const base::FilePath& entry_path,
+    bool recursive,
+    storage::WatcherManager::ChangeType change_type,
+    scoped_ptr<ProvidedFileSystemObserver::Changes> /* changes */,
     const std::string& last_tag,
     const std::string& tag) {
-  const ObservedEntries::iterator it = observed_entries_.find(observed_path);
-  // Check if the entry is still observed.
-  if (it == observed_entries_.end())
+  const WatcherKey key(entry_path, recursive);
+  const Watchers::iterator it = watchers_.find(key);
+  // Check if the entry is still watched.
+  if (it == watchers_.end())
     return;
 
   // Another following notification finished earlier.
@@ -551,11 +629,20 @@ void ProvidedFileSystem::OnNotifyCompleted(
 
   FOR_EACH_OBSERVER(ProvidedFileSystemObserver,
                     observers_,
-                    OnObservedEntryTagUpdated(file_system_info_, it->second));
+                    OnWatcherTagUpdated(file_system_info_, it->second));
 
-  // If the observed entry is deleted, then unobserve it.
-  if (change_type == ProvidedFileSystemObserver::DELETED)
-    UnobserveEntry(observed_path, base::Bind(&EmptyStatusCallback));
+  // If the watched entry is deleted, then remove the watcher.
+  if (change_type == storage::WatcherManager::DELETED) {
+    // Make a copy, since the |it| iterator will get invalidated on the last
+    // subscriber.
+    Subscribers subscribers = it->second.subscribers;
+    for (const auto& subscriber_it : subscribers) {
+      RemoveWatcher(subscriber_it.second.origin,
+                    entry_path,
+                    recursive,
+                    base::Bind(&EmptyStatusCallback));
+    }
+  }
 }
 
 }  // namespace file_system_provider

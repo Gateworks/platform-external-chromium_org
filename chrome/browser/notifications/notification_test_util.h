@@ -22,10 +22,6 @@ class MockNotificationDelegate : public NotificationDelegate {
   explicit MockNotificationDelegate(const std::string& id);
 
   // NotificationDelegate interface.
-  void Display() override {}
-  void Error() override {}
-  void Close(bool by_user) override {}
-  void Click() override {}
   std::string id() const override;
 
  private:
@@ -50,9 +46,6 @@ class LoggingNotificationDelegate : public NotificationDelegate {
   // NotificationObjectProxy override
   virtual void Display() override {
     Logger::log("notification displayed\n");
-  }
-  virtual void Error() override {
-    Logger::log("notification error\n");
   }
   virtual void Click() override {
     Logger::log("notification clicked\n");

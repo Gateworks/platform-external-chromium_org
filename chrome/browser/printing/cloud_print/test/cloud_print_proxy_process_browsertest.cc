@@ -36,11 +36,11 @@
 #include "chrome/test/base/testing_pref_service_syncable.h"
 #include "chrome/test/base/testing_profile.h"
 #include "chrome/test/base/testing_profile_manager.h"
-#include "chrome/test/base/ui_test_utils.h"
 #include "components/keyed_service/core/keyed_service.h"
 #include "content/public/browser/notification_service.h"
 #include "content/public/common/content_paths.h"
 #include "content/public/test/test_browser_thread_bundle.h"
+#include "content/public/test/test_utils.h"
 #include "ipc/ipc_descriptors.h"
 #include "ipc/ipc_multiprocess_test.h"
 #include "ipc/ipc_switches.h"
@@ -300,10 +300,10 @@ class CloudPrintProxyPolicyStartupTest : public base::MultiProcessTest,
                                          public IPC::Listener {
  public:
   CloudPrintProxyPolicyStartupTest();
-  virtual ~CloudPrintProxyPolicyStartupTest();
+  ~CloudPrintProxyPolicyStartupTest() override;
 
-  virtual void SetUp() override;
-  virtual void TearDown() override;
+  void SetUp() override;
+  void TearDown() override;
 
   scoped_refptr<base::MessageLoopProxy> IOMessageLoopProxy() {
     return BrowserThread::GetMessageLoopProxyForThread(BrowserThread::IO);

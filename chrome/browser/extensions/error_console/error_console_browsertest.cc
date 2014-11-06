@@ -35,7 +35,7 @@ namespace {
 
 const char kTestingPage[] = "/extensions/test_file.html";
 const char kAnonymousFunction[] = "(anonymous function)";
-const char* kBackgroundPageName =
+const char* const kBackgroundPageName =
     extensions::kGeneratedBackgroundPageFilename;
 const int kNoFlags = 0;
 
@@ -127,7 +127,7 @@ void CheckManifestError(const ExtensionError* error,
 class ErrorConsoleBrowserTest : public ExtensionBrowserTest {
  public:
   ErrorConsoleBrowserTest() : error_console_(NULL) { }
-  virtual ~ErrorConsoleBrowserTest() { }
+  ~ErrorConsoleBrowserTest() override {}
 
  protected:
   // A helper class in order to wait for the proper number of errors to be
@@ -274,6 +274,7 @@ class ErrorConsoleBrowserTest : public ExtensionBrowserTest {
   }
 
   ErrorConsole* error_console() { return error_console_; }
+
  private:
   // The URL used in testing for simple page navigations.
   GURL test_url_;
@@ -391,7 +392,7 @@ IN_PROC_BROWSER_TEST_F(ErrorConsoleBrowserTest,
                   script_url,
                   "logHelloWorld",  // function name
                   6u,  // line number
-                  11u /* column number */ );
+                  11u /* column number */);
 
   CheckStackFrame(stack_trace1[1],
                   script_url,

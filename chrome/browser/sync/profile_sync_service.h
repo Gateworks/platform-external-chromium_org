@@ -667,6 +667,13 @@ class ProfileSyncService : public ProfileSyncServiceBase,
   virtual bool SetDecryptionPassphrase(const std::string& passphrase)
       WARN_UNUSED_RESULT;
 
+  // Returns true if encrypting all the sync data is allowed. If this method
+  // returns false, EnableEncryptEverything() should not be called.
+  virtual bool EncryptEverythingAllowed() const;
+
+  // Sets whether encrypting all the sync data is allowed or not.
+  virtual void SetEncryptEverythingAllowed(bool allowed);
+
   // Turns on encryption for all data. Callers must call OnUserChoseDatatypes()
   // after calling this to force the encryption to occur.
   virtual void EnableEncryptEverything();
@@ -980,10 +987,6 @@ class ProfileSyncService : public ProfileSyncServiceBase,
   // This specifies where to find the sync server.
   const GURL sync_service_url_;
 
-  // The last time we detected a successful transition from SYNCING state.
-  // Our backend notifies us whenever we should take a new snapshot.
-  base::Time last_synced_time_;
-
   // The time that OnConfigureStart is called. This member is zero if
   // OnConfigureStart has not yet been called, and is reset to zero once
   // OnConfigureDone is called.
@@ -1045,6 +1048,9 @@ class ProfileSyncService : public ProfileSyncServiceBase,
   // The current set of encrypted types.  Always a superset of
   // syncer::Cryptographer::SensitiveTypes().
   syncer::ModelTypeSet encrypted_types_;
+
+  // Whether encrypting everything is allowed.
+  bool encrypt_everything_allowed_;
 
   // Whether we want to encrypt everything.
   bool encrypt_everything_;

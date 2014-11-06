@@ -15,6 +15,7 @@
 #include "base/run_loop.h"
 #include "base/strings/string16.h"
 #include "base/strings/string_number_conversions.h"
+#include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/time/time.h"
@@ -591,7 +592,7 @@ class TestAutofillExternalDelegate : public AutofillExternalDelegate {
 
 class AutofillManagerTest : public testing::Test {
  public:
-  virtual void SetUp() override {
+  void SetUp() override {
     autofill_client_.SetPrefs(test::PrefServiceForTesting());
     personal_data_.set_database(autofill_client_.GetDatabase());
     personal_data_.SetPrefService(autofill_client_.GetPrefs());
@@ -605,7 +606,7 @@ class AutofillManagerTest : public testing::Test {
     autofill_manager_->SetExternalDelegate(external_delegate_.get());
   }
 
-  virtual void TearDown() override {
+  void TearDown() override {
     // Order of destruction is important as AutofillManager relies on
     // PersonalDataManager to be around when it gets destroyed.
     autofill_manager_.reset();
@@ -898,7 +899,7 @@ TEST_F(AutofillManagerTest, GetCreditCardSuggestionsMatchCharacter) {
   FormsSeen(forms);
 
   FormFieldData field;
-  test::CreateTestFormField("Card Number", "cardnumber", "4", "text", &field);
+  test::CreateTestFormField("Card Number", "cardnumber", "78", "text", &field);
   GetAutofillSuggestions(form, field);
 
   // No suggestions provided, so send an empty vector as the results.
@@ -2986,6 +2987,69 @@ TEST_F(AutofillManagerTest, TestExternalDelegate) {
   GetAutofillSuggestions(form, field);  // should call the delegate's OnQuery()
 
   EXPECT_TRUE(external_delegate_->on_query_seen());
+}
+
+// Test to verify suggestions appears for forms having credit card number split
+// across fields.
+TEST_F(AutofillManagerTest, GetCreditCardSuggestionsForNumberSpitAcrossFields) {
+  // Set up our form data with credit card number split across fields.
+  FormData form;
+  form.name = ASCIIToUTF16("MyForm");
+  form.origin = GURL("https://myform.com/form.html");
+  form.action = GURL("https://myform.com/submit.html");
+  form.user_submitted = true;
+
+  FormFieldData name_field;
+  test::CreateTestFormField("Name on Card", "nameoncard", "", "text",
+                            &name_field);
+  form.fields.push_back(name_field);
+
+  // Add new 4 |card_number_field|s to the |form|.
+  FormFieldData card_number_field;
+  card_number_field.max_length = 4;
+  test::CreateTestFormField("Card Number", "cardnumber_1", "", "text",
+                            &card_number_field);
+  form.fields.push_back(card_number_field);
+
+  test::CreateTestFormField("", "cardnumber_2", "", "text", &card_number_field);
+  form.fields.push_back(card_number_field);
+
+  test::CreateTestFormField("", "cardnumber_3", "", "text", &card_number_field);
+  form.fields.push_back(card_number_field);
+
+  test::CreateTestFormField("", "cardnumber_4", "", "text", &card_number_field);
+  form.fields.push_back(card_number_field);
+
+  FormFieldData exp_field;
+  test::CreateTestFormField("Expiration Date", "ccmonth", "", "text",
+                            &exp_field);
+  form.fields.push_back(exp_field);
+
+  test::CreateTestFormField("", "ccyear", "", "text", &exp_field);
+  form.fields.push_back(exp_field);
+
+  std::vector<FormData> forms(1, form);
+  FormsSeen(forms);
+
+  // Verify whether suggestions are populated correctly for one of the middle
+  // credit card number fields when filled partially.
+  FormFieldData number_field = form.fields[3];
+  number_field.value = ASCIIToUTF16("901");
+
+  // Get the suggestions for already filled credit card |number_field|.
+  GetAutofillSuggestions(form, number_field);
+
+  // No autocomplete suggestions provided, so send an empty vector as the
+  // results. This triggers the combined message send.
+  AutocompleteSuggestionsReturned(std::vector<base::string16>());
+
+  base::string16 expected_values[] = {ASCIIToUTF16("************3456")};
+  base::string16 expected_labels[] = {ASCIIToUTF16("04/12")};
+  base::string16 expected_icons[] = {ASCIIToUTF16(kVisaCard)};
+  int expected_unique_ids[] = {autofill_manager_->GetPackedCreditCardID(4)};
+  external_delegate_->CheckSuggestions(
+      kDefaultPageID, arraysize(expected_values), expected_values,
+      expected_labels, expected_icons, expected_unique_ids);
 }
 
 }  // namespace autofill

@@ -45,8 +45,8 @@ component("chromeos") {
     sources -= [ "ime/ime_keyboard_ozone.cc" ]
   } else {
     sources -= [
-      "ime/keyboard_controller.cc",
       "ime/ime_keyboard_x11.cc",
+      "ime/ime_keyboard_x11.h",
     ]
   }
 }
@@ -74,6 +74,8 @@ static_library("test_support") {
     "cryptohome/mock_homedir_methods.h",
     "dbus/mock_cryptohome_client.cc",
     "dbus/mock_cryptohome_client.h",
+    "dbus/mock_lorgnette_manager_client.cc",
+    "dbus/mock_lorgnette_manager_client.h",
     "dbus/mock_session_manager_client.cc",
     "dbus/mock_session_manager_client.h",
     "dbus/mock_shill_manager_client.cc",
@@ -161,6 +163,11 @@ test("chromeos_unittests") {
   }
   if (use_x11) {
     deps += [ "//ui/gfx/x" ]
+  }
+  if (use_ozone) {
+    sources -= [
+      "ime/ime_keyboard_x11_unittest.cc",
+    ]
   }
 }
 

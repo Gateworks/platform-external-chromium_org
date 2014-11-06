@@ -99,6 +99,15 @@ ScopedJavaLocalRef<jstring> WebContentsAndroid::GetVisibleURL(
       env, web_contents_->GetVisibleURL().spec());
 }
 
+bool WebContentsAndroid::IsLoading(JNIEnv* env, jobject obj) const {
+  return web_contents_->IsLoading();
+}
+
+bool WebContentsAndroid::IsLoadingToDifferentDocument(JNIEnv* env,
+                                                      jobject obj) const {
+  return web_contents_->IsLoadingToDifferentDocument();
+}
+
 void WebContentsAndroid::Stop(JNIEnv* env, jobject obj) {
   web_contents_->Stop();
 }
@@ -172,6 +181,11 @@ void WebContentsAndroid::BeginExitTransition(JNIEnv* env,
   web_contents_->GetMainFrame()->Send(new FrameMsg_BeginExitTransition(
       web_contents_->GetMainFrame()->GetRoutingID(),
       ConvertJavaStringToUTF8(env, css_selector)));
+}
+
+void WebContentsAndroid::ClearNavigationTransitionData(JNIEnv* env,
+                                                       jobject jobj) {
+  static_cast<WebContentsImpl*>(web_contents_)->ClearNavigationTransitionData();
 }
 
 void WebContentsAndroid::OnHide(JNIEnv* env, jobject obj) {

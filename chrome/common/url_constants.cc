@@ -256,9 +256,9 @@ const char kChromeUIWorkersHost[] = "workers";
 const char kChromeUIScreenshotPath[] = "screenshots";
 const char kChromeUIThemePath[] = "theme";
 
-#if defined(ENABLE_FULL_PRINTING)
+#if defined(ENABLE_PRINT_PREVIEW)
 const char kChromeUIPrintHost[] = "print";
-#endif  // ENABLE_FULL_PRINTING
+#endif  // ENABLE_PRINT_PREVIEW
 
 #if defined(OS_POSIX) && !defined(OS_MACOSX) && !defined(OS_ANDROID)
 const char kChromeUILinuxProxyConfigHost[] = "linux-proxy-config";
@@ -311,8 +311,8 @@ const char kOnlineEulaURLPath[] =
 const char kChromeOSCreditsPath[] =
     "/opt/google/chrome/resources/about_os_credits.html";
 
-const char kChromeUILocalImageHost[] = "local-image";
-const char kChromeUILocalImagePath[] = "/usr/share/chromeos-assets/images/";
+const char kChromeOSAssetHost[] = "chromeos-asset";
+const char kChromeOSAssetPath[] = "/usr/share/chromeos-assets/";
 #endif
 
 #if (defined(OS_LINUX) && defined(TOOLKIT_VIEWS)) || defined(USE_AURA)
@@ -657,7 +657,7 @@ const char* const kChromeHostURLs[] = {
 #if defined(ENABLE_EXTENSIONS)
   kChromeUIExtensionsHost,
 #endif
-#if defined(ENABLE_FULL_PRINTING)
+#if defined(ENABLE_PRINT_PREVIEW)
   kChromeUIPrintHost,
 #endif
 #if defined(ENABLE_SERVICE_DISCOVERY)
@@ -721,6 +721,6 @@ const char kMac32BitDeprecationURL[] =
 #endif
 
 const char kEasyUnlockLearnMoreUrl[] =
-    "https://support.google.com/chromebook/answer/6070209";
+    "https://support.google.com/chromebook/?p=easy_unlock";
 
 }  // namespace chrome

@@ -422,18 +422,6 @@ template <size_t N>
   return ::testing::MakeMatcher(new EqualsFramesMatcher<N>(&frames));
 }
 
-// TestClosure works like TestCompletionCallback, but doesn't take an argument.
-class TestClosure {
- public:
-  base::Closure closure() { return base::Bind(callback_.callback(), OK); }
-
-  void WaitForResult() { callback_.WaitForResult(); }
-
- private:
-  // Delegate to TestCompletionCallback for the implementation.
-  TestCompletionCallback callback_;
-};
-
 // A GoogleMock action to run a Closure.
 ACTION_P(InvokeClosure, closure) { closure.Run(); }
 
@@ -934,7 +922,7 @@ class WebSocketChannelEventInterfaceTest : public WebSocketChannelTest {
         .WillByDefault(Return(CHANNEL_DELETED));
   }
 
-  virtual ~WebSocketChannelEventInterfaceTest() {
+  ~WebSocketChannelEventInterfaceTest() override {
     DefaultValue<ChannelState>::Clear();
   }
 
@@ -969,7 +957,7 @@ class WebSocketChannelStreamTest : public WebSocketChannelTest {
 class WebSocketChannelSendUtf8Test
     : public WebSocketChannelEventInterfaceTest {
  public:
-  virtual void SetUp() {
+  void SetUp() override {
     set_stream(make_scoped_ptr(new WriteableFakeWebSocketStream));
     // For the purpose of the tests using this fixture, it doesn't matter
     // whether these methods are called or not.
@@ -999,7 +987,7 @@ class WebSocketChannelFlowControlTest
 // mock WebSocketStream.
 class WebSocketChannelReceiveUtf8Test : public WebSocketChannelStreamTest {
  public:
-  virtual void SetUp() {
+  void SetUp() override {
     // For the purpose of the tests using this fixture, it doesn't matter
     // whether these methods are called or not.
     EXPECT_CALL(*mock_stream_, GetSubProtocol()).Times(AnyNumber());

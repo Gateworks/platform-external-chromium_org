@@ -11,10 +11,6 @@
 #include <limits>
 #include <vector>
 
-#if defined(OS_POSIX)
-#include <utility>  // for pair<>
-#endif
-
 #include "base/base_switches.h"
 #include "base/bind.h"
 #include "base/bind_helpers.h"
@@ -40,7 +36,6 @@
 #include "cc/base/switches.h"
 #include "content/browser/appcache/appcache_dispatcher_host.h"
 #include "content/browser/appcache/chrome_appcache_service.h"
-#include "content/browser/battery_status/battery_status_message_filter.h"
 #include "content/browser/browser_child_process_host_impl.h"
 #include "content/browser/browser_main.h"
 #include "content/browser/browser_main_loop.h"
@@ -71,6 +66,7 @@
 #include "content/browser/message_port_message_filter.h"
 #include "content/browser/mime_registry_message_filter.h"
 #include "content/browser/mojo/mojo_application_host.h"
+#include "content/browser/notifications/notification_message_filter.h"
 #include "content/browser/profiler_message_filter.h"
 #include "content/browser/push_messaging_message_filter.h"
 #include "content/browser/quota_dispatcher_host.h"
@@ -131,6 +127,7 @@
 #include "content/public/common/result_codes.h"
 #include "content/public/common/sandboxed_process_launcher_delegate.h"
 #include "content/public/common/url_constants.h"
+#include "device/battery/battery_monitor_impl.h"
 #include "gpu/command_buffer/client/gpu_switches.h"
 #include "gpu/command_buffer/service/gpu_switches.h"
 #include "ipc/ipc_channel.h"
@@ -585,6 +582,7 @@ bool RenderProcessHostImpl::Init() {
   GetContentClient()->browser()->RenderProcessWillLaunch(this);
 
   CreateMessageFilters();
+  RegisterMojoServices();
 
   if (run_renderer_in_process()) {
     DCHECK(g_renderer_main_thread_factory);
@@ -847,6 +845,13 @@ void RenderProcessHostImpl::CreateMessageFilters() {
       GetID(),
       storage_partition_impl_->GetQuotaManager(),
       GetContentClient()->browser()->CreateQuotaPermissionContext()));
+
+  notification_message_filter_ = new NotificationMessageFilter(
+      GetID(),
+      resource_context,
+      browser_context);
+  AddFilter(notification_message_filter_.get());
+
   AddFilter(new GamepadBrowserMessageFilter());
   AddFilter(new DeviceLightMessageFilter());
   AddFilter(new DeviceMotionMessageFilter());
@@ -861,7 +866,6 @@ void RenderProcessHostImpl::CreateMessageFilters() {
   AddFilter(new VibrationMessageFilter());
   AddFilter(new PushMessagingMessageFilter(
       GetID(), storage_partition_impl_->GetServiceWorkerContext()));
-  AddFilter(new BatteryStatusMessageFilter());
 #if defined(OS_ANDROID)
   AddFilter(new ScreenOrientationMessageFilterAndroid());
 #endif
@@ -869,10 +873,14 @@ void RenderProcessHostImpl::CreateMessageFilters() {
       storage_partition_impl_->GetGeofencingManager()));
 }
 
+void RenderProcessHostImpl::RegisterMojoServices() {
+  mojo_application_host_->service_registry()->AddService(
+      base::Bind(&device::BatteryMonitorImpl::Create));
+}
+
 int RenderProcessHostImpl::GetNextRoutingID() {
   return widget_helper_->GetNextRoutingID();
 }
-
 
 void RenderProcessHostImpl::ResumeDeferredNavigation(
     const GlobalRequestID& request_id) {
@@ -1088,6 +1096,7 @@ void RenderProcessHostImpl::PropagateBrowserCommandLineToRenderer(
     switches::kDisableLocalStorage,
     switches::kDisableLogging,
     switches::kDisableMediaSource,
+    switches::kDisableOneCopy,
     switches::kDisableOverlayScrollbar,
     switches::kDisablePinch,
     switches::kDisablePrefixedEncryptedMedia,
@@ -1101,7 +1110,6 @@ void RenderProcessHostImpl::PropagateBrowserCommandLineToRenderer(
     switches::kDisableTouchDragDrop,
     switches::kDisableTouchEditing,
     switches::kDisableV8IdleNotificationAfterCommit,
-    switches::kDisableZeroCopy,
     switches::kDomAutomationController,
     switches::kEnableAcceleratedJpegDecoding,
     switches::kEnableBeginFrameScheduling,
@@ -1167,6 +1175,7 @@ void RenderProcessHostImpl::PropagateBrowserCommandLineToRenderer(
     switches::kRegisterPepperPlugins,
     switches::kRendererAssertTest,
     switches::kRendererStartupDialog,
+    switches::kRootLayerScrolls,
     switches::kShowPaintRects,
     switches::kSitePerProcess,
     switches::kStatsCollectionController,

@@ -8,29 +8,18 @@
 #include "base/metrics/histogram.h"
 #include "base/prefs/scoped_user_pref_update.h"
 #include "base/strings/utf_string_conversions.h"
-#include "base/threading/thread.h"
 #include "chrome/browser/browser_process.h"
-#include "chrome/browser/chrome_notification_types.h"
 #include "chrome/browser/notifications/desktop_notification_profile_util.h"
-#include "chrome/browser/notifications/desktop_notification_service_factory.h"
 #include "chrome/browser/notifications/notification.h"
 #include "chrome/browser/notifications/notification_object_proxy.h"
 #include "chrome/browser/notifications/notification_ui_manager.h"
-#include "chrome/browser/notifications/sync_notifier/chrome_notifier_service.h"
-#include "chrome/browser/notifications/sync_notifier/chrome_notifier_service_factory.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/common/pref_names.h"
-#include "chrome/common/url_constants.h"
 #include "components/content_settings/core/common/permission_request_id.h"
 #include "components/pref_registry/pref_registry_syncable.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/desktop_notification_delegate.h"
-#include "content/public/browser/notification_service.h"
-#include "content/public/browser/render_frame_host.h"
-#include "content/public/browser/render_process_host.h"
-#include "content/public/browser/render_view_host.h"
-#include "content/public/browser/web_contents.h"
 #include "content/public/common/show_desktop_notification_params.h"
 #include "ui/base/webui/web_ui_util.h"
 #include "ui/message_center/notifier_settings.h"
@@ -49,10 +38,7 @@
 #include "extensions/common/extension_set.h"
 #endif
 
-using blink::WebTextDirection;
 using content::BrowserThread;
-using content::RenderViewHost;
-using content::WebContents;
 using message_center::NotifierId;
 
 namespace {
@@ -91,7 +77,7 @@ std::string DesktopNotificationService::AddIconNotification(
                             message,
                             icon,
                             blink::WebTextDirectionDefault,
-                            message_center::NotifierId(origin_url),
+                            NotifierId(origin_url),
                             base::string16(),
                             replace_id,
                             message_center::RichNotificationData(),
@@ -184,7 +170,7 @@ void DesktopNotificationService::RequestNotificationPermission(
 
 void DesktopNotificationService::ShowDesktopNotification(
     const content::ShowDesktopNotificationHostMsgParams& params,
-    content::RenderFrameHost* render_frame_host,
+    int render_process_id,
     scoped_ptr<content::DesktopNotificationDelegate> delegate,
     base::Closure* cancel_callback) {
   DCHECK(BrowserThread::CurrentlyOn(BrowserThread::UI));
@@ -192,7 +178,7 @@ void DesktopNotificationService::ShowDesktopNotification(
   NotificationObjectProxy* proxy = new NotificationObjectProxy(delegate.Pass());
 
   base::string16 display_source = DisplayNameForOriginInProcessId(
-      origin, render_frame_host->GetProcess()->GetID());
+      origin, render_process_id);
 
   // TODO(peter): Icons for Web Notifications are currently always requested for
   // 1x scale, whereas the displays on which they can be displayed can have a

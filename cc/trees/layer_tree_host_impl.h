@@ -121,7 +121,7 @@ class CC_EXPORT LayerTreeHostImpl
       Proxy* proxy,
       RenderingStatsInstrumentation* rendering_stats_instrumentation,
       SharedBitmapManager* shared_bitmap_manager,
-      GpuMemoryBufferManager* gpu_memory_buffer_manager,
+      gpu::GpuMemoryBufferManager* gpu_memory_buffer_manager,
       int id);
   ~LayerTreeHostImpl() override;
 
@@ -218,7 +218,6 @@ class CC_EXPORT LayerTreeHostImpl
 
   // Resets all of the trees to an empty state.
   void ResetTreesForTesting();
-  void ResetRecycleTreeForTesting();
 
   DrawMode GetDrawMode() const;
 
@@ -483,6 +482,16 @@ class CC_EXPORT LayerTreeHostImpl
   void ResetRequiresHighResToDraw() { requires_high_res_to_draw_ = false; }
   bool RequiresHighResToDraw() const { return requires_high_res_to_draw_; }
 
+  // Only valid for synchronous (non-scheduled) single-threaded case.
+  void SynchronouslyInitializeAllTiles();
+
+  bool CanUseZeroCopyRasterizer() const;
+  bool CanUseOneCopyRasterizer() const;
+  virtual void CreateResourceAndRasterWorkerPool(
+      scoped_ptr<RasterWorkerPool>* raster_worker_pool,
+      scoped_ptr<ResourcePool>* resource_pool,
+      scoped_ptr<ResourcePool>* staging_resource_pool);
+
  protected:
   LayerTreeHostImpl(
       const LayerTreeSettings& settings,
@@ -490,15 +499,13 @@ class CC_EXPORT LayerTreeHostImpl
       Proxy* proxy,
       RenderingStatsInstrumentation* rendering_stats_instrumentation,
       SharedBitmapManager* shared_bitmap_manager,
-      GpuMemoryBufferManager* gpu_memory_buffer_manager,
+      gpu::GpuMemoryBufferManager* gpu_memory_buffer_manager,
       int id);
 
   void UpdateViewportContainerSizes();
 
   // Virtual for testing.
   virtual void AnimateLayers(base::TimeTicks monotonic_time);
-
-  // Virtual for testing.
   virtual base::TimeDelta LowFrequencyAnimationInterval() const;
 
   const AnimationRegistrar::AnimationControllerMap&
@@ -519,8 +526,7 @@ class CC_EXPORT LayerTreeHostImpl
   void EnforceZeroBudget(bool zero_budget);
 
   bool UsePendingTreeForSync() const;
-  bool UseZeroCopyRasterizer() const;
-  bool UseOneCopyRasterizer() const;
+  bool IsSynchronousSingleThreaded() const;
 
   // Scroll by preferring to move the outer viewport first, only moving the
   // inner if the outer is at its scroll extents.
@@ -694,6 +700,7 @@ class CC_EXPORT LayerTreeHostImpl
 
   RenderingStatsInstrumentation* rendering_stats_instrumentation_;
   MicroBenchmarkControllerImpl micro_benchmark_controller_;
+  scoped_ptr<TaskGraphRunner> single_thread_synchronous_task_graph_runner_;
 
   bool need_to_update_visible_tiles_before_draw_;
 
@@ -701,7 +708,7 @@ class CC_EXPORT LayerTreeHostImpl
   base::Closure tree_activation_callback_;
 
   SharedBitmapManager* shared_bitmap_manager_;
-  GpuMemoryBufferManager* gpu_memory_buffer_manager_;
+  gpu::GpuMemoryBufferManager* gpu_memory_buffer_manager_;
   int id_;
 
   std::set<SwapPromiseMonitor*> swap_promise_monitor_;

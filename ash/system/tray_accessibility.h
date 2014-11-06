@@ -34,9 +34,9 @@ class ASH_EXPORT AccessibilityObserver {
  public:
   virtual ~AccessibilityObserver() {}
 
-  // Notifies when accessibilty mode changes.
+  // Notifies when accessibility mode changes.
   virtual void OnAccessibilityModeChanged(
-      AccessibilityNotificationVisibility notify) = 0;
+      ui::AccessibilityNotificationVisibility notify) = 0;
 };
 
 
@@ -63,7 +63,7 @@ class AccessibilityDetailedView : public TrayDetailsView,
  public:
   explicit AccessibilityDetailedView(SystemTrayItem* owner,
                                      user::LoginStatus login);
-  virtual ~AccessibilityDetailedView() {}
+  ~AccessibilityDetailedView() override {}
 
  private:
   // Add the accessibility feature list.
@@ -76,10 +76,9 @@ class AccessibilityDetailedView : public TrayDetailsView,
                                         gfx::Font::FontStyle style,
                                         bool checked);
   // Overridden from ViewClickListener.
-  virtual void OnViewClicked(views::View* sender) override;
+  void OnViewClicked(views::View* sender) override;
   // Overridden from ButtonListener.
-  virtual void ButtonPressed(views::Button* sender,
-                             const ui::Event& event) override;
+  void ButtonPressed(views::Button* sender, const ui::Event& event) override;
 
   views::View* spoken_feedback_view_;
   views::View* high_contrast_view_;
@@ -108,23 +107,23 @@ class TrayAccessibility : public TrayImageItem,
                           public AccessibilityObserver {
  public:
   explicit TrayAccessibility(SystemTray* system_tray);
-  virtual ~TrayAccessibility();
+  ~TrayAccessibility() override;
 
  private:
   void SetTrayIconVisible(bool visible);
   tray::AccessibilityDetailedView* CreateDetailedMenu();
 
   // Overridden from TrayImageItem.
-  virtual bool GetInitialVisibility() override;
-  virtual views::View* CreateDefaultView(user::LoginStatus status) override;
-  virtual views::View* CreateDetailedView(user::LoginStatus status) override;
-  virtual void DestroyDefaultView() override;
-  virtual void DestroyDetailedView() override;
-  virtual void UpdateAfterLoginStatusChange(user::LoginStatus status) override;
+  bool GetInitialVisibility() override;
+  views::View* CreateDefaultView(user::LoginStatus status) override;
+  views::View* CreateDetailedView(user::LoginStatus status) override;
+  void DestroyDefaultView() override;
+  void DestroyDetailedView() override;
+  void UpdateAfterLoginStatusChange(user::LoginStatus status) override;
 
   // Overridden from AccessibilityObserver.
-  virtual void OnAccessibilityModeChanged(
-      AccessibilityNotificationVisibility notify) override;
+  void OnAccessibilityModeChanged(
+      ui::AccessibilityNotificationVisibility notify) override;
 
   views::View* default_;
   tray::AccessibilityPopupView* detailed_popup_;

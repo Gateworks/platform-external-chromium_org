@@ -185,7 +185,7 @@ class NavigationControllerTest
   NavigationControllerTest() : navigation_entry_committed_counter_(0) {
   }
 
-  virtual void SetUp() override {
+  void SetUp() override {
     RenderViewHostImplTestHarness::SetUp();
     WebContents* web_contents = RenderViewHostImplTestHarness::web_contents();
     ASSERT_TRUE(web_contents);  // The WebContents should be created by now.
@@ -2606,6 +2606,45 @@ TEST_F(NavigationControllerTest, RemoveEntry) {
   // This should leave us with only the last committed entry.
   EXPECT_EQ(1, controller.GetEntryCount());
   EXPECT_EQ(0, controller.GetLastCommittedEntryIndex());
+}
+
+TEST_F(NavigationControllerTest, RemoveEntryWithPending) {
+  NavigationControllerImpl& controller = controller_impl();
+  const GURL url1("http://foo/1");
+  const GURL url2("http://foo/2");
+  const GURL url3("http://foo/3");
+  const GURL default_url("http://foo/default");
+
+  controller.LoadURL(
+      url1, Referrer(), ui::PAGE_TRANSITION_TYPED, std::string());
+  main_test_rfh()->SendNavigate(0, url1);
+  controller.LoadURL(
+      url2, Referrer(), ui::PAGE_TRANSITION_TYPED, std::string());
+  main_test_rfh()->SendNavigate(1, url2);
+  controller.LoadURL(
+      url3, Referrer(), ui::PAGE_TRANSITION_TYPED, std::string());
+  main_test_rfh()->SendNavigate(2, url3);
+
+  // Go back, but don't commit yet. Check that we can't delete the current
+  // and pending entries.
+  controller.GoBack();
+  EXPECT_FALSE(controller.RemoveEntryAtIndex(2));
+  EXPECT_FALSE(controller.RemoveEntryAtIndex(1));
+
+  // Remove the first entry, while there is a pending entry.  This is expected
+  // to discard the pending entry.
+  EXPECT_TRUE(controller.RemoveEntryAtIndex(0));
+  EXPECT_FALSE(controller.GetPendingEntry());
+  EXPECT_EQ(-1, controller.GetPendingEntryIndex());
+
+  // We should update the last committed entry index.
+  EXPECT_EQ(1, controller.GetLastCommittedEntryIndex());
+
+  // Now commit and ensure we land on the right entry.
+  main_test_rfh()->SendNavigate(1, url2);
+  EXPECT_EQ(2, controller.GetEntryCount());
+  EXPECT_EQ(0, controller.GetLastCommittedEntryIndex());
+  EXPECT_FALSE(controller.GetPendingEntry());
 }
 
 // Tests the transient entry, making sure it goes away with all navigations.

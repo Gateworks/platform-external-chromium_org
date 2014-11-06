@@ -68,6 +68,7 @@ static_library("ui") {
     "//ui/accessibility",
     "//ui/base",
     "//ui/events",
+    "//ui/events:gesture_detection",
     "//ui/gfx",
     "//ui/gfx/geometry",
     "//ui/message_center",
@@ -87,7 +88,6 @@ static_library("ui") {
       "//chrome/installer/util",
       "//components/autofill/content/browser:risk_proto",
       "//components/power",
-      "//device/bluetooth",
       "//device/nfc",
       "//media",
       "//mojo/edk/system",
@@ -123,7 +123,13 @@ static_library("ui") {
     deps += [ "//net" ]
   }
 
-  if (printing_mode != 0) {
+  if (!is_android && !is_ios) {
+    sources += rebase_path(gypi_values.chrome_browser_ui_non_mobile_sources,
+                           ".", "//chrome")
+    deps += [ "//device/bluetooth" ]
+  }
+
+  if (enable_basic_printing || enable_print_preview) {
     deps += [ "//printing" ]
   }
 
@@ -212,6 +218,7 @@ static_library("ui") {
   if (toolkit_views) {
     sources += rebase_path(gypi_values.chrome_browser_ui_views_sources,
                            ".", "//chrome")
+    deps += [ "//components/constrained_window" ]
     if (!is_chromeos) {
       sources += rebase_path(
           gypi_values.chrome_browser_ui_views_non_chromeos_sources,
@@ -222,7 +229,6 @@ static_library("ui") {
           gypi_values.chrome_browser_ui_views_non_mac_sources,
           ".", "//chrome")
       deps += [
-        "//components/constrained_window",
         "//extensions/components/native_app_window",
       ]
     }
@@ -269,7 +275,7 @@ static_library("ui") {
   if (!enable_themes) {
     sources -= [ "webui/theme_source.cc" ]
   }
-  if (printing_mode == 1) {
+  if (enable_print_preview) {
     sources += rebase_path(gypi_values.chrome_browser_ui_print_preview_sources,
                            ".", "//chrome")
   }
@@ -364,6 +370,10 @@ static_library("ui") {
       sources += rebase_path(gypi_values.chrome_browser_ui_x11_sources,
                              ".", "//chrome")
       configs += [ "//build/config/linux:x11" ]
+      deps += [ "//ui/events/devices" ]
+      if (is_chromeos) {
+        sources -= [ "views/tabs/window_finder_x11.cc" ]
+      }
     }
   }
 

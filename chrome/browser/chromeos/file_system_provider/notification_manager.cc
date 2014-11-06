@@ -36,15 +36,9 @@ class ProviderNotificationDelegate
     notification_manager_->OnButtonClick(button_index);
   }
 
-  virtual void Display() override {}
-
-  virtual void Error() override { notification_manager_->OnError(); }
-
   virtual void Close(bool by_user) override {
     notification_manager_->OnClose();
   }
-
-  virtual void Click() override {}
 
  private:
   virtual ~ProviderNotificationDelegate() {}
@@ -99,10 +93,6 @@ void NotificationManager::HideUnresponsiveNotification(int id) {
 
 void NotificationManager::OnButtonClick(int button_index) {
   OnNotificationResult(ABORT);
-}
-
-void NotificationManager::OnError() {
-  OnNotificationResult(CONTINUE);
 }
 
 void NotificationManager::OnClose() {

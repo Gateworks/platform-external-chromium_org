@@ -118,14 +118,6 @@
     "mojo_public_environment_unittests",
     "mojo_public_system_unittests",
     "mojo_public_utility_unittests",
-    {
-      "test": "mojo_application_manager_unittests",
-      "platforms": ["linux"]
-    },
-    {
-      "test": "mojo_shell_tests",
-      "platforms": ["linux"]
-    },
     "mojo_system_unittests",
     {
       "test": "nacl_loader_unittests",
@@ -176,7 +168,7 @@
     },
     {
       "test": "app_shell_browsertests",
-      "platforms": ["linux"]
+      "platforms": ["linux", "win"]
     },
     {
       "test": "app_shell_unittests",

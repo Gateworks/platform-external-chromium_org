@@ -37,7 +37,7 @@ namespace chromeos {
 namespace {
 
 // List of settings handled by the DeviceSettingsProvider.
-const char* kKnownSettings[] = {
+const char* const kKnownSettings[] = {
   kAccountsPrefAllowGuest,
   kAccountsPrefAllowNewUser,
   kAccountsPrefDeviceLocalAccounts,
@@ -78,6 +78,8 @@ const char* kKnownSettings[] = {
   kSystemUse24HourClock,
   kUpdateDisabled,
   kVariationsRestrictParameter,
+  kDeviceDisabled,
+  kDeviceDisabledMessage,
 };
 
 bool HasOldMetricsFile() {
@@ -180,6 +182,11 @@ void DecodeLoginPolicies(
         entry_dict->SetStringWithoutPathExpansion(
             kAccountsPrefDeviceLocalAccountsKeyKioskAppId,
             entry->kiosk_app().app_id());
+      }
+      if (entry->kiosk_app().has_update_url()) {
+        entry_dict->SetStringWithoutPathExpansion(
+            kAccountsPrefDeviceLocalAccountsKeyKioskAppUpdateURL,
+            entry->kiosk_app().update_url());
       }
     } else if (entry->has_deprecated_public_session_id()) {
       // Deprecated public session specification.
@@ -432,6 +439,22 @@ void DecodeGenericPolicies(
   }
 }
 
+void DecodeDeviceState(const em::PolicyData& policy_data,
+                       PrefValueMap* new_values_cache) {
+  if (!policy_data.has_device_state())
+    return;
+
+  const em::DeviceState& device_state = policy_data.device_state();
+
+  if (device_state.device_mode() == em::DeviceState::DEVICE_MODE_DISABLED)
+    new_values_cache->SetBoolean(kDeviceDisabled, true);
+  if (device_state.has_disabled_state() &&
+      device_state.disabled_state().has_message()) {
+    new_values_cache->SetString(kDeviceDisabledMessage,
+                                device_state.disabled_state().message());
+  }
+}
+
 }  // namespace
 
 DeviceSettingsProvider::DeviceSettingsProvider(
@@ -457,7 +480,7 @@ DeviceSettingsProvider::~DeviceSettingsProvider() {
 
 // static
 bool DeviceSettingsProvider::IsDeviceSetting(const std::string& name) {
-  const char** end = kKnownSettings + arraysize(kKnownSettings);
+  const char* const* end = kKnownSettings + arraysize(kKnownSettings);
   return std::find(kKnownSettings, end, name) != end;
 }
 
@@ -607,6 +630,7 @@ void DeviceSettingsProvider::UpdateValuesCache(
   DecodeAutoUpdatePolicies(settings, &new_values_cache);
   DecodeReportingPolicies(settings, &new_values_cache);
   DecodeGenericPolicies(settings, &new_values_cache);
+  DecodeDeviceState(policy_data, &new_values_cache);
 
   // Collect all notifications but send them only after we have swapped the
   // cache so that if somebody actually reads the cache will be already valid.

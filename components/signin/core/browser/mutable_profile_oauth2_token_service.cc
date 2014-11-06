@@ -4,7 +4,7 @@
 
 #include "components/signin/core/browser/mutable_profile_oauth2_token_service.h"
 
-#include "base/profiler/scoped_profile.h"
+#include "base/profiler/scoped_tracker.h"
 #include "components/signin/core/browser/signin_client.h"
 #include "components/signin/core/browser/signin_metrics.h"
 #include "components/signin/core/browser/webdata/token_web_data.h"
@@ -188,8 +188,8 @@ void MutableProfileOAuth2TokenService::LoadCredentials(
 void MutableProfileOAuth2TokenService::OnWebDataServiceRequestDone(
     WebDataServiceBase::Handle handle,
     const WDTypedResult* result) {
-  // TODO(vadimt): Remove ScopedProfile below once crbug.com/422460 is fixed.
-  tracked_objects::ScopedProfile tracking_profile(
+  // TODO(vadimt): Remove ScopedTracker below once crbug.com/422460 is fixed.
+  tracked_objects::ScopedTracker tracking_profile(
       FROM_HERE_WITH_EXPLICIT_FUNCTION(
           "422460 MutableProfileOAuth2Token...::OnWebDataServiceRequestDone"));
 
@@ -233,7 +233,7 @@ void MutableProfileOAuth2TokenService::LoadAllCredentialsIntoMemory(
   std::string old_login_token;
 
   {
-    ScopedBacthChange batch(this);
+    ScopedBatchChange batch(this);
 
     for (std::map<std::string, std::string>::const_iterator iter =
              db_tokens.begin();
@@ -319,7 +319,7 @@ void MutableProfileOAuth2TokenService::UpdateCredentials(
   bool refresh_token_present = refresh_tokens_.count(account_id) > 0;
   if (!refresh_token_present ||
       refresh_tokens_[account_id]->refresh_token() != refresh_token) {
-    ScopedBacthChange batch(this);
+    ScopedBatchChange batch(this);
 
     // If token present, and different from the new one, cancel its requests,
     // and clear the entries in cache related to that account.
@@ -351,7 +351,7 @@ void MutableProfileOAuth2TokenService::RevokeCredentials(
   DCHECK(thread_checker_.CalledOnValidThread());
 
   if (refresh_tokens_.count(account_id) > 0) {
-    ScopedBacthChange batch(this);
+    ScopedBatchChange batch(this);
     RevokeCredentialsOnServer(refresh_tokens_[account_id]->refresh_token());
     CancelRequestsForAccount(account_id);
     ClearCacheForAccount(account_id);
@@ -383,7 +383,7 @@ void MutableProfileOAuth2TokenService::RevokeAllCredentials() {
     return;
   DCHECK(thread_checker_.CalledOnValidThread());
 
-  ScopedBacthChange batch(this);
+  ScopedBatchChange batch(this);
 
   CancelWebTokenFetch();
   CancelAllRequests();

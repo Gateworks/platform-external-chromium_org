@@ -42,6 +42,10 @@
 #include "net/base/url_util.h"
 #include "third_party/re2/re2/re2.h"
 
+#if defined(OS_ANDROID)
+#include "chrome/browser/password_manager/generated_password_saved_infobar_delegate_android.h"
+#endif
+
 using password_manager::PasswordManagerInternalsService;
 using password_manager::PasswordManagerInternalsServiceFactory;
 
@@ -176,12 +180,16 @@ bool ChromePasswordManagerClient::PromptUserToSavePassword(
 
 void ChromePasswordManagerClient::AutomaticPasswordSave(
     scoped_ptr<password_manager::PasswordFormManager> saved_form) {
+#if defined(OS_ANDROID)
+  GeneratedPasswordSavedInfoBarDelegateAndroid::Create(web_contents());
+#else
   if (IsTheHotNewBubbleUIEnabled()) {
     ManagePasswordsUIController* manage_passwords_ui_controller =
         ManagePasswordsUIController::FromWebContents(web_contents());
     manage_passwords_ui_controller->OnAutomaticPasswordSave(
         saved_form.Pass());
   }
+#endif
 }
 
 void ChromePasswordManagerClient::PasswordWasAutofilled(
@@ -341,8 +349,6 @@ void ChromePasswordManagerClient::ShowPasswordGenerationPopup(
     const autofill::PasswordForm& form) {
   // TODO(gcasto): Validate data in PasswordForm.
 
-  // Not yet implemented on other platforms.
-#if defined(USE_AURA) || defined(OS_MACOSX)
   gfx::RectF element_bounds_in_screen_space = GetBoundsInScreenSpace(bounds);
 
   popup_controller_ =
@@ -356,15 +362,12 @@ void ChromePasswordManagerClient::ShowPasswordGenerationPopup(
           web_contents(),
           web_contents()->GetNativeView());
   popup_controller_->Show(true /* display_password */);
-#endif  // defined(USE_AURA) || defined(OS_MACOSX)
 }
 
 void ChromePasswordManagerClient::ShowPasswordEditingPopup(
     const gfx::RectF& bounds,
     const autofill::PasswordForm& form) {
   gfx::RectF element_bounds_in_screen_space = GetBoundsInScreenSpace(bounds);
-  // Not yet implemented on other platforms.
-#if defined(USE_AURA) || defined(OS_MACOSX)
   popup_controller_ =
       autofill::PasswordGenerationPopupControllerImpl::GetOrCreate(
           popup_controller_,
@@ -376,7 +379,6 @@ void ChromePasswordManagerClient::ShowPasswordEditingPopup(
           web_contents(),
           web_contents()->GetNativeView());
   popup_controller_->Show(false /* display_password */);
-#endif  // defined(USE_AURA) || defined(OS_MACOSX)
 }
 
 void ChromePasswordManagerClient::NotifyRendererOfLoggingAvailability() {

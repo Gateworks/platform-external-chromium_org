@@ -17,16 +17,17 @@
 #include "base/observer_list.h"
 #include "base/threading/thread_checker.h"
 #include "base/values.h"
-#include "chrome/browser/chromeos/file_system_provider/observed_entry.h"
 #include "chrome/browser/chromeos/file_system_provider/observer.h"
 #include "chrome/browser/chromeos/file_system_provider/provided_file_system_interface.h"
 #include "chrome/browser/chromeos/file_system_provider/provided_file_system_observer.h"
+#include "chrome/browser/chromeos/file_system_provider/watcher.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/common/extensions/api/file_system_provider.h"
 #include "components/keyed_service/core/keyed_service.h"
 #include "content/public/browser/browser_context.h"
 #include "extensions/browser/extension_registry_observer.h"
 #include "extensions/common/extension.h"
+#include "storage/browser/fileapi/watcher_manager.h"
 
 namespace extensions {
 class ExtensionRegistry;
@@ -129,18 +130,18 @@ class Service : public KeyedService,
       const extensions::Extension* extension) override;
 
   // ProvidedFileSystemInterface::Observer overrides.
-  virtual void OnObservedEntryChanged(
+  virtual void OnWatcherChanged(
       const ProvidedFileSystemInfo& file_system_info,
-      const ObservedEntry& observed_entry,
-      ProvidedFileSystemObserver::ChangeType change_type,
-      const ProvidedFileSystemObserver::ChildChanges& child_changes,
+      const Watcher& watcher,
+      storage::WatcherManager::ChangeType change_type,
+      const ProvidedFileSystemObserver::Changes& changes,
       const base::Closure& callback) override;
-  virtual void OnObservedEntryTagUpdated(
+  virtual void OnWatcherTagUpdated(
       const ProvidedFileSystemInfo& file_system_info,
-      const ObservedEntry& observed_entry) override;
-  virtual void OnObservedEntryListChanged(
+      const Watcher& watcher) override;
+  virtual void OnWatcherListChanged(
       const ProvidedFileSystemInfo& file_system_info,
-      const ObservedEntries& observed_entries) override;
+      const Watchers& watchers) override;
 
  private:
   FRIEND_TEST_ALL_PREFIXES(FileSystemProviderServiceTest, RememberFileSystem);
@@ -161,7 +162,7 @@ class Service : public KeyedService,
   // Remembers the file system in preferences, in order to remount after a
   // reboot.
   void RememberFileSystem(const ProvidedFileSystemInfo& file_system_info,
-                          const ObservedEntries& observed_entries);
+                          const Watchers& watchers);
 
   // Removes the file system from preferences, so it is not remounmted anymore
   // after a reboot.

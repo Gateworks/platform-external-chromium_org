@@ -7,18 +7,18 @@
 #include "base/bind.h"
 #include "base/callback_helpers.h"
 #include "base/memory/scoped_vector.h"
-#include "media/audio/audio_manager.h"
-#include "media/audio/audio_manager_base.h"
-#include "media/audio/null_audio_sink.h"
 #include "media/base/audio_decoder.h"
 #include "media/base/audio_renderer.h"
 #include "media/base/audio_renderer_sink.h"
 #include "media/base/decryptor.h"
 #include "media/base/media_log.h"
+#include "media/base/video_renderer.h"
 #include "media/filters/audio_renderer_impl.h"
-#include "media/filters/ffmpeg_audio_decoder.h"
-#include "media/filters/opus_audio_decoder.h"
+#include "media/filters/renderer_impl.h"
+#include "media/filters/video_renderer_impl.h"
+#include "media/mojo/services/demuxer_stream_provider_shim.h"
 #include "media/mojo/services/mojo_demuxer_stream_adapter.h"
+#include "media/mojo/services/renderer_config.h"
 #include "mojo/application/application_runner_chromium.h"
 #include "mojo/public/c/system/main.h"
 #include "mojo/public/cpp/application/application_connection.h"
@@ -30,15 +30,12 @@ namespace media {
 // Time interval to update media time.
 const int kTimeUpdateIntervalMs = 50;
 
-#if !defined(OS_ANDROID)
 static void LogMediaSourceError(const scoped_refptr<MediaLog>& media_log,
                                 const std::string& error) {
   media_log->AddEvent(media_log->CreateMediaSourceErrorEvent(error));
 }
-#endif
 
-static base::TimeDelta TimeUpdateInterval() {
-  return base::TimeDelta::FromMilliseconds(kTimeUpdateIntervalMs);
+static void PaintNothing(const scoped_refptr<VideoFrame>& frame) {
 }
 
 class MojoRendererApplication
@@ -59,246 +56,156 @@ class MojoRendererApplication
   }
 };
 
-// TODO(xhwang): This class looks insanely similar to RendererImpl. We should
-// really host a Renderer in this class instead of a AudioRenderer.
+static void MojoTrampoline(const mojo::Closure& closure) {
+  closure.Run();
+}
 
 MojoRendererService::MojoRendererService(
     mojo::ApplicationConnection* connection)
     : state_(STATE_UNINITIALIZED),
-      time_source_(NULL),
-      time_ticking_(false),
-      ended_(false),
-      // AudioManager() has been created by WebMediaPlayerFactory. This will
-      // be problematic when MojoRendererService really runs in a separate
-      // process.
-      // TODO(xhwang/dalecurtis): Figure out what config we should use.
-      audio_manager_(
-          media::AudioManager::Get()
-              ? media::AudioManager::Get()
-              : media::AudioManager::Create(&fake_audio_log_factory_)),
-      audio_hardware_config_(
-          audio_manager_->GetInputStreamParameters(
-              media::AudioManagerBase::kDefaultDeviceId),
-          audio_manager_->GetDefaultOutputStreamParameters()),
+      last_media_time_usec_(0),
       weak_factory_(this),
       weak_this_(weak_factory_.GetWeakPtr()) {
   DVLOG(1) << __FUNCTION__;
 
-  scoped_refptr<base::SingleThreadTaskRunner> runner(
+  scoped_refptr<base::SingleThreadTaskRunner> task_runner(
       base::MessageLoop::current()->task_runner());
   scoped_refptr<MediaLog> media_log(new MediaLog());
+  RendererConfig* renderer_config = RendererConfig::Get();
+  audio_renderer_sink_ = renderer_config->GetAudioRendererSink();
 
-  // TODO(xhwang): Provide a more general way to add new decoders.
-  ScopedVector<AudioDecoder> audio_decoders;
-
-#if !defined(OS_ANDROID)
-  audio_decoders.push_back(new media::FFmpegAudioDecoder(
-      runner, base::Bind(&LogMediaSourceError, media_log)));
-  audio_decoders.push_back(new media::OpusAudioDecoder(runner));
-#endif
-
-  audio_renderer_.reset(new AudioRendererImpl(
-      runner,
-      // TODO(tim): We should use |connection| passed to MojoRendererService
-      // to connect to a MojoAudioRendererSink implementation that we would
-      // wrap in an AudioRendererSink and pass in here.
-      new NullAudioSink(runner),
-      audio_decoders.Pass(),
-      // TODO(tim): Not needed for now?
+  scoped_ptr<AudioRenderer> audio_renderer(new AudioRendererImpl(
+      task_runner,
+      audio_renderer_sink_.get(),
+      renderer_config->GetAudioDecoders(
+                           task_runner,
+                           base::Bind(&LogMediaSourceError, media_log)).Pass(),
       SetDecryptorReadyCB(),
-      audio_hardware_config_,
+      renderer_config->GetAudioHardwareConfig(),
       media_log));
+
+  scoped_ptr<VideoRenderer> video_renderer(new VideoRendererImpl(
+      task_runner,
+      renderer_config->GetVideoDecoders(
+                           task_runner,
+                           base::Bind(&LogMediaSourceError, media_log)).Pass(),
+      SetDecryptorReadyCB(),
+      base::Bind(&PaintNothing),
+      true,
+      media_log));
+
+  // Create renderer.
+  renderer_.reset(new RendererImpl(
+      task_runner, audio_renderer.Pass(), video_renderer.Pass()));
 }
 
 MojoRendererService::~MojoRendererService() {
 }
 
-void MojoRendererService::Initialize(mojo::DemuxerStreamPtr stream,
-                                     const mojo::Callback<void()>& callback) {
+void MojoRendererService::Initialize(mojo::DemuxerStreamPtr audio,
+                                     mojo::DemuxerStreamPtr video,
+                                     const mojo::Closure& callback) {
   DVLOG(1) << __FUNCTION__;
-  DCHECK_EQ(state_, STATE_UNINITIALIZED) << state_;
+  DCHECK_EQ(state_, STATE_UNINITIALIZED);
   DCHECK(client());
 
-  init_cb_ = callback;
   state_ = STATE_INITIALIZING;
-  stream_.reset(new MojoDemuxerStreamAdapter(
-      stream.Pass(),
-      base::Bind(&MojoRendererService::OnStreamReady, weak_this_)));
+  stream_provider_.reset(new DemuxerStreamProviderShim(
+      audio.Pass(),
+      video.Pass(),
+      base::Bind(&MojoRendererService::OnStreamReady, weak_this_, callback)));
 }
 
-void MojoRendererService::Flush(const mojo::Callback<void()>& callback) {
+void MojoRendererService::Flush(const mojo::Closure& callback) {
   DVLOG(2) << __FUNCTION__;
-  DCHECK_EQ(state_, STATE_PLAYING) << state_;
+  DCHECK_EQ(state_, STATE_PLAYING);
 
   state_ = STATE_FLUSHING;
-  if (time_ticking_)
-    PausePlayback();
-
-  // TODO(xhwang): This is not completed. Finish the flushing path.
-  NOTIMPLEMENTED();
+  time_update_timer_.Reset();
+  renderer_->Flush(base::Bind(&MojoTrampoline, callback));
 }
 
 void MojoRendererService::StartPlayingFrom(int64_t time_delta_usec) {
   DVLOG(2) << __FUNCTION__ << ": " << time_delta_usec;
-  base::TimeDelta time = base::TimeDelta::FromMicroseconds(time_delta_usec);
-  time_source_->SetMediaTime(time);
-  audio_renderer_->StartPlaying();
+  renderer_->StartPlayingFrom(
+      base::TimeDelta::FromMicroseconds(time_delta_usec));
+  SchedulePeriodicMediaTimeUpdates();
 }
 
 void MojoRendererService::SetPlaybackRate(float playback_rate) {
   DVLOG(2) << __FUNCTION__ << ": " << playback_rate;
-
-  // Playback rate changes are only carried out while playing.
-  if (state_ != STATE_PLAYING)
-    return;
-
-  time_source_->SetPlaybackRate(playback_rate);
+  DCHECK_EQ(state_, STATE_PLAYING);
+  renderer_->SetPlaybackRate(playback_rate);
 }
 
 void MojoRendererService::SetVolume(float volume) {
-  if (audio_renderer_)
-    audio_renderer_->SetVolume(volume);
+  renderer_->SetVolume(volume);
 }
 
-void MojoRendererService::OnStreamReady() {
-  DCHECK_EQ(state_, STATE_INITIALIZING) << state_;
-  audio_renderer_->Initialize(
-      stream_.get(),
-      base::Bind(&MojoRendererService::OnAudioRendererInitializeDone,
-                 weak_this_),
+void MojoRendererService::OnStreamReady(const mojo::Closure& callback) {
+  DCHECK_EQ(state_, STATE_INITIALIZING);
+
+  renderer_->Initialize(
+      stream_provider_.get(),
+      base::Bind(
+          &MojoRendererService::OnRendererInitializeDone, weak_this_, callback),
       base::Bind(&MojoRendererService::OnUpdateStatistics, weak_this_),
-      base::Bind(&MojoRendererService::OnBufferingStateChanged, weak_this_),
-      base::Bind(&MojoRendererService::OnAudioRendererEnded, weak_this_),
-      base::Bind(&MojoRendererService::OnError, weak_this_));
+      base::Bind(&MojoRendererService::OnRendererEnded, weak_this_),
+      base::Bind(&MojoRendererService::OnError, weak_this_),
+      base::Bind(&MojoRendererService::OnBufferingStateChanged, weak_this_));
 }
 
-void MojoRendererService::OnAudioRendererInitializeDone(PipelineStatus status) {
-  DVLOG(1) << __FUNCTION__ << ": " << status;
-  DCHECK_EQ(state_, STATE_INITIALIZING) << state_;
+void MojoRendererService::OnRendererInitializeDone(
+    const mojo::Closure& callback) {
+  DVLOG(1) << __FUNCTION__;
 
-  if (status != PIPELINE_OK) {
-    state_ = STATE_ERROR;
-    audio_renderer_.reset();
-    client()->OnError();
-    init_cb_.Run();
-    init_cb_.reset();
-    return;
+  if (state_ == STATE_ERROR) {
+    renderer_.reset();
+  } else {
+    DCHECK_EQ(state_, STATE_INITIALIZING);
+    state_ = STATE_PLAYING;
   }
 
-  time_source_ = audio_renderer_->GetTimeSource();
-
-  state_ = STATE_PLAYING;
-  init_cb_.Run();
-  init_cb_.reset();
+  callback.Run();
 }
 
 void MojoRendererService::OnUpdateStatistics(const PipelineStatistics& stats) {
-  NOTIMPLEMENTED();
 }
 
-void MojoRendererService::UpdateMediaTime() {
-  uint64_t media_time = time_source_->CurrentMediaTime().InMicroseconds();
+void MojoRendererService::UpdateMediaTime(bool force) {
+  const uint64_t media_time = renderer_->GetMediaTime().InMicroseconds();
+  if (!force && media_time == last_media_time_usec_)
+    return;
+
   client()->OnTimeUpdate(media_time, media_time);
+  last_media_time_usec_ = media_time;
 }
 
 void MojoRendererService::SchedulePeriodicMediaTimeUpdates() {
-  // Update media time immediately.
-  UpdateMediaTime();
-
-  // Then setup periodic time update.
+  UpdateMediaTime(true);
   time_update_timer_.Start(
       FROM_HERE,
-      TimeUpdateInterval(),
-      base::Bind(&MojoRendererService::UpdateMediaTime, weak_this_));
+      base::TimeDelta::FromMilliseconds(kTimeUpdateIntervalMs),
+      base::Bind(&MojoRendererService::UpdateMediaTime, weak_this_, false));
 }
 
 void MojoRendererService::OnBufferingStateChanged(
-    media::BufferingState new_buffering_state) {
-  DVLOG(2) << __FUNCTION__ << "(" << buffering_state_ << ", "
-           << new_buffering_state << ") ";
-  bool was_waiting_for_enough_data = WaitingForEnoughData();
-
-  buffering_state_ = new_buffering_state;
-
-  // Renderer underflowed.
-  if (!was_waiting_for_enough_data && WaitingForEnoughData()) {
-    PausePlayback();
-    // TODO(xhwang): Notify client of underflow condition.
-    return;
-  }
-
-  // Renderer prerolled.
-  if (was_waiting_for_enough_data && !WaitingForEnoughData()) {
-    StartPlayback();
-    client()->OnBufferingStateChange(
-        static_cast<mojo::BufferingState>(new_buffering_state));
-    return;
-  }
+    BufferingState new_buffering_state) {
+  DVLOG(2) << __FUNCTION__ << "(" << new_buffering_state << ") ";
+  client()->OnBufferingStateChange(
+      static_cast<mojo::BufferingState>(new_buffering_state));
 }
 
-void MojoRendererService::OnAudioRendererEnded() {
+void MojoRendererService::OnRendererEnded() {
   DVLOG(1) << __FUNCTION__;
-
-  if (state_ != STATE_PLAYING)
-    return;
-
-  DCHECK(!ended_);
-  ended_ = true;
-
-  if (time_ticking_)
-    PausePlayback();
-
   client()->OnEnded();
+  time_update_timer_.Reset();
 }
 
 void MojoRendererService::OnError(PipelineStatus error) {
+  DVLOG(1) << __FUNCTION__;
+  state_ = STATE_ERROR;
   client()->OnError();
-}
-
-bool MojoRendererService::WaitingForEnoughData() const {
-  DCHECK(audio_renderer_);
-
-  return state_ == STATE_PLAYING && buffering_state_ != BUFFERING_HAVE_ENOUGH;
-}
-
-void MojoRendererService::StartPlayback() {
-  DVLOG(1) << __FUNCTION__;
-  DCHECK_EQ(state_, STATE_PLAYING);
-  DCHECK(!time_ticking_);
-  DCHECK(!WaitingForEnoughData());
-
-  time_ticking_ = true;
-  time_source_->StartTicking();
-
-  SchedulePeriodicMediaTimeUpdates();
-}
-
-void MojoRendererService::PausePlayback() {
-  DVLOG(1) << __FUNCTION__;
-  DCHECK(time_ticking_);
-  switch (state_) {
-    case STATE_PLAYING:
-      DCHECK(ended_ || WaitingForEnoughData())
-          << "Playback should only pause due to ending or underflowing";
-      break;
-
-    case STATE_FLUSHING:
-      // It's OK to pause playback when flushing.
-      break;
-
-    case STATE_UNINITIALIZED:
-    case STATE_INITIALIZING:
-    case STATE_ERROR:
-      NOTREACHED() << "Invalid state: " << state_;
-      break;
-  }
-
-  time_ticking_ = false;
-  time_source_->StopTicking();
-
-  // Cancel repeating time update timer and update the current media time.
-  time_update_timer_.Stop();
-  UpdateMediaTime();
 }
 
 }  // namespace media

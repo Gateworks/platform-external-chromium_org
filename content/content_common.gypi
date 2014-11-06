@@ -95,6 +95,7 @@
       'public/common/request_context_type.h',
       'public/common/resource_devtools_info.cc',
       'public/common/resource_devtools_info.h',
+      'public/common/resource_response.cc',
       'public/common/resource_response.h',
       'public/common/resource_response_info.cc',
       'public/common/resource_response_info.h',
@@ -160,7 +161,6 @@
       'common/appcache_interfaces.cc',
       'common/appcache_interfaces.h',
       'common/appcache_messages.h',
-      'common/battery_status_messages.h',
       'common/browser_plugin/browser_plugin_constants.cc',
       'common/browser_plugin/browser_plugin_constants.h',
       'common/browser_plugin/browser_plugin_messages.h',
@@ -287,10 +287,10 @@
       'common/gpu/gpu_config.h',
       'common/gpu/gpu_memory_buffer_factory.h',
       'common/gpu/gpu_memory_buffer_factory_android.cc',
+      'common/gpu/gpu_memory_buffer_factory_linux.cc',
       'common/gpu/gpu_memory_buffer_factory_mac.cc',
       'common/gpu/gpu_memory_buffer_factory_ozone.cc',
       'common/gpu/gpu_memory_buffer_factory_win.cc',
-      'common/gpu/gpu_memory_buffer_factory_x11.cc',
       'common/gpu/gpu_memory_manager.cc',
       'common/gpu/gpu_memory_manager.h',
       'common/gpu/gpu_memory_manager_client.cc',
@@ -695,10 +695,6 @@
       'dependencies': [
          '<(DEPTH)/build/linux/system.gyp:xcomposite',
       ],
-      'sources': [
-        'common/gpu/gpu_memory_buffer_factory_x11_pixmap.cc',
-        'common/gpu/gpu_memory_buffer_factory_x11_pixmap.h',
-      ],
     }],
     ['use_x11 == 1 and (target_arch != "arm" or chromeos == 0)', {
       'sources': [
@@ -919,6 +915,7 @@
       ],
       'sources!': [
         'common/gpu/client/gpu_memory_buffer_impl_linux.cc',
+        'common/gpu/gpu_memory_buffer_factory_linux.cc',
       ],
     }],
   ],

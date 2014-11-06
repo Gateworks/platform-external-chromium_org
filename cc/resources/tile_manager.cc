@@ -33,7 +33,7 @@ class RasterTaskImpl : public RasterTask {
  public:
   RasterTaskImpl(
       const Resource* resource,
-      PicturePileImpl* picture_pile,
+      RasterSource* raster_source,
       const gfx::Rect& content_rect,
       float contents_scale,
       TileResolution tile_resolution,
@@ -42,10 +42,11 @@ class RasterTaskImpl : public RasterTask {
       int source_frame_number,
       bool analyze_picture,
       RenderingStatsInstrumentation* rendering_stats,
-      const base::Callback<void(const PicturePileImpl::Analysis&, bool)>& reply,
+      const base::Callback<void(const RasterSource::SolidColorAnalysis&, bool)>&
+          reply,
       ImageDecodeTask::Vector* dependencies)
       : RasterTask(resource, dependencies),
-        picture_pile_(picture_pile),
+        raster_source_(raster_source),
         content_rect_(content_rect),
         contents_scale_(contents_scale),
         tile_resolution_(tile_resolution),
@@ -60,16 +61,16 @@ class RasterTaskImpl : public RasterTask {
   void RunOnWorkerThread() override {
     TRACE_EVENT0("cc", "RasterizerTaskImpl::RunOnWorkerThread");
 
-    DCHECK(picture_pile_.get());
+    DCHECK(raster_source_.get());
     DCHECK(raster_buffer_);
 
     if (analyze_picture_) {
-      Analyze(picture_pile_.get());
+      Analyze(raster_source_.get());
       if (analysis_.is_solid_color)
         return;
     }
 
-    Raster(picture_pile_.get());
+    Raster(raster_source_.get());
   }
 
   // Overridden from RasterizerTask:
@@ -89,14 +90,14 @@ class RasterTaskImpl : public RasterTask {
   ~RasterTaskImpl() override { DCHECK(!raster_buffer_); }
 
  private:
-  void Analyze(const PicturePileImpl* picture_pile) {
+  void Analyze(const RasterSource* raster_source) {
     frame_viewer_instrumentation::ScopedAnalyzeTask analyze_task(
         tile_id_, tile_resolution_, source_frame_number_, layer_id_);
 
-    DCHECK(picture_pile);
+    DCHECK(raster_source);
 
-    picture_pile->AnalyzeInRect(
-        content_rect_, contents_scale_, &analysis_, rendering_stats_);
+    raster_source->PerformSolidColorAnalysis(content_rect_, contents_scale_,
+                                             &analysis_);
 
     // Record the solid color prediction.
     UMA_HISTOGRAM_BOOLEAN("Renderer4.SolidColorTilesAnalyzed",
@@ -106,40 +107,20 @@ class RasterTaskImpl : public RasterTask {
     analysis_.is_solid_color &= kUseColorEstimator;
   }
 
-  void Raster(const PicturePileImpl* picture_pile) {
+  void Raster(const RasterSource* raster_source) {
     frame_viewer_instrumentation::ScopedRasterTask raster_task(
         tile_id_, tile_resolution_, source_frame_number_, layer_id_);
     devtools_instrumentation::ScopedLayerTask layer_task(
         devtools_instrumentation::kRasterTask, layer_id_);
 
-    base::TimeDelta prev_rasterize_time =
-        rendering_stats_->impl_thread_rendering_stats().rasterize_time;
+    DCHECK(raster_source);
 
-    // Only record rasterization time for highres tiles, because
-    // lowres tiles are not required for activation and therefore
-    // introduce noise in the measurement (sometimes they get rasterized
-    // before we draw and sometimes they aren't)
-    RenderingStatsInstrumentation* stats =
-        tile_resolution_ == HIGH_RESOLUTION ? rendering_stats_ : NULL;
-    DCHECK(picture_pile);
-
-    raster_buffer_->Playback(
-        picture_pile_.get(), content_rect_, contents_scale_, stats);
-
-    if (rendering_stats_->record_rendering_stats()) {
-      base::TimeDelta current_rasterize_time =
-          rendering_stats_->impl_thread_rendering_stats().rasterize_time;
-      LOCAL_HISTOGRAM_CUSTOM_COUNTS(
-          "Renderer4.PictureRasterTimeUS",
-          (current_rasterize_time - prev_rasterize_time).InMicroseconds(),
-          0,
-          100000,
-          100);
-    }
+    raster_buffer_->Playback(raster_source_.get(), content_rect_,
+                             contents_scale_);
   }
 
-  PicturePileImpl::Analysis analysis_;
-  scoped_refptr<PicturePileImpl> picture_pile_;
+  RasterSource::SolidColorAnalysis analysis_;
+  scoped_refptr<RasterSource> raster_source_;
   gfx::Rect content_rect_;
   float contents_scale_;
   TileResolution tile_resolution_;
@@ -148,7 +129,8 @@ class RasterTaskImpl : public RasterTask {
   int source_frame_number_;
   bool analyze_picture_;
   RenderingStatsInstrumentation* rendering_stats_;
-  const base::Callback<void(const PicturePileImpl::Analysis&, bool)> reply_;
+  const base::Callback<void(const RasterSource::SolidColorAnalysis&, bool)>
+      reply_;
   scoped_ptr<RasterBuffer> raster_buffer_;
 
   DISALLOW_COPY_AND_ASSIGN(RasterTaskImpl);
@@ -539,7 +521,7 @@ void TileManager::AssignGpuMemoryToTiles(
   // If this operation becomes expensive too, only do this after some
   // resource(s) was returned. Note that in that case, one also need to
   // invalidate when releasing some resource from the pool.
-  resource_pool_->CheckBusyResources();
+  resource_pool_->CheckBusyResources(false);
 
   // Now give memory out to the tiles until we're out, and build
   // the needs-to-be-rasterized queue.
@@ -733,11 +715,10 @@ scoped_refptr<RasterTask> TileManager::CreateRasterTask(Tile* tile) {
   // Create and queue all image decode tasks that this tile depends on.
   ImageDecodeTask::Vector decode_tasks;
   PixelRefTaskMap& existing_pixel_refs = image_decode_tasks_[tile->layer_id()];
-  for (PicturePileImpl::PixelRefIterator iter(
-           tile->content_rect(), tile->contents_scale(), tile->picture_pile());
-       iter;
-       ++iter) {
-    SkPixelRef* pixel_ref = *iter;
+  std::vector<SkPixelRef*> pixel_refs;
+  tile->raster_source()->GatherPixelRefs(
+      tile->content_rect(), tile->contents_scale(), &pixel_refs);
+  for (SkPixelRef* pixel_ref : pixel_refs) {
     uint32_t id = pixel_ref->getGenerationID();
 
     // Append existing image decode task if available.
@@ -756,7 +737,7 @@ scoped_refptr<RasterTask> TileManager::CreateRasterTask(Tile* tile) {
 
   return make_scoped_refptr(
       new RasterTaskImpl(const_resource,
-                         tile->picture_pile(),
+                         tile->raster_source(),
                          tile->content_rect(),
                          tile->contents_scale(),
                          mts.resolution,
@@ -795,7 +776,7 @@ void TileManager::OnImageDecodeTaskCompleted(int layer_id,
 void TileManager::OnRasterTaskCompleted(
     Tile::Id tile_id,
     scoped_ptr<ScopedResource> resource,
-    const PicturePileImpl::Analysis& analysis,
+    const RasterSource::SolidColorAnalysis& analysis,
     bool was_canceled) {
   DCHECK(tiles_.find(tile_id) != tiles_.end());
 
@@ -827,7 +808,7 @@ void TileManager::OnRasterTaskCompleted(
   client_->NotifyTileStateChanged(tile);
 }
 
-scoped_refptr<Tile> TileManager::CreateTile(PicturePileImpl* picture_pile,
+scoped_refptr<Tile> TileManager::CreateTile(RasterSource* raster_source,
                                             const gfx::Size& tile_size,
                                             const gfx::Rect& content_rect,
                                             float contents_scale,
@@ -835,7 +816,7 @@ scoped_refptr<Tile> TileManager::CreateTile(PicturePileImpl* picture_pile,
                                             int source_frame_number,
                                             int flags) {
   scoped_refptr<Tile> tile = make_scoped_refptr(new Tile(this,
-                                                         picture_pile,
+                                                         raster_source,
                                                          tile_size,
                                                          content_rect,
                                                          contents_scale,
@@ -855,6 +836,7 @@ void TileManager::SetRasterizerForTesting(Rasterizer* rasterizer) {
 }
 
 bool TileManager::IsReadyToActivate() const {
+  TRACE_EVENT0("cc", "TileManager::IsReadyToActivate");
   const std::vector<PictureLayerImpl*>& layers = client_->GetPictureLayers();
 
   for (std::vector<PictureLayerImpl*>::const_iterator it = layers.begin();

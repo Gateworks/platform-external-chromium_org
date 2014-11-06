@@ -23,6 +23,7 @@
 #include "content/child/plugin_messages.h"
 #include "content/child/quota_dispatcher.h"
 #include "content/child/request_extra_data.h"
+#include "content/child/service_worker/service_worker_handle_reference.h"
 #include "content/child/service_worker/service_worker_network_provider.h"
 #include "content/child/service_worker/service_worker_provider_context.h"
 #include "content/child/service_worker/web_service_worker_provider_impl.h"
@@ -51,7 +52,8 @@
 #include "content/public/renderer/document_state.h"
 #include "content/public/renderer/navigation_state.h"
 #include "content/public/renderer/render_frame_observer.h"
-#include "content/renderer/accessibility/renderer_accessibility_complete.h"
+#include "content/public/renderer/renderer_ppapi_host.h"
+#include "content/renderer/accessibility/renderer_accessibility.h"
 #include "content/renderer/browser_plugin/browser_plugin.h"
 #include "content/renderer/browser_plugin/browser_plugin_manager.h"
 #include "content/renderer/child_frame_compositing_helper.h"
@@ -119,6 +121,7 @@
 #include "third_party/WebKit/public/web/WebNavigationPolicy.h"
 #include "third_party/WebKit/public/web/WebPlugin.h"
 #include "third_party/WebKit/public/web/WebPluginParams.h"
+#include "third_party/WebKit/public/web/WebPluginPlaceholder.h"
 #include "third_party/WebKit/public/web/WebRange.h"
 #include "third_party/WebKit/public/web/WebScriptSource.h"
 #include "third_party/WebKit/public/web/WebSearchableFormData.h"
@@ -134,6 +137,7 @@
 #include "content/renderer/pepper/pepper_plugin_instance_impl.h"
 #include "content/renderer/pepper/pepper_webplugin_impl.h"
 #include "content/renderer/pepper/plugin_module.h"
+#include "content/renderer/pepper/plugin_power_saver_helper.h"
 #endif
 
 #if defined(ENABLE_WEBRTC)
@@ -496,24 +500,37 @@ RenderFrameImpl* RenderFrameImpl::FromRoutingID(int32 routing_id) {
 }
 
 // static
-void RenderFrameImpl::CreateFrame(int routing_id, int parent_routing_id) {
+void RenderFrameImpl::CreateFrame(int routing_id,
+                                  int parent_routing_id,
+                                  int proxy_routing_id) {
   // TODO(nasko): For now, this message is only sent for subframes, as the
   // top level frame is created when the RenderView is created through the
   // ViewMsg_New IPC.
   CHECK_NE(MSG_ROUTING_NONE, parent_routing_id);
 
-  RenderFrameProxy* proxy = RenderFrameProxy::FromRoutingID(parent_routing_id);
+  blink::WebLocalFrame* web_frame;
+  RenderFrameImpl* render_frame;
+  if (proxy_routing_id == MSG_ROUTING_NONE) {
+    RenderFrameProxy* parent_proxy =
+        RenderFrameProxy::FromRoutingID(parent_routing_id);
+    // If the browser is sending a valid parent routing id, it should already
+    // be created and registered.
+    CHECK(parent_proxy);
+    blink::WebRemoteFrame* parent_web_frame = parent_proxy->web_frame();
 
-  // If the browser is sending a valid parent routing id, it should already be
-  // created and registered.
-  CHECK(proxy);
-  blink::WebRemoteFrame* parent_web_frame = proxy->web_frame();
-
-  // Create the RenderFrame and WebLocalFrame, linking the two.
-  RenderFrameImpl* render_frame =
-      RenderFrameImpl::Create(proxy->render_view(), routing_id);
-  blink::WebLocalFrame* web_frame =
-      parent_web_frame->createLocalChild("", render_frame);
+    // Create the RenderFrame and WebLocalFrame, linking the two.
+    render_frame =
+        RenderFrameImpl::Create(parent_proxy->render_view(), routing_id);
+    web_frame = parent_web_frame->createLocalChild("", render_frame);
+  } else {
+    RenderFrameProxy* proxy =
+        RenderFrameProxy::FromRoutingID(proxy_routing_id);
+    CHECK(proxy);
+    render_frame = RenderFrameImpl::Create(proxy->render_view(), routing_id);
+    web_frame = blink::WebLocalFrame::create(render_frame);
+    render_frame->proxy_routing_id_ = proxy_routing_id;
+    web_frame->initializeToReplaceRemoteFrame(proxy->web_frame());
+  }
   render_frame->SetWebFrame(web_frame);
   render_frame->Initialize();
 }
@@ -546,6 +563,10 @@ RenderFrameImpl::RenderFrameImpl(RenderViewImpl* render_view, int routing_id)
       is_swapped_out_(false),
       render_frame_proxy_(NULL),
       is_detaching_(false),
+      proxy_routing_id_(MSG_ROUTING_NONE),
+#if defined(ENABLE_PLUGINS)
+      plugin_power_saver_helper_(NULL),
+#endif
       cookie_jar_(this),
       selection_text_offset_(0),
       selection_range_(gfx::Range::InvalidRange()),
@@ -578,8 +599,14 @@ RenderFrameImpl::RenderFrameImpl(RenderViewImpl* render_view, int routing_id)
 
   render_view_->RegisterRenderFrame(this);
 
+  // Everything below subclasses RenderFrameObserver and is automatically
+  // deleted when the RenderFrame gets deleted.
 #if defined(OS_ANDROID)
   new GinJavaBridgeDispatcher(this);
+#endif
+
+#if defined(ENABLE_PLUGINS)
+  plugin_power_saver_helper_ = new PluginPowerSaverHelper(this);
 #endif
 
 #if defined(ENABLE_NOTIFICATIONS)
@@ -638,6 +665,10 @@ RenderWidget* RenderFrameImpl::GetRenderWidget() {
 void RenderFrameImpl::PepperPluginCreated(RendererPpapiHost* host) {
   FOR_EACH_OBSERVER(RenderFrameObserver, observers_,
                     DidCreatePepperPlugin(host));
+  if (host->GetPluginName() == kFlashPluginName) {
+    RenderThread::Get()->RecordAction(
+        base::UserMetricsAction("FrameLoadWithFlash"));
+  }
 }
 
 void RenderFrameImpl::PepperDidChangeCursor(
@@ -732,7 +763,6 @@ void RenderFrameImpl::SimulateImeConfirmComposition(
   render_view_->OnImeConfirmComposition(text, replacement_range, false);
 }
 
-
 void RenderFrameImpl::OnImeSetComposition(
     const base::string16& text,
     const std::vector<blink::WebCompositionUnderline>& underlines,
@@ -812,7 +842,11 @@ void RenderFrameImpl::OnImeConfirmComposition(
   pepper_composition_text_.clear();
 }
 
-#endif  // ENABLE_PLUGINS
+PluginPowerSaverHelper* RenderFrameImpl::plugin_power_saver_helper() {
+  DCHECK(plugin_power_saver_helper_);
+  return plugin_power_saver_helper_;
+}
+#endif  // defined(ENABLE_PLUGINS)
 
 MediaStreamDispatcher* RenderFrameImpl::GetMediaStreamDispatcher() {
   if (!web_user_media_client_)
@@ -886,6 +920,8 @@ bool RenderFrameImpl::OnMessageReceived(const IPC::Message& msg) {
     IPC_MESSAGE_HANDLER(InputMsg_SelectAll, OnSelectAll)
     IPC_MESSAGE_HANDLER(InputMsg_SelectRange, OnSelectRange)
     IPC_MESSAGE_HANDLER(InputMsg_Unselect, OnUnselect)
+    IPC_MESSAGE_HANDLER(InputMsg_MoveRangeSelectionExtent,
+                        OnMoveRangeSelectionExtent)
     IPC_MESSAGE_HANDLER(InputMsg_Replace, OnReplace)
     IPC_MESSAGE_HANDLER(InputMsg_ReplaceMisspelling, OnReplaceMisspelling)
     IPC_MESSAGE_HANDLER(InputMsg_ExtendSelectionAndDelete,
@@ -1248,18 +1284,27 @@ void RenderFrameImpl::OnSelectAll() {
   frame_->executeCommand(WebString::fromUTF8("SelectAll"), GetFocusedElement());
 }
 
-void RenderFrameImpl::OnSelectRange(const gfx::Point& start,
-                                    const gfx::Point& end) {
+void RenderFrameImpl::OnSelectRange(const gfx::Point& base,
+                                    const gfx::Point& extent) {
   // This IPC is dispatched by RenderWidgetHost, so use its routing id.
-  Send(new ViewHostMsg_SelectRange_ACK(GetRenderWidget()->routing_id()));
+  Send(new InputHostMsg_SelectRange_ACK(GetRenderWidget()->routing_id()));
 
   base::AutoReset<bool> handling_select_range(&handling_select_range_, true);
-  frame_->selectRange(start, end);
+  frame_->selectRange(base, extent);
 }
 
 void RenderFrameImpl::OnUnselect() {
   base::AutoReset<bool> handling_select_range(&handling_select_range_, true);
   frame_->executeCommand(WebString::fromUTF8("Unselect"), GetFocusedElement());
+}
+
+void RenderFrameImpl::OnMoveRangeSelectionExtent(const gfx::Point& point) {
+  // This IPC is dispatched by RenderWidgetHost, so use its routing id.
+  Send(new InputHostMsg_MoveRangeSelectionExtent_ACK(
+      GetRenderWidget()->routing_id()));
+
+  base::AutoReset<bool> handling_select_range(&handling_select_range_, true);
+  frame_->moveRangeSelectionExtent(point);
 }
 
 void RenderFrameImpl::OnReplace(const base::string16& text) {
@@ -1371,7 +1416,7 @@ void RenderFrameImpl::OnSetAccessibilityMode(AccessibilityMode new_mode) {
     return;
 
   if (accessibility_mode_ & AccessibilityModeFlagFullTree)
-    renderer_accessibility_ = new RendererAccessibilityComplete(this);
+    renderer_accessibility_ = new RendererAccessibility(this);
 }
 
 void RenderFrameImpl::OnDisownOpener() {
@@ -1605,6 +1650,16 @@ void RenderFrameImpl::EnsureMojoBuiltinsAreAvailable(
 
 // blink::WebFrameClient implementation ----------------------------------------
 
+blink::WebPluginPlaceholder* RenderFrameImpl::createPluginPlaceholder(
+    blink::WebLocalFrame* frame,
+    const blink::WebPluginParams& params) {
+  DCHECK_EQ(frame_, frame);
+  return GetContentClient()
+      ->renderer()
+      ->CreatePluginPlaceholder(this, frame, params)
+      .release();
+}
+
 blink::WebPlugin* RenderFrameImpl::createPlugin(
     blink::WebLocalFrame* frame,
     const blink::WebPluginParams& params) {
@@ -1633,7 +1688,7 @@ blink::WebPlugin* RenderFrameImpl::createPlugin(
   if (!found)
     return NULL;
 
-  if (info.type == content::WebPluginInfo::PLUGIN_TYPE_BROWSER_PLUGIN) {
+  if (info.type == WebPluginInfo::PLUGIN_TYPE_BROWSER_PLUGIN) {
     scoped_ptr<BrowserPluginDelegate> browser_plugin_delegate(
         GetContentClient()->renderer()->CreateBrowserPluginDelegate(
             this, base::UTF16ToUTF8(params.mimeType)));
@@ -2219,6 +2274,14 @@ void RenderFrameImpl::didCommitProvisionalLoad(
       DocumentState::FromDataSource(frame->dataSource());
   NavigationState* navigation_state = document_state->navigation_state();
 
+  if (proxy_routing_id_ != MSG_ROUTING_NONE) {
+    RenderFrameProxy* proxy =
+        RenderFrameProxy::FromRoutingID(proxy_routing_id_);
+    CHECK(proxy);
+    proxy->web_frame()->swap(frame_);
+    proxy_routing_id_ = MSG_ROUTING_NONE;
+  }
+
   // When we perform a new navigation, we need to update the last committed
   // session history entry with state for the page we are leaving. Do this
   // before updating the HistoryController state.
@@ -2374,7 +2437,6 @@ void RenderFrameImpl::didReceiveTitle(blink::WebLocalFrame* frame,
 
     base::string16 shortened_title = title16.substr(0, kMaxTitleChars);
     Send(new FrameHostMsg_UpdateTitle(routing_id_,
-                                      render_view_->page_id_,
                                       shortened_title, direction));
   }
 
@@ -2582,9 +2644,9 @@ blink::WebColorChooser* RenderFrameImpl::createColorChooser(
     const blink::WebVector<blink::WebColorSuggestion>& suggestions) {
   RendererWebColorChooserImpl* color_chooser =
       new RendererWebColorChooserImpl(this, client);
-  std::vector<content::ColorSuggestion> color_suggestions;
+  std::vector<ColorSuggestion> color_suggestions;
   for (size_t i = 0; i < suggestions.size(); i++) {
-    color_suggestions.push_back(content::ColorSuggestion(suggestions[i]));
+    color_suggestions.push_back(ColorSuggestion(suggestions[i]));
   }
   color_chooser->Open(static_cast<SkColor>(initial_color), color_suggestions);
   return color_chooser;
@@ -2921,6 +2983,8 @@ void RenderFrameImpl::didReceiveResponse(
         extra_data->connection_info());
     document_state->set_was_fetched_via_proxy(
         extra_data->was_fetched_via_proxy());
+    document_state->set_proxy_server(
+        extra_data->proxy_server());
   }
   InternalDocumentStateData* internal_data =
       InternalDocumentStateData::FromDocumentState(document_state);
@@ -3268,6 +3332,16 @@ bool RenderFrameImpl::isControlledByServiceWorker(WebDataSource& data_source) {
       kInvalidServiceWorkerHandleId;
 }
 
+int64_t RenderFrameImpl::serviceWorkerID(WebDataSource& data_source) {
+  ServiceWorkerNetworkProvider* provider =
+      ServiceWorkerNetworkProvider::FromDocumentState(
+          DocumentState::FromDataSource(&data_source));
+
+  if (provider->context()->controller())
+    return provider->context()->controller()->version_id();
+  return kInvalidServiceWorkerVersionId;
+}
+
 void RenderFrameImpl::postAccessibilityEvent(const blink::WebAXObject& obj,
                                              blink::WebAXEvent event) {
   HandleWebAccessibilityEvent(obj, event);
@@ -3404,13 +3478,10 @@ void RenderFrameImpl::SendDidCommitProvisionalLoad(blink::WebFrame* frame) {
       // Reset the zoom levels for plugins.
       render_view_->webview()->setZoomLevel(0);
     } else {
-      if (host_zoom != render_view_->host_zoom_levels_.end()) {
+      // If the zoom level is not found, then do nothing. In-page navigation
+      // relies on not changing the zoom level in this case.
+      if (host_zoom != render_view_->host_zoom_levels_.end())
         render_view_->webview()->setZoomLevel(host_zoom->second);
-      } else {
-        // If the url was not found, we need to reset in case we are re-using
-        // an existing RenderViewImpl, e.g. to show a network error page.
-        render_view_->webview()->setZoomLevel(0);
-      }
     }
 
     if (host_zoom != render_view_->host_zoom_levels_.end()) {

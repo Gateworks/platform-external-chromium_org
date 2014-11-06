@@ -18,7 +18,7 @@ GYP_TARGET_DEPENDENCIES := \
 
 
 ### Generated for rule "mojo_mojo_base_gyp_mojo_jni_headers_target_generate_jni_headers":
-# "{'inputs': ['../base/android/jni_generator/jni_generator.py', '../android_webview/build/jarjar-rules.txt'], 'process_outputs_as_sources': '1', 'extension': 'java', 'outputs': ['$(gyp_shared_intermediate_dir)/mojo/jni/%(INPUT_ROOT)s_jni.h'], 'rule_name': 'generate_jni_headers', 'rule_sources': ['android/javatests/src/org/chromium/mojo/MojoTestCase.java', 'android/javatests/src/org/chromium/mojo/bindings/ValidationTestUtil.java', 'android/system/src/org/chromium/mojo/system/impl/CoreImpl.java', 'services/native_viewport/android/src/org/chromium/mojo/PlatformViewportAndroid.java', 'shell/android/apk/src/org/chromium/mojo_shell_apk/MojoMain.java'], 'action': ['../base/android/jni_generator/jni_generator.py', '--input_file', '$(RULE_SOURCES)', '--output_dir', '$(gyp_shared_intermediate_dir)/mojo/jni', '--includes', 'base/android/jni_generator/jni_generator_helper.h', '--optimize_generation', '0', '--jarjar', '../android_webview/build/jarjar-rules.txt', '--ptr_type', 'long', '--native_exports'], 'message': 'Generating JNI bindings from $(RULE_SOURCES)'}":
+# "{'inputs': ['../base/android/jni_generator/jni_generator.py', '../android_webview/build/jarjar-rules.txt'], 'process_outputs_as_sources': '1', 'extension': 'java', 'outputs': ['$(gyp_shared_intermediate_dir)/mojo/jni/%(INPUT_ROOT)s_jni.h'], 'rule_name': 'generate_jni_headers', 'rule_sources': ['android/javatests/src/org/chromium/mojo/MojoTestCase.java', 'android/javatests/src/org/chromium/mojo/bindings/ValidationTestUtil.java', 'android/system/src/org/chromium/mojo/system/impl/CoreImpl.java'], 'action': ['../base/android/jni_generator/jni_generator.py', '--input_file', '$(RULE_SOURCES)', '--output_dir', '$(gyp_shared_intermediate_dir)/mojo/jni', '--includes', 'base/android/jni_generator/jni_generator_helper.h', '--optimize_generation', '0', '--jarjar', '../android_webview/build/jarjar-rules.txt', '--ptr_type', 'long', '--native_exports'], 'message': 'Generating JNI bindings from $(RULE_SOURCES)'}":
 $(gyp_shared_intermediate_dir)/mojo/jni/MojoTestCase_jni.h: gyp_local_path := $(LOCAL_PATH)
 $(gyp_shared_intermediate_dir)/mojo/jni/MojoTestCase_jni.h: gyp_var_prefix := $(GYP_VAR_PREFIX)
 $(gyp_shared_intermediate_dir)/mojo/jni/MojoTestCase_jni.h: gyp_intermediate_dir := $(abspath $(gyp_intermediate_dir))
@@ -46,31 +46,11 @@ $(gyp_shared_intermediate_dir)/mojo/jni/CoreImpl_jni.h: $(LOCAL_PATH)/mojo/andro
 	mkdir -p $(gyp_shared_intermediate_dir)/mojo/jni; cd $(gyp_local_path)/mojo; ../base/android/jni_generator/jni_generator.py --input_file android/system/src/org/chromium/mojo/system/impl/CoreImpl.java --output_dir "$(gyp_shared_intermediate_dir)/mojo/jni" --includes base/android/jni_generator/jni_generator_helper.h --optimize_generation 0 --jarjar ../android_webview/build/jarjar-rules.txt --ptr_type long --native_exports
 
 
-$(gyp_shared_intermediate_dir)/mojo/jni/PlatformViewportAndroid_jni.h: gyp_local_path := $(LOCAL_PATH)
-$(gyp_shared_intermediate_dir)/mojo/jni/PlatformViewportAndroid_jni.h: gyp_var_prefix := $(GYP_VAR_PREFIX)
-$(gyp_shared_intermediate_dir)/mojo/jni/PlatformViewportAndroid_jni.h: gyp_intermediate_dir := $(abspath $(gyp_intermediate_dir))
-$(gyp_shared_intermediate_dir)/mojo/jni/PlatformViewportAndroid_jni.h: gyp_shared_intermediate_dir := $(abspath $(gyp_shared_intermediate_dir))
-$(gyp_shared_intermediate_dir)/mojo/jni/PlatformViewportAndroid_jni.h: export PATH := $(subst $(ANDROID_BUILD_PATHS),,$(PATH))
-$(gyp_shared_intermediate_dir)/mojo/jni/PlatformViewportAndroid_jni.h: $(LOCAL_PATH)/mojo/services/native_viewport/android/src/org/chromium/mojo/PlatformViewportAndroid.java $(LOCAL_PATH)/base/android/jni_generator/jni_generator.py $(LOCAL_PATH)/android_webview/build/jarjar-rules.txt $(GYP_TARGET_DEPENDENCIES)
-	mkdir -p $(gyp_shared_intermediate_dir)/mojo/jni; cd $(gyp_local_path)/mojo; ../base/android/jni_generator/jni_generator.py --input_file services/native_viewport/android/src/org/chromium/mojo/PlatformViewportAndroid.java --output_dir "$(gyp_shared_intermediate_dir)/mojo/jni" --includes base/android/jni_generator/jni_generator_helper.h --optimize_generation 0 --jarjar ../android_webview/build/jarjar-rules.txt --ptr_type long --native_exports
-
-
-$(gyp_shared_intermediate_dir)/mojo/jni/MojoMain_jni.h: gyp_local_path := $(LOCAL_PATH)
-$(gyp_shared_intermediate_dir)/mojo/jni/MojoMain_jni.h: gyp_var_prefix := $(GYP_VAR_PREFIX)
-$(gyp_shared_intermediate_dir)/mojo/jni/MojoMain_jni.h: gyp_intermediate_dir := $(abspath $(gyp_intermediate_dir))
-$(gyp_shared_intermediate_dir)/mojo/jni/MojoMain_jni.h: gyp_shared_intermediate_dir := $(abspath $(gyp_shared_intermediate_dir))
-$(gyp_shared_intermediate_dir)/mojo/jni/MojoMain_jni.h: export PATH := $(subst $(ANDROID_BUILD_PATHS),,$(PATH))
-$(gyp_shared_intermediate_dir)/mojo/jni/MojoMain_jni.h: $(LOCAL_PATH)/mojo/shell/android/apk/src/org/chromium/mojo_shell_apk/MojoMain.java $(LOCAL_PATH)/base/android/jni_generator/jni_generator.py $(LOCAL_PATH)/android_webview/build/jarjar-rules.txt $(GYP_TARGET_DEPENDENCIES)
-	mkdir -p $(gyp_shared_intermediate_dir)/mojo/jni; cd $(gyp_local_path)/mojo; ../base/android/jni_generator/jni_generator.py --input_file shell/android/apk/src/org/chromium/mojo_shell_apk/MojoMain.java --output_dir "$(gyp_shared_intermediate_dir)/mojo/jni" --includes base/android/jni_generator/jni_generator_helper.h --optimize_generation 0 --jarjar ../android_webview/build/jarjar-rules.txt --ptr_type long --native_exports
-
-
 
 GYP_GENERATED_OUTPUTS := \
 	$(gyp_shared_intermediate_dir)/mojo/jni/MojoTestCase_jni.h \
 	$(gyp_shared_intermediate_dir)/mojo/jni/ValidationTestUtil_jni.h \
-	$(gyp_shared_intermediate_dir)/mojo/jni/CoreImpl_jni.h \
-	$(gyp_shared_intermediate_dir)/mojo/jni/PlatformViewportAndroid_jni.h \
-	$(gyp_shared_intermediate_dir)/mojo/jni/MojoMain_jni.h
+	$(gyp_shared_intermediate_dir)/mojo/jni/CoreImpl_jni.h
 
 # Make sure our deps and generated files are built first.
 LOCAL_ADDITIONAL_DEPENDENCIES := $(GYP_TARGET_DEPENDENCIES) $(GYP_GENERATED_OUTPUTS)
@@ -78,9 +58,7 @@ LOCAL_ADDITIONAL_DEPENDENCIES := $(GYP_TARGET_DEPENDENCIES) $(GYP_GENERATED_OUTP
 LOCAL_GENERATED_SOURCES := \
 	$(gyp_shared_intermediate_dir)/mojo/jni/MojoTestCase_jni.h \
 	$(gyp_shared_intermediate_dir)/mojo/jni/ValidationTestUtil_jni.h \
-	$(gyp_shared_intermediate_dir)/mojo/jni/CoreImpl_jni.h \
-	$(gyp_shared_intermediate_dir)/mojo/jni/PlatformViewportAndroid_jni.h \
-	$(gyp_shared_intermediate_dir)/mojo/jni/MojoMain_jni.h
+	$(gyp_shared_intermediate_dir)/mojo/jni/CoreImpl_jni.h
 
 GYP_COPIED_SOURCE_ORIGIN_DIRS :=
 
@@ -133,14 +111,17 @@ MY_DEFS_Debug := \
 	'-DUSE_PROPRIETARY_CODECS' \
 	'-DENABLE_BROWSER_CDMS' \
 	'-DENABLE_CONFIGURATION_POLICY' \
+	'-DENABLE_NOTIFICATIONS' \
 	'-DDISCARDABLE_MEMORY_ALWAYS_SUPPORTED_NATIVELY' \
 	'-DSYSTEM_NATIVELY_SIGNALS_MEMORY_PRESSURE' \
-	'-DENABLE_EGLIMAGE=1' \
+	'-DDONT_EMBED_BUILD_METADATA' \
 	'-DCLD_VERSION=1' \
 	'-DENABLE_PRINTING=1' \
+	'-DENABLE_BASIC_PRINTING=1' \
 	'-DENABLE_MANAGED_USERS=1' \
 	'-DVIDEO_HOLE=1' \
 	'-DENABLE_LOAD_COMPLETION_HACKS=1' \
+	'-DUSE_LIBPCI=1' \
 	'-DUSE_OPENSSL=1' \
 	'-DUSE_OPENSSL_CERTS=1' \
 	'-D__STDC_CONSTANT_MACROS' \
@@ -219,14 +200,17 @@ MY_DEFS_Release := \
 	'-DUSE_PROPRIETARY_CODECS' \
 	'-DENABLE_BROWSER_CDMS' \
 	'-DENABLE_CONFIGURATION_POLICY' \
+	'-DENABLE_NOTIFICATIONS' \
 	'-DDISCARDABLE_MEMORY_ALWAYS_SUPPORTED_NATIVELY' \
 	'-DSYSTEM_NATIVELY_SIGNALS_MEMORY_PRESSURE' \
-	'-DENABLE_EGLIMAGE=1' \
+	'-DDONT_EMBED_BUILD_METADATA' \
 	'-DCLD_VERSION=1' \
 	'-DENABLE_PRINTING=1' \
+	'-DENABLE_BASIC_PRINTING=1' \
 	'-DENABLE_MANAGED_USERS=1' \
 	'-DVIDEO_HOLE=1' \
 	'-DENABLE_LOAD_COMPLETION_HACKS=1' \
+	'-DUSE_LIBPCI=1' \
 	'-DUSE_OPENSSL=1' \
 	'-DUSE_OPENSSL_CERTS=1' \
 	'-D__STDC_CONSTANT_MACROS' \

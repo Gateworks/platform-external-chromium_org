@@ -257,6 +257,9 @@ class NET_EXPORT_PRIVATE QuicConnection
   // Sets connection parameters from the supplied |config|.
   void SetFromConfig(const QuicConfig& config);
 
+  // Sets the number of active streams on the connection for congestion control.
+  void SetNumOpenStreams(size_t num_streams);
+
   // Send the data in |data| to the peer in as few packets as possible.
   // Returns a pair with the number of bytes consumed from data, and a boolean
   // indicating if the fin bit was consumed.  This does not indicate the data
@@ -372,7 +375,7 @@ class NET_EXPORT_PRIVATE QuicConnection
   void OnSerializedPacket(const SerializedPacket& packet) override;
 
   // QuicSentPacketManager::NetworkChangeVisitor
-  void OnCongestionWindowChange(QuicByteCount congestion_window) override;
+  void OnCongestionWindowChange() override;
 
   // Called by the crypto stream when the handshake completes. In the server's
   // case this is when the SHLO has been ACKed. Clients call this on receipt of
@@ -426,6 +429,7 @@ class NET_EXPORT_PRIVATE QuicConnection
   // Sets (or resets) the idle state connection timeout. Also, checks and times
   // out the connection if network timer has expired for |timeout|.
   void SetIdleNetworkTimeout(QuicTime::Delta timeout);
+
   // Sets (or resets) the total time delta the connection can be alive for.
   // Also, checks and times out the connection if timer has expired for
   // |timeout|. Used to limit the time a connection can be alive before crypto
@@ -494,6 +498,11 @@ class NET_EXPORT_PRIVATE QuicConnection
 
   bool is_server() const { return is_server_; }
 
+  // Allow easy overriding of truncated connection IDs.
+  void set_can_truncate_connection_ids(bool can) {
+    can_truncate_connection_ids_ = can;
+  }
+
   // Returns the underlying sent packet manager.
   const QuicSentPacketManager& sent_packet_manager() const {
     return sent_packet_manager_;
@@ -520,6 +529,10 @@ class NET_EXPORT_PRIVATE QuicConnection
     QuicConnection* connection_;
     bool already_in_batch_mode_;
   };
+
+  QuicPacketSequenceNumber sequence_number_of_last_sent_packet() const {
+    return sequence_number_of_last_sent_packet_;
+  }
 
  protected:
   // Packets which have not been written to the wire.
@@ -557,12 +570,9 @@ class NET_EXPORT_PRIVATE QuicConnection
   bool SelectMutualVersion(const QuicVersionVector& available_versions);
 
   QuicPacketWriter* writer() { return writer_; }
+  const QuicPacketWriter* writer() const { return writer_; }
 
   bool peer_port_changed() const { return peer_port_changed_; }
-
-  QuicPacketSequenceNumber sequence_number_of_last_sent_packet() const {
-    return sequence_number_of_last_sent_packet_;
-  }
 
  private:
   friend class test::QuicConnectionPeer;
@@ -595,6 +605,10 @@ class NET_EXPORT_PRIVATE QuicConnection
 
   // Clears any accumulated frames from the last received packet.
   void ClearLastFrames();
+
+  // Closes the connection if the sent or received packet manager are tracking
+  // too many outstanding packets.
+  void MaybeCloseIfTooManyOutstandingPackets();
 
   // Writes as many queued packets as possible.  The connection must not be
   // blocked when this is called.
@@ -668,7 +682,14 @@ class NET_EXPORT_PRIVATE QuicConnection
   QuicConnectionHelperInterface* helper_;  // Not owned.
   QuicPacketWriter* writer_;  // Owned or not depending on |owns_writer_|.
   bool owns_writer_;
+  // Encryption level for new packets. Should only be changed via
+  // SetDefaultEncryptionLevel().
   EncryptionLevel encryption_level_;
+  bool has_forward_secure_encrypter_;
+  // The sequence number of the first packet which will be encrypted with the
+  // foward-secure encrypter, even if the peer has not started sending
+  // forward-secure packets.
+  QuicPacketSequenceNumber first_required_forward_secure_packet_;
   const QuicClock* clock_;
   QuicRandom* random_generator_;
 
@@ -810,6 +831,10 @@ class NET_EXPORT_PRIVATE QuicConnection
   // Set to true if the UDP packet headers are addressed to a different port.
   // We do not support connection migration when the self port changed.
   bool self_port_changed_;
+
+  // Set to false if the connection should not send truncated connection IDs to
+  // the peer, even if the peer supports it.
+  bool can_truncate_connection_ids_;
 
   // If non-empty this contains the set of versions received in a
   // version negotiation packet.

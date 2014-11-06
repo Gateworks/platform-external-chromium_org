@@ -17,7 +17,7 @@
 
 class ChromeExtensionsDispatcherDelegate;
 class ChromeRenderProcessObserver;
-#if defined(ENABLE_FULL_PRINTING)
+#if defined(ENABLE_PRINT_PREVIEW)
 class ChromePDFPrintClient;
 #endif
 class PrescientNetworkingDispatcher;
@@ -85,6 +85,10 @@ class ChromeContentRendererClient : public content::ContentRendererClient {
                             blink::WebLocalFrame* frame,
                             const blink::WebPluginParams& params,
                             blink::WebPlugin** plugin) override;
+  scoped_ptr<blink::WebPluginPlaceholder> CreatePluginPlaceholder(
+      content::RenderFrame* render_frame,
+      blink::WebLocalFrame* frame,
+      const blink::WebPluginParams& params) override;
   blink::WebPlugin* CreatePluginReplacement(
       content::RenderFrame* render_frame,
       const base::FilePath& plugin_path) override;
@@ -227,7 +231,7 @@ class ChromeContentRendererClient : public content::ContentRendererClient {
   scoped_refptr<WebRtcLoggingMessageFilter> webrtc_logging_message_filter_;
 #endif
   scoped_ptr<SearchBouncer> search_bouncer_;
-#if defined(ENABLE_FULL_PRINTING)
+#if defined(ENABLE_PRINT_PREVIEW)
   scoped_ptr<ChromePDFPrintClient> pdf_print_client_;
 #endif
 #if defined(ENABLE_PLUGINS)

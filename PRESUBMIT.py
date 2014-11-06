@@ -265,6 +265,8 @@ _VALID_OS_MACROS = (
     'OS_LINUX',
     'OS_MACOSX',
     'OS_NACL',
+    'OS_NACL_NONSFI',
+    'OS_NACL_SFI',
     'OS_OPENBSD',
     'OS_POSIX',
     'OS_QNX',
@@ -359,7 +361,8 @@ def _CheckNoNewWStrings(input_api, output_api):
   problems = []
   for f in input_api.AffectedFiles():
     if (not f.LocalPath().endswith(('.cc', '.h')) or
-        f.LocalPath().endswith(('test.cc', '_win.cc', '_win.h'))):
+        f.LocalPath().endswith(('test.cc', '_win.cc', '_win.h')) or
+        '/win/' in f.LocalPath()):
       continue
 
     allowWString = False
@@ -1619,17 +1622,21 @@ def GetDefaultTryConfigs(bots=None):
       'linux_chromium_gn_dbg': ['compile'],
       'linux_chromium_gn_rel': ['defaulttests'],
       'linux_chromium_rel': ['defaulttests'],
+      'linux_chromium_rel_ng': ['defaulttests'],
       'linux_chromium_clang_dbg': ['defaulttests'],
       'linux_gpu': ['defaulttests'],
       'linux_nacl_sdk_build': ['compile'],
       'mac_chromium_compile_dbg': ['defaulttests'],
       'mac_chromium_rel': ['defaulttests'],
+      'mac_chromium_rel_ng': ['defaulttests'],
       'mac_gpu': ['defaulttests'],
       'mac_nacl_sdk_build': ['compile'],
       'win_chromium_compile_dbg': ['defaulttests'],
       'win_chromium_dbg': ['defaulttests'],
       'win_chromium_rel': ['defaulttests'],
+      'win_chromium_rel_ng': ['defaulttests'],
       'win_chromium_x64_rel': ['defaulttests'],
+      'win_chromium_x64_rel_ng': ['defaulttests'],
       'win_gpu': ['defaulttests'],
       'win_nacl_sdk_build': ['compile'],
       'win8_chromium_rel': ['defaulttests'],
@@ -1679,12 +1686,12 @@ def GetPreferredTryMasters(project, change):
   if all(re.search(r'\.(m|mm)$|(^|[\\\/_])mac[\\\/_.]', f) for f in files):
     return GetDefaultTryConfigs([
         'mac_chromium_compile_dbg',
-        'mac_chromium_rel',
+        'mac_chromium_rel_ng',
     ])
   if all(re.search('(^|[/_])win[/_.]', f) for f in files):
     return GetDefaultTryConfigs([
         'win_chromium_dbg',
-        'win_chromium_rel',
+        'win_chromium_rel_ng',
         'win8_chromium_rel',
     ])
   if all(re.search(r'(^|[\\\/_])android[\\\/_.]', f) for f in files):
@@ -1707,17 +1714,16 @@ def GetPreferredTryMasters(project, change):
       'ios_rel_device',
       'ios_rel_device_ninja',
       'linux_chromium_chromeos_rel',
-      'linux_chromium_clang_dbg',
       'linux_chromium_gn_dbg',
       'linux_chromium_gn_rel',
-      'linux_chromium_rel',
+      'linux_chromium_rel_ng',
       'linux_gpu',
       'mac_chromium_compile_dbg',
-      'mac_chromium_rel',
+      'mac_chromium_rel_ng',
       'mac_gpu',
       'win_chromium_compile_dbg',
-      'win_chromium_rel',
-      'win_chromium_x64_rel',
+      'win_chromium_rel_ng',
+      'win_chromium_x64_rel_ng',
       'win_gpu',
       'win8_chromium_rel',
   ]
@@ -1727,7 +1733,6 @@ def GetPreferredTryMasters(project, change):
   if any(re.search(r'[\\\/_](aura|chromeos)', f) for f in files):
     builders.extend([
         'linux_chromeos_asan',
-        'linux_chromium_chromeos_clang_dbg'
     ])
 
   # If there are gyp changes to base, build, or chromeos, run a full cros build

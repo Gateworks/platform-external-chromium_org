@@ -4,6 +4,7 @@
 
 #include "cc/trees/layer_tree_host_impl.h"
 
+#include <algorithm>
 #include <cmath>
 
 #include "base/bind.h"
@@ -46,7 +47,6 @@
 #include "cc/test/fake_picture_layer_impl.h"
 #include "cc/test/fake_picture_pile_impl.h"
 #include "cc/test/fake_proxy.h"
-#include "cc/test/fake_rendering_stats_instrumentation.h"
 #include "cc/test/fake_video_frame_provider.h"
 #include "cc/test/geometry_test_utils.h"
 #include "cc/test/layer_test_common.h"
@@ -2374,28 +2374,6 @@ class LayerTreeHostImplTopControlsTest : public LayerTreeHostImplTest {
   LayerTreeSettings settings_;
 };  // class LayerTreeHostImplTopControlsTest
 
-TEST_F(LayerTreeHostImplTopControlsTest,
-       TopControlsDeltaOnlySentWithRootLayer) {
-  CreateHostImpl(settings_, CreateOutputSurface());
-
-  host_impl_->active_tree()->set_top_controls_delta(-20.f);
-
-  // Because LTH::ApplyScrollAndScale doesn't know what to do with a scroll
-  // delta packet when the root layer doesn't exist yet, make sure not to set
-  // sent_top_controls_delta either to avoid the delta getting clobbered on the
-  // next commit.
-  scoped_ptr<ScrollAndScaleSet> scroll_info = host_impl_->ProcessScrollDeltas();
-  EXPECT_EQ(scroll_info->top_controls_delta, 0.f);
-  EXPECT_EQ(host_impl_->active_tree()->sent_top_controls_delta(), 0.f);
-
-  SetupTopControlsAndScrollLayer();
-
-  // After the root layer exists, it should be set normally.
-  scroll_info = host_impl_->ProcessScrollDeltas();
-  EXPECT_EQ(scroll_info->top_controls_delta, -20.f);
-  EXPECT_EQ(host_impl_->active_tree()->sent_top_controls_delta(), -20.f);
-}
-
 TEST_F(LayerTreeHostImplTopControlsTest, ScrollTopControlsByFractionalAmount) {
   SetupTopControlsAndScrollLayerWithVirtualViewport(
       gfx::Size(10, 10), gfx::Size(10, 10), gfx::Size(10, 10));
@@ -4427,7 +4405,7 @@ class LayerTreeHostImplViewportCoveredTest : public LayerTreeHostImplTest {
   size_t CountGutterQuads(const QuadList& quad_list) {
     size_t num_gutter_quads = 0;
     for (const auto& quad : quad_list) {
-      num_gutter_quads += (quad.material == gutter_quad_material_) ? 1 : 0;
+      num_gutter_quads += (quad->material == gutter_quad_material_) ? 1 : 0;
     }
     return num_gutter_quads;
   }
@@ -4440,10 +4418,9 @@ class LayerTreeHostImplViewportCoveredTest : public LayerTreeHostImplTest {
   // Make sure that the texture coordinates match their expectations.
   void ValidateTextureDrawQuads(const QuadList& quad_list) {
     for (const auto& quad : quad_list) {
-      if (quad.material != DrawQuad::TEXTURE_CONTENT)
+      if (quad->material != DrawQuad::TEXTURE_CONTENT)
         continue;
-      const TextureDrawQuad* texture_quad =
-          TextureDrawQuad::MaterialCast(&quad);
+      const TextureDrawQuad* texture_quad = TextureDrawQuad::MaterialCast(quad);
       gfx::SizeF gutter_texture_size_pixels = gfx::ScaleSize(
           gutter_texture_size_, host_impl_->device_scale_factor());
       EXPECT_EQ(texture_quad->uv_top_left.x(),
@@ -7443,47 +7420,64 @@ TEST_F(LayerTreeHostImplTest, ScrollAnimated) {
 
 TEST_F(LayerTreeHostImplTest, GetPictureLayerImplPairs) {
   host_impl_->CreatePendingTree();
-  host_impl_->ActivateSyncTree();
-  host_impl_->CreatePendingTree();
+  host_impl_->pending_tree()->SetRootLayer(
+      PictureLayerImpl::Create(host_impl_->pending_tree(), 10));
 
-  LayerTreeImpl* active_tree = host_impl_->active_tree();
   LayerTreeImpl* pending_tree = host_impl_->pending_tree();
-  EXPECT_NE(active_tree, pending_tree);
-
-  scoped_ptr<FakePictureLayerImpl> active_layer =
-      FakePictureLayerImpl::Create(active_tree, 10);
-  scoped_ptr<FakePictureLayerImpl> pending_layer =
-      FakePictureLayerImpl::Create(pending_tree, 10);
+  LayerImpl* pending_layer = pending_tree->root_layer();
 
   std::vector<PictureLayerImpl::Pair> layer_pairs;
   host_impl_->GetPictureLayerImplPairs(&layer_pairs);
+  EXPECT_EQ(1u, layer_pairs.size());
+  EXPECT_EQ(pending_layer, layer_pairs[0].pending);
+  EXPECT_EQ(nullptr, layer_pairs[0].active);
 
-  EXPECT_EQ(2u, layer_pairs.size());
-  if (layer_pairs[0].active) {
-    EXPECT_EQ(active_layer.get(), layer_pairs[0].active);
-    EXPECT_EQ(NULL, layer_pairs[0].pending);
-  } else {
-    EXPECT_EQ(pending_layer.get(), layer_pairs[0].pending);
-    EXPECT_EQ(NULL, layer_pairs[0].active);
-  }
+  host_impl_->ActivateSyncTree();
 
-  if (layer_pairs[1].active) {
-    EXPECT_EQ(active_layer.get(), layer_pairs[1].active);
-    EXPECT_EQ(NULL, layer_pairs[1].pending);
-  } else {
-    EXPECT_EQ(pending_layer.get(), layer_pairs[1].pending);
-    EXPECT_EQ(NULL, layer_pairs[1].active);
-  }
+  LayerTreeImpl* active_tree = host_impl_->active_tree();
+  LayerImpl* active_layer = active_tree->root_layer();
+  EXPECT_NE(active_tree, pending_tree);
+  EXPECT_NE(active_layer, pending_layer);
+  EXPECT_NE(nullptr, active_tree);
+  EXPECT_NE(nullptr, active_layer);
 
-  active_layer->set_twin_layer(pending_layer.get());
-  pending_layer->set_twin_layer(active_layer.get());
+  host_impl_->CreatePendingTree();
 
   layer_pairs.clear();
   host_impl_->GetPictureLayerImplPairs(&layer_pairs);
   EXPECT_EQ(1u, layer_pairs.size());
+  EXPECT_EQ(active_layer, layer_pairs[0].active);
+  EXPECT_EQ(pending_layer, layer_pairs[0].pending);
 
-  EXPECT_EQ(active_layer.get(), layer_pairs[0].active);
-  EXPECT_EQ(pending_layer.get(), layer_pairs[0].pending);
+  // Activate, the active layer has no twin now.
+  host_impl_->ActivateSyncTree();
+
+  layer_pairs.clear();
+  host_impl_->GetPictureLayerImplPairs(&layer_pairs);
+  EXPECT_EQ(1u, layer_pairs.size());
+  EXPECT_EQ(active_layer, layer_pairs[0].active);
+  EXPECT_EQ(nullptr, layer_pairs[0].pending);
+
+  // Create another layer in the pending tree that's not in the active tree. We
+  // should get two pairs.
+  host_impl_->CreatePendingTree();
+  host_impl_->pending_tree()->root_layer()->AddChild(
+      PictureLayerImpl::Create(host_impl_->pending_tree(), 11));
+
+  LayerImpl* new_pending_layer = pending_tree->root_layer()->children()[0];
+
+  layer_pairs.clear();
+  host_impl_->GetPictureLayerImplPairs(&layer_pairs);
+  EXPECT_EQ(2u, layer_pairs.size());
+
+  // The pair ordering is flaky, so make it consistent.
+  if (layer_pairs[0].active != active_layer)
+    std::swap(layer_pairs[0], layer_pairs[1]);
+
+  EXPECT_EQ(active_layer, layer_pairs[0].active);
+  EXPECT_EQ(pending_layer, layer_pairs[0].pending);
+  EXPECT_EQ(new_pending_layer, layer_pairs[1].pending);
+  EXPECT_EQ(nullptr, layer_pairs[1].active);
 }
 
 TEST_F(LayerTreeHostImplTest, DidBecomeActive) {

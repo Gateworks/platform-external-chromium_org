@@ -32,16 +32,14 @@ bool PushMessagingDispatcher::OnMessageReceived(const IPC::Message& message) {
   IPC_BEGIN_MESSAGE_MAP(PushMessagingDispatcher, message)
     IPC_MESSAGE_HANDLER(PushMessagingMsg_RegisterSuccess, OnRegisterSuccess)
     IPC_MESSAGE_HANDLER(PushMessagingMsg_RegisterError, OnRegisterError)
+    IPC_MESSAGE_HANDLER(PushMessagingMsg_PermissionStatusResult,
+                        OnPermissionStatus)
+    IPC_MESSAGE_HANDLER(PushMessagingMsg_PermissionStatusFailure,
+                        OnPermissionStatusFailure)
+
     IPC_MESSAGE_UNHANDLED(handled = false)
   IPC_END_MESSAGE_MAP()
   return handled;
-}
-
-void PushMessagingDispatcher::registerPushMessaging(
-    const WebString& sender_id,
-    blink::WebPushRegistrationCallbacks* callbacks,
-    blink::WebServiceWorkerProvider* service_worker_provider) {
-  registerPushMessaging(callbacks, service_worker_provider);
 }
 
 void PushMessagingDispatcher::registerPushMessaging(
@@ -62,6 +60,14 @@ void PushMessagingDispatcher::DoRegister(
   int callbacks_id = registration_callbacks_.Add(callbacks);
   int service_worker_provider_id = static_cast<WebServiceWorkerProviderImpl*>(
                                        service_worker_provider)->provider_id();
+
+  std::string sender_id = manifest.gcm_sender_id.is_null()
+      ? std::string() : base::UTF16ToUTF8(manifest.gcm_sender_id.string());
+  if (sender_id.empty()) {
+    OnRegisterError(callbacks_id, PUSH_REGISTRATION_STATUS_NO_SENDER_ID);
+    return;
+  }
+
   Send(new PushMessagingHostMsg_Register(
       routing_id(),
       callbacks_id,
@@ -70,6 +76,16 @@ void PushMessagingDispatcher::DoRegister(
           : base::UTF16ToUTF8(manifest.gcm_sender_id.string()),
       blink::WebUserGestureIndicator::isProcessingUserGesture(),
       service_worker_provider_id));
+}
+
+void PushMessagingDispatcher::getPermissionStatus(
+    blink::WebPushPermissionCallback* callback,
+    blink::WebServiceWorkerProvider* service_worker_provider) {
+  int permission_callback_id = permission_check_callbacks_.Add(callback);
+  int service_worker_provider_id = static_cast<WebServiceWorkerProviderImpl*>(
+                                       service_worker_provider)->provider_id();
+  Send(new PushMessagingHostMsg_PermissionStatus(
+      routing_id(), service_worker_provider_id, permission_callback_id));
 }
 
 void PushMessagingDispatcher::OnRegisterSuccess(
@@ -99,6 +115,22 @@ void PushMessagingDispatcher::OnRegisterError(int32 callbacks_id,
       WebString::fromUTF8(PushRegistrationStatusToString(status))));
   callbacks->onError(error.release());
   registration_callbacks_.Remove(callbacks_id);
+}
+
+void PushMessagingDispatcher::OnPermissionStatus(
+    int32 callback_id,
+    blink::WebPushPermissionStatus status) {
+  blink::WebPushPermissionCallback* callback =
+      permission_check_callbacks_.Lookup(callback_id);
+  callback->onSuccess(&status);
+  permission_check_callbacks_.Remove(callback_id);
+}
+
+void PushMessagingDispatcher::OnPermissionStatusFailure(int32 callback_id) {
+  blink::WebPushPermissionCallback* callback =
+       permission_check_callbacks_.Lookup(callback_id);
+  callback->onError();
+  permission_check_callbacks_.Remove(callback_id);
 }
 
 }  // namespace content

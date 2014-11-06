@@ -4,6 +4,8 @@
 
 #include "components/variations/net/variations_http_header_provider.h"
 
+#include <set>
+#include <string>
 #include <vector>
 
 #include "base/base64.h"
@@ -36,6 +38,9 @@ const char* kSuffixesToSetHeadersFor[] = {
   ".ytimg.com",
 };
 
+const char kChromeUMAEnabled[] = "X-Chrome-UMA-Enabled";
+const char kClientData[] = "X-Client-Data";
+
 }  // namespace
 
 VariationsHttpHeaderProvider* VariationsHttpHeaderProvider::GetInstance() {
@@ -61,7 +66,7 @@ void VariationsHttpHeaderProvider::AppendHeaders(
     return;
 
   if (uma_enabled)
-    headers->SetHeaderIfMissing("X-Chrome-UMA-Enabled", "1");
+    headers->SetHeaderIfMissing(kChromeUMAEnabled, "1");
 
   // Lazily initialize the header, if not already done, before attempting to
   // transmit it.
@@ -75,8 +80,7 @@ void VariationsHttpHeaderProvider::AppendHeaders(
 
   if (!variation_ids_header_copy.empty()) {
     // Note that prior to M33 this header was named X-Chrome-Variations.
-    headers->SetHeaderIfMissing("X-Client-Data",
-                                variation_ids_header_copy);
+    headers->SetHeaderIfMissing(kClientData, variation_ids_header_copy);
   }
 }
 
@@ -137,6 +141,20 @@ void VariationsHttpHeaderProvider::OnFieldTrialGroupFinalized(
   UpdateVariationIDsHeaderValue();
 }
 
+void VariationsHttpHeaderProvider::OnSyntheticTrialsChanged(
+    const std::vector<metrics::SyntheticTrialGroup>& groups) {
+  base::AutoLock scoped_lock(lock_);
+
+  synthetic_variation_ids_set_.clear();
+  for (const metrics::SyntheticTrialGroup& group : groups) {
+    const VariationID id =
+        GetGoogleVariationIDFromHashes(GOOGLE_WEB_PROPERTIES, group.id);
+    if (id != EMPTY_ID)
+      synthetic_variation_ids_set_.insert(id);
+  }
+  UpdateVariationIDsHeaderValue();
+}
+
 void VariationsHttpHeaderProvider::InitVariationIDsCacheIfNeeded() {
   base::AutoLock scoped_lock(lock_);
   if (variation_ids_cache_initialized_)
@@ -186,7 +204,8 @@ void VariationsHttpHeaderProvider::UpdateVariationIDsHeaderValue() {
   variation_ids_header_.clear();
 
   if (variation_ids_set_.empty() && default_variation_ids_set_.empty() &&
-      variation_trigger_ids_set_.empty() && default_trigger_id_set_.empty()) {
+      variation_trigger_ids_set_.empty() && default_trigger_id_set_.empty() &&
+      synthetic_variation_ids_set_.empty()) {
     return;
   }
 
@@ -203,26 +222,20 @@ void VariationsHttpHeaderProvider::UpdateVariationIDsHeaderValue() {
 
   // Merge the two sets of experiment ids.
   std::set<VariationID> all_variation_ids_set = default_variation_ids_set_;
-  for (std::set<VariationID>::const_iterator it = variation_ids_set_.begin();
-       it != variation_ids_set_.end(); ++it) {
-    all_variation_ids_set.insert(*it);
-  }
-  ClientVariations proto;
-  for (std::set<VariationID>::const_iterator it = all_variation_ids_set.begin();
-       it != all_variation_ids_set.end(); ++it) {
-    proto.add_variation_id(*it);
-  }
+  for (VariationID id : variation_ids_set_)
+    all_variation_ids_set.insert(id);
+  for (VariationID id : synthetic_variation_ids_set_)
+    all_variation_ids_set.insert(id);
 
   std::set<VariationID> all_trigger_ids_set = default_trigger_id_set_;
-  for (std::set<VariationID>::const_iterator it =
-           variation_trigger_ids_set_.begin();
-       it != variation_trigger_ids_set_.end(); ++it) {
-    all_trigger_ids_set.insert(*it);
-  }
-  for (std::set<VariationID>::const_iterator it = all_trigger_ids_set.begin();
-       it != all_trigger_ids_set.end(); ++it) {
-    proto.add_trigger_variation_id(*it);
-  }
+  for (VariationID id : variation_trigger_ids_set_)
+    all_trigger_ids_set.insert(id);
+
+  ClientVariations proto;
+  for (VariationID id : all_variation_ids_set)
+    proto.add_variation_id(id);
+  for (VariationID id : all_trigger_ids_set)
+    proto.add_trigger_variation_id(id);
 
   std::string serialized;
   proto.SerializeToString(&serialized);
@@ -256,6 +269,14 @@ bool VariationsHttpHeaderProvider::ShouldAppendHeaders(const GURL& url) {
 
   return google_util::IsYoutubeDomainUrl(url, google_util::ALLOW_SUBDOMAIN,
                                          google_util::ALLOW_NON_STANDARD_PORTS);
+}
+
+std::set<std::string> VariationsHttpHeaderProvider::GetVariationHeaderNames()
+    const {
+  std::set<std::string> headers;
+  headers.insert(kChromeUMAEnabled);
+  headers.insert(kClientData);
+  return headers;
 }
 
 }  // namespace variations

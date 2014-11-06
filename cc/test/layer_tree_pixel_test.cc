@@ -51,8 +51,9 @@ scoped_ptr<OutputSurface> LayerTreePixelTest::CreateOutputSurface(
       break;
     }
     case PIXEL_TEST_GL: {
-      output_surface = make_scoped_ptr(
-          new PixelTestOutputSurface(new TestInProcessContextProvider));
+      bool flipped_output_surface = false;
+      output_surface = make_scoped_ptr(new PixelTestOutputSurface(
+          new TestInProcessContextProvider, flipped_output_surface));
       break;
     }
   }
@@ -197,7 +198,20 @@ void LayerTreePixelTest::RunPixelTest(
   content_root_ = content_root;
   readback_target_ = NULL;
   ref_file_ = file_name;
-  RunTest(true, false, impl_side_painting_);
+  bool threaded = true;
+  RunTest(threaded, false, impl_side_painting_);
+}
+
+void LayerTreePixelTest::RunSingleThreadedPixelTest(
+    PixelTestType test_type,
+    scoped_refptr<Layer> content_root,
+    base::FilePath file_name) {
+  test_type_ = test_type;
+  content_root_ = content_root;
+  readback_target_ = NULL;
+  ref_file_ = file_name;
+  bool threaded = false;
+  RunTest(threaded, false, impl_side_painting_);
 }
 
 void LayerTreePixelTest::RunPixelTestWithReadbackTarget(

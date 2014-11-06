@@ -5,23 +5,25 @@
 #ifndef CONTENT_CHILD_CHILD_GPU_MEMORY_BUFFER_MANAGER_H_
 #define CONTENT_CHILD_CHILD_GPU_MEMORY_BUFFER_MANAGER_H_
 
-#include "cc/resources/gpu_memory_buffer_manager.h"
 #include "content/child/thread_safe_sender.h"
+#include "gpu/command_buffer/client/gpu_memory_buffer_manager.h"
 
 namespace content {
 
-class ChildGpuMemoryBufferManager : public cc::GpuMemoryBufferManager {
+class ChildGpuMemoryBufferManager : public gpu::GpuMemoryBufferManager {
  public:
-  ChildGpuMemoryBufferManager(ThreadSafeSender* sender);
+  explicit ChildGpuMemoryBufferManager(ThreadSafeSender* sender);
   ~ChildGpuMemoryBufferManager() override;
 
-  // Overridden from cc::GpuMemoryBufferManager:
+  // Overridden from gpu::GpuMemoryBufferManager:
   scoped_ptr<gfx::GpuMemoryBuffer> AllocateGpuMemoryBuffer(
       const gfx::Size& size,
       gfx::GpuMemoryBuffer::Format format,
       gfx::GpuMemoryBuffer::Usage usage) override;
   gfx::GpuMemoryBuffer* GpuMemoryBufferFromClientBuffer(
       ClientBuffer buffer) override;
+  void SetDestructionSyncPoint(gfx::GpuMemoryBuffer* buffer,
+                               uint32 sync_point) override;
 
  private:
   scoped_refptr<ThreadSafeSender> sender_;

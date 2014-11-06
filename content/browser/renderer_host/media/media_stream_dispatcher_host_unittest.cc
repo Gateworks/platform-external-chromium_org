@@ -234,6 +234,11 @@ class MediaStreamDispatcherHostTest : public testing::Test {
             media_stream_manager_->video_capture_manager()
             ->video_capture_device_factory());
     DCHECK(video_capture_device_factory_);
+#if defined(OS_WIN)
+    // Override the Video Capture Thread that MediaStreamManager constructs.
+    media_stream_manager_->video_capture_manager()->set_device_task_runner(
+        base::MessageLoopProxy::current());
+#endif
 
     MockResourceContext* mock_resource_context =
         static_cast<MockResourceContext*>(
@@ -254,13 +259,13 @@ class MediaStreamDispatcherHostTest : public testing::Test {
 #endif
   }
 
-  virtual ~MediaStreamDispatcherHostTest() {
+  ~MediaStreamDispatcherHostTest() override {
 #if defined(OS_CHROMEOS)
     chromeos::CrasAudioHandler::Shutdown();
 #endif
   }
 
-  virtual void SetUp() override {
+  void SetUp() override {
     video_capture_device_factory_->GetDeviceNames(&physical_video_devices_);
     ASSERT_GT(physical_video_devices_.size(), 0u);
 
@@ -269,9 +274,7 @@ class MediaStreamDispatcherHostTest : public testing::Test {
     ASSERT_GT(physical_audio_devices_.size(), 0u);
   }
 
-  virtual void TearDown() override {
-    host_->OnChannelClosing();
-  }
+  void TearDown() override { host_->OnChannelClosing(); }
 
  protected:
   virtual void SetupFakeUI(bool expect_started) {

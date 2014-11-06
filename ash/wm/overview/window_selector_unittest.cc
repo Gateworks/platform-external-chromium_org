@@ -56,9 +56,7 @@ namespace {
 class NonActivatableActivationDelegate
     : public aura::client::ActivationDelegate {
  public:
-  virtual bool ShouldActivate() const override {
-    return false;
-  }
+  bool ShouldActivate() const override { return false; }
 };
 
 void CancelDrag(DragDropController* controller, bool* canceled) {
@@ -73,9 +71,9 @@ void CancelDrag(DragDropController* controller, bool* canceled) {
 class WindowSelectorTest : public test::AshTestBase {
  public:
   WindowSelectorTest() {}
-  virtual ~WindowSelectorTest() {}
+  ~WindowSelectorTest() override {}
 
-  virtual void SetUp() override {
+  void SetUp() override {
     test::AshTestBase::SetUp();
     ASSERT_TRUE(test::TestShelfDelegate::instance());
 
@@ -270,10 +268,10 @@ TEST_F(WindowSelectorTest, A11yAlertOnOverviewMode) {
       ash::Shell::GetInstance()->accessibility_delegate();
   scoped_ptr<aura::Window> window1(CreateWindow(bounds));
   EXPECT_NE(delegate->GetLastAccessibilityAlert(),
-            A11Y_ALERT_WINDOW_OVERVIEW_MODE_ENTERED);
+            ui::A11Y_ALERT_WINDOW_OVERVIEW_MODE_ENTERED);
   ToggleOverview();
   EXPECT_EQ(delegate->GetLastAccessibilityAlert(),
-            A11Y_ALERT_WINDOW_OVERVIEW_MODE_ENTERED);
+            ui::A11Y_ALERT_WINDOW_OVERVIEW_MODE_ENTERED);
 }
 
 // Tests entering overview mode with two windows and selecting one by clicking.

@@ -47,6 +47,10 @@
         '../components/components.gyp:url_matcher',
         '../content/content.gyp:content_common',
         '../crypto/crypto.gyp:crypto',
+        '../device/bluetooth/bluetooth.gyp:device_bluetooth',
+        # For Mojo generated headers for generated_api.cc.
+        '../device/serial/serial.gyp:device_serial_mojo',
+        '../device/usb/usb.gyp:device_usb',
         '../ipc/ipc.gyp:ipc',
         '../net/net.gyp:net',
         '../third_party/re2/re2.gyp:re2',
@@ -55,6 +59,7 @@
         '../ui/gfx/ipc/gfx_ipc.gyp:gfx_ipc',
         '../url/url.gyp:url_lib',
         '../third_party/libxml/libxml.gyp:libxml',
+        'common/api/api.gyp:extensions_api',
         'extensions_resources.gyp:extensions_resources',
         'extensions_strings.gyp:extensions_strings',
         'extensions_common_constants',
@@ -258,36 +263,6 @@
       # Disable c4267 warnings until we fix size_t to int truncations.
       'msvs_disabled_warnings': [ 4267, ],
       'conditions': [
-        ['enable_extensions==1', {
-          'dependencies': [
-            'common/api/api.gyp:extensions_api',
-            '../device/bluetooth/bluetooth.gyp:device_bluetooth',
-            # For Mojo generated headers for generated_api.cc.
-            '../device/serial/serial.gyp:device_serial_mojo',
-            '../device/usb/usb.gyp:device_usb',
-          ],
-        }, {  # enable_extensions == 0
-          'sources!': [
-            'common/api/bluetooth/bluetooth_manifest_data.cc',
-            'common/api/bluetooth/bluetooth_manifest_data.h',
-            'common/api/bluetooth/bluetooth_manifest_handler.cc',
-            'common/api/bluetooth/bluetooth_manifest_handler.h',
-            'common/api/bluetooth/bluetooth_manifest_permission.cc',
-            'common/api/bluetooth/bluetooth_manifest_permission.h',
-            'common/api/messaging/message.h',
-            'common/api/sockets/sockets_manifest_data.cc',
-            'common/api/sockets/sockets_manifest_data.h',
-            'common/api/sockets/sockets_manifest_handler.cc',
-            'common/api/sockets/sockets_manifest_handler.h',
-            'common/api/sockets/sockets_manifest_permission.cc',
-            'common/api/sockets/sockets_manifest_permission.h',
-            'common/extension_api.cc',
-            'common/manifest_handlers/externally_connectable.cc',
-            'common/manifest_handlers/externally_connectable.h',
-            'common/manifest_handlers/options_page_info.cc',
-            'common/manifest_handlers/options_page_info.h',
-          ],
-        }],
         ['disable_nacl==0', {
           # NaClModulesHandler does not use any code in NaCl, so no dependency
           # on nacl_common.
@@ -350,8 +325,6 @@
         'browser/api/app_view/app_view_guest_internal_api.h',
         'browser/api/app_window/app_window_api.cc',
         'browser/api/app_window/app_window_api.h',
-        'browser/api/guest_view/guest_view_internal_api.cc',
-        'browser/api/guest_view/guest_view_internal_api.h',
         'browser/api/async_api_function.cc',
         'browser/api/async_api_function.h',
         'browser/api/bluetooth/bluetooth_api.cc',
@@ -384,6 +357,8 @@
         'browser/api/bluetooth_socket/bluetooth_socket_event_dispatcher.h',
         'browser/api/capture_web_contents_function.cc',
         'browser/api/capture_web_contents_function.h',
+        'browser/api/cast_channel/cast_auth_ica.cc',
+        'browser/api/cast_channel/cast_auth_ica.h',
         'browser/api/cast_channel/cast_auth_util.cc',
         'browser/api/cast_channel/cast_auth_util.h',
         'browser/api/cast_channel/cast_channel_api.cc',
@@ -404,6 +379,8 @@
         'browser/api/cast_channel/logger_util.h',
         'browser/api/copresence_socket/copresence_socket_api.cc',
         'browser/api/copresence_socket/copresence_socket_api.h',
+        'browser/api/copresence_socket/copresence_socket_resources.cc',
+        'browser/api/copresence_socket/copresence_socket_resources.h',
         'browser/api/declarative/deduping_factory.h',
         'browser/api/declarative/declarative_api.cc',
         'browser/api/declarative/declarative_api.h',
@@ -441,12 +418,19 @@
         'browser/api/execute_code_function.h',
         'browser/api/extensions_api_client.cc',
         'browser/api/extensions_api_client.h',
+        'browser/api/guest_view/guest_view_internal_api.cc',
+        'browser/api/guest_view/guest_view_internal_api.h',
         'browser/api/hid/hid_api.cc',
         'browser/api/hid/hid_api.h',
         'browser/api/hid/hid_connection_resource.cc',
         'browser/api/hid/hid_connection_resource.h',
         'browser/api/hid/hid_device_manager.cc',
         'browser/api/hid/hid_device_manager.h',
+        'browser/api/management/management_api.cc',
+        'browser/api/management/management_api.h',
+        'browser/api/management/management_api_delegate.h',
+        'browser/api/management/management_api_constants.cc',
+        'browser/api/management/management_api_constants.h',
         'browser/api/messaging/native_message_host.cc',
         'browser/api/power/power_api.cc',
         'browser/api/power/power_api.h',
@@ -533,6 +517,11 @@
         'browser/api/usb/usb_api.h',
         'browser/api/usb/usb_device_resource.cc',
         'browser/api/usb/usb_device_resource.h',
+        'browser/api/virtual_keyboard_private/virtual_keyboard_private_api.cc',
+        'browser/api/virtual_keyboard_private/virtual_keyboard_private_api.h',
+        'browser/api/virtual_keyboard_private/virtual_keyboard_delegate.h',
+        'browser/api/vpn_provider/vpn_provider_api.cc',
+        'browser/api/vpn_provider/vpn_provider_api.h',
         'browser/api/web_request/form_data_parser.cc',
         'browser/api/web_request/form_data_parser.h',
         'browser/api/web_request/upload_data_presenter.cc',
@@ -551,6 +540,8 @@
         'browser/api/web_request/web_request_time_tracker.h',
         'browser/api/web_view/web_view_internal_api.cc',
         'browser/api/web_view/web_view_internal_api.h',
+        'browser/api/webcam_private/webcam_private_api.h',
+        'browser/api/webcam_private/webcam_private_api_chromeos.cc',
         'browser/api_activity_monitor.h',
         'browser/app_sorting.h',
         'browser/app_window/app_delegate.h',
@@ -721,6 +712,8 @@
         'browser/process_manager.cc',
         'browser/process_manager.h',
         'browser/process_manager_delegate.h',
+        'browser/process_manager_factory.cc',
+        'browser/process_manager_factory.h',
         'browser/process_manager_observer.h',
         'browser/process_map.cc',
         'browser/process_map.h',
@@ -774,44 +767,44 @@
         'browser/view_type_utils.h',
         'browser/warning_service.cc',
         'browser/warning_service.h',
+        'browser/warning_service_factory.cc',
+        'browser/warning_service_factory.h',
         'browser/warning_set.cc',
         'browser/warning_set.h',
       ],
       'conditions': [
-        ['enable_extensions==0', {
-          # Exclude all API implementations and the ExtensionsApiClient
-          # interface. Moving an API from src/chrome to src/extensions implies
-          # it can be cleanly disabled with enable_extensions==0.
-          # TODO: Eventually the entire extensions module should not be built
-          # when enable_extensions==0.
-          'sources/': [
-            ['exclude', '^browser/'],
-          ],
+        # This condition exists only because the extensions_common_constants
+        # target is always built and thus this file gets evaluated by GYP.
+        # This does not need to be replicated into extensions/browser/BUILD.gn.
+        ['OS == "ios" or OS == "android"', {
           'dependencies!': [
             '../components/components.gyp:storage_monitor',
-            '../device/bluetooth/bluetooth.gyp:device_bluetooth',
-            '../device/serial/serial.gyp:device_serial',
           ],
         }],
         ['use_openssl==1', {
           'sources': [
             'browser/api/cast_channel/cast_auth_util_openssl.cc',
           ],
+          'dependencies': [
+            '../third_party/boringssl/boringssl.gyp:boringssl',
+          ],
         }, {
           'sources': [
             # cast_auth_util_nss.cc uses NSS functions.
             'browser/api/cast_channel/cast_auth_util_nss.cc',
           ],
-        }],
-        ['os_posix == 1 and OS != "mac" and OS != "ios" and OS != "android"', {
-          'dependencies': [
-            '../build/linux/system.gyp:ssl',
-          ],
-        }],
-        ['OS == "mac" or OS == "ios" or OS == "win"', {
-          'dependencies': [
-            '../third_party/nss/nss.gyp:nspr',
-            '../third_party/nss/nss.gyp:nss',
+          'conditions': [
+            ['os_posix == 1 and OS != "mac" and OS != "ios" and OS != "android"', {
+              'dependencies': [
+                '../build/linux/system.gyp:ssl',
+              ],
+            }],
+            ['OS == "mac" or OS == "ios" or OS == "win"', {
+              'dependencies': [
+                '../third_party/nss/nss.gyp:nspr',
+                '../third_party/nss/nss.gyp:nss',
+              ],
+            }],
           ],
         }],
       ],
@@ -836,6 +829,8 @@
         # Note: sources list duplicated in GN build.
         'renderer/activity_log_converter_strategy.cc',
         'renderer/activity_log_converter_strategy.h',
+        'renderer/api/automation/automation_api_helper.cc',
+        'renderer/api/automation/automation_api_helper.h',
         'renderer/api_activity_logger.cc',
         'renderer/api_activity_logger.h',
         'renderer/api_definitions_natives.cc',
@@ -1023,6 +1018,8 @@
         'browser/guest_view/test_guest_view_manager.h',
         'browser/mock_extension_system.cc',
         'browser/mock_extension_system.h',
+        'browser/test_extension_registry_observer.cc',
+        'browser/test_extension_registry_observer.h',
         'browser/test_extensions_browser_client.cc',
         'browser/test_extensions_browser_client.h',
         'browser/test_management_policy.cc',
@@ -1047,6 +1044,8 @@
         'test/test_extensions_client.h',
         'test/test_permission_message_provider.cc',
         'test/test_permission_message_provider.h',
+        'test/test_service_registration_manager.cc',
+        'test/test_service_registration_manager.h',
       ],
       # Disable c4267 warnings until we fix size_t to int truncations.
       'msvs_disabled_warnings': [ 4267, ],
@@ -1059,11 +1058,10 @@
       'target_name': 'extensions_shell_and_test_pak',
       'type': 'none',
       'dependencies': [
-        # Need dev-tools related resources in shell_resources.pak and
-        # devtools_resources.pak.
         '../content/browser/devtools/devtools_resources.gyp:devtools_resources',
         '../content/content.gyp:content_resources',
         '../content/content_shell_and_tests.gyp:content_shell_resources',
+        '../third_party/WebKit/public/blink_resources.gyp:blink_resources',
         '../ui/resources/ui_resources.gyp:ui_resources',
         '../ui/strings/ui_strings.gyp:ui_strings',
         'extensions_resources.gyp:extensions_resources',
@@ -1075,6 +1073,7 @@
           'action_name': 'repack_extensions_shell_and_test_pak',
           'variables': {
             'pak_inputs': [
+              '<(SHARED_INTERMEDIATE_DIR)/blink/public/resources/blink_resources.pak',
               '<(SHARED_INTERMEDIATE_DIR)/content/app/strings/content_strings_en-US.pak',
               '<(SHARED_INTERMEDIATE_DIR)/content/content_resources.pak',
               '<(SHARED_INTERMEDIATE_DIR)/content/shell_resources.pak',
@@ -1129,6 +1128,8 @@
       'sources': [
         'browser/api/api_resource_manager_unittest.cc',
         'browser/api/bluetooth/bluetooth_event_router_unittest.cc',
+        'browser/api/cast_channel/cast_auth_ica_unittest.cc',
+        'browser/api/cast_channel/cast_auth_util_unittest.cc',
         'browser/api/cast_channel/cast_channel_api_unittest.cc',
         'browser/api/cast_channel/cast_framer_unittest.cc',
         'browser/api/cast_channel/cast_socket_unittest.cc',
@@ -1212,6 +1213,7 @@
         'renderer/api_test_base_unittest.cc',
         'renderer/event_unittest.cc',
         'renderer/json_schema_unittest.cc',
+        'renderer/mojo/keep_alive_client_unittest.cc',
         'renderer/messaging_utils_unittest.cc',
         'renderer/module_system_test.cc',
         'renderer/module_system_test.h',

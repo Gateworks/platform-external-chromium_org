@@ -14,7 +14,6 @@
 #include "components/autofill/content/renderer/password_form_conversion_utils.h"
 #include "components/autofill/content/renderer/renderer_save_password_progress_logger.h"
 #include "components/autofill/core/common/form_field_data.h"
-#include "components/autofill/core/common/password_autofill_util.h"
 #include "components/autofill/core/common/password_form.h"
 #include "components/autofill/core/common/password_form_fill_data.h"
 #include "content/public/renderer/document_state.h"
@@ -185,14 +184,9 @@ bool DoUsernamesMatch(const base::string16& username1,
   return StartsWith(username1, username2, true);
 }
 
-// Returns |true| if the given element is both editable and has permission to be
-// autocompleted. The latter can be either because there is no
-// autocomplete='off' set for the element, or because the flag is set to ignore
-// autocomplete='off'. Otherwise, returns |false|.
+// Returns |true| if the given element is editable. Otherwise, returns |false|.
 bool IsElementAutocompletable(const blink::WebInputElement& element) {
-  return IsElementEditable(element) &&
-         (ShouldIgnoreAutocompleteOffForPasswordFields() ||
-          element.autoComplete());
+  return IsElementEditable(element);
 }
 
 // Returns true if the password specified in |form| is a default value.
@@ -240,45 +234,41 @@ bool FillDataContainsUsername(const PasswordFormFillData& fill_data) {
   return !fill_data.basic_data.fields[0].name.empty();
 }
 
-// This function attempts to fill |suggestions| and |realms| form |fill_data|
-// based on |current_username|. Returns true when |suggestions| gets filled
-// from |fill_data.other_possible_usernames|, else returns false.
-bool GetSuggestions(const PasswordFormFillData& fill_data,
-                    const base::string16& current_username,
-                    std::vector<base::string16>* suggestions,
-                    std::vector<base::string16>* realms,
-                    bool show_all) {
-  bool other_possible_username_shown = false;
-  if (show_all ||
-      StartsWith(
-          fill_data.basic_data.fields[0].value, current_username, false)) {
-    suggestions->push_back(fill_data.basic_data.fields[0].value);
-    realms->push_back(base::UTF8ToUTF16(fill_data.preferred_realm));
-  }
+// Sets |suggestions_present| to true if there are any suggestions to be derived
+// from |fill_data|. Unless |show_all| is true, only considers suggestions with
+// usernames having |current_username| as a prefix. Returns true if a username
+// from the |fill_data.other_possible_usernames| would be included in the
+// suggestions.
+bool GetSuggestionsStats(const PasswordFormFillData& fill_data,
+                         const base::string16& current_username,
+                         bool show_all,
+                         bool* suggestions_present) {
+  *suggestions_present = false;
 
-  for (PasswordFormFillData::LoginCollection::const_iterator iter =
-           fill_data.additional_logins.begin();
-       iter != fill_data.additional_logins.end();
-       ++iter) {
-    if (show_all || StartsWith(iter->first, current_username, false)) {
-      suggestions->push_back(iter->first);
-      realms->push_back(base::UTF8ToUTF16(iter->second.realm));
-    }
-  }
-
-  for (PasswordFormFillData::UsernamesCollection::const_iterator iter =
-           fill_data.other_possible_usernames.begin();
-       iter != fill_data.other_possible_usernames.end();
-       ++iter) {
-    for (size_t i = 0; i < iter->second.size(); ++i) {
-      if (show_all || StartsWith(iter->second[i], current_username, false)) {
-        other_possible_username_shown = true;
-        suggestions->push_back(iter->second[i]);
-        realms->push_back(base::UTF8ToUTF16(iter->first.realm));
+  for (const auto& usernames : fill_data.other_possible_usernames) {
+    for (size_t i = 0; i < usernames.second.size(); ++i) {
+      if (show_all ||
+          StartsWith(usernames.second[i], current_username, false)) {
+        *suggestions_present = true;
+        return true;
       }
     }
   }
-  return other_possible_username_shown;
+
+  if (show_all || StartsWith(fill_data.basic_data.fields[0].value,
+                             current_username, false)) {
+    *suggestions_present = true;
+    return false;
+  }
+
+  for (const auto& login : fill_data.additional_logins) {
+    if (show_all || StartsWith(login.first, current_username, false)) {
+      *suggestions_present = true;
+      return false;
+    }
+  }
+
+  return false;
 }
 
 // This function attempts to fill |username_element| and |password_element|
@@ -397,15 +387,11 @@ bool FillFormOnPasswordRecieved(
   if (password_element.document().frame()->parent())
     return false;
 
-  bool form_contains_username_field = FillDataContainsUsername(fill_data);
-  if (!ShouldIgnoreAutocompleteOffForPasswordFields() &&
-      form_contains_username_field && !username_element.form().autoComplete())
-    return false;
-
   // If we can't modify the password, don't try to set the username
   if (!IsElementAutocompletable(password_element))
     return false;
 
+  bool form_contains_username_field = FillDataContainsUsername(fill_data);
   // Try to set the username to the preferred name, but only if the field
   // can be set and isn't prefilled.
   if (form_contains_username_field &&
@@ -1016,6 +1002,7 @@ void PasswordAutofillAgent::DidStartProvisionalLoad(
 }
 
 void PasswordAutofillAgent::OnFillPasswordForm(
+    int key,
     const PasswordFormFillData& form_data) {
   if (usernames_usage_ == NOTHING_TO_AUTOFILL) {
     if (form_data.other_possible_usernames.size())
@@ -1072,16 +1059,7 @@ void PasswordAutofillAgent::OnFillPasswordForm(
     password_info.password_field = password_element;
     login_to_password_info_[username_element] = password_info;
     password_to_username_[password_element] = username_element;
-
-    FormData form;
-    FormFieldData field;
-    if (form_contains_username_field) {
-      FindFormAndFieldForFormControlElement(
-          username_element, &form, &field, REQUIRE_NONE);
-    }
-
-    Send(new AutofillHostMsg_AddPasswordFormMapping(
-        routing_id(), field, form_data));
+    login_to_password_info_key_[username_element] = key;
   }
 }
 
@@ -1108,15 +1086,6 @@ bool PasswordAutofillAgent::ShowSuggestionPopup(
   if (!webview)
     return false;
 
-  std::vector<base::string16> suggestions;
-  std::vector<base::string16> realms;
-  if (GetSuggestions(
-          fill_data, user_input.value(), &suggestions, &realms, show_all)) {
-    usernames_usage_ = OTHER_POSSIBLE_USERNAME_SHOWN;
-  }
-
-  DCHECK_EQ(suggestions.size(), realms.size());
-
   FormData form;
   FormFieldData field;
   FindFormAndFieldForFormControlElement(
@@ -1125,14 +1094,25 @@ bool PasswordAutofillAgent::ShowSuggestionPopup(
   blink::WebInputElement selected_element = user_input;
   gfx::Rect bounding_box(selected_element.boundsInViewportSpace());
 
+  LoginToPasswordInfoKeyMap::const_iterator key_it =
+      login_to_password_info_key_.find(user_input);
+  DCHECK(key_it != login_to_password_info_key_.end());
+
   float scale = web_view_->pageScaleFactor();
   gfx::RectF bounding_box_scaled(bounding_box.x() * scale,
                                  bounding_box.y() * scale,
                                  bounding_box.width() * scale,
                                  bounding_box.height() * scale);
   Send(new AutofillHostMsg_ShowPasswordSuggestions(
-      routing_id(), field, bounding_box_scaled, suggestions, realms));
-  return !suggestions.empty();
+      routing_id(), key_it->second, field.text_direction, user_input.value(),
+      show_all, bounding_box_scaled));
+
+  bool suggestions_present = false;
+  if (GetSuggestionsStats(fill_data, user_input.value(), show_all,
+                          &suggestions_present)) {
+    usernames_usage_ = OTHER_POSSIBLE_USERNAME_SHOWN;
+  }
+  return suggestions_present;
 }
 
 void PasswordAutofillAgent::PerformInlineAutocomplete(
@@ -1177,6 +1157,7 @@ void PasswordAutofillAgent::FrameClosing(const blink::WebFrame* frame) {
     // There may not be a username field, so get the frame from the password
     // field.
     if (iter->second.password_field.document().frame() == frame) {
+      login_to_password_info_key_.erase(iter->first);
       password_to_username_.erase(iter->second.password_field);
       login_to_password_info_.erase(iter++);
     } else {

@@ -26,12 +26,14 @@ GYP_COPIED_SOURCE_ORIGIN_DIRS :=
 
 LOCAL_SRC_FILES := \
 	ui/events/gesture_detection/filtered_gesture_provider.cc \
-	ui/events/gesture_detection/gesture_config_helper_android.cc \
+	ui/events/gesture_detection/gesture_configuration.cc \
+	ui/events/gesture_detection/gesture_configuration_android.cc \
 	ui/events/gesture_detection/gesture_detector.cc \
 	ui/events/gesture_detection/gesture_event_data.cc \
 	ui/events/gesture_detection/gesture_event_data_packet.cc \
 	ui/events/gesture_detection/gesture_listeners.cc \
 	ui/events/gesture_detection/gesture_provider.cc \
+	ui/events/gesture_detection/gesture_provider_config_helper.cc \
 	ui/events/gesture_detection/gesture_touch_uma_histogram.cc \
 	ui/events/gesture_detection/motion_event.cc \
 	ui/events/gesture_detection/motion_event_buffer.cc \
@@ -96,11 +98,13 @@ MY_DEFS_Debug := \
 	'-DUSE_PROPRIETARY_CODECS' \
 	'-DENABLE_BROWSER_CDMS' \
 	'-DENABLE_CONFIGURATION_POLICY' \
+	'-DENABLE_NOTIFICATIONS' \
 	'-DDISCARDABLE_MEMORY_ALWAYS_SUPPORTED_NATIVELY' \
 	'-DSYSTEM_NATIVELY_SIGNALS_MEMORY_PRESSURE' \
-	'-DENABLE_EGLIMAGE=1' \
+	'-DDONT_EMBED_BUILD_METADATA' \
 	'-DCLD_VERSION=1' \
 	'-DENABLE_PRINTING=1' \
+	'-DENABLE_BASIC_PRINTING=1' \
 	'-DENABLE_MANAGED_USERS=1' \
 	'-DVIDEO_HOLE=1' \
 	'-DENABLE_LOAD_COMPLETION_HACKS=1' \
@@ -114,12 +118,13 @@ MY_DEFS_Debug := \
 	'-DSK_WILL_NEVER_DRAW_PERSPECTIVE_TEXT' \
 	'-DSK_FM_NEW_MATCH_FAMILY_STYLE_CHARACTER=1' \
 	'-DSK_SUPPORT_LEGACY_TEXTRENDERMODE' \
-	'-DSK_LEGACY_NO_DISTANCE_FIELD_PATHS' \
+	'-DSK_IGNORE_GPU_LAYER_HOISTING' \
 	'-DSK_BUILD_FOR_ANDROID' \
 	'-DSK_USE_POSIX_THREADS' \
 	'-DU_USING_ICU_NAMESPACE=0' \
 	'-DU_ENABLE_DYLOAD=0' \
 	'-DU_STATIC_IMPLEMENTATION' \
+	'-DUSE_LIBPCI=1' \
 	'-DUSE_OPENSSL=1' \
 	'-DUSE_OPENSSL_CERTS=1' \
 	'-D__STDC_CONSTANT_MACROS' \
@@ -220,11 +225,13 @@ MY_DEFS_Release := \
 	'-DUSE_PROPRIETARY_CODECS' \
 	'-DENABLE_BROWSER_CDMS' \
 	'-DENABLE_CONFIGURATION_POLICY' \
+	'-DENABLE_NOTIFICATIONS' \
 	'-DDISCARDABLE_MEMORY_ALWAYS_SUPPORTED_NATIVELY' \
 	'-DSYSTEM_NATIVELY_SIGNALS_MEMORY_PRESSURE' \
-	'-DENABLE_EGLIMAGE=1' \
+	'-DDONT_EMBED_BUILD_METADATA' \
 	'-DCLD_VERSION=1' \
 	'-DENABLE_PRINTING=1' \
+	'-DENABLE_BASIC_PRINTING=1' \
 	'-DENABLE_MANAGED_USERS=1' \
 	'-DVIDEO_HOLE=1' \
 	'-DENABLE_LOAD_COMPLETION_HACKS=1' \
@@ -238,12 +245,13 @@ MY_DEFS_Release := \
 	'-DSK_WILL_NEVER_DRAW_PERSPECTIVE_TEXT' \
 	'-DSK_FM_NEW_MATCH_FAMILY_STYLE_CHARACTER=1' \
 	'-DSK_SUPPORT_LEGACY_TEXTRENDERMODE' \
-	'-DSK_LEGACY_NO_DISTANCE_FIELD_PATHS' \
+	'-DSK_IGNORE_GPU_LAYER_HOISTING' \
 	'-DSK_BUILD_FOR_ANDROID' \
 	'-DSK_USE_POSIX_THREADS' \
 	'-DU_USING_ICU_NAMESPACE=0' \
 	'-DU_ENABLE_DYLOAD=0' \
 	'-DU_STATIC_IMPLEMENTATION' \
+	'-DUSE_LIBPCI=1' \
 	'-DUSE_OPENSSL=1' \
 	'-DUSE_OPENSSL_CERTS=1' \
 	'-D__STDC_CONSTANT_MACROS' \

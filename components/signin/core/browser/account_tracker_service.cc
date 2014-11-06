@@ -8,7 +8,7 @@
 #include "base/logging.h"
 #include "base/prefs/pref_service.h"
 #include "base/prefs/scoped_user_pref_update.h"
-#include "base/profiler/scoped_profile.h"
+#include "base/profiler/scoped_tracker.h"
 #include "base/strings/utf_string_conversions.h"
 #include "components/signin/core/browser/signin_manager.h"
 #include "components/signin/core/common/signin_pref_names.h"
@@ -259,8 +259,8 @@ AccountTrackerService::GetMigrationState(PrefService* pref_service) {
 
 void AccountTrackerService::OnRefreshTokenAvailable(
     const std::string& account_id) {
-  // TODO(vadimt): Remove ScopedProfile below once crbug.com/422460 is fixed.
-  tracked_objects::ScopedProfile tracking_profile(
+  // TODO(vadimt): Remove ScopedTracker below once crbug.com/422460 is fixed.
+  tracked_objects::ScopedTracker tracking_profile(
       FROM_HERE_WITH_EXPLICIT_FUNCTION(
           "422460 AccountTrackerService::OnRefreshTokenAvailable"));
 
@@ -466,7 +466,10 @@ std::string AccountTrackerService::PickAccountIdForAccount(
   switch(GetMigrationState(pref_service)) {
     case MIGRATION_NOT_STARTED:
     case MIGRATION_IN_PROGRESS:
-      return gaia::CanonicalizeEmail(gaia::SanitizeEmail(email));
+      // Some tests don't use a real email address.  To support these cases,
+      // don't try to canonicalize these strings.
+      return (email.find('@') == std::string::npos) ? email :
+          gaia::CanonicalizeEmail(email);
     case MIGRATION_DONE:
       return gaia;
     default:

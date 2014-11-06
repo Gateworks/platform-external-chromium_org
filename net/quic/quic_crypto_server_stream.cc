@@ -120,8 +120,7 @@ void QuicCryptoServerStream::FinishProcessingHandshakeMessage(
   session()->connection()->SetEncrypter(
       ENCRYPTION_INITIAL,
       crypto_negotiated_params_.initial_crypters.encrypter.release());
-  session()->connection()->SetDefaultEncryptionLevel(
-      ENCRYPTION_INITIAL);
+  session()->connection()->SetDefaultEncryptionLevel(ENCRYPTION_INITIAL);
   // Set the decrypter immediately so that we no longer accept unencrypted
   // packets.
   session()->connection()->SetDecrypter(
@@ -141,8 +140,10 @@ void QuicCryptoServerStream::FinishProcessingHandshakeMessage(
   session()->connection()->SetEncrypter(
       ENCRYPTION_FORWARD_SECURE,
       crypto_negotiated_params_.forward_secure_crypters.encrypter.release());
-  session()->connection()->SetDefaultEncryptionLevel(
-      ENCRYPTION_FORWARD_SECURE);
+  if (!FLAGS_enable_quic_delay_forward_security) {
+    session()->connection()->SetDefaultEncryptionLevel(
+        ENCRYPTION_FORWARD_SECURE);
+  }
   session()->connection()->SetAlternativeDecrypter(
       crypto_negotiated_params_.forward_secure_crypters.decrypter.release(),
       ENCRYPTION_FORWARD_SECURE, false /* don't latch */);
@@ -150,15 +151,10 @@ void QuicCryptoServerStream::FinishProcessingHandshakeMessage(
   encryption_established_ = true;
   handshake_confirmed_ = true;
   session()->OnCryptoHandshakeEvent(QuicSession::HANDSHAKE_CONFIRMED);
-
-  // Now that the handshake is complete, send an updated server config and
-  // source-address token to the client.
-  SendServerConfigUpdate(previous_cached_network_params_.get(), true);
 }
 
 void QuicCryptoServerStream::SendServerConfigUpdate(
-    const CachedNetworkParameters* cached_network_params,
-    bool on_handshake_complete) {
+    const CachedNetworkParameters* cached_network_params) {
   if (session()->connection()->version() <= QUIC_VERSION_21 ||
       !handshake_confirmed_) {
     return;
@@ -176,8 +172,7 @@ void QuicCryptoServerStream::SendServerConfigUpdate(
     return;
   }
 
-  DVLOG(1) << "Server: Sending server config update"
-           << (on_handshake_complete ? " immediately after handshake: " : ": ")
+  DVLOG(1) << "Server: Sending server config update: "
            << server_config_update_message.DebugString();
   const QuicData& data = server_config_update_message.GetSerialized();
   WriteOrBufferData(string(data.data(), data.length()), false, nullptr);
@@ -231,8 +226,7 @@ QuicErrorCode QuicCryptoServerStream::ProcessClientHello(
     CryptoHandshakeMessage* reply,
     string* error_details) {
   // Store the bandwidth estimate from the client.
-  if (FLAGS_quic_store_cached_network_params_from_chlo &&
-      result.cached_network_params.bandwidth_estimate_bytes_per_second() > 0) {
+  if (result.cached_network_params.bandwidth_estimate_bytes_per_second() > 0) {
     previous_cached_network_params_.reset(
         new CachedNetworkParameters(result.cached_network_params));
   }

@@ -21,9 +21,9 @@
         'enable_it2me_host': 0,
         'enable_remoting_host': 0,
       }],
-      ['chromeos==1', {
+      ['chromeos==1 and use_x11==1', {
         'enable_me2me_host': 0,
-        'enable_it2me_host': 0,
+        'enable_it2me_host': 1,
       }],
     ],
   },
@@ -74,6 +74,8 @@
             'host/capture_scheduler.h',
             'host/chromeos/aura_desktop_capturer.cc',
             'host/chromeos/aura_desktop_capturer.h',
+            'host/chromeos/message_box.cc',
+            'host/chromeos/message_box.h',
             'host/chromium_port_allocator_factory.cc',
             'host/chromium_port_allocator_factory.h',
             'host/chromoting_host.cc',
@@ -98,6 +100,7 @@
             'host/constants_mac.h',
             'host/continue_window.cc',
             'host/continue_window.h',
+            'host/continue_window_chromeos.cc',
             'host/continue_window_linux.cc',
             'host/continue_window_mac.mm',
             'host/continue_window_win.cc',
@@ -124,6 +127,7 @@
             'host/desktop_shape_tracker_mac.cc',
             'host/desktop_shape_tracker_win.cc',
             'host/desktop_shape_tracker_x11.cc',
+            'host/disconnect_window_chromeos.cc',
             'host/disconnect_window_linux.cc',
             'host/disconnect_window_mac.h',
             'host/disconnect_window_mac.mm',
@@ -227,6 +231,7 @@
             'host/pin_hash.h',
             'host/policy_hack/policy_watcher.cc',
             'host/policy_hack/policy_watcher.h',
+            'host/policy_hack/policy_watcher_chromeos.cc',
             'host/policy_hack/policy_watcher_linux.cc',
             'host/policy_hack/policy_watcher_mac.mm',
             'host/policy_hack/policy_watcher_win.cc',
@@ -318,20 +323,21 @@
             }],
             ['chromeos==1', {
               'dependencies' : [
-                '../ash/ash.gyp:ash',
                 '../cc/cc.gyp:cc',
+                '../components/components.gyp:policy_component_common',
                 '../content/content.gyp:content',
                 '../ppapi/ppapi_internal.gyp:ppapi_host',
                 '../skia/skia.gyp:skia',
                 '../ui/aura/aura.gyp:aura',
                 '../ui/compositor/compositor.gyp:compositor',
+                '../ui/events/events.gyp:events',
+                '../ui/views/views.gyp:views',
               ],
               'include_dirs': [
                 '../third_party/skia/include/utils',
               ],
               'sources!' : [
-                'host/continue_window.cc',
-                'host/continue_window.h',
+                'host/policy_hack/policy_watcher_linux.cc',
                 'host/continue_window_linux.cc',
                 'host/disconnect_window.cc',
                 'host/disconnect_window_linux.cc',
@@ -341,6 +347,11 @@
                'sources!' : [
                  'host/chromeos/aura_desktop_capturer.cc',
                  'host/chromeos/aura_desktop_capturer.h',
+                 'host/chromeos/message_box.cc',
+                 'host/chromeos/message_box.h',
+                 'host/continue_window_chromeos.cc',
+                 'host/disconnect_window_chromeos.cc',
+                 'host/policy_hack/policy_watcher_chromeos.cc',
                ],
             }],
             ['OS=="mac"', {
@@ -403,6 +414,11 @@
                 'process_outputs_as_sources': 1,
                 'message': 'Running message compiler on <(RULE_INPUT_PATH)',
               }],
+            }],
+            ['use_ash==1', {
+              'dependencies': [
+                 '../ash/ash.gyp:ash',
+              ],
             }],
             ['enable_webrtc==1', {
               'dependencies': [
@@ -849,7 +865,7 @@
       ], # targets
     }], # end of OS!="win" and enable_me2me_host==1
 
-    ['OS!="win" and enable_it2me_host==1', {
+    ['OS!="win" and enable_it2me_host==1 and chromeos==0', {
       'targets': [
         {
           'target_name': 'remoting_it2me_native_messaging_host',

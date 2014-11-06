@@ -68,7 +68,8 @@ class MockSimpleIndexFile : public SimpleIndexFile,
   void WriteToDisk(const SimpleIndex::EntrySet& entry_set,
                    uint64 cache_size,
                    const base::TimeTicks& start,
-                   bool app_on_background) override {
+                   bool app_on_background,
+                   const base::Closure& callback) override {
     disk_writes_++;
     disk_write_entry_set_ = entry_set;
   }
@@ -101,7 +102,7 @@ class SimpleIndexTest  : public testing::Test, public SimpleIndexDelegate {
         base::StringPrintf("key%d", static_cast<int>(hash_index)));
   }
 
-  virtual void SetUp() override {
+  void SetUp() override {
     scoped_ptr<MockSimpleIndexFile> index_file(new MockSimpleIndexFile());
     index_file_ = index_file->AsWeakPtr();
     index_.reset(

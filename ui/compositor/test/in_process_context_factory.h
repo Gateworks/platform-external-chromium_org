@@ -27,9 +27,8 @@ class InProcessContextFactory : public ContextFactory {
   ~InProcessContextFactory() override;
 
   // ContextFactory implementation
-  scoped_ptr<cc::OutputSurface> CreateOutputSurface(
-      Compositor* compositor,
-      bool software_fallback) override;
+  void CreateOutputSurface(base::WeakPtr<Compositor> compositor,
+                           bool software_fallback) override;
 
   scoped_refptr<Reflector> CreateReflector(Compositor* mirrored_compositor,
                                            Layer* mirroring_layer) override;
@@ -39,7 +38,7 @@ class InProcessContextFactory : public ContextFactory {
   void RemoveCompositor(Compositor* compositor) override;
   bool DoesCreateTestContexts() override;
   cc::SharedBitmapManager* GetSharedBitmapManager() override;
-  cc::GpuMemoryBufferManager* GetGpuMemoryBufferManager() override;
+  gpu::GpuMemoryBufferManager* GetGpuMemoryBufferManager() override;
   base::MessageLoopProxy* GetCompositorMessageLoop() override;
   scoped_ptr<cc::SurfaceIdAllocator> CreateSurfaceIdAllocator() override;
 

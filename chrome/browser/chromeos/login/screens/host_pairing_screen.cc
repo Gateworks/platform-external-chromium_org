@@ -14,10 +14,12 @@ using namespace host_pairing;
 using namespace pairing_chromeos;
 
 HostPairingScreen::HostPairingScreen(
-    ScreenObserver* observer,
+    BaseScreenDelegate* base_screen_delegate,
+    Delegate* delegate,
     HostPairingScreenActor* actor,
     pairing_chromeos::HostPairingController* remora_controller)
-    : BaseScreen(observer),
+    : BaseScreen(base_screen_delegate),
+      delegate_(delegate),
       actor_(actor),
       remora_controller_(remora_controller),
       current_stage_(HostPairingController::STAGE_NONE) {
@@ -92,9 +94,11 @@ void HostPairingScreen::ConfigureHost(bool accepted_eula,
           << ", keyboard_layout=" << keyboard_layout;
 
   remora_controller_->RemoveObserver(this);
-  get_screen_observer()->ConfigureHost(accepted_eula, lang, timezone,
-                                       send_reports, keyboard_layout);
-  get_screen_observer()->OnExit(WizardController::HOST_PAIRING_FINISHED);
+  if (delegate_) {
+    delegate_->ConfigureHost(
+        accepted_eula, lang, timezone, send_reports, keyboard_layout);
+  }
+  get_base_screen_delegate()->OnExit(WizardController::HOST_PAIRING_FINISHED);
 }
 
 void HostPairingScreen::EnrollHost(const std::string& auth_token) {

@@ -30,7 +30,7 @@ class CastChannelLoggerTest : public testing::Test {
       : clock_(new base::SimpleTestTickClock),
         logger_(new Logger(scoped_ptr<base::TickClock>(clock_),
                            base::TimeTicks())) {}
-  virtual ~CastChannelLoggerTest() {}
+  ~CastChannelLoggerTest() override {}
 
   bool Uncompress(const char* input, int length, std::string* output) {
     z_stream stream = {0};
@@ -101,15 +101,15 @@ TEST_F(CastChannelLoggerTest, BasicLogging) {
       2, EventType::MESSAGE_ENQUEUED, "foo_namespace", "details");
   clock_->Advance(base::TimeDelta::FromMicroseconds(1));
 
-  AuthResult auth_result =
-      AuthResult::Create("No response", AuthResult::ERROR_NO_RESPONSE);
+  AuthResult auth_result = AuthResult::CreateWithParseError(
+      "No response", AuthResult::ERROR_NO_RESPONSE);
 
   logger_->LogSocketChallengeReplyEvent(2, auth_result);
   clock_->Advance(base::TimeDelta::FromMicroseconds(1));
 
   auth_result =
       AuthResult::CreateWithNSSError("Parsing failed",
-                                     AuthResult::ERROR_NSS_CERT_PARSING_FAILED,
+                                     AuthResult::ERROR_CERT_PARSING_FAILED,
                                      kTestNssErrorCode);
   logger_->LogSocketChallengeReplyEvent(2, auth_result);
 
@@ -117,7 +117,7 @@ TEST_F(CastChannelLoggerTest, BasicLogging) {
   EXPECT_EQ(last_errors.event_type, proto::AUTH_CHALLENGE_REPLY);
   EXPECT_EQ(last_errors.net_return_value, net::OK);
   EXPECT_EQ(last_errors.challenge_reply_error_type,
-            proto::CHALLENGE_REPLY_ERROR_NSS_CERT_PARSING_FAILED);
+            proto::CHALLENGE_REPLY_ERROR_CERT_PARSING_FAILED);
   EXPECT_EQ(last_errors.nss_error_code, kTestNssErrorCode);
 
   scoped_ptr<Log> log = GetLog();
@@ -177,7 +177,7 @@ TEST_F(CastChannelLoggerTest, BasicLogging) {
       const SocketEvent& event = aggregated_socket_event.socket_event(3);
       EXPECT_EQ(EventType::AUTH_CHALLENGE_REPLY, event.type());
       EXPECT_EQ(6, event.timestamp_micros());
-      EXPECT_EQ(proto::CHALLENGE_REPLY_ERROR_NSS_CERT_PARSING_FAILED,
+      EXPECT_EQ(proto::CHALLENGE_REPLY_ERROR_CERT_PARSING_FAILED,
                 event.challenge_reply_error_type());
       EXPECT_FALSE(event.has_net_return_value());
       EXPECT_EQ(kTestNssErrorCode, event.nss_error_code());
@@ -196,7 +196,7 @@ TEST_F(CastChannelLoggerTest, LogLastErrorEvents) {
 
   // Challenge reply error set
   clock_->Advance(base::TimeDelta::FromMicroseconds(1));
-  AuthResult auth_result = AuthResult::Create(
+  AuthResult auth_result = AuthResult::CreateWithParseError(
       "Some error", AuthResult::ErrorType::ERROR_PEER_CERT_EMPTY);
 
   logger_->LogSocketChallengeReplyEvent(2, auth_result);

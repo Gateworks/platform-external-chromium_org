@@ -41,15 +41,14 @@ namespace {
 class RecordingProofVerifier : public ProofVerifier {
  public:
   // ProofVerifier interface.
-  virtual QuicAsyncStatus VerifyProof(
-      const string& hostname,
-      const string& server_config,
-      const vector<string>& certs,
-      const string& signature,
-      const ProofVerifyContext* context,
-      string* error_details,
-      scoped_ptr<ProofVerifyDetails>* details,
-      ProofVerifierCallback* callback) override {
+  QuicAsyncStatus VerifyProof(const string& hostname,
+                              const string& server_config,
+                              const vector<string>& certs,
+                              const string& signature,
+                              const ProofVerifyContext* context,
+                              string* error_details,
+                              scoped_ptr<ProofVerifyDetails>* details,
+                              ProofVerifierCallback* callback) override {
     common_name_.clear();
     if (certs.empty()) {
       return QUIC_FAILURE;
@@ -222,6 +221,11 @@ void QuicTestClient::Initialize(bool secure) {
   proof_verifier_ = nullptr;
   ClearPerRequestState();
   ExpectCertificates(secure_);
+  // As chrome will generally do this, we want it to be the default when it's
+  // not overridden.
+  if (!client_->config()->HasSetBytesForConnectionIdToSend()) {
+    client_->config()->SetBytesForConnectionIdToSend(0);
+  }
 }
 
 void QuicTestClient::ExpectCertificates(bool on) {

@@ -123,11 +123,11 @@
       case ::syncer::ARTICLES: \
         PER_DATA_TYPE_MACRO("Article"); \
         break; \
+      case ::syncer::WIFI_CREDENTIALS:             \
+        PER_DATA_TYPE_MACRO("WifiCredentials"); \
+        break; \
       case ::syncer::PROXY_TABS: \
         PER_DATA_TYPE_MACRO("Tabs"); \
-        break; \
-      case ::syncer::ENHANCED_BOOKMARKS: \
-        PER_DATA_TYPE_MACRO("EnhancedBookmarks"); \
         break; \
       default: \
         NOTREACHED() << "Unknown datatype " \

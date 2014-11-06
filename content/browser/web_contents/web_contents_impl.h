@@ -52,10 +52,12 @@ class BrowserPluginGuestManager;
 class DateTimeChooserAndroid;
 class DownloadItem;
 class GeolocationDispatcherHost;
+class GeolocationServiceContext;
 class InterstitialPageImpl;
 class JavaScriptDialogManager;
 class ManifestManagerHost;
 class MidiDispatcherHost;
+class PluginContentOriginWhitelist;
 class PowerSaveBlocker;
 class RenderViewHost;
 class RenderViewHostDelegateView;
@@ -173,10 +175,6 @@ class CONTENT_EXPORT WebContentsImpl
 
   WebContentsView* GetView() const;
 
-  GeolocationDispatcherHost* geolocation_dispatcher_host() {
-    return geolocation_dispatcher_host_.get();
-  }
-
   ScreenOrientationDispatcherHost* screen_orientation_dispatcher_host() {
     return screen_orientation_dispatcher_host_.get();
   }
@@ -195,6 +193,10 @@ class CONTENT_EXPORT WebContentsImpl
   // that a bit will only be turned off when all modes that depend on it
   // have been removed.
   void RemoveAccessibilityMode(AccessibilityMode mode);
+
+  // Clear the navigation transition data when the user navigates back to Chrome
+  // from a native app.
+  void ClearNavigationTransitionData();
 
   // WebContents ------------------------------------------------------
   WebContentsDelegate* GetDelegate() override;
@@ -385,8 +387,9 @@ class CONTENT_EXPORT WebContentsImpl
       const std::vector<AXEventNotificationDetails>& details) override;
   RenderFrameHost* GetGuestByInstanceID(
       int browser_plugin_instance_id) override;
+  GeolocationServiceContext* GetGeolocationServiceContext() override;
 #if defined(OS_WIN)
-  virtual gfx::NativeViewAccessible GetParentNativeViewAccessible() override;
+  gfx::NativeViewAccessible GetParentNativeViewAccessible() override;
 #endif
 
   // RenderViewHostDelegate ----------------------------------------------------
@@ -535,7 +538,8 @@ class CONTENT_EXPORT WebContentsImpl
       int proxy_routing_id,
       bool for_main_frame_navigation) override;
   bool CreateRenderFrameForRenderManager(RenderFrameHost* render_frame_host,
-                                         int parent_routing_id) override;
+                                         int parent_routing_id,
+                                         int proxy_routing_id) override;
   void BeforeUnloadFiredFromRenderManager(
       bool proceed,
       const base::TimeTicks& proceed_time,
@@ -634,9 +638,12 @@ class CONTENT_EXPORT WebContentsImpl
 
   typedef base::Callback<void(WebContents*)> CreatedCallback;
 
+  // Requests the renderer to move the selection extent to a new position.
+  void MoveRangeSelectionExtent(const gfx::Point& extent);
+
   // Requests the renderer to select the region between two points in the
   // currently focused frame.
-  void SelectRange(const gfx::Point& start, const gfx::Point& end);
+  void SelectRange(const gfx::Point& base, const gfx::Point& extent);
 
   // Notifies the main frame that it can continue navigation (if it was deferred
   // immediately at first response).
@@ -721,10 +728,6 @@ class CONTENT_EXPORT WebContentsImpl
                       bool success,
                       const base::string16& user_input);
 
-  // Callback function when requesting permission to access the PPAPI broker.
-  // |result| is true if permission was granted.
-  void OnPpapiBrokerPermissionResult(int routing_id, bool result);
-
   bool OnMessageReceived(RenderViewHost* render_view_host,
                          RenderFrameHost* render_frame_host,
                          const IPC::Message& message);
@@ -769,11 +772,6 @@ class CONTENT_EXPORT WebContentsImpl
   void OnOpenDateTimeDialog(
       const ViewHostMsg_DateTimeDialogValue_Params& value);
 #endif
-  void OnPepperPluginHung(int plugin_child_id,
-                          const base::FilePath& path,
-                          bool is_hung);
-  void OnPluginCrashed(const base::FilePath& plugin_path,
-                       base::ProcessId plugin_pid);
   void OnDomOperationResponse(const std::string& json_string,
                               int automation_id);
   void OnAppCacheAccessed(const GURL& manifest_url, bool blocked_by_policy);
@@ -785,10 +783,22 @@ class CONTENT_EXPORT WebContentsImpl
   void OnWebUISend(const GURL& source_url,
                    const std::string& name,
                    const base::ListValue& args);
+#if defined(ENABLE_PLUGINS)
+  void OnPepperPluginHung(int plugin_child_id,
+                          const base::FilePath& path,
+                          bool is_hung);
+  void OnPluginCrashed(const base::FilePath& plugin_path,
+                       base::ProcessId plugin_pid);
   void OnRequestPpapiBrokerPermission(int routing_id,
                                       const GURL& url,
                                       const base::FilePath& plugin_path);
+
+  // Callback function when requesting permission to access the PPAPI broker.
+  // |result| is true if permission was granted.
+  void OnPpapiBrokerPermissionResult(int routing_id, bool result);
+
   void OnBrowserPluginMessage(const IPC::Message& message);
+#endif  // defined(ENABLE_PLUGINS)
   void OnDidDownloadImage(int id,
                           int http_status_code,
                           const GURL& image_url,
@@ -1157,6 +1167,11 @@ class CONTENT_EXPORT WebContentsImpl
   // NULL otherwise.
   scoped_ptr<BrowserPluginGuest> browser_plugin_guest_;
 
+#if defined(ENABLE_PLUGINS)
+  // Manages the whitelist of plugin content origins exempt from power saving.
+  scoped_ptr<PluginContentOriginWhitelist> plugin_content_origin_whitelist_;
+#endif
+
   // This must be at the end, or else we might get notifications and use other
   // member variables that are gone.
   NotificationRegistrar registrar_;
@@ -1193,6 +1208,8 @@ class CONTENT_EXPORT WebContentsImpl
 
   // Whether the last JavaScript dialog shown was suppressed. Used for testing.
   bool last_dialog_suppressed_;
+
+  scoped_ptr<GeolocationServiceContext> geolocation_service_context_;
 
   scoped_ptr<GeolocationDispatcherHost> geolocation_dispatcher_host_;
 

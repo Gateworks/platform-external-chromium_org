@@ -19,6 +19,7 @@
 #include "base/prefs/pref_service.h"
 #include "base/stl_util.h"
 #include "base/strings/string_number_conversions.h"
+#include "base/strings/string_piece.h"
 #include "base/strings/string_split.h"
 #include "base/strings/string_util.h"
 #include "base/threading/sequenced_worker_pool.h"
@@ -42,10 +43,10 @@
 #include "chrome/common/pref_names.h"
 #include "components/data_reduction_proxy/core/browser/data_reduction_proxy_auth_request_handler.h"
 #include "components/data_reduction_proxy/core/browser/data_reduction_proxy_delegate.h"
-#include "components/data_reduction_proxy/core/browser/data_reduction_proxy_params.h"
 #include "components/data_reduction_proxy/core/browser/data_reduction_proxy_prefs.h"
 #include "components/data_reduction_proxy/core/browser/data_reduction_proxy_protocol.h"
 #include "components/data_reduction_proxy/core/browser/data_reduction_proxy_settings.h"
+#include "components/data_reduction_proxy/core/common/data_reduction_proxy_params.h"
 #include "components/policy/core/common/policy_service.h"
 #include "components/variations/variations_associated_data.h"
 #include "content/public/browser/browser_thread.h"
@@ -131,9 +132,10 @@ const char kQuicFieldTrialPacingSuffix[] = "WithPacing";
 //  * A SPDY/4 experiment, for SPDY/4 (aka HTTP/2) vs SPDY/3.1 comparisons and
 //  eventual SPDY/4 deployment.
 const char kSpdyFieldTrialName[] = "SPDY";
-const char kSpdyFieldTrialHoldbackGroupName[] = "SpdyDisabled";
+const char kSpdyFieldTrialHoldbackGroupNamePrefix[] = "SpdyDisabled";
 const char kSpdyFieldTrialHoldbackControlGroupName[] = "Control";
-const char kSpdyFieldTrialSpdy4GroupName[] = "Spdy4Enabled";
+const char kSpdyFieldTrialSpdy31GroupNamePrefix[] = "Spdy31Enabled";
+const char kSpdyFieldTrialSpdy4GroupNamePrefix[] = "Spdy4Enabled";
 const char kSpdyFieldTrialSpdy4ControlGroupName[] = "Spdy4Control";
 
 // Field trial for Cache-Control: stale-while-revalidate directive.
@@ -309,6 +311,15 @@ const std::string& GetVariationParam(
     return base::EmptyString();
 
   return it->second;
+}
+
+// Return true if stale-while-revalidate support should be enabled.
+bool IsStaleWhileRevalidateEnabled(const base::CommandLine& command_line) {
+  if (command_line.HasSwitch(switches::kEnableStaleWhileRevalidate))
+    return true;
+  const std::string group_name =
+      base::FieldTrialList::FindFullName(kStaleWhileRevalidateFieldTrialName);
+  return group_name == "Enabled";
 }
 
 }  // namespace
@@ -660,11 +671,8 @@ void IOThread::InitAsync() {
     globals_->enable_ssl_connect_job_waiting = true;
   if (command_line.HasSwitch(switches::kIgnoreCertificateErrors))
     globals_->ignore_certificate_errors = true;
-  if (command_line.HasSwitch(switches::kEnableStaleWhileRevalidate))
-    globals_->use_stale_while_revalidate = true;
-  if (base::FieldTrialList::FindFullName(kStaleWhileRevalidateFieldTrialName) ==
-      "Enabled")
-    globals_->use_stale_while_revalidate = true;
+  globals_->use_stale_while_revalidate =
+      IsStaleWhileRevalidateEnabled(command_line);
   if (command_line.HasSwitch(switches::kTestingFixedHttpPort)) {
     globals_->testing_fixed_http_port =
         GetSwitchValueAsInt(command_line, switches::kTestingFixedHttpPort);
@@ -832,16 +840,21 @@ void IOThread::ConfigureTCPFastOpen(const CommandLine& command_line) {
   net::CheckSupportAndMaybeEnableTCPFastOpen(always_enable_if_supported);
 }
 
-void IOThread::ConfigureSpdyFromTrial(const std::string& spdy_trial_group,
+void IOThread::ConfigureSpdyFromTrial(base::StringPiece spdy_trial_group,
                                       Globals* globals) {
-  if (spdy_trial_group == kSpdyFieldTrialHoldbackGroupName) {
+  if (spdy_trial_group.starts_with(kSpdyFieldTrialHoldbackGroupNamePrefix)) {
     // TODO(jgraettinger): Use net::NextProtosHttpOnly() instead?
     net::HttpStreamFactory::set_spdy_enabled(false);
   } else if (spdy_trial_group == kSpdyFieldTrialHoldbackControlGroupName) {
     // Use the current SPDY default (SPDY/3.1).
     globals->next_protos = net::NextProtosSpdy31();
     globals->use_alternate_protocols.set(true);
-  } else if (spdy_trial_group == kSpdyFieldTrialSpdy4GroupName) {
+  } else if (spdy_trial_group.starts_with(
+                 kSpdyFieldTrialSpdy31GroupNamePrefix)) {
+    globals->next_protos = net::NextProtosSpdy4Http2();
+    globals->use_alternate_protocols.set(true);
+  } else if (spdy_trial_group.starts_with(
+                 kSpdyFieldTrialSpdy4GroupNamePrefix)) {
     globals->next_protos = net::NextProtosSpdy4Http2();
     globals->use_alternate_protocols.set(true);
   } else if (spdy_trial_group == kSpdyFieldTrialSpdy4ControlGroupName) {
@@ -1026,6 +1039,8 @@ void IOThread::InitializeNetworkSessionParamsFromGlobals(
       &params->quic_always_require_handshake_confirmation);
   globals.quic_disable_connection_pooling.CopyToIfSet(
       &params->quic_disable_connection_pooling);
+  globals.quic_load_server_info_timeout_ms.CopyToIfSet(
+      &params->quic_load_server_info_timeout_ms);
   globals.enable_quic_port_selection.CopyToIfSet(
       &params->enable_quic_port_selection);
   globals.quic_max_packet_length.CopyToIfSet(&params->quic_max_packet_length);
@@ -1154,7 +1169,8 @@ void IOThread::SetupDataReductionProxy(
           BrowserThread::GetMessageLoopProxyForThread(BrowserThread::IO)));
   globals_->data_reduction_proxy_delegate.reset(
       new data_reduction_proxy::DataReductionProxyDelegate(
-          globals_->data_reduction_proxy_auth_request_handler.get()));
+          globals_->data_reduction_proxy_auth_request_handler.get(),
+          globals_->data_reduction_proxy_params.get()));
   // This is the same as in ProfileImplIOData except that we do not collect
   // usage stats.
   network_delegate->set_data_reduction_proxy_params(
@@ -1178,6 +1194,12 @@ void IOThread::ConfigureQuicGlobals(
         ShouldQuicAlwaysRequireHandshakeConfirmation(quic_trial_params));
     globals->quic_disable_connection_pooling.set(
         ShouldQuicDisableConnectionPooling(quic_trial_params));
+    int load_server_info_timeout_ms =
+        GetQuicLoadServerInfoTimeout(quic_trial_params);
+    if (load_server_info_timeout_ms != 0) {
+      globals->quic_load_server_info_timeout_ms.set(
+          load_server_info_timeout_ms);
+    }
     globals->enable_quic_port_selection.set(
         ShouldEnableQuicPortSelection(command_line));
     globals->quic_connection_options =
@@ -1350,6 +1372,18 @@ bool IOThread::ShouldQuicDisableConnectionPooling(
   return LowerCaseEqualsASCII(
       GetVariationParam(quic_trial_params, "disable_connection_pooling"),
       "true");
+}
+
+// static
+int IOThread::GetQuicLoadServerInfoTimeout(
+    const VariationParameters& quic_trial_params) {
+  int value;
+  if (base::StringToInt(GetVariationParam(quic_trial_params,
+                                          "load_server_info_timeout"),
+                        &value)) {
+    return value;
+  }
+  return 0;
 }
 
 // static

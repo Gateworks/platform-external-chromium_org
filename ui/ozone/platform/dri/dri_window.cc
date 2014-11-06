@@ -87,7 +87,13 @@ void DriWindow::Minimize() {}
 void DriWindow::Restore() {}
 
 void DriWindow::SetCursor(PlatformCursor cursor) {
-  window_manager_->cursor()->SetCursor(widget_, cursor);
+  DriCursor* dri_cursor = window_manager_->cursor();
+  dri_cursor->SetCursor(widget_, cursor);
+  // ShowCursor results in a IPC call to GPU. So, we make sure the channel
+  // is connected. OnChannelEstablished guarantees that ShowCursor is called
+  // eventually.
+  if (sender_->IsConnected() && dri_cursor->GetCursorWindow() == widget_)
+    dri_cursor->ShowCursor();
 }
 
 void DriWindow::MoveCursorTo(const gfx::Point& location) {
@@ -105,15 +111,18 @@ bool DriWindow::CanDispatchEvent(const PlatformEvent& ne) {
 
 uint32_t DriWindow::DispatchEvent(const PlatformEvent& native_event) {
   DispatchEventFromNativeUiEvent(
-      native_event,
-      base::Bind(&PlatformWindowDelegate::DispatchEvent,
-                 base::Unretained(delegate_)));
+      native_event, base::Bind(&PlatformWindowDelegate::DispatchEvent,
+                               base::Unretained(delegate_)));
   return POST_DISPATCH_STOP_PROPAGATION;
 }
 
 void DriWindow::OnChannelEstablished() {
   sender_->Send(new OzoneGpuMsg_CreateWindowDelegate(widget_));
   sender_->Send(new OzoneGpuMsg_WindowBoundsChanged(widget_, bounds_));
+
+  DriCursor* dri_cursor = window_manager_->cursor();
+  if (dri_cursor->GetCursorWindow() == widget_)
+    dri_cursor->ShowCursor();
 }
 
 void DriWindow::OnChannelDestroyed() {

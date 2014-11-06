@@ -35,6 +35,7 @@ class MockRenderProcess;
 class PageState;
 class RendererMainPlatformDelegate;
 class RendererBlinkPlatformImplNoSandboxImpl;
+class RendererScheduler;
 class RenderView;
 
 class RenderViewTest : public testing::Test {
@@ -48,11 +49,12 @@ class RenderViewTest : public testing::Test {
     blink::Platform* Get();
 
    private:
+    scoped_ptr<RendererScheduler> renderer_scheduler_;
     scoped_ptr<RendererBlinkPlatformImplNoSandboxImpl> blink_platform_impl_;
   };
 
   RenderViewTest();
-  virtual ~RenderViewTest();
+  ~RenderViewTest() override;
 
  protected:
   // Spins the message loop to process all messages that are currently pending.
@@ -132,9 +134,9 @@ class RenderViewTest : public testing::Test {
   virtual ContentRendererClient* CreateContentRendererClient();
 
   // testing::Test
-  virtual void SetUp() override;
+  void SetUp() override;
 
-  virtual void TearDown() override;
+  void TearDown() override;
 
   base::MessageLoop msg_loop_;
   scoped_ptr<MockRenderProcess> mock_process_;

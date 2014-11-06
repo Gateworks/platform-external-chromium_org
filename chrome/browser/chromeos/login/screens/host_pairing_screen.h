@@ -18,7 +18,19 @@ class HostPairingScreen
       public pairing_chromeos::HostPairingController::Observer,
       public HostPairingScreenActor::Delegate {
  public:
-  HostPairingScreen(ScreenObserver* observer, HostPairingScreenActor* actor,
+  class Delegate {
+   public:
+    virtual ~Delegate() {}
+    virtual void ConfigureHost(bool accepted_eula,
+                               const std::string& lang,
+                               const std::string& timezone,
+                               bool send_reports,
+                               const std::string& keyboard_layout) = 0;
+  };
+
+  HostPairingScreen(BaseScreenDelegate* base_screen_delegate,
+                    Delegate* delegate,
+                    HostPairingScreenActor* actor,
                     pairing_chromeos::HostPairingController* remora_controller);
   virtual ~HostPairingScreen();
 
@@ -48,6 +60,8 @@ class HostPairingScreen
   // Context for sharing data between C++ and JS.
   // TODO(dzhioev): move to BaseScreen when possible.
   ::login::ScreenContext context_;
+
+  Delegate* delegate_;
 
   HostPairingScreenActor* actor_;
 

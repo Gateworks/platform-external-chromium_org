@@ -186,7 +186,8 @@ class ChromeContentBrowserClient : public content::ContentBrowserClient {
       int render_process_id) override;
   void ShowDesktopNotification(
       const content::ShowDesktopNotificationHostMsgParams& params,
-      content::RenderFrameHost* render_frame_host,
+      content::BrowserContext* browser_context,
+      int render_process_id,
       scoped_ptr<content::DesktopNotificationDelegate> delegate,
       base::Closure* cancel_callback) override;
   void RequestPermission(
@@ -261,7 +262,7 @@ class ChromeContentBrowserClient : public content::ContentBrowserClient {
       int render_process_id) override;
 
 #if defined(OS_POSIX) && !defined(OS_MACOSX)
-  virtual void GetAdditionalMappedFilesForChildProcess(
+  void GetAdditionalMappedFilesForChildProcess(
       const base::CommandLine& command_line,
       int child_process_id,
       content::FileDescriptorInfo* mappings) override;

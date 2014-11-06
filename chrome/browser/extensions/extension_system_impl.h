@@ -16,7 +16,6 @@ namespace extensions {
 class ContentVerifier;
 class DeclarativeUserScriptMaster;
 class ExtensionSystemSharedFactory;
-class ExtensionWarningBadgeService;
 class NavigationObserver;
 class SharedUserScriptMaster;
 class StateStoreNotificationObserver;
@@ -41,14 +40,11 @@ class ExtensionSystemImpl : public ExtensionSystem {
   ManagementPolicy* management_policy() override;  // shared
   // shared
   SharedUserScriptMaster* shared_user_script_master() override;
-  ProcessManager* process_manager() override;
   StateStore* state_store() override;                              // shared
   StateStore* rules_store() override;                              // shared
   LazyBackgroundTaskQueue* lazy_background_task_queue() override;  // shared
   InfoMap* info_map() override;                                    // shared
   EventRouter* event_router() override;                            // shared
-  WarningService* warning_service() override;
-  Blacklist* blacklist() override;  // shared
   ErrorConsole* error_console() override;
   InstallVerifier* install_verifier() override;
   QuotaService* quota_service() override;  // shared
@@ -93,11 +89,9 @@ class ExtensionSystemImpl : public ExtensionSystem {
     RuntimeData* runtime_data();
     ManagementPolicy* management_policy();
     SharedUserScriptMaster* shared_user_script_master();
-    Blacklist* blacklist();
     InfoMap* info_map();
     LazyBackgroundTaskQueue* lazy_background_task_queue();
     EventRouter* event_router();
-    WarningService* warning_service();
     ErrorConsole* error_console();
     InstallVerifier* install_verifier();
     QuotaService* quota_service();
@@ -128,15 +122,12 @@ class ExtensionSystemImpl : public ExtensionSystem {
     // per extension. Managers are instantiated the first time the declarative
     // API is used by an extension to request content scripts.
     ScopedVector<DeclarativeUserScriptMaster> declarative_user_script_masters_;
-    scoped_ptr<Blacklist> blacklist_;
     scoped_ptr<RuntimeData> runtime_data_;
     // ExtensionService depends on StateStore, Blacklist and RuntimeData.
     scoped_ptr<ExtensionService> extension_service_;
     scoped_ptr<ManagementPolicy> management_policy_;
     // extension_info_map_ needs to outlive process_manager_.
     scoped_refptr<InfoMap> extension_info_map_;
-    scoped_ptr<WarningService> warning_service_;
-    scoped_ptr<ExtensionWarningBadgeService> extension_warning_badge_service_;
     scoped_ptr<ErrorConsole> error_console_;
     scoped_ptr<InstallVerifier> install_verifier_;
     scoped_ptr<QuotaService> quota_service_;
@@ -155,12 +146,6 @@ class ExtensionSystemImpl : public ExtensionSystem {
   Profile* profile_;
 
   Shared* shared_;
-
-  // |process_manager_| must be destroyed before the Profile's |io_data_|. While
-  // |process_manager_| still lives, we handle incoming resource requests from
-  // extension processes and those require access to the ResourceContext owned
-  // by |io_data_|.
-  scoped_ptr<ProcessManager> process_manager_;
 
   DISALLOW_COPY_AND_ASSIGN(ExtensionSystemImpl);
 };

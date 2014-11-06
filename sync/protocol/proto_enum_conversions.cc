@@ -80,6 +80,19 @@ const char* GetPageTransitionRedirectTypeString(
   return "";
 }
 
+const char* GetWifiCredentialSecurityClassString(
+    sync_pb::WifiCredentialSpecifics::SecurityClass security_class) {
+  ASSERT_ENUM_BOUNDS(sync_pb::WifiCredentialSpecifics, SecurityClass,
+                     SECURITY_CLASS_INVALID, SECURITY_CLASS_PSK);
+  switch (security_class) {
+    ENUM_CASE(sync_pb::WifiCredentialSpecifics, SECURITY_CLASS_INVALID);
+    ENUM_CASE(sync_pb::WifiCredentialSpecifics, SECURITY_CLASS_NONE);
+    ENUM_CASE(sync_pb::WifiCredentialSpecifics, SECURITY_CLASS_WEP);
+    ENUM_CASE(sync_pb::WifiCredentialSpecifics, SECURITY_CLASS_PSK);
+  }
+  NOTREACHED();
+  return "";
+}
 const char* GetUpdatesSourceString(
     sync_pb::GetUpdatesCallerInfo::GetUpdatesSource updates_source) {
   ASSERT_ENUM_BOUNDS(sync_pb::GetUpdatesCallerInfo, GetUpdatesSource,
@@ -258,30 +271,6 @@ const char* GetBlockedStateString(
   switch (state) {
     ENUM_CASE(sync_pb::TabNavigation, STATE_ALLOWED);
     ENUM_CASE(sync_pb::TabNavigation, STATE_BLOCKED);
-  }
-  NOTREACHED();
-  return "";
-}
-
-const char* GetDisplaySizeString(
-    sync_pb::ChromeSyncFolioInfo::DisplaySize display_size) {
-  ASSERT_ENUM_BOUNDS(sync_pb::ChromeSyncFolioInfo, DisplaySize, SMALL, MEDIUM);
-  switch (display_size) {
-    ENUM_CASE(sync_pb::ChromeSyncFolioInfo, SMALL);
-    ENUM_CASE(sync_pb::ChromeSyncFolioInfo, MEDIUM);
-  }
-  NOTREACHED();
-  return "";
-}
-
-const char* GetFetchErrorReasonString(
-    sync_pb::ChromeSyncClip::FetchErrorReason fetch_error_reason) {
-  ASSERT_ENUM_BOUNDS(
-      sync_pb::ChromeSyncClip, FetchErrorReason, UNKNOWN, UNREACHABLE);
-  switch (fetch_error_reason) {
-    ENUM_CASE(sync_pb::ChromeSyncClip, UNKNOWN);
-    ENUM_CASE(sync_pb::ChromeSyncClip, LIKELY_404);
-    ENUM_CASE(sync_pb::ChromeSyncClip, UNREACHABLE);
   }
   NOTREACHED();
   return "";

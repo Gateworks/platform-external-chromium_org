@@ -57,14 +57,11 @@ class ShellExtensionSystem : public ExtensionSystem {
   RuntimeData* runtime_data() override;
   ManagementPolicy* management_policy() override;
   SharedUserScriptMaster* shared_user_script_master() override;
-  ProcessManager* process_manager() override;
   StateStore* state_store() override;
   StateStore* rules_store() override;
   InfoMap* info_map() override;
   LazyBackgroundTaskQueue* lazy_background_task_queue() override;
   EventRouter* event_router() override;
-  WarningService* warning_service() override;
-  Blacklist* blacklist() override;
   ErrorConsole* error_console() override;
   InstallVerifier* install_verifier() override;
   QuotaService* quota_service() override;
@@ -89,7 +86,6 @@ class ShellExtensionSystem : public ExtensionSystem {
   scoped_ptr<RuntimeData> runtime_data_;
   scoped_ptr<LazyBackgroundTaskQueue> lazy_background_task_queue_;
   scoped_ptr<EventRouter> event_router_;
-  scoped_ptr<ProcessManager> process_manager_;
   scoped_ptr<QuotaService> quota_service_;
 
   // Signaled when the extension system has completed its startup tasks.

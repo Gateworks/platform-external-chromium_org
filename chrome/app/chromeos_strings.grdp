@@ -91,6 +91,12 @@ Press any key to continue exploring.
   <message name="IDS_FLAGS_ENABLE_VIDEO_PLAYER_CHROMECAST_SUPPORT_DESCRIPTION" desc="Description of the about:flag option to the enable the chromecast support for video app.">
     This option enables experimental Chromecast support for Video Player app on ChromeOS.
   </message>
+  <message name="IDS_FLAGS_DISABLE_NEW_ZIP_UNPACKER_NAME" desc="Name of about::flags option to enable the new ZIP unpacker based on the File System Provider API.">
+    Enable the new ZIP unpacker.
+  </message>
+  <message name="IDS_FLAGS_DISABLE_NEW_ZIP_UNPACKER_DESCRIPTION" desc="Description of about::flags option to enable the new ZIP unpacker based on the File System Provider API.">
+    Enable the new ZIP unpacker flow, based on the File System Provider API.
+  </message>
   <message name="IDS_FILE_SYSTEM_PROVIDER_UNRESPONSIVE_WARNING" desc="A warning shown in a notification that an operation is taking longer than expected.">
     An operation is taking longer than expected. Do you want to abort it?
   </message>
@@ -643,6 +649,12 @@ Press any key to continue exploring.
   <message name="IDS_FILE_BROWSER_CONFIRM_MOBILE_DATA_USE_PLURAL" desc="Message informing the user that opening several files from Google Drive will use mobile data.">
     Fetching these files will use approximately <ph name="FILE_SIZE">$1<ex>44 MB</ex></ph> of mobile data.
   </message>
+  <message name="IDS_FILE_BROWSER_DISABLED_MOBILE_SYNC_NOTIFICATION_MESSAGE" desc="Notification message shown when the drive sync is needed on mobile network, but it is disabled.">
+    Google Drive sync is disabled by default, when using mobile data.
+  </message>
+  <message name="IDS_FILE_BROWSER_DISABLED_MOBILE_SYNC_NOTIFICATION_ENABLE_BUTTON" desc="Button label to enable drive sync over, on the notifcation of |IDS_FILE_BROWSER_DISABLED_MOBILE_SYNC_NOTIFICATION_MESSAGE|.">
+    Enable syncing over mobile data
+  </message>
   <message name="IDS_FILE_BROWSER_OPEN_IN_OTHER_DESKTOP_MESSAGE" desc="Message of an alert dialog that is shown when a user opens a file in a desktop of another profile but the file is opened in the original desktop.">
     This file opened on a different desktop. Move to <ph name="USER_NAME">$1<ex>John Doe</ex></ph> (<ph name="MAIL_ADDRESS">$2<ex>xxxxxx@gmail.com</ex></ph>) to view it.
   </message>
@@ -830,6 +842,9 @@ Press any key to continue exploring.
   <message name="IDS_FILE_BROWSER_GFORM_DOCUMENT_FILE_TYPE" desc="Google form file type">
     Google form
   </message>
+  <message name="IDS_FILE_BROWSER_GMAP_DOCUMENT_FILE_TYPE" desc="Google map file type">
+    Google map
+  </message>
   <message name="IDS_FILE_BROWSER_GLINK_DOCUMENT_FILE_TYPE" desc="Google Drive link file type">
     Google Drive link
   </message>
@@ -891,6 +906,9 @@ Press any key to continue exploring.
     No items match &lt;b&gt;"<ph name="SEARCH_STRING">$1<ex>abc</ex></ph>"&lt;/b&gt;
   </message>
 
+  <message name="IDS_FILE_BROWSER_MORE_ACTIONS" desc="In the File Manager, the text in combobutton to show the user there exist actions which can be executed to the file.">
+    More actions...
+  </message>
   <message name="IDS_FILE_BROWSER_CHANGE_DEFAULT_MENU_ITEM" desc="In the File Manager, the text in the menu item to change the default action for a particular file type.">
     Change default...
   </message>
@@ -1826,6 +1844,27 @@ Press any key to continue exploring.
   <message name="IDS_OPTIONS_SETTINGS_SECTION_TITLE_LANGUAGE">
     Language
   </message>
+  <message name="IDS_OPTIONS_DEVICE_GROUP_BATTERY_STATUS_LABEL" desc="The prefix to the battery status in the device section.">
+    Battery - <ph name="status">$1<ex>56% - 2:03 left</ex></ph>
+  </message>
+  <message name="IDS_OPTIONS_BATTERY_STATUS" desc="The battery status in the device section and 'Power' overlay while the battery is discharging, showing the battery power as a percentage and the time left until the battery is empty.">
+    <ph name="percentage">$1<ex>56</ex></ph>% - <ph name="hour">$2<ex>2</ex></ph>:<ph name="minute">$3<ex>03</ex></ph> left
+  </message>
+  <message name="IDS_OPTIONS_BATTERY_STATUS_CHARGING" desc="The battery status in the device section and 'Power' overlay while the battery is charging, showing the battery power as a percentage and the time left until the battery is full.">
+    <ph name="percentage">$1<ex>56</ex></ph>% - <ph name="hour">$2<ex>2</ex></ph>:<ph name="minute">$3<ex>03</ex></ph> until full
+  </message>
+  <message name="IDS_OPTIONS_BATTERY_STATUS_SHORT" desc="The battery status in the device section and 'Power' overlay when the time left cannot be shown.">
+    <ph name="percentage">$1<ex>56</ex></ph>%
+  </message>
+  <message name="IDS_OPTIONS_DEVICE_GROUP_POWER_SETTINGS_BUTTON" desc="Text on button to take user to the 'Power' overlay.">
+    Manage power
+  </message>
+  <message name="IDS_OPTIONS_POWER_OVERLAY_TITLE" desc="The title for the 'Power' overlay.">
+    Power
+  </message>
+  <message name="IDS_OPTIONS_BATTERY_STATUS_LABEL" desc="The label for the battery information in the 'Power' overlay.">
+    Battery:
+  </message>
   <message name="IDS_OPTIONS_SETTINGS_BATTERY_DESCRIPTION" desc="The 'Battery' button on the chrome://settings page.">
     Battery...
   </message>
@@ -1988,7 +2027,7 @@ Press any key to continue exploring.
   <message name="IDS_OPTIONS_SETTINGS_BLUETOOTH_FORGET_FAILED">
     Failed to disconnect and unpair from "<ph name="DEVICE_NAME">%1<ex>Nexus S</ex></ph>".
   </message>
-  <message name="IDS_OPTIONS_SETTINGS_ACCESSIBILITY_EXPLANATION" desc="In the settings tab, this text explains the accessibiliy features.">
+  <message name="IDS_OPTIONS_SETTINGS_ACCESSIBILITY_EXPLANATION" desc="In the settings tab, this text explains the accessibility features.">
     Enable accessibility features to make your device easier to use.
   </message>
   <message name="IDS_OPTIONS_SETTINGS_ACCESSIBILITY_SETTINGS" desc="Text of the link to open ChromeVox settings.">

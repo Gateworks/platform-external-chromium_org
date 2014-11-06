@@ -18,9 +18,6 @@ component("events_base") {
   sources = [
     "android/scroller.cc",
     "android/scroller.h",
-    "device_data_manager.cc",
-    "device_data_manager.h",
-    "device_hotplug_event_observer.h",
     "event_constants.h",
     "event_switches.cc",
     "event_switches.h",
@@ -30,12 +27,6 @@ component("events_base") {
     "gesture_event_details.h",
     "gestures/fling_curve.cc",
     "gestures/fling_curve.h",
-    "gestures/gesture_configuration.cc",
-    "gestures/gesture_configuration.h",
-    "input_device.cc",
-    "input_device.h",
-    "keyboard_device.cc",
-    "keyboard_device.h",
     "keycodes/keyboard_code_conversion.cc",
     "keycodes/keyboard_code_conversion.h",
     "keycodes/keyboard_code_conversion_android.cc",
@@ -47,8 +38,6 @@ component("events_base") {
     "keycodes/keyboard_codes.h",
     "latency_info.cc",
     "latency_info.h",
-    "touchscreen_device.cc",
-    "touchscreen_device.h",
   ]
 
   defines = [ "EVENTS_BASE_IMPLEMENTATION" ]
@@ -72,16 +61,8 @@ component("events_base") {
     sources += [
       "keycodes/keyboard_code_conversion_x.cc",
       "keycodes/keyboard_code_conversion_x.h",
-      "x/device_data_manager_x11.cc",
-      "x/device_data_manager_x11.h",
-      "x/device_list_cache_x.cc",
-      "x/device_list_cache_x.h",
-      "x/hotplug_event_handler_x11.cc",
-      "x/hotplug_event_handler_x11.h",
       "x/keysym_to_unicode.cc",
       "x/keysym_to_unicode.h",
-      "x/touch_factory_x11.cc",
-      "x/touch_factory_x11.h",
     ]
 
     deps += [ "//ui/gfx/x" ]
@@ -138,7 +119,10 @@ component("events") {
       "//build/config/linux:glib",
       "//build/config/linux:x11",
     ]
-    deps += [ "//ui/gfx/x" ]
+    deps += [
+      "//ui/events/devices",
+      "//ui/gfx/x",
+    ]
   }
 
   if (!is_chromeos && is_linux) {
@@ -178,7 +162,8 @@ component("gesture_detection") {
     "gesture_detection/bitset_32.h",
     "gesture_detection/filtered_gesture_provider.cc",
     "gesture_detection/filtered_gesture_provider.h",
-    "gesture_detection/gesture_config_helper.h",
+    "gesture_detection/gesture_configuration.cc",
+    "gesture_detection/gesture_configuration.h",
     "gesture_detection/gesture_detection_export.h",
     "gesture_detection/gesture_detector.cc",
     "gesture_detection/gesture_detector.h",
@@ -190,6 +175,8 @@ component("gesture_detection") {
     "gesture_detection/gesture_listeners.h",
     "gesture_detection/gesture_provider.cc",
     "gesture_detection/gesture_provider.h",
+    "gesture_detection/gesture_provider_config_helper.cc",
+    "gesture_detection/gesture_provider_config_helper.h",
     "gesture_detection/gesture_touch_uma_histogram.cc",
     "gesture_detection/gesture_touch_uma_histogram.h",
     "gesture_detection/motion_event.cc",
@@ -215,6 +202,7 @@ component("gesture_detection") {
   deps = [
     ":events_base",
     "//base",
+    "//base/third_party/dynamic_annotations",
     "//ui/gfx",
     "//ui/gfx/geometry",
   ]
@@ -222,11 +210,11 @@ component("gesture_detection") {
   defines = [ "GESTURE_DETECTION_IMPLEMENTATION" ]
 
   if (is_android) {
-    sources += [ "gesture_detection/gesture_config_helper_android.cc" ]
+    sources += [ "gesture_detection/gesture_configuration_android.cc" ]
   } else if (use_aura) {
-    sources += [ "gesture_detection/gesture_config_helper_aura.cc" ]
+    sources += [ "gesture_detection/gesture_configuration_aura.cc" ]
   } else {
-    sources += [ "gesture_detection/gesture_config_helper.cc" ]
+    sources += [ "gesture_detection/gesture_configuration_default.cc" ]
   }
 }
 
@@ -274,7 +262,10 @@ source_set("test_support") {
       "test/events_test_utils_x11.cc",
       "test/events_test_utils_x11.h",
     ]
-    deps += [ "//ui/gfx/x" ]
+    deps += [
+      "//ui/events/devices",
+      "//ui/gfx/x",
+    ]
   }
 }
 
@@ -282,6 +273,7 @@ test("events_unittests") {
   sources = [
     "android/scroller_unittest.cc",
     "cocoa/events_mac_unittest.mm",
+    "devices/x11/device_data_manager_x11_unittest.cc",
     "event_dispatcher_unittest.cc",
     "event_processor_unittest.cc",
     "event_rewriter_unittest.cc",
@@ -291,13 +283,13 @@ test("events_unittests") {
     "gesture_detection/gesture_provider_unittest.cc",
     "gesture_detection/motion_event_buffer_unittest.cc",
     "gesture_detection/motion_event_generic_unittest.cc",
+    "gesture_detection/snap_scroll_controller_unittest.cc",
     "gesture_detection/touch_disposition_gesture_filter_unittest.cc",
     "gesture_detection/velocity_tracker_unittest.cc",
     "gestures/fling_curve_unittest.cc",
     "keycodes/dom4/keycode_converter_unittest.cc",
     "latency_info_unittest.cc",
     "platform/platform_event_source_unittest.cc",
-    "x/device_data_manager_x11_unittest.cc",
     "x/events_x_unittest.cc",
   ]
 
@@ -311,6 +303,7 @@ test("events_unittests") {
     "//base/test:run_all_unittests",
     "//skia",
     "//testing/gtest",
+    "//ui/events/devices",
     "//ui/events/platform",
     "//ui/gfx:test_support",
   ]
@@ -320,15 +313,19 @@ test("events_unittests") {
     deps += [ "//ui/gfx/x" ]
   } else {
     sources -= [
-      "x/device_data_manager_x11_unittest.cc",
+      "devices/x11/device_data_manager_x11_unittest.cc",
       "x/events_x_unittest.cc",
     ]
   }
 
   if (use_ozone) {
     sources += [
-      "ozone/evdev/key_event_converter_evdev_unittest.cc",
+      "ozone/evdev/event_converter_evdev_impl_unittest.cc",
       "ozone/evdev/touch_event_converter_evdev_unittest.cc",
+    ]
+    deps += [
+      "//ui/events/ozone:events_ozone",
+      "//ui/events/ozone:events_ozone_evdev",
     ]
   }
 

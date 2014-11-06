@@ -11,7 +11,6 @@
 #include "sync/protocol/app_list_specifics.pb.h"
 #include "sync/protocol/app_specifics.pb.h"
 #include "sync/protocol/client_debug_info.pb.h"
-#include "sync/protocol/enhanced_bookmark_specifics.pb.h"
 #include "sync/protocol/session_specifics.pb.h"
 #include "sync/protocol/sync.pb.h"
 
@@ -35,6 +34,9 @@ SYNC_EXPORT_PRIVATE const char* GetPageTransitionString(
 SYNC_EXPORT_PRIVATE const char* GetPageTransitionRedirectTypeString(
     sync_pb::SyncEnums::PageTransitionRedirectType
         redirect_type);
+
+SYNC_EXPORT_PRIVATE const char* GetWifiCredentialSecurityClassString(
+    sync_pb::WifiCredentialSpecifics::SecurityClass security_class);
 
 SYNC_EXPORT const char* GetUpdatesSourceString(
     sync_pb::GetUpdatesCallerInfo::GetUpdatesSource updates_source);
@@ -65,12 +67,6 @@ const char* SingletonDebugEventTypeString(
     sync_pb::SyncEnums::SingletonDebugEventType type);
 
 const char* GetBlockedStateString(sync_pb::TabNavigation::BlockedState state);
-
-const char* GetDisplaySizeString(
-    sync_pb::ChromeSyncFolioInfo::DisplaySize display_size);
-
-const char* GetFetchErrorReasonString(
-    sync_pb::ChromeSyncClip::FetchErrorReason fetch_error_reason);
 
 }  // namespace syncer
 

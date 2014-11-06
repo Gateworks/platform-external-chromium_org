@@ -597,7 +597,8 @@ bool Instance::HandleInputEvent(const pp::InputEvent& event) {
           engine_->SelectAll();
           return true;
       }
-    } else if (modifier & PP_INPUTEVENT_MODIFIER_CONTROLKEY) {
+    }
+    if (modifier & PP_INPUTEVENT_MODIFIER_CONTROLKEY) {
       switch (keyboard_event.GetKeyCode()) {
         case ui::VKEY_OEM_4:
           // Left bracket.
@@ -1285,6 +1286,7 @@ void Instance::NotifyNumberOfFindResultsChanged(int total, bool final_result) {
 }
 
 void Instance::NotifySelectedFindResultChanged(int current_find_index) {
+  DCHECK_GE(current_find_index, 0);
   SelectedFindResultChanged(current_find_index);
 }
 

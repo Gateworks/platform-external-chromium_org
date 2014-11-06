@@ -1,5 +1,5 @@
 {
-  "Mac10.6 Tests (1)": {
+  "Mac10.6 Tests": {
     "gtest_tests": [
       "accessibility_unittests",
       "app_list_unittests",
@@ -81,9 +81,23 @@
         }
       },
       "url_unittests"
+    ],
+    "scripts": [
+      {
+        "name": "telemetry_unittests",
+        "script": "telemetry_unittests.py"
+      },
+      {
+        "name": "telemetry_perf_unittests",
+        "script": "telemetry_perf_unittests.py"
+      },
+      {
+        "name": "nacl_integration",
+        "script": "nacl_integration.py"
+      }
     ]
   },
-  "Mac10.7 Tests (1)": {
+  "Mac10.8 Tests": {
     "gtest_tests": [
       "accessibility_unittests",
       "app_list_unittests",
@@ -165,9 +179,23 @@
         }
       },
       "url_unittests"
+    ],
+    "scripts": [
+      {
+        "name": "telemetry_unittests",
+        "script": "telemetry_unittests.py"
+      },
+      {
+        "name": "telemetry_perf_unittests",
+        "script": "telemetry_perf_unittests.py"
+      },
+      {
+        "name": "nacl_integration",
+        "script": "nacl_integration.py"
+      }
     ]
   },
-  "Mac 10.6 Tests (dbg)(1)": {
+  "Mac10.9 Tests": {
     "gtest_tests": [
       "accessibility_unittests",
       "app_list_unittests",
@@ -249,9 +277,23 @@
         }
       },
       "url_unittests"
+    ],
+    "scripts": [
+      {
+        "name": "telemetry_unittests",
+        "script": "telemetry_unittests.py"
+      },
+      {
+        "name": "telemetry_perf_unittests",
+        "script": "telemetry_perf_unittests.py"
+      },
+      {
+        "name": "nacl_integration",
+        "script": "nacl_integration.py"
+      }
     ]
   },
-  "Mac 10.7 Tests (dbg)(1)": {
+  "Mac10.9 Tests (dbg)": {
     "gtest_tests": [
       "accessibility_unittests",
       "app_list_unittests",
@@ -334,6 +376,20 @@
         }
       },
       "url_unittests"
+    ],
+    "scripts": [
+      {
+        "name": "telemetry_unittests",
+        "script": "telemetry_unittests.py"
+      },
+      {
+        "name": "telemetry_perf_unittests",
+        "script": "telemetry_perf_unittests.py"
+      },
+      {
+        "name": "nacl_integration",
+        "script": "nacl_integration.py"
+      }
     ]
   }
 }

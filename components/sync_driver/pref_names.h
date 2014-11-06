@@ -28,7 +28,6 @@ extern const char kSyncAutofill[];
 extern const char kSyncBookmarks[];
 extern const char kSyncDeviceInfo[];
 extern const char kSyncDictionary[];
-extern const char kSyncEnhancedBookmarks[];
 extern const char kSyncExtensionSettings[];
 extern const char kSyncExtensions[];
 extern const char kSyncFaviconImages[];
@@ -47,6 +46,7 @@ extern const char kSyncSyncedNotifications[];
 extern const char kSyncTabs[];
 extern const char kSyncThemes[];
 extern const char kSyncTypedUrls[];
+extern const char kSyncWifiCredentials[];
 
 extern const char kSyncManaged[];
 extern const char kSyncSuppressStart[];

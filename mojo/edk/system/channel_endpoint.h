@@ -112,13 +112,17 @@ class MessagePipe;
 class MOJO_SYSTEM_IMPL_EXPORT ChannelEndpoint
     : public base::RefCountedThreadSafe<ChannelEndpoint> {
  public:
-  // TODO(vtl): More comments....
-  ChannelEndpoint(MessagePipe* message_pipe, unsigned port);
-
-  // Takes messages from the given |MessageInTransitQueue|. This must be called
-  // before this object is attached to a channel, and before anyone has a chance
-  // to enqueue any messages.
-  void TakeMessages(MessageInTransitQueue* message_queue);
+  // Constructor for a |ChannelEndpoint| attached to the given message pipe
+  // endpoint (specified by |message_pipe| and |port|). Optionally takes
+  // messages from |*message_queue| if |message_queue| is non-null.
+  //
+  // |message_pipe| may be null if this endpoint will never need to receive
+  // messages, in which case |message_queue| should not be null. In that case,
+  // this endpoint will simply send queued messages upon being attached to a
+  // |Channel| and immediately detach itself.
+  ChannelEndpoint(MessagePipe* message_pipe,
+                  unsigned port,
+                  MessageInTransitQueue* message_queue = nullptr);
 
   // Methods called by |MessagePipe| (via |ProxyMessagePipeEndpoint|):
 
@@ -130,10 +134,6 @@ class MOJO_SYSTEM_IMPL_EXPORT ChannelEndpoint
   void DetachFromMessagePipe();
 
   // Methods called by |Channel|:
-
-  // TODO(vtl): Remove these once we've switched over to |AttachAndRun()|.
-  void AttachToChannel(Channel* channel, ChannelEndpointId local_id);
-  void Run(ChannelEndpointId remote_id);
 
   // Called by |Channel| when it takes a reference to this object. It will send
   // all queue messages (in |paused_message_queue_|).
@@ -162,7 +162,6 @@ class MOJO_SYSTEM_IMPL_EXPORT ChannelEndpoint
   // Must be called with |lock_| held.
   bool WriteMessageNoLock(scoped_ptr<MessageInTransit> message);
 
-  // TODO(vtl): Move the things above under lock.
   // Protects the members below.
   base::Lock lock_;
 

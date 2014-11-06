@@ -19,6 +19,7 @@
 #include "net/quic/quic_utils.h"
 #include "net/quic/test_tools/mock_clock.h"
 #include "net/quic/test_tools/mock_random.h"
+#include "net/quic/test_tools/quic_config_peer.h"
 #include "net/quic/test_tools/quic_connection_peer.h"
 #include "net/quic/test_tools/quic_framer_peer.h"
 #include "net/quic/test_tools/quic_packet_creator_peer.h"
@@ -1313,6 +1314,49 @@ TEST_P(QuicConnectionTest, LeastUnackedLower) {
   ProcessStopWaitingPacket(&frame3);
 }
 
+TEST_P(QuicConnectionTest, TooManySentPackets) {
+  EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
+
+  for (int i = 0; i < 1100; ++i) {
+    SendStreamDataToPeer(1, "foo", 3 * i, !kFin, nullptr);
+  }
+
+  // Ack packet 1, which leaves more than the limit outstanding.
+  EXPECT_CALL(*send_algorithm_, OnCongestionEvent(true, _, _, _));
+  if (FLAGS_quic_too_many_outstanding_packets) {
+    EXPECT_CALL(visitor_,
+                OnConnectionClosed(QUIC_TOO_MANY_OUTSTANDING_SENT_PACKETS,
+                                   false));
+  }
+  // We're receive buffer limited, so the connection won't try to write more.
+  EXPECT_CALL(visitor_, OnCanWrite()).Times(0);
+
+  // Nack every packet except the last one, leaving a huge gap.
+  QuicAckFrame frame1 = InitAckFrame(1100);
+  for (QuicPacketSequenceNumber i = 1; i < 1100; ++i) {
+    NackPacket(i, &frame1);
+  }
+  ProcessAckPacket(&frame1);
+}
+
+TEST_P(QuicConnectionTest, TooManyReceivedPackets) {
+  EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
+
+  if (FLAGS_quic_too_many_outstanding_packets) {
+    EXPECT_CALL(visitor_,
+                OnConnectionClosed(QUIC_TOO_MANY_OUTSTANDING_RECEIVED_PACKETS,
+                                   false));
+  }
+
+  // Miss every other packet for 1000 packets.
+  for (QuicPacketSequenceNumber i = 1; i < 1000; ++i) {
+    ProcessPacket(i * 2);
+    if (!connection_.connected()) {
+      break;
+    }
+  }
+}
+
 TEST_P(QuicConnectionTest, LargestObservedLower) {
   EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
 
@@ -1514,7 +1558,8 @@ TEST_P(QuicConnectionTest, FECSending) {
   // max_packet_length by 2 so that subsequent packets containing subsequent
   // stream frames with non-zero offets will fit within the packet length.
   size_t length = 2 + GetPacketLengthForOneStream(
-          connection_.version(), kIncludeVersion, PACKET_1BYTE_SEQUENCE_NUMBER,
+          connection_.version(), kIncludeVersion,
+          PACKET_8BYTE_CONNECTION_ID, PACKET_1BYTE_SEQUENCE_NUMBER,
           IN_FEC_GROUP, &payload_length);
   creator->set_max_packet_length(length);
 
@@ -1534,7 +1579,8 @@ TEST_P(QuicConnectionTest, FECQueueing) {
   QuicPacketCreator* creator =
       QuicConnectionPeer::GetPacketCreator(&connection_);
   size_t length = GetPacketLengthForOneStream(
-      connection_.version(), kIncludeVersion, PACKET_1BYTE_SEQUENCE_NUMBER,
+      connection_.version(), kIncludeVersion,
+      PACKET_8BYTE_CONNECTION_ID, PACKET_1BYTE_SEQUENCE_NUMBER,
       IN_FEC_GROUP, &payload_length);
   creator->set_max_packet_length(length);
   EXPECT_TRUE(creator->IsFecEnabled());
@@ -2401,6 +2447,63 @@ TEST_P(QuicConnectionTest, RetransmitPacketsWithInitialEncryption) {
   connection_.RetransmitUnackedPackets(ALL_INITIAL_RETRANSMISSION);
 }
 
+TEST_P(QuicConnectionTest, DelayForwardSecureEncryptionUntilClientIsReady) {
+  ValueRestore<bool> old_flag(&FLAGS_enable_quic_delay_forward_security, true);
+
+  // A TaggingEncrypter puts kTagSize copies of the given byte (0x02 here) at
+  // the end of the packet. We can test this to check which encrypter was used.
+  use_tagging_decrypter();
+  connection_.SetEncrypter(ENCRYPTION_INITIAL, new TaggingEncrypter(0x02));
+  connection_.SetDefaultEncryptionLevel(ENCRYPTION_INITIAL);
+  SendAckPacketToPeer();
+  EXPECT_EQ(0x02020202u, writer_->final_bytes_of_last_packet());
+
+  // Set a forward-secure encrypter but do not make it the default, and verify
+  // that it is not yet used.
+  connection_.SetEncrypter(ENCRYPTION_FORWARD_SECURE,
+                           new TaggingEncrypter(0x03));
+  SendAckPacketToPeer();
+  EXPECT_EQ(0x02020202u, writer_->final_bytes_of_last_packet());
+
+  // Now simulate receipt of a forward-secure packet and verify that the
+  // forward-secure encrypter is now used.
+  connection_.OnDecryptedPacket(ENCRYPTION_FORWARD_SECURE);
+  SendAckPacketToPeer();
+  EXPECT_EQ(0x03030303u, writer_->final_bytes_of_last_packet());
+}
+
+TEST_P(QuicConnectionTest, DelayForwardSecureEncryptionUntilManyPacketSent) {
+  ValueRestore<bool> old_flag(&FLAGS_enable_quic_delay_forward_security, true);
+
+  // Set a congestion window of 10 packets.
+  QuicPacketCount congestion_window = 10;
+  EXPECT_CALL(*send_algorithm_, GetCongestionWindow()).WillRepeatedly(
+      Return(congestion_window * kDefaultMaxPacketSize));
+
+  // A TaggingEncrypter puts kTagSize copies of the given byte (0x02 here) at
+  // the end of the packet. We can test this to check which encrypter was used.
+  use_tagging_decrypter();
+  connection_.SetEncrypter(ENCRYPTION_INITIAL, new TaggingEncrypter(0x02));
+  connection_.SetDefaultEncryptionLevel(ENCRYPTION_INITIAL);
+  SendAckPacketToPeer();
+  EXPECT_EQ(0x02020202u, writer_->final_bytes_of_last_packet());
+
+  // Set a forward-secure encrypter but do not make it the default, and
+  // verify that it is not yet used.
+  connection_.SetEncrypter(ENCRYPTION_FORWARD_SECURE,
+                           new TaggingEncrypter(0x03));
+  SendAckPacketToPeer();
+  EXPECT_EQ(0x02020202u, writer_->final_bytes_of_last_packet());
+
+  // Now send a packet "Far enough" after the encrypter was set and verify that
+  // the forward-secure encrypter is now used.
+  for (uint64 i = 0; i < 3 * congestion_window - 1; ++i) {
+    EXPECT_EQ(0x02020202u, writer_->final_bytes_of_last_packet());
+    SendAckPacketToPeer();
+  }
+  EXPECT_EQ(0x03030303u, writer_->final_bytes_of_last_packet());
+}
+
 TEST_P(QuicConnectionTest, BufferNonDecryptablePackets) {
   // SetFromConfig is always called after construction from InitializeSession.
   EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
@@ -2906,7 +3009,8 @@ TEST_P(QuicConnectionTest, TestQueueLimitsOnSendStreamData) {
   // All packets carry version info till version is negotiated.
   size_t payload_length;
   size_t length = GetPacketLengthForOneStream(
-      connection_.version(), kIncludeVersion, PACKET_1BYTE_SEQUENCE_NUMBER,
+      connection_.version(), kIncludeVersion,
+      PACKET_8BYTE_CONNECTION_ID, PACKET_1BYTE_SEQUENCE_NUMBER,
       NOT_IN_FEC_GROUP, &payload_length);
   QuicConnectionPeer::GetPacketCreator(&connection_)->set_max_packet_length(
       length);
@@ -2930,7 +3034,8 @@ TEST_P(QuicConnectionTest, LoopThroughSendingPackets) {
   // max_packet_length by 2 so that subsequent packets containing subsequent
   // stream frames with non-zero offets will fit within the packet length.
   size_t length = 2 + GetPacketLengthForOneStream(
-          connection_.version(), kIncludeVersion, PACKET_1BYTE_SEQUENCE_NUMBER,
+          connection_.version(), kIncludeVersion,
+          PACKET_8BYTE_CONNECTION_ID, PACKET_1BYTE_SEQUENCE_NUMBER,
           NOT_IN_FEC_GROUP, &payload_length);
   QuicConnectionPeer::GetPacketCreator(&connection_)->set_max_packet_length(
       length);
@@ -2942,6 +3047,58 @@ TEST_P(QuicConnectionTest, LoopThroughSendingPackets) {
   EXPECT_EQ(payload.size(),
             connection_.SendStreamDataWithString(1, payload, 0, !kFin, nullptr)
                 .bytes_consumed);
+}
+
+TEST_P(QuicConnectionTest, LoopThroughSendingPacketsWithTruncation) {
+  ValueRestore<bool> old_flag(&FLAGS_allow_truncated_connection_ids_for_quic,
+                              true);
+
+  // Set up a larger payload than will fit in one packet.
+  const string payload(connection_.max_packet_length(), 'a');
+  EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _)).Times(AnyNumber());
+
+  // Now send some packets with no truncation.
+  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(2);
+  EXPECT_EQ(payload.size(),
+            connection_.SendStreamDataWithString(
+                3, payload, 0, !kFin, nullptr).bytes_consumed);
+  // Track the size of the second packet here.  The overhead will be the largest
+  // we see in this test, due to the non-truncated CID.
+  size_t non_truncated_packet_size = writer_->last_packet_size();
+
+  // Change to a 4 byte CID.
+  QuicConfig config;
+  QuicConfigPeer::SetReceivedBytesForConnectionId(&config, 4);
+  connection_.SetFromConfig(config);
+  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(2);
+  EXPECT_EQ(payload.size(),
+            connection_.SendStreamDataWithString(
+                3, payload, 0, !kFin, nullptr).bytes_consumed);
+  // Verify that we have 8 fewer bytes than in the non-truncated case.  The
+  // first packet got 4 bytes of extra payload due to the truncation, and the
+  // headers here are also 4 byte smaller.
+  EXPECT_EQ(non_truncated_packet_size, writer_->last_packet_size() + 8);
+
+
+  // Change to a 1 byte CID.
+  QuicConfigPeer::SetReceivedBytesForConnectionId(&config, 1);
+  connection_.SetFromConfig(config);
+  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(2);
+  EXPECT_EQ(payload.size(),
+            connection_.SendStreamDataWithString(
+                3, payload, 0, !kFin, nullptr).bytes_consumed);
+  // Just like above, we save 7 bytes on payload, and 7 on truncation.
+  EXPECT_EQ(non_truncated_packet_size, writer_->last_packet_size() + 7 * 2);
+
+  // Change to a 0 byte CID.
+  QuicConfigPeer::SetReceivedBytesForConnectionId(&config, 0);
+  connection_.SetFromConfig(config);
+  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(2);
+  EXPECT_EQ(payload.size(),
+            connection_.SendStreamDataWithString(
+                3, payload, 0, !kFin, nullptr).bytes_consumed);
+  // Just like above, we save 8 bytes on payload, and 8 on truncation.
+  EXPECT_EQ(non_truncated_packet_size, writer_->last_packet_size() + 8 * 2);
 }
 
 TEST_P(QuicConnectionTest, SendDelayedAck) {
@@ -3912,7 +4069,9 @@ TEST_P(QuicConnectionTest, NetworkChangeVisitorCallbacksChangeFecState) {
   EXPECT_TRUE(visitor);
 
   // Increase FEC group size by increasing congestion window to a large number.
-  visitor->OnCongestionWindowChange(1000 * kDefaultTCPMSS);
+  EXPECT_CALL(*send_algorithm_, GetCongestionWindow()).WillRepeatedly(
+      Return(1000 * kDefaultTCPMSS));
+  visitor->OnCongestionWindowChange();
   EXPECT_LT(max_packets_per_fec_group, creator->max_packets_per_fec_group());
 }
 

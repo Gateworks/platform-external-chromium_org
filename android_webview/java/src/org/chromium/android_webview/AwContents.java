@@ -20,6 +20,7 @@ import android.net.http.SslCertificate;
 import android.os.AsyncTask;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
 import android.os.Message;
 import android.text.TextUtils;
 import android.util.Log;
@@ -568,7 +569,13 @@ public class AwContents {
             AwContentsClient contentsClient, AwSettings settings,
             DependencyFactory dependencyFactory) {
         mBrowserContext = browserContext;
+
+        // setWillNotDraw(false) is required since WebView draws it's own contents using it's
+        // container view. If this is ever not the case we should remove this, as it removes
+        // Android's gatherTransparentRegion optimization for the view.
         mContainerView = containerView;
+        mContainerView.setWillNotDraw(false);
+
         mContext = context;
         mInternalAccessAdapter = internalAccessAdapter;
         mNativeGLDelegate = nativeGLDelegate;
@@ -716,7 +723,12 @@ public class AwContents {
     }
 
     private void setContainerView(ViewGroup newContainerView) {
+        // setWillNotDraw(false) is required since WebView draws it's own contents using it's
+        // container view. If this is ever not the case we should remove this, as it removes
+        // Android's gatherTransparentRegion optimization for the view.
         mContainerView = newContainerView;
+        mContainerView.setWillNotDraw(false);
+
         mContentViewCore.setContainerView(mContainerView);
         if (mAwPdfExporter != null) {
             mAwPdfExporter.setContainerView(mContainerView);
@@ -878,8 +890,19 @@ public class AwContents {
      * Destroys this object and deletes its native counterpart.
      */
     public void destroy() {
+        if (isDestroyed()) return;
+        // If we are attached, we have to call native detach to clean up
+        // hardware resources.
+        if (mIsAttachedToWindow) {
+            nativeOnDetachedFromWindow(mNativeAwContents);
+        }
         mIsDestroyed = true;
-        destroyNatives();
+        new Handler().post(new Runnable() {
+            @Override
+            public void run() {
+                destroyNatives();
+            }
+        });
     }
 
     /**
@@ -888,11 +911,6 @@ public class AwContents {
     private void destroyNatives() {
         if (mCleanupReference != null) {
             assert mNativeAwContents != 0;
-            // If we are attached, we have to call native detach to clean up
-            // hardware resources.
-            if (mIsAttachedToWindow) {
-                nativeOnDetachedFromWindow(mNativeAwContents);
-            }
 
             mWebContentsObserver.detachFromWebContents();
             mWebContentsObserver = null;
@@ -913,12 +931,7 @@ public class AwContents {
     }
 
     private boolean isDestroyed() {
-        if (mIsDestroyed) {
-            assert mContentViewCore == null;
-            assert mWebContents == null;
-            assert mNavigationController == null;
-            assert mNativeAwContents == 0;
-        } else {
+        if (!mIsDestroyed) {
             assert mContentViewCore != null;
             assert mWebContents != null;
             assert mNavigationController != null;

@@ -21,7 +21,7 @@
 #include "base/metrics/field_trial.h"
 #include "base/metrics/histogram.h"
 #include "base/metrics/sparse_histogram.h"
-#include "base/profiler/scoped_profile.h"
+#include "base/profiler/scoped_tracker.h"
 #include "base/rand_util.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_piece.h"
@@ -213,23 +213,6 @@ void RecordOfflineStatus(int load_flags, RequestOfflineStatus status) {
     UMA_HISTOGRAM_ENUMERATION("HttpCache.OfflineStatus", status,
                               OFFLINE_STATUS_MAX_ENTRIES);
   }
-}
-
-// TODO(rvargas): Remove once we get the data.
-void RecordVaryHeaderHistogram(const net::HttpResponseInfo* response) {
-  enum VaryType {
-    VARY_NOT_PRESENT,
-    VARY_UA,
-    VARY_OTHER,
-    VARY_MAX
-  };
-  VaryType vary = VARY_NOT_PRESENT;
-  if (response->vary_data.is_valid()) {
-    vary = VARY_OTHER;
-    if (response->headers->HasHeaderValue("vary", "user-agent"))
-      vary = VARY_UA;
-  }
-  UMA_HISTOGRAM_ENUMERATION("HttpCache.Vary", vary, VARY_MAX);
 }
 
 void RecordNoStoreHeaderHistogram(int load_flags,
@@ -1227,7 +1210,6 @@ int HttpCache::Transaction::DoSuccessfulSendRequest() {
     cache_->DoomMainEntryForUrl(request_->url);
   }
 
-  RecordVaryHeaderHistogram(new_response);
   RecordNoStoreHeaderHistogram(request_->load_flags, new_response);
 
   if (new_response_->headers->response_code() == 416 &&
@@ -1361,10 +1343,7 @@ int HttpCache::Transaction::DoCreateEntryComplete(int result) {
     return OK;
   }
 
-  if (result == OK) {
-    UMA_HISTOGRAM_BOOLEAN("HttpCache.OpenToCreateRace", false);
-  } else {
-    UMA_HISTOGRAM_BOOLEAN("HttpCache.OpenToCreateRace", true);
+  if (result != OK) {
     // We have a race here: Maybe we failed to open the entry and decided to
     // create one, but by the time we called create, another transaction already
     // created the entry. If we want to eliminate this issue, we need an atomic
@@ -2407,9 +2386,9 @@ bool HttpCache::Transaction::ConditionalizeRequest() {
   if (!use_if_range) {
     // stale-while-revalidate is not useful when we only have a partial response
     // cached, so don't set the header in that case.
-    HttpResponseHeaders::FreshnessLifetimes lifetime =
+    HttpResponseHeaders::FreshnessLifetimes lifetimes =
         response_.headers->GetFreshnessLifetimes(response_.response_time);
-    if (lifetime.stale > TimeDelta()) {
+    if (lifetimes.staleness > TimeDelta()) {
       TimeDelta current_age = response_.headers->GetCurrentAge(
           response_.request_time, response_.response_time, Time::Now());
 
@@ -2417,8 +2396,8 @@ bool HttpCache::Transaction::ConditionalizeRequest() {
           kFreshnessHeader,
           base::StringPrintf("max-age=%" PRId64
                              ",stale-while-revalidate=%" PRId64 ",age=%" PRId64,
-                             lifetime.fresh.InSeconds(),
-                             lifetime.stale.InSeconds(),
+                             lifetimes.freshness.InSeconds(),
+                             lifetimes.staleness.InSeconds(),
                              current_age.InSeconds()));
     }
   }
@@ -2948,8 +2927,8 @@ void HttpCache::Transaction::RecordHistograms() {
 }
 
 void HttpCache::Transaction::OnIOComplete(int result) {
-  // TODO(vadimt): Remove ScopedProfile below once crbug.com/422516 is fixed.
-  tracked_objects::ScopedProfile tracking_profile(
+  // TODO(vadimt): Remove ScopedTracker below once crbug.com/422516 is fixed.
+  tracked_objects::ScopedTracker tracking_profile(
       FROM_HERE_WITH_EXPLICIT_FUNCTION("422516 Transaction::OnIOComplete"));
 
   DoLoop(result);

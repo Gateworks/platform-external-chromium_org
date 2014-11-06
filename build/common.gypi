@@ -61,6 +61,9 @@
           # Whether we are using Views Toolkit
           'toolkit_views%': 0,
 
+          # Use the PCI lib to collect GPU information.
+          'use_libpci%': 1,
+
           # Use OpenSSL instead of NSS as the underlying SSL and crypto
           # implementation. Certificate verification will in most cases be
           # handled by the OS. If OpenSSL's struct X509 is used to represent
@@ -136,6 +139,7 @@
         'use_cras%': '<(use_cras)',
         'use_ozone%': '<(use_ozone)',
         'embedded%': '<(embedded)',
+        'use_libpci%': '<(use_libpci)',
         'use_openssl%': '<(use_openssl)',
         'use_openssl_certs%': '<(use_openssl_certs)',
         'enable_viewport%': '<(enable_viewport)',
@@ -281,6 +285,7 @@
       'use_aura%': '<(use_aura)',
       'use_ash%': '<(use_ash)',
       'use_cras%': '<(use_cras)',
+      'use_libpci%': '<(use_libpci)',
       'use_ozone%': '<(use_ozone)',
       'use_ozone_evdev%': '<(use_ozone_evdev)',
       'use_clipboard_aurax11%': '<(use_clipboard_aurax11)',
@@ -308,11 +313,10 @@
       # on compile-only bots).
       'fastbuild%': 0,
 
-      # Set to 1 to not store any build metadata (this isn't working yet but
-      # this flag will help us to get there). See http://crbug.com/314403.
-      # TODO(sebmarchand): Update this comment once this flag guarantee that
-      #     there's no build metadata in the build artifacts.
-      'dont_embed_build_metadata%': 0,
+      # Set to 1 to not store any build metadata, e.g. ifdef out all __DATE__
+      # and __TIME__. Set to 0 to reenable the use of these macros in the code
+      # base. See http://crbug.com/314403.
+      'dont_embed_build_metadata%': 1,
 
       # Set to 1 to force Visual C++ to use legacy debug information format /Z7.
       # This is useful for parallel compilation tools which can't support /Zi.
@@ -345,6 +349,10 @@
       # By default, component is set to static_library and it can be overriden
       # by the GYP command line or by ~/.gyp/include.gypi.
       'component%': 'static_library',
+
+      # /analyze is off by default on Windows because it is very slow and noisy.
+      # Enable with GYP_DEFINES=win_analyze=1
+      'win_analyze%': 0,
 
       # Set to select the Title Case versions of strings in GRD files.
       'use_titlecase_in_grd%': 0,
@@ -479,12 +487,12 @@
       # Enable Google Now.
       'enable_google_now%': 1,
 
-      # Enable printing support and UI. This variable is used to configure
-      # which parts of printing will be built. 0 disables printing completely,
-      # 1 enables it fully, and 2 enables only the codepath to generate a
-      # Metafile (e.g. usually a PDF or EMF) and disables print preview, cloud
-      # print, UI, etc.
-      'enable_printing%': 1,
+      # Enable basic printing support and UI.
+      'enable_basic_printing%': 1,
+
+      # Enable printing with print preview. It does not imply
+      # enable_basic_printing. It's possible to build Chrome with preview only.
+      'enable_print_preview%': 1,
 
       # Set the version of CLD.
       #   0: Don't specify the version. This option is for the Finch testing.
@@ -762,11 +770,9 @@
           'arm_neon_optional%': 1,
           'native_discardable_memory%': 1,
           'native_memory_pressure_signals%': 1,
-          'enable_printing%': 2,
+          'enable_basic_printing%': 1,
+          'enable_print_preview%': 0,
           'enable_task_manager%':0,
-           # Set to 1 once we have a notification system for Android.
-           # http://crbug.com/115320
-          'notifications%': 0,
           'video_hole%': 1,
         }],
 
@@ -804,7 +810,8 @@
           'enable_extensions%': 0,
           'enable_google_now%': 0,
           'cld_version%': 1,
-          'enable_printing%': 0,
+          'enable_basic_printing%': 0,
+          'enable_print_preview%': 0,
           'enable_session_service%': 0,
           'enable_themes%': 0,
           'enable_webrtc%': 0,
@@ -900,6 +907,8 @@
         }],
 
         ['chromeos==1', {
+          'enable_basic_printing%': 0,
+          'enable_print_preview%': 1,
           # When building for ChromeOS we dont want Chromium to use libjpeg_turbo.
           'use_libjpeg_turbo%': 0,
         }],
@@ -974,7 +983,8 @@
         # Disable various features by default on embedded.
         ['embedded==1', {
           'remoting%': 0,
-          'enable_printing%': 0,
+          'enable_basic_printing%': 0,
+          'enable_print_preview%': 0,
         }],
 
         # By default, use ICU data file (icudtl.dat) on all platforms
@@ -1003,6 +1013,14 @@
           'optimize_jni_generation%': 1,
         }, {
           'optimize_jni_generation%': 0,
+        }],
+
+        # TODO(baixo): Enable v8_use_external_startup_data
+        # http://crbug.com/421063
+        ['android_webview_build==0 and android_webview_telemetry_build==0 and chromecast==0', {
+          'v8_use_external_startup_data': 0,
+        }, {
+          'v8_use_external_startup_data': 0,
         }],
       ],
 
@@ -1073,6 +1091,7 @@
     'use_aura%': '<(use_aura)',
     'use_ash%': '<(use_ash)',
     'use_cras%': '<(use_cras)',
+    'use_libpci%': '<(use_libpci)',
     'use_openssl%': '<(use_openssl)',
     'use_openssl_certs%': '<(use_openssl_certs)',
     'use_nss%': '<(use_nss)',
@@ -1108,6 +1127,7 @@
     'chroot_cmd%': '<(chroot_cmd)',
     'system_libdir%': '<(system_libdir)',
     'component%': '<(component)',
+    'win_analyze%': '<(win_analyze)',
     'enable_resource_whitelist_generation%': '<(enable_resource_whitelist_generation)',
     'use_titlecase_in_grd%': '<(use_titlecase_in_grd)',
     'use_third_party_translations%': '<(use_third_party_translations)',
@@ -1160,7 +1180,8 @@
     'test_isolation_mode%': '<(test_isolation_mode)',
     'test_isolation_outdir%': '<(test_isolation_outdir)',
     'test_isolation_fail_on_missing': '<(test_isolation_fail_on_missing)',
-    'enable_printing%': '<(enable_printing)',
+    'enable_basic_printing%': '<(enable_basic_printing)',
+    'enable_print_preview%': '<(enable_print_preview)',
     'enable_spellcheck%': '<(enable_spellcheck)',
     'enable_google_now%': '<(enable_google_now)',
     'cld_version%': '<(cld_version)',
@@ -1205,6 +1226,7 @@
     'video_hole%': '<(video_hole)',
     'enable_load_completion_hacks%': '<(enable_load_completion_hacks)',
     'support_pre_M6_history_database%': '<(support_pre_M6_history_database)',
+    'v8_use_external_startup_data': '<(v8_use_external_startup_data)',
 
     # Whether or not we are building the Athena shell.
     'use_athena%': '0',
@@ -1354,9 +1376,6 @@
     # Enable new NPDevice API.
     'enable_new_npdevice_api%': 0,
 
-    # Enable EGLImage support in OpenMAX
-    'enable_eglimage%': 1,
-
     # .gyp files or targets should set chromium_code to 1 if they build
     # Chromium-specific code, as opposed to external code.  This variable is
     # used to control such things as the set of warnings to enable, and
@@ -1460,9 +1479,6 @@
     # Compile d8 for the host toolset.
     'v8_toolset_for_d8': 'host',
 
-    # Use the chromium skia by default.
-    'use_system_skia%': '0',
-
     # Use brlapi from brltty for braille display support.
     'use_brlapi%': 0,
 
@@ -1494,6 +1510,14 @@
     'ozone_platform_test%': 0,
 
     'conditions': [
+      ['buildtype=="Official"', {
+        # Continue to embed build meta data in Official builds, basically the
+        # time it was built.
+        # TODO(maruel): This decision should be revisited because having an
+        # official deterministic build has high value too but MSVC toolset can't
+        # generate anything deterministic with WPO enabled AFAIK.
+        'dont_embed_build_metadata%': 0,
+      }],
       # Enable the Syzygy optimization step for the official builds.
       ['OS=="win" and buildtype=="Official" and syzyasan!=1', {
         'syzygy_optimize%': 1,
@@ -2078,11 +2102,11 @@
       ['enable_plugins!=0', {
         'grit_defines': ['-D', 'enable_plugins'],
       }],
-      ['enable_printing!=0', {
+      ['enable_basic_printing==1 or enable_print_preview==1', {
         'grit_defines': ['-D', 'enable_printing'],
       }],
-      ['enable_printing==1', {
-        'grit_defines': ['-D', 'enable_full_printing'],
+      ['enable_print_preview==1', {
+        'grit_defines': ['-D', 'enable_print_preview'],
       }],
       ['enable_themes==1', {
         'grit_defines': ['-D', 'enable_themes'],
@@ -2753,11 +2777,6 @@
           }],
         ],
       }],
-      ['enable_eglimage==1', {
-        'defines': [
-          'ENABLE_EGLIMAGE=1',
-        ],
-      }],
       ['asan==1', {
         'defines': [
           'ADDRESS_SANITIZER',
@@ -2804,8 +2823,42 @@
                 'DebugInformationFormat': '1',
               }
             }
-          }],
-        ],  # win_z7!=0
+          }],  # win_z7!=0
+          ['win_analyze', {
+            'defines!': [
+              # This is prohibited when running /analyze.
+              '_USING_V110_SDK71_',
+            ],
+            'msvs_settings': {
+              'VCCLCompilerTool': {
+                # Set WarnAsError to false to disable this setting for most
+                # projects so that compilation continues.
+                'WarnAsError': 'false',
+                # When win_analyze is specified add the /analyze switch.
+                # Also add /WX- to force-disable WarnAsError for projects that
+                # override WarnAsError.
+                # Also, disable various noisy warnings that have low value.
+                'AdditionalOptions': [
+                  '/analyze',
+                  '/WX-',
+                  '/wd6011',  # Dereferencing NULL pointer
+                  '/wd6312',  # Possible infinite loop: use of the constant
+                    # EXCEPTION_CONTINUE_EXECUTION in the exception-filter
+                  '/wd6326',  # Potential comparison of constant with constant
+                  '/wd28159', # Consider using 'GetTickCount64'
+                  '/wd28204', # Inconsistent SAL annotations
+                  '/wd28251', # Inconsistent SAL annotations
+                  '/wd28252', # Inconsistent SAL annotations
+                  '/wd28253', # Inconsistent SAL annotations
+                  '/wd28196', # The precondition is not satisfied
+                  '/wd28301', # Inconsistent SAL annotations
+                  '/wd6340',  # Sign mismatch in function parameter
+                  '/wd28182', # Dereferencing NULL pointer
+                ],
+              },
+            },
+          }],  # win_analyze
+        ],
       }],  # OS==win
       ['chromecast==1', {
         'defines': [
@@ -2876,11 +2929,18 @@
         # chrome://translate-internals
         'defines': ['CLD2_DATA_SOURCE=<(cld2_data_source)'],
       }],
-      ['enable_printing==1', {
-        'defines': ['ENABLE_FULL_PRINTING=1', 'ENABLE_PRINTING=1'],
-      }],
-      ['enable_printing==2', {
+      ['enable_basic_printing==1 or enable_print_preview==1', {
+        # Convenience define for ENABLE_BASIC_PRINTING || ENABLE_PRINT_PREVIEW.
         'defines': ['ENABLE_PRINTING=1'],
+      }],
+      ['enable_basic_printing==1', {
+        # Enable basic printing support and UI.
+        'defines': ['ENABLE_BASIC_PRINTING=1'],
+      }],
+      ['enable_print_preview==1', {
+        # Enable printing with print preview.
+        # Can be defined without ENABLE_BASIC_PRINTING.
+        'defines': ['ENABLE_PRINT_PREVIEW=1'],
       }],
       ['enable_spellcheck==1', {
         'defines': ['ENABLE_SPELLCHECK=1'],
@@ -2933,8 +2993,14 @@
       ['enable_load_completion_hacks==1', {
         'defines': ['ENABLE_LOAD_COMPLETION_HACKS=1'],
       }],
+      ['v8_use_external_startup_data==1', {
+       'defines': ['V8_USE_EXTERNAL_STARTUP_DATA'],
+      }],
     ],  # conditions for 'target_defaults'
     'target_conditions': [
+      ['<(use_libpci)==1', {
+        'defines': ['USE_LIBPCI=1'],
+      }],
       ['<(use_openssl)==1', {
         'defines': ['USE_OPENSSL=1'],
       }],
@@ -4038,8 +4104,10 @@
               '-Wno-reserved-user-defined-literal',
             ],
             'cflags_cc': [
-              # See the comment in the Mac section for what it takes to move
-              # this to -std=c++11.
+              # gnu++11 instead of c++11 is needed because some code uses
+              # typeof() (a GNU extension).
+              # TODO(thakis): Eventually switch this to c++11 instead,
+              # http://crbug.com/427584
               '-std=gnu++11',
             ],
           }],
@@ -4117,7 +4185,8 @@
               ['_toolset=="target"', {
                 'cflags': [
                   '-fsanitize=address',
-                  '-fsanitize-blacklist=<(asan_blacklist)',
+                  # TODO(earthdok): Re-enable. http://crbug.com/427202
+                  #'-fsanitize-blacklist=<(asan_blacklist)',
                 ],
                 'ldflags': [
                   '-fsanitize=address',
@@ -4793,12 +4862,7 @@
             # Note that the prebuilt Clang binaries should not be used for iOS
             # development except for ASan builds.
             ['clang==1', {
-              # gnu++11 instead of c++11 is needed because some code uses
-              # typeof() (a GNU extension).
-              # TODO(thakis): Eventually switch this to c++11 instead of
-              # gnu++11 (once typeof can be removed, which is blocked on c++11
-              # being available everywhere).
-              'CLANG_CXX_LANGUAGE_STANDARD': 'gnu++11',  # -std=gnu++11
+              'CLANG_CXX_LANGUAGE_STANDARD': 'c++11',  # -std=c++11
               # Warn if automatic synthesis is triggered with
               # the -Wobjc-missing-property-synthesis flag.
               'CLANG_WARN_OBJC_MISSING_PROPERTY_SYNTHESIS': 'YES',
@@ -5100,9 +5164,7 @@
     ['OS=="ios"', {
       'target_defaults': {
         'xcode_settings' : {
-          # TODO(stuartmorgan): switch to c++0x (see TODOs in the clang
-          # section above).
-          'CLANG_CXX_LANGUAGE_STANDARD': 'gnu++0x',
+          'CLANG_CXX_LANGUAGE_STANDARD': 'c++11',
 
           'conditions': [
             # Older Xcodes do not support -Wno-deprecated-register, so pass an
@@ -5531,6 +5593,7 @@
                   '-Wno-unused-value',
                   '-Wno-unused-variable',
                   '-Wno-unused-local-typedef',  # http://crbug.com/411648
+                  '-Wno-inconsistent-missing-override', #http://crbug.com/428099
                 ],
               },
             }],
@@ -5667,13 +5730,17 @@
     # the default on the current development version of AOSP but we force it
     # here in case we need to compile against an older release version. We also
     # explicitly set it to false for target binaries to avoid causing problems
-    # for the work to enable clang by default in AOSP.
+    # for the work to enable clang by default in AOSP. We also force the use of
+    # libstdc++ on host as peculiarities of the android gyp backend mean that
+    # using libc++ doesn't work, and Chromium doesn't yet require a more modern
+    # C++ library.
     ['android_webview_build==1', {
       'target_defaults': {
         'target_conditions': [
           ['_toolset=="host"', {
             'aosp_build_settings': {
               'LOCAL_CLANG': 'true',
+              'LOCAL_CXX_STL': 'libstdc++',
             },
           }, {  # else: _toolset != "host"
             'aosp_build_settings': {

@@ -23,7 +23,7 @@
 #include "content/browser/android/load_url_params.h"
 #include "content/browser/android/popup_touch_handle_drawable.h"
 #include "content/browser/frame_host/interstitial_page_impl.h"
-#include "content/browser/geolocation/geolocation_dispatcher_host.h"
+#include "content/browser/geolocation/geolocation_service_context.h"
 #include "content/browser/media/media_web_contents_observer.h"
 #include "content/browser/renderer_host/compositor_impl_android.h"
 #include "content/browser/renderer_host/input/motion_event_android.h"
@@ -363,7 +363,10 @@ jint ContentViewCoreImpl::GetBackgroundColor(JNIEnv* env, jobject obj) {
 }
 
 void ContentViewCoreImpl::PauseOrResumeGeolocation(bool should_pause) {
-  web_contents_->geolocation_dispatcher_host()->PauseOrResume(should_pause);
+  if (should_pause)
+    web_contents_->GetGeolocationServiceContext()->PauseUpdates();
+  else
+    web_contents_->GetGeolocationServiceContext()->ResumeUpdates();
 }
 
 // All positions and sizes are in CSS pixels.
@@ -702,6 +705,16 @@ void ContentViewCoreImpl::DidStopFlinging() {
     Java_ContentViewCore_onNativeFlingStopped(env, obj.obj());
 }
 
+ScopedJavaLocalRef<jobject> ContentViewCoreImpl::GetContext() const {
+  JNIEnv* env = AttachCurrentThread();
+
+  ScopedJavaLocalRef<jobject> obj = java_ref_.get(env);
+  if (obj.is_null())
+    return ScopedJavaLocalRef<jobject>();
+
+  return Java_ContentViewCore_getContext(env, obj.obj());
+}
+
 gfx::Size ContentViewCoreImpl::GetViewSize() const {
   gfx::Size size = GetViewportSizeDip();
   size.Enlarge(0, -GetTopControlsLayoutHeightDip());
@@ -757,17 +770,24 @@ void ContentViewCoreImpl::RemoveLayer(scoped_refptr<cc::Layer> layer) {
     root_layer_->SetIsDrawable(true);
 }
 
-void ContentViewCoreImpl::SelectBetweenCoordinates(const gfx::PointF& start,
-                                                   const gfx::PointF& end) {
+void ContentViewCoreImpl::MoveRangeSelectionExtent(const gfx::PointF& extent) {
   if (!web_contents_)
     return;
 
-  gfx::Point start_point = gfx::Point(start.x(), start.y());
-  gfx::Point end_point = gfx::Point(end.x(), end.y());
-  if (start_point == end_point)
+  web_contents_->MoveRangeSelectionExtent(gfx::Point(extent.x(), extent.y()));
+}
+
+void ContentViewCoreImpl::SelectBetweenCoordinates(const gfx::PointF& base,
+                                                   const gfx::PointF& extent) {
+  if (!web_contents_)
     return;
 
-  web_contents_->SelectRange(start_point, end_point);
+  gfx::Point base_point = gfx::Point(base.x(), base.y());
+  gfx::Point extent_point = gfx::Point(extent.x(), extent.y());
+  if (base_point == extent_point)
+    return;
+
+  web_contents_->SelectRange(base_point, extent_point);
 }
 
 ui::ViewAndroid* ContentViewCoreImpl::GetViewAndroid() const {

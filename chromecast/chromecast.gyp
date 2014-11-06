@@ -4,6 +4,8 @@
 
 {
   'variables': {
+    'android_support_v13_target%':
+        '../third_party/android_tools/android_tools.gyp:android_support_v13_javalib',
     'chromium_code': 1,
     'chromecast_branding%': 'Chromium',
   },
@@ -60,7 +62,6 @@
         'cast_shell_resources',
         '../content/app/resources/content_resources.gyp:content_resources',
         '../content/app/strings/content_strings.gyp:content_strings',
-        '../content/browser/devtools/devtools_resources.gyp:devtools_resources',
         '../net/net.gyp:net_resources',
         '../third_party/WebKit/public/blink_resources.gyp:blink_resources',
         '../ui/resources/ui_resources.gyp:ui_resources',
@@ -81,7 +82,6 @@
               '<(SHARED_INTERMEDIATE_DIR)/ui/resources/webui_resources.pak',
               '<(SHARED_INTERMEDIATE_DIR)/ui/strings/app_locale_settings_en-US.pak',
               '<(SHARED_INTERMEDIATE_DIR)/ui/strings/ui_strings_en-US.pak',
-              '<(SHARED_INTERMEDIATE_DIR)/webkit/devtools_resources.pak',
             ],
             'pak_output': '<(PRODUCT_DIR)/assets/cast_shell.pak',
           },
@@ -162,6 +162,7 @@
         'common/chromecast_config.h',
         'common/chromecast_switches.cc',
         'common/chromecast_switches.h',
+        'common/platform_client_auth.h',
         'common/pref_names.cc',
         'common/pref_names.h',
         'renderer/cast_content_renderer_client.cc',
@@ -172,7 +173,7 @@
       'conditions': [
         ['chromecast_branding=="Chrome"', {
           'dependencies': [
-            'internal/chromecast_internal.gyp:cast_shell_internal',
+            '<(cast_internal_gyp):cast_shell_internal',
           ],
         }, {
           'sources': [
@@ -181,6 +182,7 @@
             'browser/metrics/platform_metrics_providers_simple.cc',
             'browser/webui/webui_cast_simple.cc',
             'common/chromecast_config_simple.cc',
+            'common/platform_client_auth_simple.cc',
             'renderer/key_systems_cast_simple.cc',
           ],
           'conditions': [
@@ -195,6 +197,18 @@
                 'browser/service/cast_service_simple.h',
               ],
             }],
+          ],
+        }],
+        # ExternalMetrics not necessary on Android and (as of this writing) uses
+        # non-portable filesystem operations. Also webcrypto is not used on
+        # Android either.
+        ['OS=="linux"', {
+          'sources': [
+            'browser/metrics/external_metrics.cc',
+            'browser/metrics/external_metrics.h',
+          ],
+          'dependencies': [
+            '../components/components.gyp:metrics_serialization',
           ],
         }],
       ],
@@ -336,11 +350,11 @@
           'target_name': 'cast_shell_java',
           'type': 'none',
           'dependencies': [
+            '<(android_support_v13_target)',
             '../base/base.gyp:base_java',
             '../content/content.gyp:content_java',
             '../media/media.gyp:media_java',
             '../net/net.gyp:net_java',
-            '../third_party/android_tools/android_tools.gyp:android_support_v13_javalib',
             '../ui/android/ui_android.gyp:ui_java',
           ],
           'variables': {
@@ -413,7 +427,7 @@
           'conditions': [
             ['chromecast_branding=="Chrome"', {
               'dependencies': [
-                'internal/chromecast_internal.gyp:cast_gfx_internal',
+                '<(cast_internal_gyp):cast_gfx_internal',
               ],
             }, {
               'dependencies': [

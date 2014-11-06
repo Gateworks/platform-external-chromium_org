@@ -13,10 +13,10 @@
 #include "chrome/browser/extensions/extension_toolbar_model.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
+#include "chrome/browser/ui/extensions/extension_action_view_controller.h"
 #include "chrome/browser/ui/views/extensions/browser_action_drag_data.h"
-#include "chrome/browser/ui/views/extensions/extension_action_view_controller.h"
-#include "chrome/browser/ui/views/toolbar/browser_action_view.h"
 #include "chrome/browser/ui/views/toolbar/browser_actions_container.h"
+#include "chrome/browser/ui/views/toolbar/toolbar_action_view.h"
 #include "extensions/common/extension.h"
 #include "ui/views/border.h"
 #include "ui/views/controls/button/label_button_border.h"
@@ -28,7 +28,7 @@
 namespace {
 
 // In the browser actions container's chevron menu, a menu item view's icon
-// comes from BrowserActionView::GetIconWithBadge() when the menu item view is
+// comes from ToolbarActionView::GetIconWithBadge() when the menu item view is
 // created. But, the browser action's icon may not be loaded in time because it
 // is read from file system in another thread.
 // The IconUpdater will update the menu item view's icon when the browser
@@ -43,12 +43,10 @@ class IconUpdater : public ExtensionActionIconFactory::Observer {
     DCHECK(view_controller);
     view_controller->set_icon_observer(this);
   }
-  virtual ~IconUpdater() {
-    view_controller_->set_icon_observer(NULL);
-  }
+  ~IconUpdater() override { view_controller_->set_icon_observer(nullptr); }
 
-  // BrowserActionView::IconObserver:
-  virtual void OnIconUpdated() override {
+  // ExtensionActionIconFactory::Observer:
+  void OnIconUpdated() override {
     menu_item_view_->SetIcon(view_controller_->GetIconWithBadge());
   }
 
@@ -71,7 +69,7 @@ class ChevronMenuButton::MenuController : public views::MenuDelegate {
   MenuController(ChevronMenuButton* owner,
                  BrowserActionsContainer* browser_actions_container,
                  bool for_drop);
-  virtual ~MenuController();
+  ~MenuController() override;
 
   // Shows the overflow menu.
   void RunMenu(views::Widget* widget);
@@ -81,34 +79,34 @@ class ChevronMenuButton::MenuController : public views::MenuDelegate {
 
  private:
   // views::MenuDelegate:
-  virtual bool IsCommandEnabled(int id) const override;
-  virtual void ExecuteCommand(int id) override;
-  virtual bool ShowContextMenu(views::MenuItemView* source,
-                               int id,
-                               const gfx::Point& p,
-                               ui::MenuSourceType source_type) override;
-  virtual void DropMenuClosed(views::MenuItemView* menu) override;
+  bool IsCommandEnabled(int id) const override;
+  void ExecuteCommand(int id) override;
+  bool ShowContextMenu(views::MenuItemView* source,
+                       int id,
+                       const gfx::Point& p,
+                       ui::MenuSourceType source_type) override;
+  void DropMenuClosed(views::MenuItemView* menu) override;
   // These drag functions offer support for dragging icons into the overflow
   // menu.
-  virtual bool GetDropFormats(
+  bool GetDropFormats(
       views::MenuItemView* menu,
       int* formats,
       std::set<ui::OSExchangeData::CustomFormat>* custom_formats) override;
-  virtual bool AreDropTypesRequired(views::MenuItemView* menu) override;
-  virtual bool CanDrop(views::MenuItemView* menu,
-                       const ui::OSExchangeData& data) override;
-  virtual int GetDropOperation(views::MenuItemView* item,
-                               const ui::DropTargetEvent& event,
-                               DropPosition* position) override;
-  virtual int OnPerformDrop(views::MenuItemView* menu,
-                            DropPosition position,
-                            const ui::DropTargetEvent& event) override;
+  bool AreDropTypesRequired(views::MenuItemView* menu) override;
+  bool CanDrop(views::MenuItemView* menu,
+               const ui::OSExchangeData& data) override;
+  int GetDropOperation(views::MenuItemView* item,
+                       const ui::DropTargetEvent& event,
+                       DropPosition* position) override;
+  int OnPerformDrop(views::MenuItemView* menu,
+                    DropPosition position,
+                    const ui::DropTargetEvent& event) override;
   // These three drag functions offer support for dragging icons out of the
   // overflow menu.
-  virtual bool CanDrag(views::MenuItemView* menu) override;
-  virtual void WriteDragData(views::MenuItemView* sender,
-                             ui::OSExchangeData* data) override;
-  virtual int GetDragOperations(views::MenuItemView* sender) override;
+  bool CanDrag(views::MenuItemView* menu) override;
+  void WriteDragData(views::MenuItemView* sender,
+                     ui::OSExchangeData* data) override;
+  int GetDragOperations(views::MenuItemView* sender) override;
 
   // Returns the offset into |views_| for the given |id|.
   size_t IndexForId(int id) const;
@@ -125,7 +123,7 @@ class ChevronMenuButton::MenuController : public views::MenuDelegate {
   // Resposible for running the menu.
   scoped_ptr<views::MenuRunner> menu_runner_;
 
-  // The index into the BrowserActionView vector, indicating where to start
+  // The index into the ToolbarActionView vector, indicating where to start
   // picking browser actions to draw.
   int start_index_;
 
@@ -157,22 +155,22 @@ ChevronMenuButton::MenuController::MenuController(
 
   size_t command_id = 1;  // Menu id 0 is reserved, start with 1.
   for (size_t i = start_index_;
-       i < browser_actions_container_->num_browser_actions(); ++i) {
-    BrowserActionView* view =
-        browser_actions_container_->GetBrowserActionViewAt(i);
-    ExtensionActionViewController* view_controller =
-        static_cast<ExtensionActionViewController*>(view->view_controller());
+       i < browser_actions_container_->num_toolbar_actions(); ++i) {
+    ToolbarActionView* view =
+        browser_actions_container_->GetToolbarActionViewAt(i);
     views::MenuItemView* menu_item = menu_->AppendMenuItemWithIcon(
         command_id,
-        base::UTF8ToUTF16(view_controller->extension()->name()),
-        view_controller->GetIconWithBadge());
+        view->view_controller()->GetActionName(),
+        view->view_controller()->GetIconWithBadge());
 
     // Set the tooltip for this item.
     menu_->SetTooltip(
-        view_controller->GetTooltip(view->GetCurrentWebContents()),
+        view->view_controller()->GetTooltip(view->GetCurrentWebContents()),
         command_id);
 
-    icon_updaters_.push_back(new IconUpdater(menu_item, view_controller));
+    icon_updaters_.push_back(new IconUpdater(
+        menu_item,
+        static_cast<ExtensionActionViewController*>(view->view_controller())));
 
     ++command_id;
   }
@@ -211,13 +209,13 @@ void ChevronMenuButton::MenuController::CloseMenu() {
 }
 
 bool ChevronMenuButton::MenuController::IsCommandEnabled(int id) const {
-  BrowserActionView* view =
-      browser_actions_container_->GetBrowserActionViewAt(start_index_ + id - 1);
+  ToolbarActionView* view =
+      browser_actions_container_->GetToolbarActionViewAt(start_index_ + id - 1);
   return view->view_controller()->IsEnabled(view->GetCurrentWebContents());
 }
 
 void ChevronMenuButton::MenuController::ExecuteCommand(int id) {
-  browser_actions_container_->GetBrowserActionViewAt(start_index_ + id - 1)->
+  browser_actions_container_->GetToolbarActionViewAt(start_index_ + id - 1)->
       view_controller()->ExecuteAction(true);
 }
 
@@ -226,7 +224,7 @@ bool ChevronMenuButton::MenuController::ShowContextMenu(
     int id,
     const gfx::Point& p,
     ui::MenuSourceType source_type) {
-  BrowserActionView* view = browser_actions_container_->GetBrowserActionViewAt(
+  ToolbarActionView* view = browser_actions_container_->GetToolbarActionViewAt(
       start_index_ + id - 1);
   ExtensionActionViewController* view_controller =
       static_cast<ExtensionActionViewController*>(view->view_controller());

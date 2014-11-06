@@ -24,7 +24,6 @@
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/webui/print_preview/print_preview_ui.h"
 #include "chrome/common/chrome_switches.h"
-#include "chrome/common/pref_names.h"
 #include "chrome/common/url_constants.h"
 #include "chrome/test/base/test_switches.h"
 #include "chrome/test/base/ui_test_utils.h"
@@ -76,6 +75,8 @@ class PlatformAppContextMenu : public RenderViewContextMenu {
     return menu_model_.GetIndexOfCommandId(command_id) != -1;
   }
 
+  void Show() override {}
+
  protected:
   // RenderViewContextMenu implementation.
   bool GetAcceleratorForCommandId(int command_id,
@@ -114,7 +115,7 @@ class TabsAddedNotificationObserver
   DISALLOW_COPY_AND_ASSIGN(TabsAddedNotificationObserver);
 };
 
-#if defined(ENABLE_FULL_PRINTING)
+#if defined(ENABLE_PRINT_PREVIEW)
 class ScopedPreviewTestingDelegate : PrintPreviewUI::TestingDelegate {
  public:
   explicit ScopedPreviewTestingDelegate(bool auto_cancel)
@@ -167,7 +168,7 @@ class ScopedPreviewTestingDelegate : PrintPreviewUI::TestingDelegate {
   gfx::Size dialog_size_;
 };
 
-#endif  // ENABLE_FULL_PRINTING
+#endif  // ENABLE_PRINT_PREVIEW
 
 #if !defined(OS_CHROMEOS) && !defined(OS_WIN)
 bool CopyTestDataAndSetCommandLineArg(
@@ -1115,8 +1116,7 @@ IN_PROC_BROWSER_TEST_F(PlatformAppBrowserTest, MAYBE_WebContentsHasFocus) {
                   ->HasFocus());
 }
 
-
-#if defined(ENABLE_FULL_PRINTING)
+#if defined(ENABLE_PRINT_PREVIEW)
 
 #if defined(OS_WIN) || defined(OS_LINUX) || defined(OS_MACOSX)
 #define MAYBE_WindowDotPrintShouldBringUpPrintPreview \
@@ -1167,8 +1167,7 @@ IN_PROC_BROWSER_TEST_F(PlatformAppBrowserTest,
             minimum_dialog_size.height());
   GetFirstAppWindow()->GetBaseWindow()->Close();
 }
-#endif  // ENABLE_FULL_PRINTING
-
+#endif  // ENABLE_PRINT_PREVIEW
 
 #if defined(OS_CHROMEOS)
 

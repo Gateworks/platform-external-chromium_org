@@ -38,7 +38,7 @@ class BisectResults(object):
   """
 
   def __init__(self, bisect_state=None, depot_registry=None, opts=None,
-               runtime_warnings=None, error=None):
+               runtime_warnings=None, error=None, abort_reason=None):
     """Computes final bisect results after a bisect run is complete.
 
     This constructor should be called in one of the following ways:
@@ -58,7 +58,8 @@ class BisectResults(object):
     """
 
     self.error = error
-    if error is not None:
+    self.abort_reason = abort_reason
+    if error is not None or abort_reason is not None:
       return
 
     assert (bisect_state is not None and depot_registry is not None and
@@ -72,6 +73,8 @@ class BisectResults(object):
     first_working_rev, last_broken_rev = self.FindBreakingRevRange(rev_states)
     self.first_working_revision = first_working_rev
     self.last_broken_revision = last_broken_rev
+
+    self.warnings = runtime_warnings
 
     if first_working_rev is not None and last_broken_rev is not None:
       statistics = self._ComputeRegressionStatistics(
@@ -87,8 +90,16 @@ class BisectResults(object):
       self.other_regressions = self._FindOtherRegressions(
           rev_states, statistics['bad_greater_than_good'])
 
-    self.warnings = runtime_warnings + self._GetResultBasedWarnings(
-        self.culprit_revisions, opts, self.confidence)
+      self.warnings += self._GetResultBasedWarnings(
+          self.culprit_revisions, opts, self.confidence)
+    elif first_working_rev is not None:
+      # Setting these attributes so that bisect printer does not break when the
+      # regression cannot be reproduced (no broken revision was found)
+      self.regression_size = 0
+      self.regression_std_err = 0
+      self.confidence = 0
+      self.culprit_revisions = []
+      self.other_regressions = []
 
   @staticmethod
   def _GetResultBasedWarnings(culprit_revisions, opts, confidence):

@@ -168,6 +168,12 @@ void OnUserManagerGuestProfileCreated(
   } else if (profile_open_action ==
              profiles::USER_MANAGER_SELECT_PROFILE_ABOUT_CHROME) {
     page += profiles::kUserManagerSelectProfileAboutChrome;
+  } else if (profile_open_action ==
+             profiles::USER_MANAGER_SELECT_PROFILE_CHROME_SETTINGS) {
+    page += profiles::kUserManagerSelectProfileChromeSettings;
+  } else if (profile_open_action ==
+             profiles::USER_MANAGER_SELECT_PROFILE_CHROME_MEMORY) {
+    page += profiles::kUserManagerSelectProfileChromeMemory;
   }
   callback.Run(guest_profile, page);
 }
@@ -189,6 +195,8 @@ namespace profiles {
 const char kUserManagerDisplayTutorial[] = "#tutorial";
 const char kUserManagerSelectProfileTaskManager[] = "#task-manager";
 const char kUserManagerSelectProfileAboutChrome[] = "#about-chrome";
+const char kUserManagerSelectProfileChromeSettings[] = "#chrome-settings";
+const char kUserManagerSelectProfileChromeMemory[] = "#chrome-memory";
 
 void FindOrCreateNewWindowForProfile(
     Profile* profile,
@@ -272,7 +280,7 @@ void CreateAndSwitchToNewProfile(chrome::HostDesktopType desktop_type,
 }
 
 void GuestBrowserCloseSuccess(const base::FilePath& profile_path) {
-  UserManager::Show(profile_path,
+  UserManager::Show(base::FilePath(),
                     profiles::USER_MANAGER_NO_TUTORIAL,
                     profiles::USER_MANAGER_SELECT_PROFILE_NO_ACTION);
 }
@@ -310,11 +318,25 @@ void LockProfile(Profile* profile) {
 
 bool IsLockAvailable(Profile* profile) {
   DCHECK(profile);
+  if (!switches::IsNewProfileManagement())
+    return false;
+
   const std::string& hosted_domain = profile->GetPrefs()->
       GetString(prefs::kGoogleServicesHostedDomain);
-  return switches::IsNewProfileManagement() &&
-         (hosted_domain == Profile::kNoHostedDomainFound ||
-         hosted_domain == "google.com");
+  // TODO(mlerman): Prohibit only users who authenticate using SAML. Until then,
+  // prohibited users who use hosted domains (aside from google.com).
+  if (hosted_domain != Profile::kNoHostedDomainFound &&
+      hosted_domain != "google.com") {
+    return false;
+  }
+
+  const ProfileInfoCache& cache =
+      g_browser_process->profile_manager()->GetProfileInfoCache();
+  for (size_t i = 0; i < cache.GetNumberOfProfiles(); ++i) {
+    if (cache.ProfileIsSupervisedAtIndex(i))
+      return true;
+  }
+  return false;
 }
 
 void CreateGuestProfileForUserManager(

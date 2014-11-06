@@ -40,7 +40,7 @@ class TestBrowserWindow : public BrowserWindow {
   void FlashFrame(bool flash) override {}
   bool IsAlwaysOnTop() const override;
   void SetAlwaysOnTop(bool always_on_top) override {}
-  gfx::NativeWindow GetNativeWindow() override;
+  gfx::NativeWindow GetNativeWindow() const override;
   BrowserWindowTesting* GetBrowserWindowTesting() override;
   StatusBubble* GetStatusBubble() override;
   void UpdateTitleBar() override {}
@@ -73,7 +73,7 @@ class TestBrowserWindow : public BrowserWindow {
   bool IsFullscreen() const override;
 #if defined(OS_WIN)
   virtual void SetMetroSnapMode(bool enable) override {}
-  virtual bool IsInMetroSnapMode() const;
+  virtual bool IsInMetroSnapMode() const override;
 #endif
   bool IsFullscreenBubbleVisible() const override;
   LocationBar* GetLocationBar() const override;

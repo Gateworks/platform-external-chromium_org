@@ -25,7 +25,6 @@
 #include "chrome/browser/extensions/event_router_forwarder.h"
 #include "chrome/browser/net/about_protocol_handler.h"
 #include "chrome/browser/net/chrome_network_delegate.h"
-#include "chrome/common/pref_names.h"
 #include "chrome/test/base/testing_browser_process.h"
 #include "chrome/test/base/testing_pref_service_syncable.h"
 #include "chrome/test/base/testing_profile.h"
@@ -180,7 +179,7 @@ class ExtensionWebRequestTest : public testing::Test {
         event_router_(new EventRouterForwarder) {}
 
  protected:
-  virtual void SetUp() override {
+  void SetUp() override {
     ASSERT_TRUE(profile_manager_.SetUp());
     ChromeNetworkDelegate::InitializePrefsOnUIThread(
         &enable_referrers_, NULL, NULL, profile_.GetTestingPrefService());
@@ -696,7 +695,7 @@ TEST_F(ExtensionWebRequestTest, NoAccessRequestBodyData) {
   // a POST, PUT and GET request. For none of them the "requestBody" object
   // property should be present in the details passed to the onBeforeRequest
   // event listener.
-  const char* kMethods[] = { "POST", "PUT", "GET" };
+  const char* const kMethods[] = { "POST", "PUT", "GET" };
 
   // Set up a dummy extension name.
   const std::string kEventName(web_request::OnBeforeRequest::kEventName);
@@ -778,7 +777,7 @@ class ExtensionWebRequestHeaderModificationTest
         event_router_(new EventRouterForwarder) {}
 
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     ASSERT_TRUE(profile_manager_.SetUp());
     ChromeNetworkDelegate::InitializePrefsOnUIThread(
         &enable_referrers_, NULL, NULL, profile_.GetTestingPrefService());

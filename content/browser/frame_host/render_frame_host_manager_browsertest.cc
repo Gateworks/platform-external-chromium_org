@@ -334,10 +334,14 @@ IN_PROC_BROWSER_TEST_F(RenderFrameHostManagerTest,
   EXPECT_EQ("/files/title2.html",
             shell()->web_contents()->GetLastCommittedURL().path());
 
-  // Should have the same SiteInstance.
+  // Should have the same SiteInstance unless we're in site-per-process mode.
   scoped_refptr<SiteInstance> noref_site_instance(
       shell()->web_contents()->GetSiteInstance());
-  EXPECT_EQ(orig_site_instance, noref_site_instance);
+  if (!base::CommandLine::ForCurrentProcess()->HasSwitch(
+          switches::kSitePerProcess))
+    EXPECT_EQ(orig_site_instance, noref_site_instance);
+  else
+    EXPECT_NE(orig_site_instance, noref_site_instance);
 }
 
 // Test for crbug.com/116192.  Targeted links should still work after the
@@ -1362,10 +1366,18 @@ IN_PROC_BROWSER_TEST_F(RenderFrameHostManagerTest,
   crash_observer2.Wait();
 }
 
+// The test fails with Android ASAN with changes in v8 that seem unrelated.
+//   See http://crbug.com/428329.
+#if defined(OS_ANDROID) && defined(THREAD_SANITIZER)
+#define MAYBE_ClearPendingWebUIOnCommit DISABLED_ClearPendingWebUIOnCommit
+#else
+#define MAYBE_ClearPendingWebUIOnCommit ClearPendingWebUIOnCommit
+#endif
 // Ensure that pending_and_current_web_ui_ is cleared when a URL commits.
 // Otherwise it might get picked up by InitRenderView when granting bindings
 // to other RenderViewHosts.  See http://crbug.com/330811.
-IN_PROC_BROWSER_TEST_F(RenderFrameHostManagerTest, ClearPendingWebUIOnCommit) {
+IN_PROC_BROWSER_TEST_F(RenderFrameHostManagerTest,
+                       MAYBE_ClearPendingWebUIOnCommit) {
   // Visit a WebUI page with bindings.
   GURL webui_url(GURL(std::string(kChromeUIScheme) + "://" +
                       std::string(kChromeUIGpuHost)));

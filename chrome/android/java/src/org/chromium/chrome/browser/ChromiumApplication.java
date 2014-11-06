@@ -12,12 +12,6 @@ import org.chromium.content.app.ContentApplication;
  * chrome layer.
  */
 public abstract class ChromiumApplication extends ContentApplication {
-    @Override
-    public void onCreate() {
-        super.onCreate();
-        ChromeVersionInfo.init(this);
-    }
-
     /**
      * Opens a protected content settings page, if available.
      */
@@ -53,4 +47,13 @@ public abstract class ChromiumApplication extends ContentApplication {
     // TODO(yfriedman): This is too widely available. Plumb this through ChromeNetworkDelegate
     // instead.
     protected abstract PKCS11AuthenticationManager getPKCS11AuthenticationManager();
+
+    /**
+     * @return The user agent string of Chrome.
+     */
+    public static String getBrowserUserAgent() {
+        return nativeGetBrowserUserAgent();
+    }
+
+    private static native String nativeGetBrowserUserAgent();
 }

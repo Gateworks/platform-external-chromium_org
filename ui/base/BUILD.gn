@@ -600,6 +600,8 @@ component("base") {
 
   if (is_android) {
     sources -= [
+      "cursor/image_cursors.cc",
+      "cursor/image_cursors.h",
       "default_theme_provider.cc",
       "dragdrop/drag_utils.cc",
       "dragdrop/drag_utils.h",
@@ -755,16 +757,6 @@ test("ui_unittests") {
       "webui/web_ui_util_unittest.cc",
       "x/selection_requestor_unittest.cc",
     ]
-
-    if (!use_x11) {
-      if (is_chromeos) {
-        # These were already removed in the chromeos case.
-        sources -= [
-          "ime/chromeos/character_composer_unittest.cc",
-          "ime/input_method_chromeos_unittest.cc",
-        ]
-      }
-    }
   }
 
   if (build_ime) {
@@ -779,6 +771,13 @@ test("ui_unittests") {
     ]
     if (use_x11) {
       sources += [ "ime/composition_text_util_pango_unittest.cc" ]
+    }
+    if (!use_x11 && is_chromeos) {
+      # These were already removed in the non-chromeos case.
+      sources -= [
+        "ime/chromeos/character_composer_unittest.cc",
+        "ime/input_method_chromeos_unittest.cc",
+      ]
     }
   }
 
@@ -885,6 +884,7 @@ test("ui_unittests") {
 
   if (is_chromeos) {
     sources += [
+      "../chromeos/network/network_state_notifier_unittest.cc",
       "../chromeos/touch_exploration_controller_unittest.cc",
     ]
     sources -= [
@@ -894,8 +894,11 @@ test("ui_unittests") {
     deps += [
       "//chromeos",
       "//ui/aura:test_support",
-      "//ui/events:gesture_detection",
+      "//ui/chromeos/resources",
+      "//ui/chromeos/strings",
       "//ui/chromeos:ui_chromeos",
+      "//ui/events:gesture_detection",
+      "//ui/message_center:message_center",
     ]
   }
 }

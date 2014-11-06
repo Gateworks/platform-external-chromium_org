@@ -17,7 +17,8 @@ GYP_TARGET_DEPENDENCIES := \
 	$(call intermediates-dir-for,STATIC_LIBRARIES,skia_skia_library_gyp,,,$(GYP_VAR_PREFIX))/skia_skia_library_gyp.a \
 	$(call intermediates-dir-for,GYP,third_party_WebKit_public_blink_gyp,,,$(GYP_VAR_PREFIX))/blink.stamp \
 	$(call intermediates-dir-for,STATIC_LIBRARIES,ui_gl_gl_gyp,,,$(GYP_VAR_PREFIX))/ui_gl_gl_gyp.a \
-	$(call intermediates-dir-for,GYP,android_webview_android_webview_pak_gyp,,,$(GYP_VAR_PREFIX))/android_webview_pak.stamp
+	$(call intermediates-dir-for,GYP,android_webview_android_webview_pak_gyp,,,$(GYP_VAR_PREFIX))/android_webview_pak.stamp \
+	$(call intermediates-dir-for,GYP,android_webview_android_webview_version_gyp,,,$(GYP_VAR_PREFIX))/android_webview_version.stamp
 
 GYP_GENERATED_OUTPUTS :=
 
@@ -52,7 +53,6 @@ LOCAL_SRC_FILES := \
 	android_webview/browser/browser_view_renderer.cc \
 	android_webview/browser/deferred_gpu_command_service.cc \
 	android_webview/browser/find_helper.cc \
-	android_webview/browser/global_tile_manager.cc \
 	android_webview/browser/hardware_renderer.cc \
 	android_webview/browser/icon_helper.cc \
 	android_webview/browser/gl_view_renderer_manager.cc \
@@ -71,6 +71,7 @@ LOCAL_SRC_FILES := \
 	android_webview/browser/shared_renderer_state.cc \
 	android_webview/common/android_webview_message_generator.cc \
 	android_webview/common/aw_content_client.cc \
+	android_webview/common/aw_crash_handler.cc \
 	android_webview/common/aw_hit_test_data.cc \
 	android_webview/common/aw_switches.cc \
 	android_webview/common/print_messages.cc \
@@ -141,11 +142,13 @@ MY_DEFS_Debug := \
 	'-DUSE_PROPRIETARY_CODECS' \
 	'-DENABLE_BROWSER_CDMS' \
 	'-DENABLE_CONFIGURATION_POLICY' \
+	'-DENABLE_NOTIFICATIONS' \
 	'-DDISCARDABLE_MEMORY_ALWAYS_SUPPORTED_NATIVELY' \
 	'-DSYSTEM_NATIVELY_SIGNALS_MEMORY_PRESSURE' \
-	'-DENABLE_EGLIMAGE=1' \
+	'-DDONT_EMBED_BUILD_METADATA' \
 	'-DCLD_VERSION=1' \
 	'-DENABLE_PRINTING=1' \
+	'-DENABLE_BASIC_PRINTING=1' \
 	'-DENABLE_MANAGED_USERS=1' \
 	'-DVIDEO_HOLE=1' \
 	'-DENABLE_LOAD_COMPLETION_HACKS=1' \
@@ -162,7 +165,7 @@ MY_DEFS_Debug := \
 	'-DSK_WILL_NEVER_DRAW_PERSPECTIVE_TEXT' \
 	'-DSK_FM_NEW_MATCH_FAMILY_STYLE_CHARACTER=1' \
 	'-DSK_SUPPORT_LEGACY_TEXTRENDERMODE' \
-	'-DSK_LEGACY_NO_DISTANCE_FIELD_PATHS' \
+	'-DSK_IGNORE_GPU_LAYER_HOISTING' \
 	'-DSK_BUILD_FOR_ANDROID' \
 	'-DSK_USE_POSIX_THREADS' \
 	'-DU_USING_ICU_NAMESPACE=0' \
@@ -172,6 +175,7 @@ MY_DEFS_Debug := \
 	'-DPNG_USER_CONFIG' \
 	'-DCHROME_PNG_READ_PACK_SUPPORT' \
 	'-DMESA_EGL_NO_X11_HEADERS' \
+	'-DUSE_LIBPCI=1' \
 	'-DUSE_OPENSSL=1' \
 	'-DUSE_OPENSSL_CERTS=1' \
 	'-D__STDC_CONSTANT_MACROS' \
@@ -290,11 +294,13 @@ MY_DEFS_Release := \
 	'-DUSE_PROPRIETARY_CODECS' \
 	'-DENABLE_BROWSER_CDMS' \
 	'-DENABLE_CONFIGURATION_POLICY' \
+	'-DENABLE_NOTIFICATIONS' \
 	'-DDISCARDABLE_MEMORY_ALWAYS_SUPPORTED_NATIVELY' \
 	'-DSYSTEM_NATIVELY_SIGNALS_MEMORY_PRESSURE' \
-	'-DENABLE_EGLIMAGE=1' \
+	'-DDONT_EMBED_BUILD_METADATA' \
 	'-DCLD_VERSION=1' \
 	'-DENABLE_PRINTING=1' \
+	'-DENABLE_BASIC_PRINTING=1' \
 	'-DENABLE_MANAGED_USERS=1' \
 	'-DVIDEO_HOLE=1' \
 	'-DENABLE_LOAD_COMPLETION_HACKS=1' \
@@ -311,7 +317,7 @@ MY_DEFS_Release := \
 	'-DSK_WILL_NEVER_DRAW_PERSPECTIVE_TEXT' \
 	'-DSK_FM_NEW_MATCH_FAMILY_STYLE_CHARACTER=1' \
 	'-DSK_SUPPORT_LEGACY_TEXTRENDERMODE' \
-	'-DSK_LEGACY_NO_DISTANCE_FIELD_PATHS' \
+	'-DSK_IGNORE_GPU_LAYER_HOISTING' \
 	'-DSK_BUILD_FOR_ANDROID' \
 	'-DSK_USE_POSIX_THREADS' \
 	'-DU_USING_ICU_NAMESPACE=0' \
@@ -321,6 +327,7 @@ MY_DEFS_Release := \
 	'-DPNG_USER_CONFIG' \
 	'-DCHROME_PNG_READ_PACK_SUPPORT' \
 	'-DMESA_EGL_NO_X11_HEADERS' \
+	'-DUSE_LIBPCI=1' \
 	'-DUSE_OPENSSL=1' \
 	'-DUSE_OPENSSL_CERTS=1' \
 	'-D__STDC_CONSTANT_MACROS' \

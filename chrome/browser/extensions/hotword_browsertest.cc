@@ -11,7 +11,6 @@
 #include "chrome/browser/extensions/extension_service.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/common/pref_names.h"
-#include "chrome/test/base/ui_test_utils.h"
 #include "content/public/common/content_switches.h"
 #include "extensions/common/extension.h"
 #include "extensions/test/extension_test_message_listener.h"
@@ -20,13 +19,13 @@
 
 namespace extensions {
 
-static const char* kHotwordHelperExtensionId =
+static const char kHotwordHelperExtensionId[] =
     "dnhpdliibojhegemfjheidglijccjfmc";
 
 class HotwordBrowserTest : public ExtensionBrowserTest {
  public:
   HotwordBrowserTest() : error_console_(NULL) { }
-  virtual ~HotwordBrowserTest() { }
+  ~HotwordBrowserTest() override {}
 
  protected:
   void SetUpInProcessBrowserTestFixture() override {

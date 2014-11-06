@@ -18,7 +18,6 @@
 #include "chrome/browser/web_applications/web_app.h"
 #include "chrome/common/chrome_paths.h"
 #include "chrome/common/chrome_switches.h"
-#include "chrome/test/base/ui_test_utils.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/test/test_utils.h"
 #include "extensions/common/extension.h"
@@ -122,6 +121,8 @@ class PanelContextMenu : public RenderViewContextMenu {
   bool HasCommandWithId(int command_id) {
     return menu_model_.GetIndexOfCommandId(command_id) != -1;
   }
+
+  void Show() override {}
 
  protected:
   // RenderViewContextMenu implementation.

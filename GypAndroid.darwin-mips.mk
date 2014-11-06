@@ -13,6 +13,7 @@ include $(LOCAL_PATH)/android_webview/android_webview_jarjar_ui_resources.target
 include $(LOCAL_PATH)/android_webview/android_webview_pak.target.darwin-mips.mk
 include $(LOCAL_PATH)/android_webview/android_webview_resources.target.darwin-mips.mk
 include $(LOCAL_PATH)/android_webview/android_webview_strings_grd.target.darwin-mips.mk
+include $(LOCAL_PATH)/android_webview/android_webview_version.target.darwin-mips.mk
 include $(LOCAL_PATH)/android_webview/libwebviewchromium.target.darwin-mips.mk
 include $(LOCAL_PATH)/android_webview/native/android_webview_native_jni.target.darwin-mips.mk
 include $(LOCAL_PATH)/android_webview/native/cancellation_signal_android_jar_jni_headers.target.darwin-mips.mk
@@ -90,6 +91,9 @@ include $(LOCAL_PATH)/content/speech_recognition_error_java.target.darwin-mips.m
 include $(LOCAL_PATH)/content/top_controls_state_java.target.darwin-mips.mk
 include $(LOCAL_PATH)/courgette/courgette_lib.target.darwin-mips.mk
 include $(LOCAL_PATH)/crypto/crypto.target.darwin-mips.mk
+include $(LOCAL_PATH)/device/battery/device_battery.target.darwin-mips.mk
+include $(LOCAL_PATH)/device/battery/device_battery_jni_headers.target.darwin-mips.mk
+include $(LOCAL_PATH)/device/battery/device_battery_mojo_bindings.target.darwin-mips.mk
 include $(LOCAL_PATH)/gin/gin.target.darwin-mips.mk
 include $(LOCAL_PATH)/google_apis/google_apis.target.darwin-mips.mk
 include $(LOCAL_PATH)/gpu/command_buffer/gles2_utils.target.darwin-mips.mk
@@ -156,7 +160,7 @@ include $(LOCAL_PATH)/testing/gtest_prod.target.darwin-mips.mk
 include $(LOCAL_PATH)/third_party/WebKit/Source/bindings/core/core_global_constructors_idls.target.darwin-mips.mk
 include $(LOCAL_PATH)/third_party/WebKit/Source/bindings/core/core_global_objects.target.darwin-mips.mk
 include $(LOCAL_PATH)/third_party/WebKit/Source/bindings/core/interfaces_info_individual_core.target.darwin-mips.mk
-include $(LOCAL_PATH)/third_party/WebKit/Source/bindings/core/v8/bindings_core_dictionary_impl_generated.target.darwin-mips.mk
+include $(LOCAL_PATH)/third_party/WebKit/Source/bindings/core/v8/bindings_core_impl_generated.target.darwin-mips.mk
 include $(LOCAL_PATH)/third_party/WebKit/Source/bindings/core/v8/bindings_core_v8_generated.target.darwin-mips.mk
 include $(LOCAL_PATH)/third_party/WebKit/Source/bindings/core/v8/bindings_core_v8_generated_aggregate.target.darwin-mips.mk
 include $(LOCAL_PATH)/third_party/WebKit/Source/bindings/core/v8/bindings_core_v8_generated_individual.target.darwin-mips.mk
@@ -166,7 +170,7 @@ include $(LOCAL_PATH)/third_party/WebKit/Source/bindings/modules/modules_core_gl
 include $(LOCAL_PATH)/third_party/WebKit/Source/bindings/modules/modules_event_generated.target.darwin-mips.mk
 include $(LOCAL_PATH)/third_party/WebKit/Source/bindings/modules/modules_global_constructors_idls.target.darwin-mips.mk
 include $(LOCAL_PATH)/third_party/WebKit/Source/bindings/modules/modules_global_objects.target.darwin-mips.mk
-include $(LOCAL_PATH)/third_party/WebKit/Source/bindings/modules/v8/bindings_modules_dictionary_impl_generated.target.darwin-mips.mk
+include $(LOCAL_PATH)/third_party/WebKit/Source/bindings/modules/v8/bindings_modules_impl_generated.target.darwin-mips.mk
 include $(LOCAL_PATH)/third_party/WebKit/Source/bindings/modules/v8/bindings_modules_v8_generated.target.darwin-mips.mk
 include $(LOCAL_PATH)/third_party/WebKit/Source/bindings/modules/v8/bindings_modules_v8_generated_aggregate.target.darwin-mips.mk
 include $(LOCAL_PATH)/third_party/WebKit/Source/bindings/modules/v8/bindings_modules_v8_generated_individual.target.darwin-mips.mk
@@ -302,6 +306,7 @@ include $(LOCAL_PATH)/third_party/webrtc/modules/rtp_rtcp.target.darwin-mips.mk
 include $(LOCAL_PATH)/third_party/webrtc/modules/video_capture_module.target.darwin-mips.mk
 include $(LOCAL_PATH)/third_party/webrtc/modules/video_capture_module_impl.target.darwin-mips.mk
 include $(LOCAL_PATH)/third_party/webrtc/modules/video_coding/codecs/vp8/webrtc_vp8.target.darwin-mips.mk
+include $(LOCAL_PATH)/third_party/webrtc/modules/video_coding/codecs/vp9/webrtc_vp9.target.darwin-mips.mk
 include $(LOCAL_PATH)/third_party/webrtc/modules/video_coding/utility/video_coding_utility.target.darwin-mips.mk
 include $(LOCAL_PATH)/third_party/webrtc/modules/video_processing.target.darwin-mips.mk
 include $(LOCAL_PATH)/third_party/webrtc/modules/video_render_module.target.darwin-mips.mk
@@ -320,6 +325,7 @@ include $(LOCAL_PATH)/third_party/widevine/cdm/widevine_cdm_version_h.target.dar
 include $(LOCAL_PATH)/third_party/zlib/google/zip.target.darwin-mips.mk
 include $(LOCAL_PATH)/third_party/zlib/minizip.target.darwin-mips.mk
 include $(LOCAL_PATH)/third_party/zlib/zlib.target.darwin-mips.mk
+include $(LOCAL_PATH)/third_party/zlib/zlib_x86_simd.target.darwin-mips.mk
 include $(LOCAL_PATH)/tools/json_schema_compiler/api_gen_util.target.darwin-mips.mk
 include $(LOCAL_PATH)/ui/accessibility/accessibility.target.darwin-mips.mk
 include $(LOCAL_PATH)/ui/accessibility/ax_gen.target.darwin-mips.mk

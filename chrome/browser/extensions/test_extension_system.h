@@ -51,13 +51,6 @@ class TestExtensionSystem : public ExtensionSystem {
       const base::FilePath& install_directory,
       bool autoupdate_enabled);
 
-  // Creates a ProcessManager. If not invoked, the ProcessManager is NULL.
-  void CreateProcessManager();
-
-  // Allows the ProcessManager to be overriden, for example by a stub
-  // implementation. Takes ownership of |manager|.
-  void SetProcessManager(ProcessManager* manager);
-
   void CreateSocketManager();
 
   void InitForRegularProfile(bool extensions_enabled) override {}
@@ -66,7 +59,6 @@ class TestExtensionSystem : public ExtensionSystem {
   RuntimeData* runtime_data() override;
   ManagementPolicy* management_policy() override;
   SharedUserScriptMaster* shared_user_script_master() override;
-  ProcessManager* process_manager() override;
   StateStore* state_store() override;
   StateStore* rules_store() override;
   TestingValueStore* value_store() { return value_store_; }
@@ -74,8 +66,6 @@ class TestExtensionSystem : public ExtensionSystem {
   LazyBackgroundTaskQueue* lazy_background_task_queue() override;
   void SetEventRouter(scoped_ptr<EventRouter> event_router);
   EventRouter* event_router() override;
-  WarningService* warning_service() override;
-  Blacklist* blacklist() override;
   ErrorConsole* error_console() override;
   InstallVerifier* install_verifier() override;
   QuotaService* quota_service() override;
@@ -101,11 +91,9 @@ class TestExtensionSystem : public ExtensionSystem {
   // A pointer to the TestingValueStore owned by |state_store_|.
   TestingValueStore* value_store_;
   ScopedVector<DeclarativeUserScriptMaster> declarative_user_script_masters_;
-  scoped_ptr<Blacklist> blacklist_;
   scoped_ptr<ManagementPolicy> management_policy_;
   scoped_ptr<RuntimeData> runtime_data_;
   scoped_ptr<ExtensionService> extension_service_;
-  scoped_ptr<ProcessManager> process_manager_;
   scoped_refptr<InfoMap> info_map_;
   scoped_ptr<EventRouter> event_router_;
   scoped_ptr<ErrorConsole> error_console_;

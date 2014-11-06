@@ -4,6 +4,8 @@
 
 #include "cc/surfaces/surface_aggregator.h"
 
+#include <map>
+
 #include "base/bind.h"
 #include "base/containers/hash_tables.h"
 #include "base/debug/trace_event.h"
@@ -91,8 +93,8 @@ int SurfaceAggregator::ChildIdForSurface(Surface* surface) {
   SurfaceToResourceChildIdMap::iterator it =
       surface_id_to_resource_child_id_.find(surface->surface_id());
   if (it == surface_id_to_resource_child_id_.end()) {
-    int child_id = provider_->CreateChild(
-        base::Bind(&UnrefHelper, surface->factory()->AsWeakPtr()));
+    int child_id =
+        provider_->CreateChild(base::Bind(&UnrefHelper, surface->factory()));
     surface_id_to_resource_child_id_[surface->surface_id()] = child_id;
     return child_id;
   } else {
@@ -127,7 +129,8 @@ bool SurfaceAggregator::TakeResources(Surface* surface,
 
   int child_id = ChildIdForSurface(surface);
   provider_->ReceiveFromChild(child_id, frame_data->resource_list);
-  surface->factory()->RefResources(frame_data->resource_list);
+  if (surface->factory())
+    surface->factory()->RefResources(frame_data->resource_list);
 
   typedef ResourceProvider::ResourceIdArray IdArray;
   IdArray referenced_resources;
@@ -138,9 +141,9 @@ bool SurfaceAggregator::TakeResources(Surface* surface,
                  &invalid_frame,
                  provider_->GetChildToParentMap(child_id),
                  &referenced_resources);
-  for (auto* render_pass : *render_pass_list) {
-    for (auto& quad : render_pass->quad_list)
-      quad.IterateResources(remap);
+  for (const auto& render_pass : *render_pass_list) {
+    for (const auto& quad : render_pass->quad_list)
+      quad->IterateResources(remap);
   }
 
   if (!invalid_frame)
@@ -304,25 +307,24 @@ void SurfaceAggregator::CopyQuadsToPass(
   SharedQuadStateList::ConstIterator sqs_iter =
       source_shared_quad_state_list.begin();
   for (const auto& quad : source_quad_list) {
-    while (quad.shared_quad_state != &*sqs_iter) {
+    while (quad->shared_quad_state != *sqs_iter) {
       ++sqs_iter;
       DCHECK(sqs_iter != source_shared_quad_state_list.end());
     }
-    DCHECK_EQ(quad.shared_quad_state, &*sqs_iter);
+    DCHECK_EQ(quad->shared_quad_state, *sqs_iter);
 
-    if (quad.material == DrawQuad::SURFACE_CONTENT) {
-      const SurfaceDrawQuad* surface_quad =
-          SurfaceDrawQuad::MaterialCast(&quad);
+    if (quad->material == DrawQuad::SURFACE_CONTENT) {
+      const SurfaceDrawQuad* surface_quad = SurfaceDrawQuad::MaterialCast(quad);
       HandleSurfaceQuad(surface_quad, dest_pass);
     } else {
-      if (quad.shared_quad_state != last_copied_source_shared_quad_state) {
+      if (quad->shared_quad_state != last_copied_source_shared_quad_state) {
         CopySharedQuadState(
-            quad.shared_quad_state, content_to_target_transform, dest_pass);
-        last_copied_source_shared_quad_state = quad.shared_quad_state;
+            quad->shared_quad_state, content_to_target_transform, dest_pass);
+        last_copied_source_shared_quad_state = quad->shared_quad_state;
       }
-      if (quad.material == DrawQuad::RENDER_PASS) {
+      if (quad->material == DrawQuad::RENDER_PASS) {
         const RenderPassDrawQuad* pass_quad =
-            RenderPassDrawQuad::MaterialCast(&quad);
+            RenderPassDrawQuad::MaterialCast(quad);
         RenderPassId original_pass_id = pass_quad->render_pass_id;
         RenderPassId remapped_pass_id =
             RemapPassId(original_pass_id, surface_id);
@@ -333,7 +335,7 @@ void SurfaceAggregator::CopyQuadsToPass(
             remapped_pass_id);
       } else {
         dest_pass->CopyFromAndAppendDrawQuad(
-            &quad, dest_pass->shared_quad_state_list.back());
+            quad, dest_pass->shared_quad_state_list.back());
       }
     }
   }

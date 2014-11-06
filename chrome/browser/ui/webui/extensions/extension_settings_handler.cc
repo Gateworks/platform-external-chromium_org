@@ -139,13 +139,14 @@ ExtensionPage::ExtensionPage(const GURL& url,
       generated_background_page(generated_background_page) {
 }
 
-// On Mac, the install prompt is not modal. This means that the user can
-// navigate while the dialog is up, causing the dialog handler to outlive the
-// ExtensionSettingsHandler. That's a problem because the dialog framework will
-// try to contact us back once the dialog is closed, which causes a crash.
-// This class is designed to broker the message between the two objects, while
-// managing its own lifetime so that it can outlive the ExtensionSettingsHandler
-// and (when doing so) gracefully ignore the message from the dialog.
+// The install prompt is not necessarily modal (e.g. Mac, Linux Unity). This
+// means that the user can navigate while the dialog is up, causing the dialog
+// handler to outlive the ExtensionSettingsHandler. That's a problem because the
+// dialog framework will try to contact us back once the dialog is closed, which
+// causes a crash. This class is designed to broker the message between the two
+// objects, while managing its own lifetime so that it can outlive the
+// ExtensionSettingsHandler and (when doing so) gracefully ignore the message
+// from the dialog.
 class BrokerDelegate : public ExtensionInstallPrompt::Delegate {
  public:
   explicit BrokerDelegate(
@@ -164,6 +165,12 @@ class BrokerDelegate : public ExtensionInstallPrompt::Delegate {
       delegate_->InstallUIAbort(user_initiated);
     delete this;
   };
+
+  void AppInfoDialogClosed() {
+    if (delegate_)
+      delegate_->AppInfoDialogClosed();
+    delete this;
+  }
 
  private:
   base::WeakPtr<ExtensionSettingsHandler> delegate_;
@@ -884,7 +891,7 @@ void ExtensionSettingsHandler::HandleRequestExtensionsData(
   // Add the extensions to the results structure.
   base::ListValue* extensions_list = new base::ListValue();
 
-  WarningService* warnings = ExtensionSystem::Get(profile)->warning_service();
+  WarningService* warnings = WarningService::Get(profile);
 
   ExtensionRegistry* registry = ExtensionRegistry::Get(profile);
   const ExtensionSet& enabled_set = registry->enabled_extensions();
@@ -1208,8 +1215,10 @@ void ExtensionSettingsHandler::HandlePermissionsMessage(
 
   if (!extension_id_prompting_.empty())
     return;  // Only one prompt at a time.
-
   extension_id_prompting_ = extension->id();
+
+  // The BrokerDelegate manages its own lifetime.
+  BrokerDelegate* broker_delegate = new BrokerDelegate(AsWeakPtr());
 
   // Show the new-style extensions dialog when the flag is set. The flag cannot
   // be set on Mac platforms.
@@ -1221,13 +1230,13 @@ void ExtensionSettingsHandler::HandlePermissionsMessage(
     // Display the dialog at a size similar to the app list.
     const int kAppInfoDialogWidth = 380;
     const int kAppInfoDialogHeight = 490;
+
     ShowAppInfoInNativeDialog(
         web_contents()->GetTopLevelNativeWindow(),
         gfx::Size(kAppInfoDialogWidth, kAppInfoDialogHeight),
-        Profile::FromWebUI(web_ui()),
-        extension,
-        base::Bind(&ExtensionSettingsHandler::AppInfoDialogClosed,
-                   base::Unretained(this)));
+        Profile::FromWebUI(web_ui()), extension,
+        base::Bind(&BrokerDelegate::AppInfoDialogClosed,
+                   base::Unretained(broker_delegate)));
   } else {
     prompt_.reset(new ExtensionInstallPrompt(web_contents()));
     std::vector<base::FilePath> retained_file_paths;
@@ -1248,10 +1257,7 @@ void ExtensionSettingsHandler::HandlePermissionsMessage(
               ->GetPermissionMessageStrings(extension_id_prompting_);
     }
 
-    // The BrokerDelegate manages its own lifetime.
-    prompt_->ReviewPermissions(new BrokerDelegate(AsWeakPtr()),
-                               extension,
-                               retained_file_paths,
+    prompt_->ReviewPermissions(broker_delegate, extension, retained_file_paths,
                                retained_device_messages);
   }
 }
@@ -1355,8 +1361,7 @@ void ExtensionSettingsHandler::MaybeRegisterForNotifications() {
 
   content::WebContentsObserver::Observe(web_ui()->GetWebContents());
 
-  warning_service_observer_.Add(
-      ExtensionSystem::Get(profile)->warning_service());
+  warning_service_observer_.Add(WarningService::Get(profile));
 
   error_console_observer_.Add(ErrorConsole::Get(profile));
 
@@ -1371,7 +1376,7 @@ ExtensionSettingsHandler::GetInspectablePagesForExtension(
 
   // Get the extension process's active views.
   extensions::ProcessManager* process_manager =
-      ExtensionSystem::Get(extension_service_->profile())->process_manager();
+      ProcessManager::Get(extension_service_->profile());
   GetInspectablePagesForExtensionProcess(
       extension,
       process_manager->GetRenderViewHostsForExtension(extension->id()),
@@ -1399,9 +1404,8 @@ ExtensionSettingsHandler::GetInspectablePagesForExtension(
       IncognitoInfo::IsSplitMode(extension) &&
       util::IsIncognitoEnabled(extension->id(),
                                extension_service_->profile())) {
-    extensions::ProcessManager* process_manager =
-        ExtensionSystem::Get(extension_service_->profile()->
-            GetOffTheRecordProfile())->process_manager();
+    extensions::ProcessManager* process_manager = ProcessManager::Get(
+        extension_service_->profile()->GetOffTheRecordProfile());
     GetInspectablePagesForExtensionProcess(
         extension,
         process_manager->GetRenderViewHostsForExtension(extension->id()),
@@ -1483,7 +1487,6 @@ void ExtensionSettingsHandler::GetAppWindowPagesForExtensionProfile(
 
 ExtensionUninstallDialog*
 ExtensionSettingsHandler::GetExtensionUninstallDialog() {
-#if !defined(OS_ANDROID)
   if (!extension_uninstall_dialog_.get()) {
     Browser* browser = chrome::FindBrowserWithWebContents(
         web_ui()->GetWebContents());
@@ -1493,9 +1496,6 @@ ExtensionSettingsHandler::GetExtensionUninstallDialog() {
                                          this));
   }
   return extension_uninstall_dialog_.get();
-#else
-  return NULL;
-#endif  // !defined(OS_ANDROID)
 }
 
 void ExtensionSettingsHandler::OnReinstallComplete(

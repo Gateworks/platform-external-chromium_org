@@ -337,7 +337,9 @@
         }],
         ['OS=="android"', {
           'dependencies': [
+            '../gin/gin.gyp:gin',
             '../ui/shell_dialogs/shell_dialogs.gyp:shell_dialogs',
+            'content.gyp:content_v8_external_data',
           ],
         }],
       ],
@@ -353,6 +355,7 @@
         'test_support_content',
         '../base/base.gyp:test_support_base',
         '../crypto/crypto.gyp:crypto',
+        '../mojo/edk/mojo_edk.gyp:mojo_common_test_support',
         '../net/net.gyp:net_test_support',
         '../skia/skia.gyp:skia',
         '../sql/sql.gyp:sql',
@@ -397,9 +400,6 @@
         'browser/appcache/mock_appcache_storage.cc',
         'browser/appcache/mock_appcache_storage.h',
         'browser/appcache/mock_appcache_storage_unittest.cc',
-        'browser/battery_status/battery_status_manager_linux_unittest.cc',
-        'browser/battery_status/battery_status_manager_win_unittest.cc',
-        'browser/battery_status/battery_status_service_unittest.cc',
         'browser/browser_thread_unittest.cc',
         'browser/browser_url_handler_impl_unittest.cc',
         'browser/byte_stream_unittest.cc',
@@ -515,6 +515,7 @@
         'browser/indexed_db/mock_indexed_db_factory.h',
         'browser/indexed_db/leveldb/leveldb_unittest.cc',
         'browser/indexed_db/list_set_unittest.cc',
+        'browser/loader/navigation_url_loader_unittest.cc',
         'browser/loader/resource_buffer_unittest.cc',
         'browser/loader/resource_dispatcher_host_unittest.cc',
         'browser/loader/resource_loader_unittest.cc',
@@ -645,6 +646,7 @@
         'child/resource_dispatcher_unittest.cc',
         'child/simple_webmimeregistry_impl_unittest.cc',
         'child/site_isolation_policy_unittest.cc',
+        'child/web_data_consumer_handle_impl_unittest.cc',
         'child/web_gesture_curve_impl_unittest.cc',
         'child/web_url_loader_impl_unittest.cc',
         'child/webcrypto/test/aes_cbc_unittest.cc',
@@ -694,7 +696,6 @@
         'renderer/active_notification_tracker_unittest.cc',
         'renderer/android/email_detector_unittest.cc',
         'renderer/android/phone_number_detector_unittest.cc',
-        'renderer/battery_status/battery_status_dispatcher_unittest.cc',
         'renderer/bmp_image_decoder_unittest.cc',
         'renderer/device_sensors/device_light_event_pump_unittest.cc',
         'renderer/device_sensors/device_motion_event_pump_unittest.cc',
@@ -725,6 +726,8 @@
         'renderer/pepper/v8_var_converter_unittest.cc',
         'renderer/render_thread_impl_unittest.cc',
         'renderer/render_widget_unittest.cc',
+        'renderer/scheduler/renderer_scheduler_impl_unittest.cc',
+        'renderer/scheduler/renderer_task_queue_selector_unittest.cc',
         'renderer/scheduler/task_queue_manager_unittest.cc',
         'renderer/screen_orientation/screen_orientation_dispatcher_unittest.cc',
         'renderer/skia_benchmarking_extension_unittest.cc',
@@ -915,7 +918,6 @@
             '../chromeos/chromeos.gyp:chromeos',
           ],
           'sources/': [
-            ['exclude', '^browser/battery_status/battery_status_manager_linux_unittest.cc'],
             ['exclude', '^browser/geolocation/wifi_data_provider_linux_unittest.cc'],
           ],
         }],
@@ -968,7 +970,6 @@
         }],
         ['use_dbus==0', {
           'sources!': [
-            'browser/battery_status/battery_status_manager_linux_unittest.cc',
             'browser/geolocation/wifi_data_provider_linux_unittest.cc',
           ],
         }],
@@ -1074,6 +1075,11 @@
                 '../testing/android/native_test.gyp:native_test_native_code',
               ],
             }],
+            ['OS=="win" and component!="shared_library" and win_use_allocator_shim==1', {
+              'dependencies': [
+                '<(DEPTH)/base/allocator/allocator.gyp:allocator',
+              ],
+            }],
           ],
         },
         {
@@ -1137,6 +1143,8 @@
             'test_support_content',
             'web_ui_test_mojo_bindings',
             '../base/base.gyp:test_support_base',
+            '../device/battery/battery.gyp:device_battery',
+            '../device/battery/battery.gyp:device_battery_mojo_bindings',
             '../gin/gin.gyp:gin',
             '../gpu/gpu.gyp:gpu',
             '../ipc/ipc.gyp:test_support_ipc',
@@ -1256,6 +1264,7 @@
             'renderer/pepper/pepper_file_chooser_host_unittest.cc',
             'renderer/pepper/pepper_graphics_2d_host_unittest.cc',
             'renderer/pepper/pepper_url_request_unittest.cc',
+            'renderer/pepper/plugin_power_saver_helper_browsertest.cc',
             'renderer/render_thread_impl_browsertest.cc',
             'renderer/render_view_browsertest.cc',
             'renderer/render_view_browsertest_mac.mm',
@@ -1449,6 +1458,11 @@
                 '../third_party/mesa/mesa.gyp:osmesa',
               ],
             }],
+            ['OS=="win" and component!="shared_library" and win_use_allocator_shim==1', {
+              'dependencies': [
+                '<(DEPTH)/base/allocator/allocator.gyp:allocator',
+              ],
+            }],
           ],
         },
         {
@@ -1470,6 +1484,13 @@
           ],
           'sources': [
             'common/gpu/client/gl_helper_benchmark.cc',
+          ],
+          'conditions': [
+            ['OS=="win" and component!="shared_library" and win_use_allocator_shim==1', {
+              'dependencies': [
+                '<(DEPTH)/base/allocator/allocator.gyp:allocator',
+              ],
+            }],
           ],
         },
       ],
@@ -1633,6 +1654,23 @@
           ],
           'variables': {
             'test_suite_name': 'content_unittests',
+            'conditions': [
+              ['v8_use_external_startup_data==1', {
+                'additional_input_paths': [
+                  '<(PRODUCT_DIR)/natives_blob.bin',
+                  '<(PRODUCT_DIR)/snapshot_blob.bin',
+                ],
+                'copies': [
+                  {
+                    'destination': '<(PRODUCT_DIR)/content_unittests_apk/assets',
+                    'files': [
+                      '<(PRODUCT_DIR)/natives_blob.bin',
+                      '<(PRODUCT_DIR)/snapshot_blob.bin',
+                    ],
+                  },
+                ],
+              }],
+            ],
           },
           'includes': [ '../build/apk_test.gypi' ],
         },
@@ -1643,6 +1681,7 @@
           'dependencies': [
             'content.gyp:content_icudata',
             'content.gyp:content_java',
+            'content.gyp:content_v8_external_data',
             'content_browsertests',
             'content_java_test_support',
             'content_shell_java',
@@ -1658,6 +1697,12 @@
               ['icu_use_data_file_flag==1', {
                 'additional_input_paths': [
                   '<(PRODUCT_DIR)/icudtl.dat',
+                ],
+              }],
+              ['v8_use_external_startup_data==1', {
+                'additional_input_paths': [
+                  '<(PRODUCT_DIR)/natives_blob.bin',
+                  '<(PRODUCT_DIR)/snapshot_blob.bin',
                 ],
               }],
             ],
@@ -1687,6 +1732,7 @@
                 'chromium_android_linker_test',
                 'content.gyp:content_icudata',
                 'content.gyp:content_java',
+                'content.gyp:content_v8_external_data',
                 'content_shell_java',
               ],
               'variables': {
@@ -1702,6 +1748,12 @@
                   ['icu_use_data_file_flag==1', {
                     'additional_input_paths': [
                       '<(PRODUCT_DIR)/icudtl.dat',
+                    ],
+                  }],
+                  ['v8_use_external_startup_data==1', {
+                    'additional_input_paths': [
+                      '<(PRODUCT_DIR)/natives_blob.bin',
+                      '<(PRODUCT_DIR)/snapshot_blob.bin',
                     ],
                   }],
                 ],
@@ -1791,6 +1843,7 @@
             '../base/base.gyp:base_java',
             '../base/base.gyp:base_javatests',
             '../base/base.gyp:base_java_test_support',
+            '../device/battery/battery.gyp:device_battery_javatests',
             '../media/media.gyp:media_java',
             '../media/media.gyp:media_test_support',
             '../mojo/public/mojo_public.gyp:mojo_public_test_interfaces',

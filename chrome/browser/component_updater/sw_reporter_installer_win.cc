@@ -82,7 +82,11 @@ const base::FilePath::CharType kSwReporterExeName[] =
 // Where to fetch the reporter exit code in the registry.
 const wchar_t kSoftwareRemovalToolRegistryKey[] =
     L"Software\\Google\\Software Removal Tool";
+const wchar_t kCleanerSuffixRegistryKey[] = L"Cleaner";
 const wchar_t kExitCodeRegistryValueName[] = L"ExitCode";
+const wchar_t kVersionRegistryValueName[] = L"Version";
+const wchar_t kStartTimeRegistryValueName[] = L"StartTime";
+const wchar_t kEndTimeRegistryValueName[] = L"EndTime";
 
 // Field trial strings.
 const char kSRTPromptTrialName[] = "SRTPromptFieldTrial";
@@ -96,25 +100,30 @@ void ReportUmaStep(SwReporterUmaValue value) {
   UMA_HISTOGRAM_ENUMERATION("SoftwareReporter.Step", value, SW_REPORTER_MAX);
 }
 
-void ReportUmaVersion(const base::Version& version) {
+void ReportVersionWithUma(const base::Version& version) {
   DCHECK(!version.components().empty());
-  UMA_HISTOGRAM_SPARSE_SLOWLY("SoftwareReporter.MinorVersion",
-                              version.components().back());
-  // The major version uses the 1st component value (when there is more than
-  // one, since the last one is always the minor version) as a hi word in a
-  // double word. The low word is either the second component (when there are
-  // only three) or the 3rd one if there are at least 4. E.g., for W.X.Y.Z, we
-  // ignore X, and Z is the minor version. We compute the major version with W
-  // as the hi word, and Y as the low word. For X.Y.Z, we use X and Y as hi and
-  // low words, and if we would have Y.Z we would use Y as the hi word and 0 as
-  // the low word. major version is 0 if the version only has one component.
-  uint32_t major_version = 0;
+  // The minor version is the 2nd last component of the version,
+  // or just the first component if there is only 1.
+  uint32_t minor_version = 0;
   if (version.components().size() > 1)
-    major_version = 0x10000 * version.components()[0];
-  if (version.components().size() < 4 && version.components().size() > 2)
-    major_version += version.components()[1];
-  else if (version.components().size() > 3)
+    minor_version = version.components()[version.components().size() - 2];
+  else
+    minor_version = version.components()[0];
+  UMA_HISTOGRAM_SPARSE_SLOWLY("SoftwareReporter.MinorVersion", minor_version);
+
+  // The major version for X.Y.Z is X*256^3+Y*256+Z. If there are additional
+  // components, only the first three count, and if there are less than 3, the
+  // missing values are just replaced by zero. So 1 is equivalent 1.0.0.
+  DCHECK(version.components()[0] < 0x100);
+  uint32_t major_version = 0x1000000 * version.components()[0];
+  if (version.components().size() >= 2) {
+    DCHECK(version.components()[1] < 0x10000);
+    major_version += 0x100 * version.components()[1];
+  }
+  if (version.components().size() >= 3) {
+    DCHECK(version.components()[2] < 0x100);
     major_version += version.components()[2];
+  }
   UMA_HISTOGRAM_SPARSE_SLOWLY("SoftwareReporter.MajorVersion", major_version);
 }
 
@@ -207,7 +216,6 @@ void LaunchAndWaitForExit(const base::FilePath& exe_path,
   int exit_code = -1;
   bool success = base::WaitForExitCode(scan_reporter_process, &exit_code);
   DCHECK(success);
-  base::CloseProcessHandle(scan_reporter_process);
   scan_reporter_process = base::kNullProcessHandle;
   // It's OK if this doesn't complete, the work will continue on next startup.
   BrowserThread::PostTask(
@@ -238,7 +246,7 @@ class SwReporterInstallerTraits : public ComponentInstallerTraits {
                               const base::FilePath& install_dir,
                               scoped_ptr<base::DictionaryValue> manifest) {
     DCHECK(BrowserThread::CurrentlyOn(BrowserThread::UI));
-    ReportUmaVersion(version);
+    ReportVersionWithUma(version);
 
     wcsncpy_s(version_dir_,
               _MAX_PATH,
@@ -328,6 +336,47 @@ void RegisterSwReporterComponent(ComponentUpdateService* cus,
       base::FieldTrialList::FindFullName(kSRTPromptTrialName) !=
           kSRTPromptOnGroup) {
     return;
+  }
+
+  // Check if we have information from Cleaner and record UMA statistics.
+  base::string16 cleaner_key_name(kSoftwareRemovalToolRegistryKey);
+  cleaner_key_name.append(1, L'\\').append(kCleanerSuffixRegistryKey);
+  base::win::RegKey cleaner_key(
+      HKEY_CURRENT_USER, cleaner_key_name.c_str(), KEY_ALL_ACCESS);
+  // Cleaner is assumed to have run if we have a start time.
+  if (cleaner_key.Valid() &&
+      cleaner_key.HasValue(kStartTimeRegistryValueName)) {
+    // Get version number.
+    if (cleaner_key.HasValue(kVersionRegistryValueName)) {
+      DWORD version;
+      cleaner_key.ReadValueDW(kVersionRegistryValueName, &version);
+      UMA_HISTOGRAM_SPARSE_SLOWLY("SoftwareReporter.Cleaner.Version", version);
+      cleaner_key.DeleteValue(kVersionRegistryValueName);
+    }
+    // Get start & end time. If we don't have an end time, we can assume the
+    // cleaner has crashed.
+    bool completed = cleaner_key.HasValue(kEndTimeRegistryValueName);
+    UMA_HISTOGRAM_BOOLEAN("SoftwareReporter.Cleaner.HasCompleted", completed);
+    if (completed) {
+      int64 start_time_value;
+      cleaner_key.ReadInt64(kStartTimeRegistryValueName, &start_time_value);
+      int64 end_time_value;
+      cleaner_key.ReadInt64(kEndTimeRegistryValueName, &end_time_value);
+      cleaner_key.DeleteValue(kEndTimeRegistryValueName);
+      base::TimeDelta run_time(base::Time::FromInternalValue(end_time_value) -
+          base::Time::FromInternalValue(start_time_value));
+      UMA_HISTOGRAM_LONG_TIMES("SoftwareReporter.Cleaner.RunningTime",
+          run_time);
+    }
+    // Get exit code.
+    if (cleaner_key.HasValue(kExitCodeRegistryValueName)) {
+      DWORD exit_code;
+      cleaner_key.ReadValueDW(kExitCodeRegistryValueName, &exit_code);
+      UMA_HISTOGRAM_SPARSE_SLOWLY("SoftwareReporter.Cleaner.ExitCode",
+          exit_code);
+      cleaner_key.DeleteValue(kExitCodeRegistryValueName);
+    }
+    cleaner_key.DeleteValue(kStartTimeRegistryValueName);
   }
 
   // Install the component.

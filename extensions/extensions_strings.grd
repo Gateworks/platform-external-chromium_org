@@ -174,6 +174,11 @@
   <release seq="1" allow_pseudo="false">
     <messages fallback_to_english="true">
 
+      <!-- Document Scan API strings. Please keep alphabetized. -->
+      <message name="IDS_EXTENSION_PROMPT_WARNING_DOCUMENT_SCAN" desc="Permission string for access to document scanning.">
+        Access document scanners attached via USB or on the local network
+      </message>
+
       <!-- General extensions strings. Please keep alphabetized. -->
       <message name="IDS_EXTENSION_CONTAINS_PRIVATE_KEY" desc="Error message when an extension includes a file containing a private key.">
         This extension includes the key file '<ph name="KEY_PATH">$1<ex>relative/path/to/file.pem</ex></ph>'. You probably don't want to do that.
@@ -242,9 +247,6 @@
       <message name="IDS_EXTENSION_PROMPT_WARNING_HOSTS_LIST" desc="Permission string for access to data for an arbitrary list of websites.">
         Read and change your data on a number of websites
       </message>
-      <message name="IDS_EXTENSION_PROMPT_WARNING_HOST_LIST_ENTRY" desc="Single entry in a list of websites.">
-        - <ph name="WEBSITE_1">$1<ex>www.google.com</ex></ph>
-      </message>
 
       <!-- Media capture permissions. Please keep alphabetized. -->
       <message name="IDS_EXTENSION_PROMPT_WARNING_AUDIO_CAPTURE" desc="Permission string for access to audio capture devices.">
@@ -305,6 +307,9 @@
       </message>
 
       <!-- Device API strings. Please keep alphabetized. -->
+      <message name="IDS_DEVICE_PERMISSIONS_DEVICE_NAME" desc="String describing a device in a list of devices.">
+        <ph name="PRODUCT_NAME">$1<ex>SoundKnob</ex></ph> from <ph name="VENDOR_NAME">$2<ex>Griffin Technology</ex></ph>
+      </message>
       <message name="IDS_DEVICE_PERMISSIONS_PROMPT_HEADING" desc="Title of the device selection dialog.">
         USB Devices
       </message>
@@ -314,17 +319,14 @@
       <message name="IDS_DEVICE_PERMISSIONS_PROMPT_MULTIPLE" desc="Instructions asking the user to select one or more devices for use with an app.">
         Select devices to use with <ph name="APP_NAME">$1<ex>Chrome Dev Editor</ex></ph>.
       </message>
-      <message name="IDS_DEVICE_PERMISSIONS_PROMPT_DEVICE_NAME" desc="String describing a device in a list of devices.">
-        <ph name="PRODUCT_NAME">$1<ex>SoundKnob</ex></ph> from <ph name="VENDOR_NAME">$2<ex>Griffin Technology</ex></ph>
-      </message>
       <message name="IDS_DEVICE_PERMISSIONS_PROMPT_DEVICE_TOOLTIP" desc="String providing device vendor and product ID details in a tooltip.">
         <ph name="VENDOR_NAME">$1<ex>Griffin Technology</ex></ph> (<ph name="VENDOR_ID">$2<ex>0x1234</ex></ph>), <ph name="PRODUCT_NAME">$3<ex>SoundKnob</ex></ph> (<ph name="PRODUCT_ID">$4<ex>0x5678</ex></ph>)
       </message>
       <message name="IDS_DEVICE_UNKNOWN_PRODUCT" desc="String used when no human-readable product name is available for a device.">
-        Unknown Product
+        Product <ph name="PRODUCT_ID">$1<ex>0x1234</ex></ph>
       </message>
       <message name="IDS_DEVICE_UNKNOWN_VENDOR" desc="String used when no human-readable vendor name is available for a device.">
-        Unknown Vendor
+        Vendor <ph name="VENDOR_ID">$1<ex>0x1234</ex></ph>
       </message>
       <message name="IDS_EXTENSION_PROMPT_WARNING_HID" desc="Permission string for access to HID devices.">
         Access your input devices
@@ -334,6 +336,9 @@
       </message>
       <message name="IDS_EXTENSION_PROMPT_WARNING_USB" desc="Permission string for access to USB devices.">
         Access your USB devices
+      </message>
+      <message name="IDS_EXTENSION_PROMPT_WARNING_VPN" desc="Permission string for access to VPN API.">
+        Access your network traffic
       </message>
       <message name="IDS_EXTENSION_PROMPT_WARNING_USB_DEVICE" desc="Permission string for access to a specific USB device.">
         Access the USB device <ph name="PRODUCT_NAME">$1<ex>SoundKnob</ex></ph> from <ph name="VENDOR_NAME">$2<ex>Griffin Technology</ex></ph>
@@ -357,13 +362,7 @@
         Webview: <ph name="WEBVIEW_TAG_NAME">$1<ex>Google</ex></ph>
       </message>
       <message name="IDS_EXTENSION_PROMPT_WARNING_USB_DEVICE_SERIAL" desc="Permission string for accessing a USB device with a known vendor name, product name and serial number.">
-        <ph name="PRODUCT_NAME">$2<ex>Nexus 5</ex></ph> from <ph name="VENDOR_NAME">$1<ex>Google Inc.</ex></ph> (serial number <ph name="SERIAL_NUMBER">$3<ex>ABCDEF123456</ex></ph>)
-      </message>
-      <message name="IDS_EXTENSION_PROMPT_WARNING_USB_DEVICE_PID_SERIAL" desc="Permission string for accessing a USB device with a known vendor name and serial number and a hexidecimal product ID.">
-        Product <ph name="PRODUCT_ID">$2<ex>0x1234</ex></ph> from <ph name="VENDOR_NAME">$1<ex>Google Inc.</ex></ph> (serial number <ph name="SERIAL_NUMBER">$3<ex>ABCDEF123456</ex></ph>)
-      </message>
-      <message name="IDS_EXTENSION_PROMPT_WARNING_USB_DEVICE_VID_PID_SERIAL" desc="Permission string for accessing a USB device with a known serial number and a hexidecimal vendor and product IDs.">
-        Product <ph name="PRODUCT_ID">$2<ex>0x5678</ex></ph> from Vendor <ph name="VENDOR_ID">$1<ex>0x1234</ex></ph> (serial number <ph name="SERIAL_NUMBER">$3<ex>ABCDEF123456</ex></ph>)
+        <ph name="PRODUCT_NAME">$1<ex>Nexus 5</ex></ph> from <ph name="VENDOR_NAME">$2<ex>Google Inc.</ex></ph> (serial number <ph name="SERIAL_NUMBER">$3<ex>ABCDEF123456</ex></ph>)
       </message>
 
       <!-- Global error messages for extensions. Please keep alphabetized. -->

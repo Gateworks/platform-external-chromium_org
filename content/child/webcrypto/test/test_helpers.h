@@ -48,6 +48,9 @@ void PrintTo(const CryptoData& data, ::std::ostream* os);
 bool operator==(const CryptoData& a, const CryptoData& b);
 bool operator!=(const CryptoData& a, const CryptoData& b);
 
+// Gives a human-readable description of |status| and any error it represents.
+std::string StatusToString(const Status& status);
+
 // TODO(eroman): For Linux builds using system NSS, AES-GCM and RSA-OAEP, and
 // RSA key import are a runtime dependency.
 bool SupportsAesGcm();
@@ -186,6 +189,16 @@ Status GenerateKeyPair(const blink::WebCryptoAlgorithm& algorithm,
                        blink::WebCryptoKeyUsageMask usages,
                        blink::WebCryptoKey* public_key,
                        blink::WebCryptoKey* private_key);
+
+// Reads a key format string as used in some JSON test files and converts it to
+// a WebCryptoKeyFormat.
+blink::WebCryptoKeyFormat GetKeyFormatFromJsonTestCase(
+    const base::DictionaryValue* test);
+
+// Extracts the key data bytes from |test| as used insome JSON test files.
+std::vector<uint8_t> GetKeyDataFromJsonTestCase(
+    const base::DictionaryValue* test,
+    blink::WebCryptoKeyFormat key_format);
 
 }  // namespace webcrypto
 

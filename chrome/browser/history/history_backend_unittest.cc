@@ -65,18 +65,6 @@ typedef base::Callback<void(const history::URLRow*,
                             const history::URLRow*)>
     SimulateNotificationCallback;
 
-// Comparison functions as to make it easier to check results of
-// GetFaviconBitmaps() and GetIconMappingsForPageURL().
-bool IconMappingLessThan(const history::IconMapping& a,
-                         const history::IconMapping& b) {
-  return a.icon_url < b.icon_url;
-}
-
-bool FaviconBitmapLessThan(const history::FaviconBitmap& a,
-                           const history::FaviconBitmap& b) {
-  return a.pixel_size.GetArea() < b.pixel_size.GetArea();
-}
-
 class HistoryClientMock : public history::HistoryClientFakeBookmarks {
  public:
   MOCK_METHOD0(BlockUntilBookmarksLoaded, void());
@@ -143,7 +131,7 @@ class HistoryBackendTestBase : public testing::Test {
         favicon_changed_notifications_(0),
         ui_thread_(content::BrowserThread::UI, &message_loop_) {}
 
-  virtual ~HistoryBackendTestBase() {
+  ~HistoryBackendTestBase() override {
     STLDeleteValues(&broadcasted_notifications_);
   }
 
@@ -212,7 +200,7 @@ class HistoryBackendTestBase : public testing::Test {
   friend class HistoryBackendTestDelegate;
 
   // testing::Test
-  virtual void SetUp() {
+  void SetUp() override {
     ClearFaviconChangedNotificationCounter();
     if (!base::CreateNewTempDirectory(FILE_PATH_LITERAL("BackendTest"),
                                       &test_dir_))
@@ -222,7 +210,7 @@ class HistoryBackendTestBase : public testing::Test {
     backend_->Init(std::string(), false);
   }
 
-  virtual void TearDown() {
+  void TearDown() override {
     if (backend_.get())
       backend_->Closing();
     backend_ = NULL;
@@ -278,7 +266,7 @@ void HistoryBackendTestDelegate::DBLoaded() {
 class HistoryBackendTest : public HistoryBackendTestBase {
  public:
   HistoryBackendTest() {}
-  virtual ~HistoryBackendTest() {}
+  ~HistoryBackendTest() override {}
 
  protected:
   void AddRedirectChain(const char* sequence[], int page_id) {
@@ -368,7 +356,9 @@ class HistoryBackendTest : public HistoryBackendTestBase {
       return false;
     }
     std::sort(icon_mappings->begin(), icon_mappings->end(),
-              IconMappingLessThan);
+              [](const history::IconMapping& a, const history::IconMapping& b) {
+      return a.icon_url < b.icon_url;
+    });
     return true;
   }
 
@@ -378,8 +368,11 @@ class HistoryBackendTest : public HistoryBackendTestBase {
                                std::vector<FaviconBitmap>* favicon_bitmaps) {
     if (!backend_->thumbnail_db_->GetFaviconBitmaps(icon_id, favicon_bitmaps))
       return false;
-    std::sort(favicon_bitmaps->begin(), favicon_bitmaps->end(),
-              FaviconBitmapLessThan);
+    std::sort(
+        favicon_bitmaps->begin(), favicon_bitmaps->end(),
+        [](const history::FaviconBitmap& a, const history::FaviconBitmap& b) {
+          return a.pixel_size.GetArea() < b.pixel_size.GetArea();
+        });
     return true;
   }
 
@@ -430,7 +423,7 @@ class HistoryBackendTest : public HistoryBackendTestBase {
 class InMemoryHistoryBackendTest : public HistoryBackendTestBase {
  public:
   InMemoryHistoryBackendTest() {}
-  virtual ~InMemoryHistoryBackendTest() {}
+  ~InMemoryHistoryBackendTest() override {}
 
   // Public so that the method can be bound in test fixture using
   // base::Bind(&InMemoryHistoryBackendTest::SimulateNotification, ...).

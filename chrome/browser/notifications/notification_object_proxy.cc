@@ -5,18 +5,13 @@
 #include "chrome/browser/notifications/notification_object_proxy.h"
 
 #include "base/guid.h"
-#include "base/strings/stringprintf.h"
 #include "content/public/browser/desktop_notification_delegate.h"
-#include "content/public/browser/render_frame_host.h"
-#include "content/public/browser/render_process_host.h"
-#include "content/public/browser/web_contents.h"
 
 NotificationObjectProxy::NotificationObjectProxy(
     scoped_ptr<content::DesktopNotificationDelegate> delegate)
     : delegate_(delegate.Pass()),
       displayed_(false),
-      id_(base::GenerateGUID()) {
-}
+      id_(base::GenerateGUID()) {}
 
 NotificationObjectProxy::~NotificationObjectProxy() {}
 
@@ -28,10 +23,6 @@ void NotificationObjectProxy::Display() {
   displayed_ = true;
 
   delegate_->NotificationDisplayed();
-}
-
-void NotificationObjectProxy::Error() {
-  delegate_->NotificationError();
 }
 
 void NotificationObjectProxy::Close(bool by_user) {

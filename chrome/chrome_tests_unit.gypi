@@ -158,6 +158,8 @@
       'browser/chromeos/file_system_provider/fileapi/provider_async_file_util_unittest.cc',
       'browser/chromeos/file_system_provider/mount_path_util_unittest.cc',
       'browser/chromeos/file_system_provider/operations/abort_unittest.cc',
+      'browser/chromeos/file_system_provider/operations/add_watcher_unittest.cc',
+      'browser/chromeos/file_system_provider/operations/add_watcher_unittest.cc',
       'browser/chromeos/file_system_provider/operations/close_file_unittest.cc',
       'browser/chromeos/file_system_provider/operations/copy_entry_unittest.cc',
       'browser/chromeos/file_system_provider/operations/create_directory_unittest.cc',
@@ -165,17 +167,14 @@
       'browser/chromeos/file_system_provider/operations/delete_entry_unittest.cc',
       'browser/chromeos/file_system_provider/operations/get_metadata_unittest.cc',
       'browser/chromeos/file_system_provider/operations/move_entry_unittest.cc',
-      'browser/chromeos/file_system_provider/operations/observe_directory_unittest.cc',
       'browser/chromeos/file_system_provider/operations/open_file_unittest.cc',
       'browser/chromeos/file_system_provider/operations/read_directory_unittest.cc',
       'browser/chromeos/file_system_provider/operations/read_file_unittest.cc',
+      'browser/chromeos/file_system_provider/operations/remove_watcher_unittest.cc',
       'browser/chromeos/file_system_provider/operations/test_util.cc',
-      'browser/chromeos/file_system_provider/operations/test_util.cc',
-      'browser/chromeos/file_system_provider/operations/test_util.h',
       'browser/chromeos/file_system_provider/operations/test_util.h',
       'browser/chromeos/file_system_provider/operations/truncate_unittest.cc',
       'browser/chromeos/file_system_provider/operations/unmount_unittest.cc',
-      'browser/chromeos/file_system_provider/operations/unobserve_entry_unittest.cc',
       'browser/chromeos/file_system_provider/operations/write_file_unittest.cc',
       'browser/chromeos/file_system_provider/provided_file_system_unittest.cc',
       'browser/chromeos/file_system_provider/registry_unittest.cc',
@@ -186,8 +185,6 @@
       'browser/chromeos/fileapi/file_access_permissions_unittest.cc',
       'browser/chromeos/fileapi/file_system_backend_unittest.cc',
       'browser/chromeos/geolocation/simple_geolocation_unittest.cc',
-      'browser/chromeos/imageburner/burn_device_handler_unittest.cc',
-      'browser/chromeos/imageburner/burn_manager_unittest.cc',
       'browser/chromeos/input_method/browser_state_monitor_unittest.cc',
       'browser/chromeos/input_method/input_method_configuration_unittest.cc',
       'browser/chromeos/input_method/input_method_engine_unittest.cc',
@@ -325,6 +322,8 @@
       'browser/extensions/api/dial/dial_device_data_unittest.cc',
       'browser/extensions/api/dial/dial_registry_unittest.cc',
       'browser/extensions/api/dial/dial_service_unittest.cc',
+      'browser/extensions/api/document_scan/document_scan_api_unittest.cc',
+      'browser/extensions/api/document_scan/mock_document_scan_interface.cc',
       'browser/extensions/api/easy_unlock_private/easy_unlock_private_api_chromeos_unittest.cc',
       'browser/extensions/api/enterprise_platform_keys_private/enterprise_platform_keys_private_api_unittest.cc',
       'browser/extensions/api/experience_sampling_private/experience_sampling_private_api_unittest.cc',
@@ -426,6 +425,7 @@
       'browser/extensions/menu_manager_unittest.cc',
       'browser/extensions/pack_extension_unittest.cc',
       'browser/extensions/permission_messages_unittest.cc',
+      'browser/extensions/permissions_based_management_policy_provider_unittest.cc',
       'browser/extensions/permissions_updater_unittest.cc',
       'browser/extensions/policy_handlers_unittest.cc',
       'browser/extensions/sandboxed_unpacker_unittest.cc',
@@ -535,6 +535,7 @@
       'browser/metrics/variations/variations_request_scheduler_unittest.cc',
       'browser/metrics/variations/variations_seed_store_unittest.cc',
       'browser/metrics/variations/variations_service_unittest.cc',
+      'browser/net/bit_stream_reader_unittest.cc',
       'browser/net/chrome_fraudulent_certificate_reporter_unittest.cc',
       'browser/net/chrome_network_delegate_unittest.cc',
       'browser/net/client_hints_unittest.cc',
@@ -546,6 +547,7 @@
       'browser/net/net_error_tab_helper_unittest.cc',
       'browser/net/net_log_temp_file_unittest.cc',
       'browser/net/network_stats_unittest.cc',
+      'browser/net/packed_ct_ev_whitelist_unittest.cc',
       'browser/net/predictor_unittest.cc',
       'browser/net/pref_proxy_config_tracker_impl_unittest.cc',
       'browser/net/probe_message_unittest.cc',
@@ -670,6 +672,7 @@
       'browser/safe_browsing/incident_reporting/blacklist_load_analyzer_win_unittest.cc',
       'browser/safe_browsing/incident_reporting/blacklist_load_incident_handlers_unittest.cc',
       'browser/safe_browsing/incident_reporting/delayed_callback_runner_unittest.cc',
+      'browser/safe_browsing/incident_reporting/download_metadata_manager_unittest.cc',
       'browser/safe_browsing/incident_reporting/environment_data_collection_win_unittest.cc',
       'browser/safe_browsing/incident_reporting/incident_report_uploader_impl_unittest.cc',
       'browser/safe_browsing/incident_reporting/incident_reporting_service_unittest.cc',
@@ -747,6 +750,7 @@
       'browser/status_icons/status_icon_menu_model_unittest.cc',
       'browser/status_icons/status_icon_unittest.cc',
       'browser/status_icons/status_tray_unittest.cc',
+      'browser/supervised_user/experimental/supervised_user_async_url_checker_unittest.cc',
       'browser/supervised_user/permission_request_creator_apiary_unittest.cc',
       'browser/supervised_user/supervised_user_pref_mapping_service_unittest.cc',
       'browser/supervised_user/supervised_user_pref_store_unittest.cc',
@@ -973,7 +977,7 @@
       'browser/ui/cocoa/bookmarks/bookmark_bar_toolbar_view_unittest.mm',
       'browser/ui/cocoa/bookmarks/bookmark_bar_unittest_helper.h',
       'browser/ui/cocoa/bookmarks/bookmark_bar_unittest_helper.mm',
-      'browser/ui/cocoa/bookmarks/bookmark_bar_view_unittest.mm',
+      'browser/ui/cocoa/bookmarks/bookmark_bar_view_cocoa_unittest.mm',
       'browser/ui/cocoa/bookmarks/bookmark_bubble_controller_unittest.mm',
       'browser/ui/cocoa/bookmarks/bookmark_button_cell_unittest.mm',
       'browser/ui/cocoa/bookmarks/bookmark_button_unittest.mm',
@@ -1016,7 +1020,7 @@
       'browser/ui/cocoa/download/download_item_controller_unittest.mm',
       'browser/ui/cocoa/download/download_shelf_controller_unittest.mm',
       'browser/ui/cocoa/download/download_shelf_mac_unittest.mm',
-      'browser/ui/cocoa/download/download_shelf_view_unittest.mm',
+      'browser/ui/cocoa/download/download_shelf_view_cocoa_unittest.mm',
       'browser/ui/cocoa/download/download_util_mac_unittest.mm',
       'browser/ui/cocoa/draggable_button_unittest.mm',
       'browser/ui/cocoa/extensions/browser_actions_container_view_unittest.mm',
@@ -1099,9 +1103,9 @@
       'browser/ui/cocoa/styled_text_field_test_helper.mm',
       'browser/ui/cocoa/styled_text_field_unittest.mm',
       'browser/ui/cocoa/tab_contents/sad_tab_controller_unittest.mm',
-      'browser/ui/cocoa/tab_contents/sad_tab_view_unittest.mm',
+      'browser/ui/cocoa/tab_contents/sad_tab_view_cocoa_unittest.mm',
       'browser/ui/cocoa/table_row_nsimage_cache_unittest.mm',
-      'browser/ui/cocoa/tabs/media_indicator_view_unittest.mm',
+      'browser/ui/cocoa/tabs/media_indicator_button_unittest.mm',
       'browser/ui/cocoa/tabs/tab_controller_unittest.mm',
       'browser/ui/cocoa/tabs/tab_strip_controller_unittest.mm',
       'browser/ui/cocoa/tabs/tab_strip_view_unittest.mm',
@@ -1321,7 +1325,6 @@
       'common/favicon/favicon_url_parser_unittest.cc',
       'common/importer/firefox_importer_utils_unittest.cc',
       'common/ini_parser_unittest.cc',
-      'common/instant_restricted_id_cache_unittest.cc',
       'common/mac/cfbundle_blocker_unittest.mm',
       'common/mac/mock_launchd.cc',
       'common/mac/mock_launchd.h',
@@ -1340,6 +1343,7 @@
       'renderer/content_settings_observer_unittest.cc',
       'renderer/extensions/extension_localization_peer_unittest.cc',
       'renderer/extensions/renderer_permissions_policy_delegate_unittest.cc',
+      'renderer/instant_restricted_id_cache_unittest.cc',
       'renderer/media/cast_ipc_dispatcher_unittest.cc',
       'renderer/media/chrome_webrtc_log_message_delegate_unittest.cc',
       'renderer/net/predictor_queue_unittest.cc',
@@ -1473,6 +1477,7 @@
         '../components/components.gyp:ownership',
         '../components/components.gyp:password_manager_core_browser_test_support',
         '../components/components.gyp:pref_registry_test_support',
+        '../components/components.gyp:rappor_test_support',
         '../components/components.gyp:search_engines_test_support',
         '../components/components.gyp:signin_core_browser_test_support',
         '../components/components.gyp:sync_driver_test_support',
@@ -1665,6 +1670,7 @@
             '../content/content.gyp:content_utility',
             '../components/components.gyp:autofill_core_test_support',
             '../components/components.gyp:captive_portal_test_support',
+            '../components/components.gyp:rappor_test_support',
             '../components/components.gyp:sessions_test_support',
             '../google_apis/google_apis.gyp:google_apis_test_support',
             '../ipc/ipc.gyp:test_support_ipc',
@@ -1767,12 +1773,12 @@
             '../build/linux/system.gyp:ssl',
           ],
         }],
-        ['enable_printing==1', {
+        ['enable_print_preview==1', {
           'dependencies': [
             'service',
           ],
         }],
-        ['enable_printing!=0', {
+        ['enable_basic_printing==1 or enable_print_preview==1', {
           'sources': [
             'renderer/printing/mock_printer.cc',
             'renderer/printing/mock_printer.h',
@@ -1803,6 +1809,8 @@
             'browser/extensions/test_blacklist.h',
             'browser/extensions/test_blacklist_state_fetcher.cc',
             'browser/extensions/test_blacklist_state_fetcher.h',
+            'browser/extensions/test_extension_dir.cc',
+            'browser/extensions/test_extension_dir.h',
             'browser/extensions/test_extension_environment.cc',
             'browser/extensions/test_extension_environment.h',
             'browser/extensions/test_extension_prefs.cc',
@@ -2032,6 +2040,7 @@
           'sources!': [
             'browser/ui/cocoa/one_click_signin_bubble_controller_unittest.mm',
             'browser/ui/sync/one_click_signin_helper_unittest.cc',
+            'browser/ui/sync/one_click_signin_sync_observer_unittest.cc',
             'browser/ui/sync/one_click_signin_sync_starter_unittest.cc',
             'browser/ui/views/sync/one_click_signin_bubble_view_unittest.cc',
           ]
@@ -2080,6 +2089,8 @@
             'browser/extensions/webstore_inline_installer_unittest.cc',
             'browser/extensions/webstore_installer_unittest.cc',
             'browser/metrics/extensions_metrics_provider_unittest.cc',
+            'browser/notifications/extension_welcome_notification_unittest.cc',
+            'browser/notifications/notification_conversion_helper_unittest.cc',
             'browser/renderer_context_menu/context_menu_content_type_unittest.cc',
             'browser/search/hotword_service_unittest.cc',
             'browser/signin/easy_unlock_screenlock_state_handler_unittest.cc',
@@ -2117,6 +2128,12 @@
             }],
           ],
         }],
+        ['use_athena==1', {
+          'sources/': [
+            ['exclude', '^browser/chromeos/login/users/wallpaper/wallpaper_manager_unittest.cc'],
+            ['exclude', '^browser/chromeos/extensions/wallpaper_private_api_unittest.cc'],
+          ],
+        }],
         ['use_aura==1', {
           'dependencies': [
             '../ui/wm/wm.gyp:wm',
@@ -2130,7 +2147,7 @@
             '../ui/views/controls/webview/webview_unittest.cc',
           ],
         }],
-        ['use_aura==1 and use_ash==0 and use_ozone==0 and OS=="linux"', {
+        ['chromeos==0 and use_ozone==0 and OS=="linux"', {
           'dependencies': [
             'browser/ui/libgtk2ui/libgtk2ui.gyp:gtk2ui',
             '../build/linux/system.gyp:gio',
@@ -2245,7 +2262,7 @@
             'common/pepper_permission_util_unittest.cc',
           ],
         }],
-        ['enable_printing!=1', {
+        ['enable_print_preview==0', {
           'sources/': [
             ['exclude', '^browser/printing/'],
             ['exclude', '^browser/ui/webui/print_preview/'],
@@ -2299,6 +2316,7 @@
             'browser/upgrade_detector_impl_unittest.cc',
           ],
           'sources': [
+            'browser/extensions/api/document_scan/document_scan_interface_chromeos_unittest.cc',
             'browser/extensions/updater/local_extension_cache_unittest.cc',
             'browser/metrics/chromeos_metrics_provider_unittest.cc',
           ],
@@ -2328,6 +2346,7 @@
         ['use_x11==1', {
           'dependencies': [
             '../tools/xdisplaycheck/xdisplaycheck.gyp:xdisplaycheck',
+            '../ui/events/devices/events_devices.gyp:events_devices',
           ],
         }],
         ['OS=="linux"', {
@@ -2517,7 +2536,11 @@
             '../skia/ext/vector_canvas_unittest.cc',
           ],
         }],
-        ['OS!="android" and OS!="ios"', {
+        ['OS=="android" or OS=="ios"', {
+          'sources!': [
+            'browser/ui/sync/sync_promo_ui_unittest.cc',
+          ],
+        }, { # 'OS!="android" and OS!="ios"'
           'dependencies': [
             'tools/profile_reset/jtl_compiler.gyp:jtl_compiler_lib',
           ],
@@ -2550,6 +2573,7 @@
             'browser/sync/sync_ui_util_unittest.cc',
 
             'browser/browser_commands_unittest.cc',
+            'browser/chrome_page_zoom_unittest.cc',
             'browser/download/download_shelf_unittest.cc',
             'browser/extensions/extension_message_bubble_controller_unittest.cc',
             'browser/extensions/extension_test_message_listener_unittest.cc',
@@ -2632,6 +2656,10 @@
 
             # Android has no windows that have placement info.
             'browser/prefs/browser_ui_prefs_migrator_unittest.cc',
+
+            # Android does not use the Message Center notification system.
+            'browser/notifications/message_center_notifications_unittest.cc',
+            'browser/notifications/message_center_settings_controller_unittest.cc',
           ],
           'sources/': [
             ['exclude', '^browser/captive_portal/'],
@@ -2850,6 +2878,23 @@
           'variables': {
             'test_suite_name': 'unit_tests',
             'android_manifest_path': 'test/android/unit_tests_apk/AndroidManifest.xml',
+            'conditions': [
+              ['v8_use_external_startup_data==1', {
+                'additional_input_paths': [
+                  '<(PRODUCT_DIR)/natives_blob.bin',
+                  '<(PRODUCT_DIR)/snapshot_blob.bin',
+                ],
+                'copies': [
+                  {
+                    'destination': '<(PRODUCT_DIR)/unit_tests_apk/assets',
+                    'files': [
+                      '<(PRODUCT_DIR)/natives_blob.bin',
+                      '<(PRODUCT_DIR)/snapshot_blob.bin',
+                    ],
+                  },
+                ],
+              }],
+            ],
           },
           'includes': [ '../build/apk_test.gypi' ],
         },

@@ -28,7 +28,6 @@
 #include "chrome/browser/history/url_index_private_data.h"
 #include "chrome/browser/search_engines/chrome_template_url_service_client.h"
 #include "chrome/browser/search_engines/template_url_service_factory.h"
-#include "chrome/common/pref_names.h"
 #include "chrome/test/base/testing_browser_process.h"
 #include "chrome/test/base/testing_profile.h"
 #include "components/bookmarks/test/bookmark_test_helpers.h"
@@ -137,8 +136,8 @@ class HistoryQuickProviderTest : public testing::Test {
         NULL, NULL, base::Closure());
   }
 
-  virtual void SetUp();
-  virtual void TearDown();
+  void SetUp() override;
+  void TearDown() override;
 
   virtual void GetTestData(size_t* data_count, TestURLInfo** test_data);
 

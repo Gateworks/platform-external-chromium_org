@@ -70,7 +70,7 @@ class CONTENT_EXPORT RenderWidgetHostViewBase : public RenderWidgetHostView,
 
   // RenderWidgetHostView implementation.
   void SetBackgroundColor(SkColor color) override;
-  void SetBackgroundColorToDefault() final override;
+  void SetBackgroundColorToDefault() final;
   bool GetBackgroundOpaque() override;
   ui::TextInputClient* GetTextInputClient() override;
   bool IsShowingContextMenu() const override;
@@ -338,7 +338,7 @@ class CONTENT_EXPORT RenderWidgetHostViewBase : public RenderWidgetHostView,
       const NativeWebKeyboardEvent& event) = 0;
 #endif
 
-#if defined(OS_MACOSX) || defined(USE_AURA)
+#if defined(OS_MACOSX) || defined(USE_AURA) || defined(OS_ANDROID)
   // Updates the range of the marked text in an IME composition.
   virtual void ImeCompositionRangeChanged(
       const gfx::Range& range,

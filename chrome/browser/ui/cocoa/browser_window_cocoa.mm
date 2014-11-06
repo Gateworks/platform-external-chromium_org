@@ -244,7 +244,7 @@ bool BrowserWindowCocoa::IsActive() const {
   return [window() isKeyWindow];
 }
 
-gfx::NativeWindow BrowserWindowCocoa::GetNativeWindow() {
+gfx::NativeWindow BrowserWindowCocoa::GetNativeWindow() const {
   return window();
 }
 
@@ -621,7 +621,6 @@ void BrowserWindowCocoa::EnterFullscreenWithChrome() {
 }
 
 void BrowserWindowCocoa::EnterFullscreenWithoutChrome() {
-  CHECK(chrome::mac::SupportsSystemFullscreen());
   [controller_ enterPresentationMode];
 }
 

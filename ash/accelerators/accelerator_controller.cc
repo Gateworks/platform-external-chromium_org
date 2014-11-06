@@ -159,13 +159,13 @@ bool HandleMagnifyScreen(int delta_index) {
     float scale =
         ash::Shell::GetInstance()->magnification_controller()->GetScale();
     // Calculate rounded logarithm (base kMagnificationScaleFactor) of scale.
-    int scale_index =
-        std::floor(std::log(scale) / std::log(kMagnificationScaleFactor) + 0.5);
+    int scale_index = std::floor(
+        std::log(scale) / std::log(ui::kMagnificationScaleFactor) + 0.5);
 
     int new_scale_index = std::max(0, std::min(8, scale_index + delta_index));
 
-    ash::Shell::GetInstance()->magnification_controller()->
-        SetScale(std::pow(kMagnificationScaleFactor, new_scale_index), true);
+    ash::Shell::GetInstance()->magnification_controller()->SetScale(
+        std::pow(ui::kMagnificationScaleFactor, new_scale_index), true);
     return true;
   } else if (ash::Shell::GetInstance()->
              partial_magnification_controller()->is_enabled()) {
@@ -573,13 +573,13 @@ bool HandleToggleSpokenFeedback() {
   base::RecordAction(UserMetricsAction("Accel_Toggle_Spoken_Feedback"));
 
   Shell::GetInstance()->accessibility_delegate()->
-      ToggleSpokenFeedback(A11Y_NOTIFICATION_SHOW);
+      ToggleSpokenFeedback(ui::A11Y_NOTIFICATION_SHOW);
   return true;
 }
 
 bool HandleToggleTouchViewTesting() {
   // TODO(skuhne): This is only temporary! Remove this!
-  if (CommandLine::ForCurrentProcess()->HasSwitch(
+  if (base::CommandLine::ForCurrentProcess()->HasSwitch(
           switches::kAshEnableTouchViewTesting)) {
     MaximizeModeController* controller = Shell::GetInstance()->
         maximize_mode_controller();
@@ -1018,9 +1018,7 @@ bool AcceleratorController::PerformAction(int action,
   }
 
   // If |action| is a debug action, run it.
-  debug::PerformDebugAction(action);
-
-  return false;
+  return debug::PerformDebugAction(action);
 }
 
 AcceleratorController::AcceleratorProcessingRestriction
@@ -1058,7 +1056,7 @@ AcceleratorController::GetAcceleratorProcessingRestriction(int action) {
   if (MruWindowTracker::BuildWindowList(false).empty() &&
       actions_needing_window_.find(action) != actions_needing_window_.end()) {
     Shell::GetInstance()->accessibility_delegate()->TriggerAccessibilityAlert(
-        A11Y_ALERT_WINDOW_NEEDED);
+        ui::A11Y_ALERT_WINDOW_NEEDED);
     return RESTRICTION_PREVENT_PROCESSING_AND_PROPAGATION;
   }
   return RESTRICTION_NONE;

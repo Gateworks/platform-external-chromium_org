@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "base/run_loop.h"
 #include "base/stl_util.h"
 #include "chrome/browser/chromeos/drive/file_change.h"
 #include "chrome/browser/chromeos/extensions/file_manager/event_router.h"
@@ -9,6 +10,7 @@
 #include "chrome/browser/chromeos/file_manager/file_watcher.h"
 #include "chrome/browser/extensions/extension_apitest.h"
 #include "chrome/test/base/testing_profile.h"
+#include "chrome/test/base/ui_test_utils.h"
 #include "chromeos/dbus/cros_disks_client.h"
 #include "chromeos/disks/mock_disk_mount_manager.h"
 #include "extensions/common/extension.h"
@@ -70,6 +72,7 @@ TestDiskInfo kTestDisks[] = {
     false,
     false,
     false,
+    false,
     false
   },
   {
@@ -89,6 +92,7 @@ TestDiskInfo kTestDisks[] = {
     true,
     true,
     true,
+    false,
     false
   },
   {
@@ -108,6 +112,7 @@ TestDiskInfo kTestDisks[] = {
     false,
     false,
     true,
+    false,
     false
   }
 };
@@ -333,6 +338,13 @@ IN_PROC_BROWSER_TEST_F(FileManagerPrivateApiTest, OnFileChanged) {
       base::FilePath(FILE_PATH_LITERAL("/no-existing-fs-hash/root/aaa")),
       "extension_3", base::Bind(&AddFileWatchCallback));
 
+  // event_router->addFileWatch create some tasks which are performed on message
+  // loop of BrowserThread::FILE. Wait until they are done.
+  content::RunAllPendingInMessageLoop(content::BrowserThread::FILE);
+  // We also wait the UI thread here, since some tasks which are performed above
+  // message loop back results to the UI thread.
+  base::RunLoop().RunUntilIdle();
+
   // When /a is deleted (1 and 2 is notified).
   FileChange first_change;
   first_change.Update(
@@ -356,4 +368,19 @@ IN_PROC_BROWSER_TEST_F(FileManagerPrivateApiTest, OnFileChanged) {
       FileType::FILE_TYPE_DIRECTORY, ChangeType::DELETE);
   event_router_->OnFileChanged(third_change);
   EXPECT_EQ(3, counter);
+
+  // Remove file watchers.
+  event_router_->RemoveFileWatch(
+      base::FilePath(FILE_PATH_LITERAL("/no-existing-fs/root/a/b/c")),
+      "extension_1");
+  event_router_->RemoveFileWatch(
+      base::FilePath(FILE_PATH_LITERAL("/no-existing-fs/root/a/d/e")),
+      "extension_2");
+  event_router_->RemoveFileWatch(
+      base::FilePath(FILE_PATH_LITERAL("/no-existing-fs/root/aaa")),
+      "extension_3");
+
+  // event_router->removeFileWatch create some tasks which are performed on
+  // message loop of BrowserThread::FILE. Wait until they are done.
+  content::RunAllPendingInMessageLoop(content::BrowserThread::FILE);
 }

@@ -13,7 +13,6 @@
 #include "net/quic/crypto/crypto_server_config_protobuf.h"
 #include "net/quic/crypto/quic_random.h"
 #include "net/quic/crypto/strike_register_client.h"
-#include "net/quic/quic_flags.h"
 #include "net/quic/quic_time.h"
 #include "net/quic/test_tools/mock_clock.h"
 #include "net/quic/test_tools/quic_test_utils.h"
@@ -259,8 +258,6 @@ TEST(QuicCryptoServerConfigTest, GetOrbitIsCalledWithoutTheStrikeRegisterLock) {
 }
 
 TEST(QuicCryptoServerConfigTest, SourceAddressTokens) {
-  ValueRestore<bool> old_flag(&FLAGS_quic_store_cached_network_params_from_chlo,
-                              true);
   const string kPrimary = "<primary>";
   const string kOverride = "Config with custom source address token key";
 
@@ -402,7 +399,7 @@ class CryptoServerConfigsTest : public ::testing::Test {
         config_(QuicCryptoServerConfig::TESTING, rand_),
         test_peer_(&config_) {}
 
-  virtual void SetUp() {
+  void SetUp() override {
     clock_.AdvanceTime(QuicTime::Delta::FromSeconds(1000));
   }
 

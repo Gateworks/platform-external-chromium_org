@@ -17,6 +17,10 @@ namespace common_cert_set_0 {
 #include "net/quic/crypto/common_cert_set_0.c"
 }
 
+namespace common_cert_set_1 {
+#include "net/quic/crypto/common_cert_set_1.c"
+}
+
 namespace {
 
 struct CertSet {
@@ -38,10 +42,17 @@ const CertSet kSets[] = {
     common_cert_set_0::kLens,
     common_cert_set_0::kHash,
   },
+  {
+    common_cert_set_1::kNumCerts,
+    common_cert_set_1::kCerts,
+    common_cert_set_1::kLens,
+    common_cert_set_1::kHash,
+  },
 };
 
 const uint64 kSetHashes[] = {
   common_cert_set_0::kHash,
+  common_cert_set_1::kHash,
 };
 
 // Compare returns a value less than, equal to or greater than zero if |a| is
@@ -142,7 +153,7 @@ class CommonCertSetsQUIC : public CommonCertSets {
 
  private:
   CommonCertSetsQUIC() {}
-  ~CommonCertSetsQUIC() override {}
+  virtual ~CommonCertSetsQUIC() {}
 
   friend struct DefaultSingletonTraits<CommonCertSetsQUIC>;
   DISALLOW_COPY_AND_ASSIGN(CommonCertSetsQUIC);

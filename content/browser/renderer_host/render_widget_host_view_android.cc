@@ -68,7 +68,7 @@
 #include "third_party/skia/include/core/SkCanvas.h"
 #include "ui/base/android/window_android.h"
 #include "ui/base/android/window_android_compositor.h"
-#include "ui/events/gesture_detection/gesture_config_helper.h"
+#include "ui/events/gesture_detection/gesture_provider_config_helper.h"
 #include "ui/events/gesture_detection/motion_event.h"
 #include "ui/gfx/android/device_display_info.h"
 #include "ui/gfx/android/java_bitmap.h"
@@ -760,6 +760,12 @@ void RenderWidgetHostViewAndroid::ImeCancelComposition() {
   ime_adapter_android_.CancelComposition();
 }
 
+void RenderWidgetHostViewAndroid::ImeCompositionRangeChanged(
+    const gfx::Range& range,
+    const std::vector<gfx::Rect>& character_bounds) {
+  ime_adapter_android_.SetCharacterBounds(character_bounds);
+}
+
 void RenderWidgetHostViewAndroid::FocusedNodeChanged(bool is_editable_node) {
   ime_adapter_android_.FocusedNodeChanged(is_editable_node);
   if (selection_controller_)
@@ -1111,6 +1117,9 @@ void RenderWidgetHostViewAndroid::RetainFrame(
 
 void RenderWidgetHostViewAndroid::SynchronousFrameMetadata(
     const cc::CompositorFrameMetadata& frame_metadata) {
+  if (!content_view_core_)
+    return;
+
   // This is a subset of OnSwapCompositorFrame() used in the synchronous
   // compositor flow.
   OnFrameMetadataUpdated(frame_metadata);
@@ -1151,11 +1160,17 @@ void RenderWidgetHostViewAndroid::MoveCaret(const gfx::PointF& position) {
   MoveCaret(gfx::Point(position.x(), position.y()));
 }
 
-void RenderWidgetHostViewAndroid::SelectBetweenCoordinates(
-    const gfx::PointF& start,
-    const gfx::PointF& end) {
+void RenderWidgetHostViewAndroid::MoveRangeSelectionExtent(
+    const gfx::PointF& extent) {
   DCHECK(content_view_core_);
-  content_view_core_->SelectBetweenCoordinates(start, end);
+  content_view_core_->MoveRangeSelectionExtent(extent);
+}
+
+void RenderWidgetHostViewAndroid::SelectBetweenCoordinates(
+    const gfx::PointF& base,
+    const gfx::PointF& extent) {
+  DCHECK(content_view_core_);
+  content_view_core_->SelectBetweenCoordinates(base, extent);
 }
 
 void RenderWidgetHostViewAndroid::OnSelectionEvent(
@@ -1173,7 +1188,9 @@ scoped_ptr<TouchHandleDrawable> RenderWidgetHostViewAndroid::CreateDrawable() {
   return scoped_ptr<TouchHandleDrawable>(new CompositedTouchHandleDrawable(
       content_view_core_->GetLayer().get(),
       content_view_core_->GetDpiScale(),
-      base::android::GetApplicationContext()));
+      // Use the activity context (instead of the application context) to ensure
+      // proper handle theming.
+      content_view_core_->GetContext().obj()));
 }
 
 void RenderWidgetHostViewAndroid::SynchronousCopyContents(

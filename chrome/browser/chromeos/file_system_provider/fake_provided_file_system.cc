@@ -321,17 +321,22 @@ ProvidedFileSystemInterface::AbortCallback FakeProvidedFileSystem::WriteFile(
   return PostAbortableTask(base::Bind(callback, base::File::FILE_OK));
 }
 
-ProvidedFileSystemInterface::AbortCallback
-FakeProvidedFileSystem::ObserveDirectory(
-    const base::FilePath& directory_path,
+ProvidedFileSystemInterface::AbortCallback FakeProvidedFileSystem::AddWatcher(
+    const GURL& origin,
+    const base::FilePath& entry_watcher,
     bool recursive,
-    const storage::AsyncFileUtil::StatusCallback& callback) {
+    bool persistent,
+    const storage::AsyncFileUtil::StatusCallback& callback,
+    const storage::WatcherManager::NotificationCallback&
+        notification_callback) {
   // TODO(mtomasz): Implement it once needed.
   return PostAbortableTask(base::Bind(callback, base::File::FILE_OK));
 }
 
-void FakeProvidedFileSystem::UnobserveEntry(
+void FakeProvidedFileSystem::RemoveWatcher(
+    const GURL& origin,
     const base::FilePath& entry_path,
+    bool recursive,
     const storage::AsyncFileUtil::StatusCallback& callback) {
   // TODO(mtomasz): Implement it once needed.
   callback.Run(base::File::FILE_OK);
@@ -347,8 +352,8 @@ RequestManager* FakeProvidedFileSystem::GetRequestManager() {
   return NULL;
 }
 
-ObservedEntries* FakeProvidedFileSystem::GetObservedEntries() {
-  return &observed_entries_;
+Watchers* FakeProvidedFileSystem::GetWatchers() {
+  return &watchers_;
 }
 
 void FakeProvidedFileSystem::AddObserver(ProvidedFileSystemObserver* observer) {
@@ -363,9 +368,10 @@ void FakeProvidedFileSystem::RemoveObserver(
 }
 
 bool FakeProvidedFileSystem::Notify(
-    const base::FilePath& observed_path,
-    ProvidedFileSystemObserver::ChangeType change_type,
-    scoped_ptr<ProvidedFileSystemObserver::ChildChanges> child_changes,
+    const base::FilePath& entry_path,
+    bool recursive,
+    storage::WatcherManager::ChangeType change_type,
+    scoped_ptr<ProvidedFileSystemObserver::Changes> changes,
     const std::string& tag) {
   NOTREACHED();
   return false;

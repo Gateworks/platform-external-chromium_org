@@ -21,8 +21,10 @@
 #include "base/strings/string_piece.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/time/time.h"
+#include "chrome/browser/browser_process.h"
 #include "chrome/browser/chromeos/drive/drive_integration_service.h"
 #include "chrome/browser/chromeos/drive/file_system_interface.h"
+#include "chrome/browser/chromeos/drive/test_util.h"
 #include "chrome/browser/chromeos/file_manager/app_id.h"
 #include "chrome/browser/chromeos/file_manager/drive_test_util.h"
 #include "chrome/browser/chromeos/file_manager/path_util.h"
@@ -31,6 +33,8 @@
 #include "chrome/browser/drive/fake_drive_service.h"
 #include "chrome/browser/extensions/component_loader.h"
 #include "chrome/browser/extensions/extension_apitest.h"
+#include "chrome/browser/notifications/notification.h"
+#include "chrome/browser/notifications/notification_ui_manager.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/ash/multi_user/multi_user_util.h"
 #include "chrome/browser/ui/ash/multi_user/multi_user_window_manager.h"
@@ -546,7 +550,7 @@ class FileManagerBrowserTestBase : public ExtensionApiTest {
   virtual GuestMode GetGuestModeParam() const = 0;
   virtual const char* GetTestCaseNameParam() const = 0;
   virtual void OnMessage(const std::string& name,
-                         const base::Value& value,
+                         const base::DictionaryValue& value,
                          std::string* output);
 
   scoped_ptr<LocalTestVolume> local_volume_;
@@ -592,6 +596,8 @@ void FileManagerBrowserTestBase::SetUpOnMainThread() {
     drive_volume_->ConfigureShareUrlBase(share_url_base);
     test_util::WaitUntilDriveMountPointIsAdded(profile());
   }
+
+  net::NetworkChangeNotifier::SetTestNotificationsOnly(true);
 }
 
 void FileManagerBrowserTestBase::SetUpCommandLine(CommandLine* command_line) {
@@ -644,15 +650,16 @@ void FileManagerBrowserTestBase::RunTestMessageLoop() {
       continue;
 
     std::string output;
-    OnMessage(name, *value.get(), &output);
+    OnMessage(name, *message_dictionary, &output);
     if (HasFatalFailure())
       break;
+
     entry.function->Reply(output);
   }
 }
 
 void FileManagerBrowserTestBase::OnMessage(const std::string& name,
-                                           const base::Value& value,
+                                           const base::DictionaryValue& value,
                                            std::string* output) {
   if (name == "getTestName") {
     // Pass the test case name.
@@ -741,6 +748,29 @@ void FileManagerBrowserTestBase::OnMessage(const std::string& name,
     return;
   }
 
+  if (name == "useCellularNetwork") {
+    net::NetworkChangeNotifier::NotifyObserversOfConnectionTypeChangeForTests(
+        net::NetworkChangeNotifier::CONNECTION_3G);
+    return;
+  }
+
+  if (name == "clickNotificationButton") {
+    std::string extension_id;
+    std::string notification_id;
+    int index;
+    ASSERT_TRUE(value.GetString("extensionId", &extension_id));
+    ASSERT_TRUE(value.GetString("notificationId", &notification_id));
+    ASSERT_TRUE(value.GetInteger("index", &index));
+
+    const std::string delegate_id = extension_id + "-" + notification_id;
+    const Notification* notification = g_browser_process->
+        notification_ui_manager()->FindById(delegate_id, profile());
+    ASSERT_TRUE(notification);
+
+    notification->delegate()->ButtonClick(index);
+    return;
+  }
+
   FAIL() << "Unknown test message: " << name;
 }
 
@@ -782,7 +812,8 @@ IN_PROC_BROWSER_TEST_P(FileManagerBrowserTest, Test) {
   INSTANTIATE_TEST_CASE_P(prefix, test_case_name, generator)
 
 // Slow tests are disabled on debug build. http://crbug.com/327719
-#if !defined(NDEBUG)
+// Fails on official build. http://crbug.com/429294
+#if !defined(NDEBUG) || defined(OFFICIAL_BUILD)
 #define MAYBE_FileDisplay DISABLED_FileDisplay
 #else
 #define MAYBE_FileDisplay FileDisplay
@@ -804,7 +835,8 @@ WRAPPED_INSTANTIATE_TEST_CASE_P(
                       TestParameter(NOT_IN_GUEST_MODE, "zipOpenDrive")));
 
 // Slow tests are disabled on debug build. http://crbug.com/327719
-#if !defined(NDEBUG)
+// Fails on official build. http://crbug.com/429294
+#if !defined(NDEBUG) || defined(OFFICIAL_BUILD)
 #define MAYBE_OpenVideoFiles DISABLED_OpenVideoFiles
 #else
 #define MAYBE_OpenVideoFiles OpenVideoFiles
@@ -817,7 +849,8 @@ WRAPPED_INSTANTIATE_TEST_CASE_P(
                       TestParameter(NOT_IN_GUEST_MODE, "videoOpenDrive")));
 
 // Slow tests are disabled on debug build. http://crbug.com/327719
-#if !defined(NDEBUG)
+// Fails on official build. http://crbug.com/429294
+#if !defined(NDEBUG) || defined(OFFICIAL_BUILD)
 #define MAYBE_OpenAudioFiles DISABLED_OpenAudioFiles
 #else
 #define MAYBE_OpenAudioFiles OpenAudioFiles
@@ -849,7 +882,8 @@ WRAPPED_INSTANTIATE_TEST_CASE_P(
                                     "createNewFolderDrive")));
 
 // Slow tests are disabled on debug build. http://crbug.com/327719
-#if !defined(NDEBUG)
+// Fails on official build. http://crbug.com/429294
+#if !defined(NDEBUG) || defined(OFFICIAL_BUILD)
 #define MAYBE_KeyboardOperations DISABLED_KeyboardOperations
 #else
 #define MAYBE_KeyboardOperations KeyboardOperations
@@ -869,7 +903,8 @@ WRAPPED_INSTANTIATE_TEST_CASE_P(
                       TestParameter(NOT_IN_GUEST_MODE, "renameFileDrive")));
 
 // Slow tests are disabled on debug build. http://crbug.com/327719
-#if !defined(NDEBUG)
+// Fails on official build. http://crbug.com/429294
+#if !defined(NDEBUG) || defined(OFFICIAL_BUILD)
 #define MAYBE_DriveSpecific DISABLED_DriveSpecific
 #else
 #define MAYBE_DriveSpecific DriveSpecific
@@ -877,14 +912,16 @@ WRAPPED_INSTANTIATE_TEST_CASE_P(
 WRAPPED_INSTANTIATE_TEST_CASE_P(
     MAYBE_DriveSpecific,
     FileManagerBrowserTest,
-    ::testing::Values(TestParameter(NOT_IN_GUEST_MODE, "openSidebarRecent"),
-                      TestParameter(NOT_IN_GUEST_MODE, "openSidebarOffline"),
-                      TestParameter(NOT_IN_GUEST_MODE,
-                                    "openSidebarSharedWithMe"),
-                      TestParameter(NOT_IN_GUEST_MODE, "autocomplete")));
+    ::testing::Values(
+        TestParameter(NOT_IN_GUEST_MODE, "openSidebarRecent"),
+        TestParameter(NOT_IN_GUEST_MODE, "openSidebarOffline"),
+        TestParameter(NOT_IN_GUEST_MODE, "openSidebarSharedWithMe"),
+        TestParameter(NOT_IN_GUEST_MODE, "autocomplete"),
+        TestParameter(NOT_IN_GUEST_MODE, "pinFileOnMobileNetwork")));
 
 // Slow tests are disabled on debug build. http://crbug.com/327719
-#if !defined(NDEBUG)
+// Fails on official build. http://crbug.com/429294
+#if !defined(NDEBUG) || defined(OFFICIAL_BUILD)
 #define MAYBE_Transfer DISABLED_Transfer
 #else
 #define MAYBE_Transfer Transfer
@@ -903,7 +940,8 @@ WRAPPED_INSTANTIATE_TEST_CASE_P(
         TestParameter(NOT_IN_GUEST_MODE, "transferFromOfflineToDrive")));
 
 // Slow tests are disabled on debug build. http://crbug.com/327719
-#if !defined(NDEBUG)
+// Fails on official build. http://crbug.com/429294
+#if !defined(NDEBUG) || defined(OFFICIAL_BUILD)
 #define MAYBE_RestorePrefs DISABLED_RestorePrefs
 #else
 #define MAYBE_RestorePrefs RestorePrefs
@@ -1006,6 +1044,19 @@ WRAPPED_INSTANTIATE_TEST_CASE_P(
 
 // Slow tests are disabled on debug build. http://crbug.com/327719
 #if !defined(NDEBUG)
+#define MAYBE_GenericTask DISABLED_GenericTask
+#else
+#define MAYBE_GenericTask GenericTask
+#endif
+WRAPPED_INSTANTIATE_TEST_CASE_P(
+    MAYBE_GenericTask,
+    FileManagerBrowserTest,
+    ::testing::Values(
+        TestParameter(NOT_IN_GUEST_MODE, "genericTaskIsNotExecuted"),
+        TestParameter(NOT_IN_GUEST_MODE, "genericAndNonGenericTasksAreMixed")));
+
+// Slow tests are disabled on debug build. http://crbug.com/327719
+#if !defined(NDEBUG)
 #define MAYBE_FolderShortcuts DISABLED_FolderShortcuts
 #else
 #define MAYBE_FolderShortcuts FolderShortcuts
@@ -1034,7 +1085,8 @@ WRAPPED_INSTANTIATE_TEST_CASE_P(
     ::testing::Values(TestParameter(NOT_IN_GUEST_MODE, "thumbnailsDownloads"),
                       TestParameter(IN_GUEST_MODE, "thumbnailsDownloads")));
 
-#if !defined(NDEBUG)
+// Fails on official build. http://crbug.com/429294
+#if !defined(NDEBUG) || defined(OFFICIAL_BUILD)
 #define MAYBE_OpenFileDialog DISABLED_OpenFileDialog
 #else
 #define MAYBE_OpenFileDialog OpenFileDialog
@@ -1051,7 +1103,9 @@ WRAPPED_INSTANTIATE_TEST_CASE_P(
                       TestParameter(IN_INCOGNITO,
                                     "openFileDialogOnDownloads"),
                       TestParameter(IN_INCOGNITO,
-                                    "openFileDialogOnDrive")));
+                                    "openFileDialogOnDrive"),
+                      TestParameter(NOT_IN_GUEST_MODE,
+                                    "unloadFileDialog")));
 
 // Slow tests are disabled on debug build. http://crbug.com/327719
 #if !defined(NDEBUG)
@@ -1169,7 +1223,8 @@ class MultiProfileFileManagerBrowserTest : public FileManagerBrowserTestBase {
 };
 
 // Slow tests are disabled on debug build. http://crbug.com/327719
-#if !defined(NDEBUG)
+// Fails on official build. http://crbug.com/429294
+#if !defined(NDEBUG) || defined(OFFICIAL_BUILD)
 #define MAYBE_PRE_BasicDownloads DISABLED_PRE_BasicDownloads
 #define MAYBE_BasicDownloads DISABLED_BasicDownloads
 #else
@@ -1191,7 +1246,8 @@ IN_PROC_BROWSER_TEST_F(MultiProfileFileManagerBrowserTest,
 }
 
 // Slow tests are disabled on debug build. http://crbug.com/327719
-#if !defined(NDEBUG)
+// Fails on official build. http://crbug.com/429294
+#if !defined(NDEBUG) || defined(OFFICIAL_BUILD)
 #define MAYBE_PRE_BasicDrive DISABLED_PRE_BasicDrive
 #define MAYBE_BasicDrive DISABLED_BasicDrive
 #else
@@ -1227,7 +1283,7 @@ class GalleryBrowserTestBase : public FileManagerBrowserTestBase {
   }
 
   virtual void OnMessage(const std::string& name,
-                         const base::Value& value,
+                         const base::DictionaryValue& value,
                          std::string* output) override;
 
   virtual const char* GetTestManifestName() const override {
@@ -1250,7 +1306,7 @@ class GalleryBrowserTestBase : public FileManagerBrowserTestBase {
 
 template <GuestMode M>
 void GalleryBrowserTestBase<M>::OnMessage(const std::string& name,
-                                          const base::Value& value,
+                                          const base::DictionaryValue& value,
                                           std::string* output) {
   if (name == "getScripts") {
     std::string jsonString;
@@ -1438,7 +1494,7 @@ class VideoPlayerBrowserTestBase : public FileManagerBrowserTestBase {
   }
 
   virtual void OnMessage(const std::string& name,
-                         const base::Value& value,
+                         const base::DictionaryValue& value,
                          std::string* output) override;
 
   virtual const char* GetTestManifestName() const override {
@@ -1460,9 +1516,10 @@ class VideoPlayerBrowserTestBase : public FileManagerBrowserTestBase {
 };
 
 template <GuestMode M>
-void VideoPlayerBrowserTestBase<M>::OnMessage(const std::string& name,
-                                              const base::Value& value,
-                                              std::string* output) {
+void VideoPlayerBrowserTestBase<M>::OnMessage(
+    const std::string& name,
+    const base::DictionaryValue& value,
+    std::string* output) {
   if (name == "getScripts") {
     std::string jsonString;
     base::JSONWriter::Write(&scripts_, output);

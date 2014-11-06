@@ -7,8 +7,9 @@
 [platforms=("chromeos"),
  implemented_in="chrome/browser/chromeos/extensions/file_system_provider/file_system_provider_api.h"]
 namespace fileSystemProvider {
-  // Error codes used by providing extensions in response to requests. For
-  // success, <code>OK</code> must be used.
+  // Error codes used by providing extensions in response to requests as well
+  // as in case of errors when calling methods of the API. For success, <code>
+  // OK</code> must be used.
   enum ProviderError {
     OK,
     FAILED,
@@ -22,6 +23,7 @@ namespace fileSystemProvider {
     NOT_A_DIRECTORY,
     INVALID_OPERATION,
     SECURITY,
+    ABORT,
     NOT_A_FILE,
     NOT_EMPTY,
     INVALID_URL,
@@ -63,15 +65,16 @@ namespace fileSystemProvider {
     DOMString? thumbnail;
   };
 
-  // Represents an observed entry.
-  dictionary ObservedEntry {
+  // Represents a watcher.
+  dictionary Watcher {
     // The path of the entry being observed.
     DOMString entryPath;
 
-    // Whether observing should include all child entries recursively.
+    // Whether watching should include all child entries recursively. It can be
+    // true for directories only.
     boolean recursive;
 
-    // Tag used by the last notification for the observed path.
+    // Tag used by the last notification for the watcher.
     DOMString? lastTag;
   };
 
@@ -91,8 +94,8 @@ namespace fileSystemProvider {
     // directories.
     [nodoc] boolean? supportsNotifyTag;
 
-    // List of observed entries.
-    [nodoc] ObservedEntry[] observedEntries;
+    // List of watchers.
+    [nodoc] Watcher[] watchers;
   };
 
   // Options for the <code>mount()</code> method.
@@ -316,36 +319,40 @@ namespace fileSystemProvider {
     long operationRequestId;
   };
 
-  // Options for the <code>onObserveDirectoryRequested()</code> event.
-  dictionary ObserveDirectoryRequestedOptions {
+  // Options for the <code>onAddWatcherRequested()</code> event.
+  dictionary AddWatcherRequestedOptions {
     // The identifier of the file system related to this operation.
     DOMString fileSystemId;
 
     // The unique identifier of this request.
     long requestId;
 
-    // The path of the directory to be observed.
-    DOMString directoryPath;
+    // The path of the entry to be observed.
+    DOMString entryPath;
 
-    // Whether observing should include all child entries recursively.
+    // Whether observing should include all child entries recursively. It can be
+    // true for directories only.
     boolean recursive;
   };
 
-  // Options for the <code>onUnobserveEntryRequested()</code> event.
-  dictionary UnobserveEntryRequestedOptions {
+  // Options for the <code>onRemoveWatcherRequested()</code> event.
+  dictionary RemoveWatcherRequestedOptions {
     // The identifier of the file system related to this operation.
     DOMString fileSystemId;
 
     // The unique identifier of this request.
     long requestId;
 
-    // The path of the entry to be not observed anymore.
+    // The path of the watched entry.
     DOMString entryPath;
+
+    // Mode of the watcher.
+    boolean recursive;
   };
 
   // Information about a change happened to an entry within the observed
-  // directory.
-  dictionary ChildChange {
+  // directory (including the entry itself).
+  dictionary Change {
     // The path of the changed entry.
     DOMString entryPath;
 
@@ -361,13 +368,17 @@ namespace fileSystemProvider {
     // The path of the observed entry.
     DOMString observedPath;
 
+    // Mode of the observed entry.
+    boolean recursive;
+
     // The type of the change which happened to the observed entry. If it is
     // DELETED, then the observed entry will be automatically removed from the
     // list of observed entries.
     ChangeType changeType;
 
-    // List of changes to entries within the observed directory.
-    ChildChange[]? childChanges;
+    // List of changes to entries within the observed directory (including the
+    // entry itself)
+    Change[]? changes;
 
     // Tag for the notification. Required if the file system was mounted with
     // the <code>supportsNotifyTag</code> option. Note, that this flag is
@@ -376,17 +387,8 @@ namespace fileSystemProvider {
     DOMString? tag;
   };
 
-  // Callback to receive the result of mount() function.
-  callback MountCallback = void([nodoc, instanceOf=DOMError] object error);
-
-  // Callback to receive the result of unmount() function.
-  callback UnmountCallback = void([nodoc, instanceOf=DOMError] object error);
-
   // Callback to receive the result of getAll() function.
   callback GetAllCallback = void(FileSystemInfo[] fileSystems);
-
-  // Callback to handle an error raised from the browser.
-  [nocompile] callback ErrorCallback = void([instanceOf=DOMError] object error);
 
   // Callback to be called by the providing extension in case of a success.
   [nocompile] callback ProviderSuccessCallback = void();
@@ -412,31 +414,31 @@ namespace fileSystemProvider {
   [nocompile] callback FileDataCallback = void(
       ArrayBuffer data, boolean hasMore);
 
+  // A generic result callback to indicate success or failure.
+  callback ResultCallback = void();
+
   interface Functions {
     // Mounts a file system with the given <code>fileSystemId</code> and <code>
     // displayName</code>. <code>displayName</code> will be shown in the left
     // panel of Files.app. <code>displayName</code> can contain any characters
     // including '/', but cannot be an empty string. <code>displayName</code>
-    // must be descriptive but doesn't have to be unique. Duplicate display
-    // names are uniquified by adding suffix like "(1)" in the Files app UI.
-    //
-    // If a file system with the passed <code>fileSystemId</code> is already
-    // mounted by this extension, then <code>errorCallback</code> will be called
-    // with <code>ProviderError.EXISTS</code> value. The <code>fileSystemId
+    // must be descriptive but doesn't have to be unique. The <code>fileSystemId
     // </code> must not be an empty string.
+    //
+    // In case of an error, <code>chrome.runtime.lastError</code> will be set
+    // will a corresponding error code.
     static void mount(MountOptions options,
-                      MountCallback successCallback,
-                      [nocompile] ErrorCallback errorCallback);
+                      optional ResultCallback callback);
 
     // Unmounts a file system with the given <code>fileSystemId</code>. It
     // must be called after <code>onUnmountRequested</code> is invoked. Also,
     // the providing extension can decide to perform unmounting if not requested
-    // (eg. in case of lost connection, or a file error). If there is no file
-    // system with the requested id, or unmounting fails, then the
-    // <code>errorCallback</code> will be called.
+    // (eg. in case of lost connection, or a file error).
+    //
+    // In case of an error, <code>chrome.runtime.lastError</code> will be set
+    // will a corresponding error code.
     static void unmount(UnmountOptions options,
-                        UnmountCallback successCallback,
-                        [nocompile] ErrorCallback errorCallback);
+                        optional ResultCallback callback);
 
     // Returns all file systems mounted by the extension.
     static void getAll(GetAllCallback callback);
@@ -458,7 +460,11 @@ namespace fileSystemProvider {
     // Not all providers are able to provide a tag, but if the file system has
     // a changelog, then the tag can be eg. a change number, or a revision
     // number.
-    [nodoc] static void notify(NotifyOptions options);
+    //
+    // In case of an error, <code>chrome.runtime.lastError</code> will be set
+    // will a corresponding error code.
+    [nodoc] static void notify(NotifyOptions options,
+                               optional ResultCallback callback);
   };
 
   interface Events {
@@ -580,15 +586,15 @@ namespace fileSystemProvider {
 
     // Raised when setting a new directory watcher is requested. If an error
     // occurs, then <code>errorCallback</code> must be called.
-    [maxListeners=1, nodoc] static void onObserveDirectoryRequested(
-      ObserveDirectoryRequestedOptions options,
+    [maxListeners=1, nodoc] static void onAddWatcherRequested(
+      AddWatcherRequestedOptions options,
       ProviderSuccessCallback successCallback,
       ProviderErrorCallback errorCallback);
 
-    // Raised when the entry should no longer be observed. If an error occurs,
-    // then <code>errorCallback</code> must be called.
-    [maxListeners=1, nodoc] static void onUnobserveEntryRequested(
-      UnobserveEntryRequestedOptions options,
+    // Raised when the watcher should be removed. If an error occurs, then
+    // <code>errorCallback</code> must be called.
+    [maxListeners=1, nodoc] static void onRemoveWatcherRequested(
+      RemoveWatcherRequestedOptions options,
       ProviderSuccessCallback successCallback,
       ProviderErrorCallback errorCallback);
   };

@@ -20,8 +20,10 @@
 #include "base/timer/timer.h"
 #include "chrome/browser/chromeos/accessibility/accessibility_manager.h"
 #include "chrome/browser/chromeos/login/screen_manager.h"
+#include "chrome/browser/chromeos/login/screens/base_screen_delegate.h"
+#include "chrome/browser/chromeos/login/screens/controller_pairing_screen.h"
 #include "chrome/browser/chromeos/login/screens/eula_screen.h"
-#include "chrome/browser/chromeos/login/screens/screen_observer.h"
+#include "chrome/browser/chromeos/login/screens/host_pairing_screen.h"
 
 class PrefRegistrySimple;
 class PrefService;
@@ -55,9 +57,11 @@ class UserImageScreen;
 
 // Class that manages control flow between wizard screens. Wizard controller
 // interacts with screen controllers to move the user between screens.
-class WizardController : public ScreenObserver,
+class WizardController : public BaseScreenDelegate,
                          public ScreenManager,
-                         public EulaScreen::Delegate {
+                         public EulaScreen::Delegate,
+                         public ControllerPairingScreen::Delegate,
+                         public HostPairingScreen::Delegate {
  public:
   // Observes screen changes.
   class Observer {
@@ -237,17 +241,9 @@ class WizardController : public ScreenObserver,
   // Actions that should be done right after update stage is finished.
   void PerformOOBECompletedActions();
 
-  // Overridden from ScreenObserver:
+  // Overridden from BaseScreenDelegate:
   virtual void OnExit(ExitCodes exit_code) override;
   virtual void ShowCurrentScreen() override;
-  virtual void OnSetUserNamePassword(const std::string& username,
-                                     const std::string& password) override;
-  virtual void SetHostConfiguration() override;
-  virtual void ConfigureHost(bool accepted_eula,
-                             const std::string& lang,
-                             const std::string& timezone,
-                             bool send_reports,
-                             const std::string& keyboard_layout) override;
   virtual ErrorScreen* GetErrorScreen() override;
   virtual void ShowErrorScreen() override;
   virtual void HideErrorScreen(BaseScreen* parent_screen) override;
@@ -255,6 +251,16 @@ class WizardController : public ScreenObserver,
   // Overridden from EulaScreen::Delegate:
   virtual void SetUsageStatisticsReporting(bool val) override;
   virtual bool GetUsageStatisticsReporting() const override;
+
+  // Override from ControllerPairingScreen::Delegate:
+  virtual void SetHostConfiguration() override;
+
+  // Override from HostPairingScreen::Delegate:
+  virtual void ConfigureHost(bool accepted_eula,
+                             const std::string& lang,
+                             const std::string& timezone,
+                             bool send_reports,
+                             const std::string& keyboard_layout) override;
 
   // Notification of a change in the state of an accessibility setting.
   void OnAccessibilityStatusChanged(
@@ -269,9 +275,6 @@ class WizardController : public ScreenObserver,
 
   // Changes status area visibility.
   void SetStatusAreaVisible(bool visible);
-
-  // Logs in the specified user via default login screen.
-  void Login(const std::string& username, const std::string& password);
 
   // Launched kiosk app configured for auto-launch.
   void AutoLaunchKioskApp();
@@ -336,9 +339,6 @@ class WizardController : public ScreenObserver,
 
   // Screen that was active before, or NULL for login screen.
   BaseScreen* previous_screen_;
-
-  std::string username_;
-  std::string password_;
 
   // True if running official BUILD.
   bool is_official_build_;

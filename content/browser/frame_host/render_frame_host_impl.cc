@@ -24,6 +24,7 @@
 #include "content/browser/frame_host/render_frame_host_delegate.h"
 #include "content/browser/frame_host/render_frame_proxy_host.h"
 #include "content/browser/frame_host/render_widget_host_view_child_frame.h"
+#include "content/browser/geolocation/geolocation_service_context.h"
 #include "content/browser/renderer_host/input/input_router.h"
 #include "content/browser/renderer_host/input/timeout_monitor.h"
 #include "content/browser/renderer_host/render_process_host_impl.h"
@@ -97,16 +98,6 @@ class DesktopNotificationDelegateImpl : public DesktopNotificationDelegate {
       return;
 
     rfh->Send(new DesktopNotificationMsg_PostDisplay(
-        rfh->GetRoutingID(), notification_id_));
-  }
-
-  void NotificationError() override {
-    RenderFrameHost* rfh =
-        RenderFrameHost::FromID(render_process_id_, render_frame_id_);
-    if (!rfh)
-      return;
-
-    rfh->Send(new DesktopNotificationMsg_PostError(
         rfh->GetRoutingID(), notification_id_));
   }
 
@@ -210,7 +201,6 @@ RenderFrameHostImpl::RenderFrameHostImpl(RenderViewHostImpl* render_view_host,
   }
 
   SetUpMojoIfNeeded();
-
   swapout_event_monitor_timeout_.reset(new TimeoutMonitor(base::Bind(
       &RenderFrameHostImpl::OnSwappedOut, weak_ptr_factory_.GetWeakPtr())));
 }
@@ -444,6 +434,11 @@ void RenderFrameHostImpl::AccessibilitySetTextSelection(
       routing_id_, object_id, start_offset, end_offset));
 }
 
+void RenderFrameHostImpl::AccessibilitySetValue(
+    int object_id, const base::string16& value) {
+  Send(new AccessibilityMsg_SetValue(routing_id_, object_id, value));
+}
+
 bool RenderFrameHostImpl::AccessibilityViewHasFocus() const {
   RenderWidgetHostView* view = render_view_host_->GetView();
   if (view)
@@ -551,7 +546,8 @@ BrowserAccessibility* RenderFrameHostImpl::AccessibilityGetParentFrame() {
   return manager->GetFromID(parent_node_id);
 }
 
-bool RenderFrameHostImpl::CreateRenderFrame(int parent_routing_id) {
+bool RenderFrameHostImpl::CreateRenderFrame(int parent_routing_id,
+                                            int proxy_routing_id) {
   TRACE_EVENT0("navigation", "RenderFrameHostImpl::CreateRenderFrame");
   DCHECK(!IsRenderFrameLive()) << "Creating frame twice";
 
@@ -564,7 +560,7 @@ bool RenderFrameHostImpl::CreateRenderFrame(int parent_routing_id) {
 
   DCHECK(GetProcess()->HasConnection());
 
-  Send(new FrameMsg_NewFrame(routing_id_, parent_routing_id));
+  Send(new FrameMsg_NewFrame(routing_id_, parent_routing_id, proxy_routing_id));
 
   // The renderer now has a RenderFrame for this RenderFrameHost.  Note that
   // this path is only used for out-of-process iframes.  Main frame RenderFrames
@@ -1024,7 +1020,12 @@ void RenderFrameHostImpl::OnShowDesktopNotification(
 
   base::Closure cancel_callback;
   GetContentClient()->browser()->ShowDesktopNotification(
-      params, this, delegate.Pass(), &cancel_callback);
+      params,
+      GetSiteInstance()->GetBrowserContext(),
+      GetProcess()->GetID(),
+      delegate.Pass(),
+      &cancel_callback);
+
   cancel_notification_callbacks_[notification_id] = cancel_callback;
 }
 
@@ -1062,7 +1063,6 @@ void RenderFrameHostImpl::OnDidAssignPageId(int32 page_id) {
 }
 
 void RenderFrameHostImpl::OnUpdateTitle(
-    int32 page_id,
     const base::string16& title,
     blink::WebTextDirection title_direction) {
   // This message is only sent for top-level frames. TODO(avi): when frame tree
@@ -1072,7 +1072,7 @@ void RenderFrameHostImpl::OnUpdateTitle(
     return;
   }
 
-  delegate_->UpdateTitle(this, page_id, title,
+  delegate_->UpdateTitle(this, render_view_host_->page_id_, title,
                          WebTextDirectionToChromeTextDirection(
                              title_direction));
 }
@@ -1219,6 +1219,21 @@ void RenderFrameHostImpl::OnHidePopup() {
     view->HidePopupMenu();
 }
 #endif
+
+void RenderFrameHostImpl::RegisterMojoServices() {
+  GeolocationServiceContext* geolocation_service_context =
+      delegate_ ? delegate_->GetGeolocationServiceContext() : NULL;
+  if (geolocation_service_context) {
+    // TODO(creis): Bind process ID here so that GeolocationServiceImpl
+    // can perform permissions checks once site isolation is complete.
+    // crbug.com/426384
+    GetServiceRegistry()->AddService<GeolocationService>(
+        base::Bind(&GeolocationServiceContext::CreateService,
+                   base::Unretained(geolocation_service_context),
+                   base::Bind(&RenderFrameHostImpl::DidUseGeolocationPermission,
+                              base::Unretained(this))));
+  }
+}
 
 void RenderFrameHostImpl::SetState(RenderFrameHostImplState rfh_state) {
   // Only main frames should be swapped out and retained inside a proxy host.
@@ -1445,6 +1460,7 @@ void RenderFrameHostImpl::SetUpMojoIfNeeded() {
   if (!GetProcess()->GetServiceRegistry())
     return;
 
+  RegisterMojoServices();
   RenderFrameSetupPtr setup;
   GetProcess()->GetServiceRegistry()->ConnectToRemoteService(&setup);
   mojo::ServiceProviderPtr service_provider;
@@ -1460,10 +1476,13 @@ void RenderFrameHostImpl::SetUpMojoIfNeeded() {
 }
 
 void RenderFrameHostImpl::InvalidateMojoConnection() {
-  service_registry_.reset();
 #if defined(OS_ANDROID)
+  // The Android-specific service registry has a reference to
+  // |service_registry_| and thus must be torn down first.
   service_registry_android_.reset();
 #endif
+
+  service_registry_.reset();
 }
 
 void RenderFrameHostImpl::PlatformNotificationPermissionRequestDone(
@@ -1630,6 +1649,15 @@ void RenderFrameHostImpl::CancelSuspendedNavigations() {
   TRACE_EVENT_ASYNC_END0("navigation",
                          "RenderFrameHostImpl navigation suspended", this);
   navigations_suspended_ = false;
+}
+
+void RenderFrameHostImpl::DidUseGeolocationPermission() {
+  RenderFrameHost* top_frame = frame_tree_node()->frame_tree()->GetMainFrame();
+  GetContentClient()->browser()->RegisterPermissionUsage(
+      PERMISSION_GEOLOCATION,
+      delegate_->GetAsWebContents(),
+      GetLastCommittedURL().GetOrigin(),
+      top_frame->GetLastCommittedURL().GetOrigin());
 }
 
 }  // namespace content

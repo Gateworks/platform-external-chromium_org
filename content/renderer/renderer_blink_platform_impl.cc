@@ -14,6 +14,7 @@
 #include "base/numerics/safe_conversions.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/utf_string_conversions.h"
+#include "content/child/bluetooth/web_bluetooth_impl.h"
 #include "content/child/database_util.h"
 #include "content/child/file_info_util.h"
 #include "content/child/fileapi/webfilesystem_impl.h"
@@ -50,6 +51,8 @@
 #include "content/renderer/media/webcontentdecryptionmodule_impl.h"
 #include "content/renderer/render_thread_impl.h"
 #include "content/renderer/renderer_clipboard_client.h"
+#include "content/renderer/scheduler/renderer_scheduler.h"
+#include "content/renderer/scheduler/web_scheduler_impl.h"
 #include "content/renderer/screen_orientation/screen_orientation_observer.h"
 #include "content/renderer/webclipboard_impl.h"
 #include "content/renderer/webgraphicscontext3d_provider_impl.h"
@@ -151,6 +154,9 @@ base::LazyInstance<blink::WebDeviceMotionData>::Leaky
     g_test_device_motion_data = LAZY_INSTANCE_INITIALIZER;
 base::LazyInstance<blink::WebDeviceOrientationData>::Leaky
     g_test_device_orientation_data = LAZY_INSTANCE_INITIALIZER;
+// Set in startListening() when running layout tests, unset in stopListening(),
+// not owned by us.
+blink::WebBatteryStatusListener* g_test_battery_status_listener = nullptr;
 
 } // namespace
 
@@ -221,14 +227,18 @@ class RendererBlinkPlatformImpl::SandboxSupport
 
 //------------------------------------------------------------------------------
 
-RendererBlinkPlatformImpl::RendererBlinkPlatformImpl()
-    : clipboard_client_(new RendererClipboardClient),
+RendererBlinkPlatformImpl::RendererBlinkPlatformImpl(
+    RendererScheduler* renderer_scheduler)
+    : web_scheduler_(new WebSchedulerImpl(renderer_scheduler)),
+      clipboard_client_(new RendererClipboardClient),
       clipboard_(new WebClipboardImpl(clipboard_client_.get())),
       mime_registry_(new RendererBlinkPlatformImpl::MimeRegistry),
       sudden_termination_disables_(0),
       plugin_refresh_allowed_(true),
+      default_task_runner_(renderer_scheduler->DefaultTaskRunner()),
       child_thread_loop_(base::MessageLoopProxy::current()),
-      web_scrollbar_behavior_(new WebScrollbarBehaviorImpl) {
+      web_scrollbar_behavior_(new WebScrollbarBehaviorImpl),
+      bluetooth_(new WebBluetoothImpl) {
   if (g_sandbox_enabled && sandboxEnabled()) {
     sandbox_support_.reset(new RendererBlinkPlatformImpl::SandboxSupport);
   } else {
@@ -252,6 +262,15 @@ RendererBlinkPlatformImpl::~RendererBlinkPlatformImpl() {
 }
 
 //------------------------------------------------------------------------------
+
+void RendererBlinkPlatformImpl::callOnMainThread(void (*func)(void*),
+                                                 void* context) {
+  default_task_runner_->PostTask(FROM_HERE, base::Bind(func, context));
+}
+
+blink::WebScheduler* RendererBlinkPlatformImpl::scheduler() {
+  return web_scheduler_.get();
+}
 
 blink::WebClipboard* RendererBlinkPlatformImpl::clipboard() {
   blink::WebClipboard* clipboard =
@@ -936,6 +955,14 @@ blink::WebGraphicsContext3D*
 RendererBlinkPlatformImpl::createOffscreenGraphicsContext3D(
     const blink::WebGraphicsContext3D::Attributes& attributes,
     blink::WebGraphicsContext3D* share_context) {
+  return createOffscreenGraphicsContext3D(attributes, share_context, NULL);
+}
+
+blink::WebGraphicsContext3D*
+RendererBlinkPlatformImpl::createOffscreenGraphicsContext3D(
+    const blink::WebGraphicsContext3D::Attributes& attributes,
+    blink::WebGraphicsContext3D* share_context,
+    blink::WebGLInfo* gl_info) {
   if (!RenderThreadImpl::current())
     return NULL;
 
@@ -955,6 +982,15 @@ RendererBlinkPlatformImpl::createOffscreenGraphicsContext3D(
   scoped_refptr<GpuChannelHost> gpu_channel_host(
       RenderThreadImpl::current()->EstablishGpuChannelSync(
           CAUSE_FOR_GPU_LAUNCH_WEBGRAPHICSCONTEXT3DCOMMANDBUFFERIMPL_INITIALIZE));
+
+  if (gpu_channel_host.get() && gl_info) {
+    const gpu::GPUInfo& gpu_info = gpu_channel_host->gpu_info();
+    gl_info->vendorInfo.assign(blink::WebString::fromUTF8(gpu_info.gl_vendor));
+    gl_info->rendererInfo.assign(
+        blink::WebString::fromUTF8(gpu_info.gl_renderer));
+    gl_info->driverVersion.assign(
+        blink::WebString::fromUTF8(gpu_info.gl_version));
+  }
 
   WebGraphicsContext3DCommandBufferImpl::SharedMemoryLimits limits;
   bool lose_context_when_out_of_memory = false;
@@ -1045,39 +1081,34 @@ RendererBlinkPlatformImpl::CreatePlatformEventObserverFromType(
   // hardware changes. In order to make that happen, they will receive a null
   // thread.
   if (thread && RenderThreadImpl::current()->layout_test_mode())
-    thread = 0;
+    thread = NULL;
 
   switch (type) {
-  case blink::WebPlatformEventDeviceMotion: {
-    return new DeviceMotionEventPump(thread);
-  }
-  case blink::WebPlatformEventDeviceOrientation: {
-    return new DeviceOrientationEventPump(thread);
-  }
-  case blink::WebPlatformEventDeviceLight: {
-    return new DeviceLightEventPump(thread);
-  }
-  case blink::WebPlatformEventBattery: {
-    return new BatteryStatusDispatcher(thread);
-  }
-  case blink::WebPlatformEventGamepad:
-    return new GamepadSharedMemoryReader(thread);
-    break;
-  case blink::WebPlatformEventScreenOrientation:
-    return new ScreenOrientationObserver();
-  default:
-    // A default statement is required to prevent compilation errors when Blink
-    // adds a new type.
-    VLOG(1) << "RendererBlinkPlatformImpl::startListening() with "
-               "unknown type.";
+    case blink::WebPlatformEventDeviceMotion:
+      return new DeviceMotionEventPump(thread);
+    case blink::WebPlatformEventDeviceOrientation:
+      return new DeviceOrientationEventPump(thread);
+    case blink::WebPlatformEventDeviceLight:
+      return new DeviceLightEventPump(thread);
+    case blink::WebPlatformEventGamepad:
+      return new GamepadSharedMemoryReader(thread);
+    case blink::WebPlatformEventScreenOrientation:
+      return new ScreenOrientationObserver();
+    default:
+      // A default statement is required to prevent compilation errors when
+      // Blink adds a new type.
+      VLOG(1) << "RendererBlinkPlatformImpl::startListening() with "
+                 "unknown type.";
   }
 
-  return 0;
+  return NULL;
 }
 
 void RendererBlinkPlatformImpl::SetPlatformEventObserverForTesting(
     blink::WebPlatformEventType type,
     scoped_ptr<PlatformEventObserverBase> observer) {
+  DCHECK(type != blink::WebPlatformEventBattery);
+
   if (platform_event_observers_.Lookup(type))
     platform_event_observers_.Remove(type);
   platform_event_observers_.AddWithID(observer.release(), type);
@@ -1086,6 +1117,18 @@ void RendererBlinkPlatformImpl::SetPlatformEventObserverForTesting(
 void RendererBlinkPlatformImpl::startListening(
     blink::WebPlatformEventType type,
     blink::WebPlatformEventListener* listener) {
+  if (type == blink::WebPlatformEventBattery) {
+    if (RenderThreadImpl::current() &&
+        RenderThreadImpl::current()->layout_test_mode()) {
+      g_test_battery_status_listener =
+          static_cast<blink::WebBatteryStatusListener*>(listener);
+    } else {
+      battery_status_dispatcher_.reset(new BatteryStatusDispatcher(
+          static_cast<blink::WebBatteryStatusListener*>(listener)));
+    }
+    return;
+  }
+
   PlatformEventObserverBase* observer = platform_event_observers_.Lookup(type);
   if (!observer) {
     observer = CreatePlatformEventObserverFromType(type);
@@ -1144,6 +1187,12 @@ void RendererBlinkPlatformImpl::SendFakeDeviceEventDataForTesting(
 
 void RendererBlinkPlatformImpl::stopListening(
     blink::WebPlatformEventType type) {
+  if (type == blink::WebPlatformEventBattery) {
+    g_test_battery_status_listener = nullptr;
+    battery_status_dispatcher_.reset();
+    return;
+  }
+
   PlatformEventObserverBase* observer = platform_event_observers_.Lookup(type);
   if (!observer)
     return;
@@ -1168,13 +1217,17 @@ void RendererBlinkPlatformImpl::queryStorageUsageAndQuota(
 
 //------------------------------------------------------------------------------
 
+blink::WebBluetooth* RendererBlinkPlatformImpl::bluetooth() {
+  return bluetooth_.get();
+}
+
+//------------------------------------------------------------------------------
+
 void RendererBlinkPlatformImpl::MockBatteryStatusChangedForTesting(
     const blink::WebBatteryStatus& status) {
-  PlatformEventObserverBase* observer =
-      platform_event_observers_.Lookup(blink::WebPlatformEventBattery);
-  if (!observer)
+  if (!g_test_battery_status_listener)
     return;
-  observer->SendFakeDataForTesting((void*)&status);
+  g_test_battery_status_listener->updateBatteryStatus(status);
 }
 
 }  // namespace content

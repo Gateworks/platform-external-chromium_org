@@ -54,6 +54,7 @@
 #include "ui/views/controls/button/blue_button.h"
 #include "ui/views/controls/button/image_button.h"
 #include "ui/views/controls/button/label_button.h"
+#include "ui/views/controls/button/label_button_border.h"
 #include "ui/views/controls/button/menu_button.h"
 #include "ui/views/controls/label.h"
 #include "ui/views/controls/link.h"
@@ -149,11 +150,11 @@ class BackgroundColorHoverButton : public views::LabelButton {
     SetFocusable(true);
   }
 
-  virtual ~BackgroundColorHoverButton() {}
+  ~BackgroundColorHoverButton() override {}
 
  private:
   // views::LabelButton:
-  virtual void OnPaint(gfx::Canvas* canvas) override {
+  void OnPaint(gfx::Canvas* canvas) override {
     if ((state() == STATE_PRESSED) ||
         (state() == STATE_HOVERED)) {
       canvas->DrawColor(GetNativeTheme()->GetSystemColor(
@@ -173,9 +174,7 @@ class SizedContainer : public views::View {
   explicit SizedContainer(const gfx::Size& preferred_size)
       : preferred_size_(preferred_size) {}
 
-  virtual gfx::Size GetPreferredSize() const override {
-    return preferred_size_;
-  }
+  gfx::Size GetPreferredSize() const override { return preferred_size_; }
 
  private:
   gfx::Size preferred_size_;
@@ -194,7 +193,7 @@ class RightAlignedIconLabelButton : public views::LabelButton {
   }
 
  protected:
-  virtual void Layout() override {
+  void Layout() override {
     // This layout trick keeps the text left-aligned and the icon right-aligned.
     SetHorizontalAlignment(gfx::ALIGN_RIGHT);
     views::LabelButton::Layout();
@@ -248,14 +247,14 @@ class EditableProfilePhoto : public views::LabelButton {
     AddChildView(photo_overlay_);
   }
 
-  virtual void OnPaint(gfx::Canvas* canvas) override {
+  void OnPaint(gfx::Canvas* canvas) override {
     // Display the profile picture as a circle.
     canvas->ClipPath(circular_mask_, true);
     views::LabelButton::OnPaint(canvas);
   }
 
-  virtual void PaintChildren(gfx::Canvas* canvas,
-                             const views::CullSet& cull_set) override {
+  void PaintChildren(gfx::Canvas* canvas,
+                     const views::CullSet& cull_set) override {
     // Display any children (the "change photo" overlay) as a circle.
     canvas->ClipPath(circular_mask_, true);
     View::PaintChildren(canvas, cull_set);
@@ -263,20 +262,20 @@ class EditableProfilePhoto : public views::LabelButton {
 
  private:
   // views::CustomButton:
-  virtual void StateChanged() override {
+  void StateChanged() override {
     bool show_overlay =
         (state() == STATE_PRESSED || state() == STATE_HOVERED || HasFocus());
     if (photo_overlay_)
       photo_overlay_->SetVisible(show_overlay);
   }
 
-  virtual void OnFocus() override {
+  void OnFocus() override {
     views::LabelButton::OnFocus();
     if (photo_overlay_)
       photo_overlay_->SetVisible(true);
   }
 
-  virtual void OnBlur() override {
+  void OnBlur() override {
     views::LabelButton::OnBlur();
     // Don't hide the overlay if it's being shown as a result of a mouseover.
     if (photo_overlay_ && state() != STATE_HOVERED)
@@ -352,8 +351,7 @@ class EditableProfileName : public RightAlignedIconLabelButton,
 
  private:
   // views::ButtonListener:
-  virtual void ButtonPressed(views::Button* sender,
-                            const ui::Event& event) override {
+  void ButtonPressed(views::Button* sender, const ui::Event& event) override {
     if (profile_name_textfield_) {
       profile_name_textfield_->SetVisible(true);
       profile_name_textfield_->SetText(GetText());
@@ -363,25 +361,25 @@ class EditableProfileName : public RightAlignedIconLabelButton,
   }
 
   // views::LabelButton:
-  virtual bool OnKeyReleased(const ui::KeyEvent& event) override {
+  bool OnKeyReleased(const ui::KeyEvent& event) override {
     // Override CustomButton's implementation, which presses the button when
     // you press space and clicks it when you release space, as the space can be
     // part of the new profile name typed in the textfield.
     return false;
   }
 
-  virtual void Layout() override {
+  void Layout() override {
     if (profile_name_textfield_)
       profile_name_textfield_->SetBounds(0, 0, width(), height());
     RightAlignedIconLabelButton::Layout();
   }
 
-  virtual void OnFocus() override {
+  void OnFocus() override {
     RightAlignedIconLabelButton::OnFocus();
     SetState(STATE_HOVERED);
   }
 
-  virtual void OnBlur() override {
+  void OnBlur() override {
     RightAlignedIconLabelButton::OnBlur();
     SetState(STATE_NORMAL);
   }
@@ -456,7 +454,7 @@ class TitleCard : public views::View {
   }
 
  private:
-  virtual void Layout() override {
+  void Layout() override {
     int back_button_width = back_button_->GetPreferredSize().width();
     back_button_->SetBounds(0, 0, back_button_width, height());
     int label_padding = back_button_width + views::kButtonHEdgeMarginNew;
@@ -465,7 +463,7 @@ class TitleCard : public views::View {
     title_label_->SetBounds(label_padding, 0, label_width, height());
   }
 
-  virtual gfx::Size GetPreferredSize() const override {
+  gfx::Size GetPreferredSize() const override {
     int height = std::max(title_label_->GetPreferredSize().height(),
         back_button_->GetPreferredSize().height());
     return gfx::Size(width(), height);
@@ -710,6 +708,13 @@ bool ProfileChooserView::AcceleratorPressed(
   return true;
 }
 
+bool ProfileChooserView::HandleContextMenu(
+    const content::ContextMenuParams& params) {
+  // Suppresses the context menu because some features, such as inspecting
+  // elements, are not appropriate in a bubble.
+  return true;
+}
+
 void ProfileChooserView::ButtonPressed(views::Button* sender,
                                        const ui::Event& event) {
   if (sender == users_button_) {
@@ -725,6 +730,7 @@ void ProfileChooserView::ButtonPressed(views::Button* sender,
   } else if (sender == go_incognito_button_) {
     DCHECK(ShouldShowGoIncognito());
     chrome::NewIncognitoWindow(browser_);
+    PostActionPerformed(ProfileMetrics::PROFILE_DESKTOP_MENU_GO_INCOGNITO);
   } else if (sender == lock_button_) {
     profiles::LockProfile(browser_->profile());
     PostActionPerformed(ProfileMetrics::PROFILE_DESKTOP_MENU_LOCK);
@@ -1161,8 +1167,6 @@ views::View* ProfileChooserView::CreateCurrentProfileView(
       manage_accounts_link_->SetHorizontalAlignment(gfx::ALIGN_CENTER);
       layout->AddView(manage_accounts_link_);
     } else {
-      // Add a small padding between the email button and the profile name.
-      layout->StartRowWithPadding(1, 0, 0, 2);
       // Badge the email address if there's an authentication error.
       if (HasAuthError(browser_->profile())) {
         const gfx::ImageSkia warning_image = *rb->GetImageNamed(
@@ -1170,15 +1174,20 @@ views::View* ProfileChooserView::CreateCurrentProfileView(
         auth_error_email_button_ =
             new RightAlignedIconLabelButton(this, avatar_item.sync_state);
         auth_error_email_button_->SetElideBehavior(gfx::ELIDE_EMAIL);
-        auth_error_email_button_->SetBorder(views::Border::NullBorder());
         auth_error_email_button_->SetImage(
             views::LabelButton::STATE_NORMAL, warning_image);
         auth_error_email_button_->SetTextColor(
             views::LabelButton::STATE_NORMAL,
             views::Link::GetDefaultEnabledColor());
         auth_error_email_button_->SetFocusable(true);
+        gfx::Insets insets = views::LabelButtonBorder::GetDefaultInsetsForStyle(
+            views::Button::STYLE_TEXTBUTTON);
+        auth_error_email_button_->SetBorder(views::Border::CreateEmptyBorder(
+            insets.top(), insets.left(), insets.bottom(), insets.right()));
         layout->AddView(auth_error_email_button_);
       } else {
+        // Add a small padding between the email button and the profile name.
+        layout->StartRowWithPadding(1, 0, 0, 2);
         views::Label* email_label = new views::Label(avatar_item.sync_state);
         email_label->SetElideBehavior(gfx::ELIDE_EMAIL);
         email_label->SetEnabled(false);
@@ -1445,6 +1454,7 @@ views::View* ProfileChooserView::CreateGaiaSigninView() {
   Profile* profile = browser_->profile();
   views::WebView* web_view = new views::WebView(profile);
   web_view->LoadInitialURL(url);
+  web_view->GetWebContents()->SetDelegate(this);
   web_view->SetPreferredSize(
       gfx::Size(kFixedGaiaViewWidth, kFixedGaiaViewHeight));
   content::RenderWidgetHostView* rwhv =

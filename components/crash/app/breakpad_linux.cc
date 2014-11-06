@@ -757,10 +757,10 @@ class NonBrowserCrashHandler : public google_breakpad::CrashGenerationClient {
             kCrashDumpSignal)) {
   }
 
-  virtual ~NonBrowserCrashHandler() {}
+  ~NonBrowserCrashHandler() override {}
 
-  virtual bool RequestDump(const void* crash_context,
-                           size_t crash_context_size) override {
+  bool RequestDump(const void* crash_context,
+                   size_t crash_context_size) override {
     int fds[2] = { -1, -1 };
     if (sys_socketpair(AF_UNIX, SOCK_STREAM, 0, fds) < 0) {
       static const char msg[] = "Failed to create socket for crash dumping.\n";
@@ -1190,6 +1190,10 @@ void HandleCrashDump(const BreakpadInfo& info) {
   uint8_t* dump_data;
   google_breakpad::PageAllocator allocator;
   const char* exe_buf = NULL;
+
+  if (GetCrashReporterClient()->HandleCrashDump(info.filename)) {
+    return;
+  }
 
 #if defined(OS_CHROMEOS)
   // Grab the crashing process' name now, when it should still be available.

@@ -34,7 +34,7 @@
 #import "chrome/browser/ui/cocoa/new_tab_button.h"
 #import "chrome/browser/ui/cocoa/tab_contents/favicon_util_mac.h"
 #import "chrome/browser/ui/cocoa/tab_contents/tab_contents_controller.h"
-#import "chrome/browser/ui/cocoa/tabs/media_indicator_view.h"
+#import "chrome/browser/ui/cocoa/tabs/media_indicator_button.h"
 #import "chrome/browser/ui/cocoa/tabs/tab_controller.h"
 #import "chrome/browser/ui/cocoa/tabs/tab_strip_drag_controller.h"
 #import "chrome/browser/ui/cocoa/tabs/tab_strip_model_observer_bridge.h"
@@ -48,7 +48,6 @@
 #include "chrome/browser/ui/tabs/tab_strip_model_delegate.h"
 #include "chrome/browser/ui/tabs/tab_utils.h"
 #include "chrome/common/chrome_switches.h"
-#include "chrome/common/pref_names.h"
 #include "chrome/grit/generated_resources.h"
 #include "components/metrics/proto/omnibox_event.pb.h"
 #include "components/omnibox/autocomplete_match.h"
@@ -823,6 +822,16 @@ NSImage* Overlay(NSImage* ground, NSImage* overlay, CGFloat alpha) {
       tabStripModel_->ActivateTabAt(index, true);
     }
   }
+}
+
+// Called when the user clicks the tab audio indicator to mute the tab.
+- (void)toggleMute:(id)sender {
+  DCHECK([sender isKindOfClass:[TabView class]]);
+  NSInteger index = [self modelIndexForTabView:sender];
+  if (!tabStripModel_->ContainsIndex(index))
+    return;
+  WebContents* contents = tabStripModel_->GetWebContentsAt(index);
+  chrome::SetTabAudioMuted(contents, !chrome::IsTabAudioMuted(contents));
 }
 
 // Called when the user closes a tab. Asks the model to close the tab. |sender|
@@ -1617,20 +1626,8 @@ NSImage* Overlay(NSImage* ground, NSImage* overlay, CGFloat alpha) {
     if (newHasIcon) {
       if (newState == kTabDone) {
         [tabController setIconImage:[self iconImageForContents:contents]];
-        const TabMediaState mediaState =
-            chrome::GetTabMediaStateForContents(contents);
-        // Create MediaIndicatorView upon first use.
-        if (mediaState != TAB_MEDIA_STATE_NONE &&
-            ![tabController mediaIndicatorView]) {
-          MediaIndicatorView* const mediaIndicatorView =
-              [[[MediaIndicatorView alloc] init] autorelease];
-          [tabController setMediaIndicatorView:mediaIndicatorView];
-        }
-        [[tabController mediaIndicatorView] updateIndicator:mediaState];
       } else if (newState == kTabCrashed) {
         [tabController setIconImage:sadFaviconImage withToastAnimation:YES];
-        [[tabController mediaIndicatorView]
-          updateIndicator:TAB_MEDIA_STATE_NONE];
       } else {
         [tabController setIconImage:throbberImage];
       }
@@ -1638,6 +1635,10 @@ NSImage* Overlay(NSImage* ground, NSImage* overlay, CGFloat alpha) {
       [tabController setIconImage:nil];
     }
   }
+
+  [tabController setMediaState:chrome::GetTabMediaStateForContents(contents)];
+
+  [tabController updateVisibility];
 }
 
 // Called when a notification is received from the model that the given tab

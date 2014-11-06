@@ -72,6 +72,7 @@ class NotificationPermissionDispatcher;
 class NotificationProvider;
 class PageState;
 class PepperPluginInstanceImpl;
+class PluginPowerSaverHelper;
 class PushMessagingDispatcher;
 class RendererAccessibility;
 class RendererCdmManager;
@@ -104,12 +105,16 @@ class CONTENT_EXPORT RenderFrameImpl
 
   // Creates a new RenderFrame with |routing_id| as a child of the RenderFrame
   // identified by |parent_routing_id| or as the top-level frame if the latter
-  // is MSG_ROUTING_NONE. It creates the Blink WebLocalFrame and inserts it in
-  // the proper place in the frame tree.
+  // is MSG_ROUTING_NONE. If |proxy_routing_id| is MSG_ROUTING_NONE, it creates
+  // the Blink WebLocalFrame and inserts it in the proper place in the frame
+  // tree. Otherwise, the frame is semi-orphaned until it commits, at which
+  // point it replaces the proxy identified by |proxy_routing_id|.
   // Note: This is called only when RenderFrame is being created in response to
   // IPC message from the browser process. All other frame creation is driven
   // through Blink and Create.
-  static void CreateFrame(int routing_id, int parent_routing_id);
+  static void CreateFrame(int routing_id,
+                          int parent_routing_id,
+                          int proxy_routing_id);
 
   // Returns the RenderFrameImpl for the given routing ID.
   static RenderFrameImpl* FromRoutingID(int routing_id);
@@ -231,15 +236,16 @@ class CONTENT_EXPORT RenderFrameImpl
   // TODO(jam): remove these once the IPC handler moves from RenderView to
   // RenderFrame.
   void OnImeSetComposition(
-    const base::string16& text,
-    const std::vector<blink::WebCompositionUnderline>& underlines,
-    int selection_start,
-    int selection_end);
- void OnImeConfirmComposition(
-    const base::string16& text,
-    const gfx::Range& replacement_range,
-    bool keep_selection);
-#endif  // ENABLE_PLUGINS
+      const base::string16& text,
+      const std::vector<blink::WebCompositionUnderline>& underlines,
+      int selection_start,
+      int selection_end);
+  void OnImeConfirmComposition(const base::string16& text,
+                               const gfx::Range& replacement_range,
+                               bool keep_selection);
+
+  PluginPowerSaverHelper* plugin_power_saver_helper();
+#endif  // defined(ENABLE_PLUGINS)
 
   // May return NULL in some cases, especially if userMediaClient() returns
   // NULL.
@@ -282,6 +288,9 @@ class CONTENT_EXPORT RenderFrameImpl
                                       v8::Handle<v8::Context> context) override;
 
   // blink::WebFrameClient implementation:
+  blink::WebPluginPlaceholder* createPluginPlaceholder(
+      blink::WebLocalFrame*,
+      const blink::WebPluginParams&) override;
   virtual blink::WebPlugin* createPlugin(blink::WebLocalFrame* frame,
                                          const blink::WebPluginParams& params);
   // TODO(jrummell): Remove this method once blink updated.
@@ -457,7 +466,8 @@ class CONTENT_EXPORT RenderFrameImpl
   virtual void didLoseWebGLContext(blink::WebLocalFrame* frame,
                                    int arb_robustness_status_code);
   virtual blink::WebScreenOrientationClient* webScreenOrientationClient();
-  virtual bool isControlledByServiceWorker(blink::WebDataSource&);
+  virtual bool isControlledByServiceWorker(blink::WebDataSource& data_source);
+  virtual int64_t serviceWorkerID(blink::WebDataSource& data_source);
   virtual void postAccessibilityEvent(const blink::WebAXObject& obj,
                                       blink::WebAXEvent event);
   virtual void didChangeManifest(blink::WebLocalFrame*);
@@ -531,8 +541,9 @@ class CONTENT_EXPORT RenderFrameImpl
   void OnPasteAndMatchStyle();
   void OnDelete();
   void OnSelectAll();
-  void OnSelectRange(const gfx::Point& start, const gfx::Point& end);
+  void OnSelectRange(const gfx::Point& base, const gfx::Point& extent);
   void OnUnselect();
+  void OnMoveRangeSelectionExtent(const gfx::Point& point);
   void OnReplace(const base::string16& text);
   void OnReplaceMisspelling(const base::string16& text);
   void OnCSSInsertRequest(const std::string& css);
@@ -670,10 +681,18 @@ class CONTENT_EXPORT RenderFrameImpl
   RenderFrameProxy* render_frame_proxy_;
   bool is_detaching_;
 
+  // If this frame was created to replace a proxy, this will store the routing
+  // id of the proxy to replace at commit-time, at which time it will be
+  // cleared.
+  // TODO(creis): Remove this after switching to PlzNavigate.
+  int proxy_routing_id_;
+
 #if defined(ENABLE_PLUGINS)
   // Current text input composition text. Empty if no composition is in
   // progress.
   base::string16 pepper_composition_text_;
+
+  PluginPowerSaverHelper* plugin_power_saver_helper_;
 #endif
 
   RendererWebCookieJarImpl cookie_jar_;

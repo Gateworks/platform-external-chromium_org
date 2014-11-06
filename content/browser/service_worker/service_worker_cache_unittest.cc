@@ -48,7 +48,7 @@ class ServiceWorkerCacheTest : public testing::Test {
       : browser_thread_bundle_(TestBrowserThreadBundle::IO_MAINLOOP),
         callback_error_(ServiceWorkerCache::ErrorTypeOK) {}
 
-  virtual void SetUp() override {
+  void SetUp() override {
     ChromeBlobStorageContext* blob_storage_context =
         ChromeBlobStorageContext::GetFor(&browser_context_);
     // Wait for chrome_blob_storage_context to finish initializing.
@@ -86,7 +86,7 @@ class ServiceWorkerCacheTest : public testing::Test {
     }
   }
 
-  virtual void TearDown() override {
+  void TearDown() override {
     quota_manager_proxy_->SimulateQuotaManagerDestroyed();
     base::RunLoop().RunUntilIdle();
   }
@@ -232,6 +232,7 @@ class ServiceWorkerCacheTest : public testing::Test {
     callback_error_ = error;
     callback_response_ = response.Pass();
 
+    callback_response_data_.reset();
     if (error == ServiceWorkerCache::ErrorTypeOK &&
         !callback_response_->blob_uuid.empty()) {
       callback_response_data_ = body_handle.Pass();
@@ -330,6 +331,24 @@ TEST_P(ServiceWorkerCacheTestP, PutBody) {
   EXPECT_STREQ(expected_blob_data_.c_str(), response_body.c_str());
 }
 
+TEST_P(ServiceWorkerCacheTestP, ResponseURLDiffersFromRequestURL) {
+  no_body_response_.url = GURL("http://example.com/foobar");
+  EXPECT_STRNE("http://example.com/foobar",
+               no_body_request_.url.spec().c_str());
+  EXPECT_TRUE(Put(no_body_request_, no_body_response_));
+  EXPECT_TRUE(Match(no_body_request_));
+  EXPECT_STREQ("http://example.com/foobar",
+               callback_response_->url.spec().c_str());
+}
+
+TEST_P(ServiceWorkerCacheTestP, ResponseURLEmpty) {
+  no_body_response_.url = GURL();
+  EXPECT_STRNE("", no_body_request_.url.spec().c_str());
+  EXPECT_TRUE(Put(no_body_request_, no_body_response_));
+  EXPECT_TRUE(Match(no_body_request_));
+  EXPECT_STREQ("", callback_response_->url.spec().c_str());
+}
+
 TEST_F(ServiceWorkerCacheTest, PutBodyDropBlobRef) {
   scoped_ptr<base::RunLoop> loop(new base::RunLoop());
   cache_->Put(CopyFetchRequest(body_request_),
@@ -343,6 +362,20 @@ TEST_F(ServiceWorkerCacheTest, PutBodyDropBlobRef) {
   loop->Run();
 
   EXPECT_EQ(ServiceWorkerCache::ErrorTypeOK, callback_error_);
+}
+
+TEST_P(ServiceWorkerCacheTestP, PutReplace) {
+  EXPECT_TRUE(Put(body_request_, no_body_response_));
+  EXPECT_TRUE(Match(body_request_));
+  EXPECT_FALSE(callback_response_data_);
+
+  EXPECT_TRUE(Put(body_request_, body_response_));
+  EXPECT_TRUE(Match(body_request_));
+  EXPECT_TRUE(callback_response_data_);
+
+  EXPECT_TRUE(Put(body_request_, no_body_response_));
+  EXPECT_TRUE(Match(body_request_));
+  EXPECT_FALSE(callback_response_data_);
 }
 
 TEST_P(ServiceWorkerCacheTestP, MatchNoBody) {
@@ -465,11 +498,6 @@ TEST_P(ServiceWorkerCacheTestP, TwoKeysThenOne) {
   EXPECT_TRUE(VerifyKeys(expected_key));
 }
 
-// TODO(jkarlin): Once SimpleCache is working bug-free on Windows reenable these
-// tests. In the meanwhile we know that Windows operations will be a little
-// flaky (though not crashy). See https://crbug.com/409109 and
-// https://crbug.com/416940.
-#ifndef OS_WIN
 TEST_P(ServiceWorkerCacheTestP, DeleteNoBody) {
   EXPECT_TRUE(Put(no_body_request_, no_body_response_));
   EXPECT_TRUE(Match(no_body_request_));
@@ -517,7 +545,6 @@ TEST_P(ServiceWorkerCacheTestP, PutResponseType) {
   EXPECT_TRUE(TestResponseType(blink::WebServiceWorkerResponseTypeError));
   EXPECT_TRUE(TestResponseType(blink::WebServiceWorkerResponseTypeOpaque));
 }
-#endif  // OS_WIN
 
 TEST_F(ServiceWorkerCacheTest, CaselessServiceWorkerResponseHeaders) {
   // ServiceWorkerCache depends on ServiceWorkerResponse having caseless

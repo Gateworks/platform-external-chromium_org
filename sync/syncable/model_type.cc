@@ -25,6 +25,28 @@
 
 namespace syncer {
 
+// Notes:
+// 1) This list must contain exactly the same elements as the set returned by
+//    UserSelectableTypes().
+// 2) This list must be in the same order as the respective values in the
+//    ModelType enum.
+const char* kUserSelectableDataTypeNames[] = {
+  "bookmarks",
+  "preferences",
+  "passwords",
+  "autofill",
+  "themes",
+  "typedUrls",
+  "extensions",
+  "apps",
+  "wifiCredentials",
+  "tabs",
+};
+
+COMPILE_ASSERT(
+    33 == MODEL_TYPE_COUNT,
+    update_kUserSelectableDataTypeNames_to_match_UserSelectableTypes);
+
 void AddDefaultFieldValue(ModelType datatype,
                           sync_pb::EntitySpecifics* specifics) {
   if (!ProtocolTypes().Has(datatype)) {
@@ -119,8 +141,8 @@ void AddDefaultFieldValue(ModelType datatype,
     case ARTICLES:
       specifics->mutable_article();
       break;
-    case ENHANCED_BOOKMARKS:
-      specifics->mutable_enhanced_bookmark();
+    case WIFI_CREDENTIALS:
+      specifics->mutable_wifi_credential();
       break;
     default:
       NOTREACHED() << "No known extension for model type.";
@@ -199,8 +221,8 @@ int GetSpecificsFieldNumberFromModelType(ModelType model_type) {
       return sync_pb::EntitySpecifics::kManagedUserSharedSettingFieldNumber;
     case ARTICLES:
       return sync_pb::EntitySpecifics::kArticleFieldNumber;
-    case ENHANCED_BOOKMARKS:
-      return sync_pb::EntitySpecifics::kEnhancedBookmarkFieldNumber;
+    case WIFI_CREDENTIALS:
+      return sync_pb::EntitySpecifics::kWifiCredentialFieldNumber;
     default:
       NOTREACHED() << "No known extension for model type.";
       return 0;
@@ -329,8 +351,8 @@ ModelType GetModelTypeFromSpecifics(const sync_pb::EntitySpecifics& specifics) {
   if (specifics.has_article())
     return ARTICLES;
 
-  if (specifics.has_enhanced_bookmark())
-    return ENHANCED_BOOKMARKS;
+  if (specifics.has_wifi_credential())
+    return WIFI_CREDENTIALS;
 
   return UNSPECIFIED;
 }
@@ -364,6 +386,7 @@ ModelTypeSet UserSelectableTypes() {
   set.Put(TYPED_URLS);
   set.Put(EXTENSIONS);
   set.Put(APPS);
+  set.Put(WIFI_CREDENTIALS);
   set.Put(PROXY_TABS);
   return set;
 }
@@ -372,10 +395,20 @@ bool IsUserSelectableType(ModelType model_type) {
   return UserSelectableTypes().Has(model_type);
 }
 
+ModelTypeNameMap GetUserSelectableTypeNameMap() {
+  ModelTypeNameMap type_names;
+  ModelTypeSet type_set = UserSelectableTypes();
+  ModelTypeSet::Iterator it = type_set.First();
+  DCHECK_EQ(arraysize(kUserSelectableDataTypeNames), type_set.Size());
+  for (size_t i = 0; i < arraysize(kUserSelectableDataTypeNames) && it.Good();
+       ++i, it.Inc()) {
+    type_names[it.Get()] = kUserSelectableDataTypeNames[i];
+  }
+  return type_names;
+}
+
 ModelTypeSet EncryptableUserTypes() {
   ModelTypeSet encryptable_user_types = UserTypes();
-  // Encrypted bookmarks are handled through standard bookmark sync.
-  encryptable_user_types.Remove(ENHANCED_BOOKMARKS);
   // We never encrypt history delete directives.
   encryptable_user_types.Remove(HISTORY_DELETE_DIRECTIVES);
   // Synced notifications are not encrypted since the server must see changes.
@@ -534,8 +567,8 @@ const char* ModelTypeToString(ModelType model_type) {
       return "Managed User Shared Settings";
     case ARTICLES:
       return "Articles";
-    case ENHANCED_BOOKMARKS:
-      return "Enhanced Bookmarks";
+    case WIFI_CREDENTIALS:
+      return "WiFi Credentials";
     case PROXY_TABS:
       return "Tabs";
     default:
@@ -615,7 +648,7 @@ int ModelTypeToHistogramInt(ModelType model_type) {
       return 30;
     case SYNCED_NOTIFICATION_APP_INFO:
       return 31;
-    case ENHANCED_BOOKMARKS:
+    case WIFI_CREDENTIALS:
       return 32;
     // Silence a compiler warning.
     case MODEL_TYPE_COUNT:
@@ -710,10 +743,10 @@ ModelType ModelTypeFromString(const std::string& model_type_string) {
     return SUPERVISED_USER_SHARED_SETTINGS;
   else if (model_type_string == "Articles")
     return ARTICLES;
+  else if (model_type_string == "WiFi Credentials")
+    return WIFI_CREDENTIALS;
   else if (model_type_string == "Tabs")
     return PROXY_TABS;
-  else if (model_type_string == "Enhanced Bookmarks")
-    return ENHANCED_BOOKMARKS;
   else
     NOTREACHED() << "No known model type corresponding to "
                  << model_type_string << ".";
@@ -836,10 +869,10 @@ std::string ModelTypeToRootTag(ModelType type) {
       return "google_chrome_managed_user_shared_settings";
     case ARTICLES:
       return "google_chrome_articles";
+    case WIFI_CREDENTIALS:
+      return "google_chrome_wifi_credentials";
     case PROXY_TABS:
       return std::string();
-    case ENHANCED_BOOKMARKS:
-      return "google_chrome_enhanced_bookmarks";
     default:
       break;
   }
@@ -882,7 +915,6 @@ const char kSupervisedUserNotificationType[] = "MANAGED_USER";
 const char kSupervisedUserSharedSettingNotificationType[] =
     "MANAGED_USER_SHARED_SETTING";
 const char kArticleNotificationType[] = "ARTICLE";
-const char kEnhancedBookmarkNotificationType[] = "ENHANCED_BOOKMARK";
 }  // namespace
 
 bool RealModelTypeToNotificationType(ModelType model_type,
@@ -974,9 +1006,6 @@ bool RealModelTypeToNotificationType(ModelType model_type,
       return true;
     case ARTICLES:
       *notification_type = kArticleNotificationType;
-      return true;
-    case ENHANCED_BOOKMARKS:
-      *notification_type = kEnhancedBookmarkNotificationType;
       return true;
     default:
       break;
@@ -1074,9 +1103,6 @@ bool NotificationTypeToRealModelType(const std::string& notification_type,
     return true;
   } else if (notification_type == kArticleNotificationType) {
     *model_type = ARTICLES;
-    return true;
-  } else if (notification_type == kEnhancedBookmarkNotificationType) {
-    *model_type = ENHANCED_BOOKMARKS;
     return true;
   }
   *model_type = UNSPECIFIED;

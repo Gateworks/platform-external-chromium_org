@@ -37,6 +37,7 @@
 #include "chrome/browser/android/signin/account_management_screen_helper.h"
 #include "chrome/browser/android/signin/signin_manager_android.h"
 #include "chrome/browser/android/tab_android.h"
+#include "chrome/browser/android/tab_state.h"
 #include "chrome/browser/android/uma_bridge.h"
 #include "chrome/browser/android/uma_utils.h"
 #include "chrome/browser/android/url_utilities.h"
@@ -58,11 +59,13 @@
 #include "chrome/browser/ui/android/autofill/autofill_dialog_result.h"
 #include "chrome/browser/ui/android/autofill/autofill_logger_android.h"
 #include "chrome/browser/ui/android/autofill/autofill_popup_view_android.h"
+#include "chrome/browser/ui/android/autofill/password_generation_popup_view_android.h"
 #include "chrome/browser/ui/android/chrome_http_auth_handler.h"
 #include "chrome/browser/ui/android/context_menu_helper.h"
 #include "chrome/browser/ui/android/infobars/auto_login_infobar_delegate_android.h"
 #include "chrome/browser/ui/android/infobars/confirm_infobar.h"
 #include "chrome/browser/ui/android/infobars/data_reduction_proxy_infobar.h"
+#include "chrome/browser/ui/android/infobars/generated_password_saved_infobar.h"
 #include "chrome/browser/ui/android/infobars/infobar_android.h"
 #include "chrome/browser/ui/android/infobars/infobar_container_android.h"
 #include "chrome/browser/ui/android/infobars/translate_infobar.h"
@@ -82,7 +85,7 @@
 #include "components/variations/android/component_jni_registrar.h"
 #include "components/web_contents_delegate_android/component_jni_registrar.h"
 
-#if defined(ENABLE_PRINTING) && !defined(ENABLE_FULL_PRINTING)
+#if defined(ENABLE_PRINTING) && !defined(ENABLE_PRINT_PREVIEW)
 #include "printing/printing_context_android.h"
 #endif
 
@@ -151,6 +154,8 @@ static base::android::RegistrationMethod kChromeRegisteredMethods[] = {
   { "FontSizePrefsAndroid", FontSizePrefsAndroid::Register },
   { "ForeignSessionHelper",
     ForeignSessionHelper::RegisterForeignSessionHelper },
+  { "GeneratedPasswordSavedInfoBarDelegate",
+    RegisterGeneratedPasswordSavedInfoBarDelegate },
   { "InfoBarContainer", RegisterInfoBarContainer },
   { "InvalidationServiceFactory",
     invalidation::InvalidationServiceFactoryAndroid::Register },
@@ -166,13 +171,15 @@ static base::android::RegistrationMethod kChromeRegisteredMethods[] = {
     NewTabPagePrefs::RegisterNewTabPagePrefs },
   { "OmniboxPrerender", RegisterOmniboxPrerender },
   { "OmniboxViewUtil", OmniboxViewUtil::RegisterOmniboxViewUtil },
+  { "PasswordGenerationPopup",
+    autofill::PasswordGenerationPopupViewAndroid::Register},
   { "PasswordUIViewAndroid",
     PasswordUIViewAndroid::RegisterPasswordUIViewAndroid },
   { "PersonalDataManagerAndroid",
     autofill::PersonalDataManagerAndroid::Register },
   { "PrefServiceBridge", RegisterPrefServiceBridge },
   { "ProfileAndroid", ProfileAndroid::RegisterProfileAndroid },
-  { "ProfileDownloaderAndroid", ProfileDownloaderAndroid::Register },
+  { "ProfileDownloader", RegisterProfileDownloader },
   { "ProfileSyncService", ProfileSyncServiceAndroid::Register },
   { "RecentlyClosedBridge", RecentlyClosedTabsBridge::Register },
   { "SigninManager", SigninManagerAndroid::Register },
@@ -181,6 +188,7 @@ static base::android::RegistrationMethod kChromeRegisteredMethods[] = {
   { "StartupMetricUtils", RegisterStartupMetricUtils },
   { "TabAndroid", TabAndroid::RegisterTabAndroid },
   { "TabModelJniBridge", TabModelJniBridge::Register},
+  { "TabState", RegisterTabState },
   { "TemplateUrlServiceAndroid", TemplateUrlServiceAndroid::Register },
   { "ToolbarModelAndroid", ToolbarModelAndroid::RegisterToolbarModelAndroid },
   { "TranslateInfoBarDelegate", RegisterTranslateInfoBarDelegate },
@@ -194,7 +202,7 @@ static base::android::RegistrationMethod kChromeRegisteredMethods[] = {
   { "WebsiteSettingsPopupLegacyAndroid",
     WebsiteSettingsPopupLegacyAndroid::
         RegisterWebsiteSettingsPopupLegacyAndroid },
-#if defined(ENABLE_PRINTING) && !defined(ENABLE_FULL_PRINTING)
+#if defined(ENABLE_PRINTING) && !defined(ENABLE_PRINT_PREVIEW)
   { "PrintingContext",
     printing::PrintingContextAndroid::RegisterPrintingContext},
 #endif

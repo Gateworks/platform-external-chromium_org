@@ -27,7 +27,8 @@
     "gcm",
     "system.display",
     "chromeosInfoPrivate",
-    "tabs"
+    "browser",
+    "preferencesPrivate"
   ],
 
   "app": {

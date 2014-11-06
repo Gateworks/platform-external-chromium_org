@@ -510,6 +510,9 @@ void BrowserCommandController::ExecuteCommandWithDisposition(
         chrome::AttemptRestartToMetroMode();
       }
       break;
+    case IDC_PIN_TO_START_SCREEN:
+      TogglePagePinnedToStartScreen(browser_);
+      break;
 #endif
 
 #if defined(OS_MACOSX)
@@ -528,9 +531,6 @@ void BrowserCommandController::ExecuteCommandWithDisposition(
     case IDC_BOOKMARK_PAGE:
       BookmarkCurrentPage(browser_);
       break;
-    case IDC_PIN_TO_START_SCREEN:
-      TogglePagePinnedToStartScreen(browser_);
-      break;
     case IDC_BOOKMARK_ALL_TABS:
       BookmarkAllTabs(browser_);
       break;
@@ -543,12 +543,12 @@ void BrowserCommandController::ExecuteCommandWithDisposition(
     case IDC_PRINT:
       Print(browser_);
       break;
-#if !defined(DISABLE_BASIC_PRINTING)
+#if defined(ENABLE_BASIC_PRINTING)
     case IDC_BASIC_PRINT:
       content::RecordAction(base::UserMetricsAction("Accel_Advanced_Print"));
       BasicPrint(browser_);
       break;
-#endif  // !DISABLE_BASIC_PRINTING
+#endif  // ENABLE_BASIC_PRINTING
     case IDC_TRANSLATE_PAGE:
       Translate(browser_);
       break;
@@ -1176,8 +1176,9 @@ void BrowserCommandController::UpdateCommandsForBookmarkEditing() {
                                         CanBookmarkCurrentPage(browser_));
   command_updater_.UpdateCommandEnabled(IDC_BOOKMARK_ALL_TABS,
                                         CanBookmarkAllTabs(browser_));
-  command_updater_.UpdateCommandEnabled(IDC_PIN_TO_START_SCREEN,
-                                        true);
+#if defined(OS_WIN)
+  command_updater_.UpdateCommandEnabled(IDC_PIN_TO_START_SCREEN, true);
+#endif
 }
 
 void BrowserCommandController::UpdateCommandsForBookmarkBar() {
@@ -1276,10 +1277,10 @@ void BrowserCommandController::UpdateCommandsForFullscreenMode() {
 void BrowserCommandController::UpdatePrintingState() {
   bool print_enabled = CanPrint(browser_);
   command_updater_.UpdateCommandEnabled(IDC_PRINT, print_enabled);
-#if !defined(DISABLE_BASIC_PRINTING)
+#if defined(ENABLE_BASIC_PRINTING)
   command_updater_.UpdateCommandEnabled(IDC_BASIC_PRINT,
                                         CanBasicPrint(browser_));
-#endif  // !DISABLE_BASIC_PRINTING
+#endif  // ENABLE_BASIC_PRINTING
 }
 
 void BrowserCommandController::UpdateSaveAsState() {

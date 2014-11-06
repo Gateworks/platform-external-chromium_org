@@ -134,10 +134,10 @@ class RowMoveAnimationDelegate : public gfx::AnimationDelegate {
         layer_start_(layer ? layer->bounds() : gfx::Rect()),
         layer_target_(layer_target) {
   }
-  virtual ~RowMoveAnimationDelegate() {}
+  ~RowMoveAnimationDelegate() override {}
 
   // gfx::AnimationDelegate overrides:
-  virtual void AnimationProgressed(const gfx::Animation* animation) override {
+  void AnimationProgressed(const gfx::Animation* animation) override {
     view_->layer()->SetOpacity(animation->GetCurrentValue());
     view_->layer()->ScheduleDraw();
 
@@ -148,11 +148,11 @@ class RowMoveAnimationDelegate : public gfx::AnimationDelegate {
       layer_->ScheduleDraw();
     }
   }
-  virtual void AnimationEnded(const gfx::Animation* animation) override {
+  void AnimationEnded(const gfx::Animation* animation) override {
     view_->layer()->SetOpacity(1.0f);
     view_->SchedulePaint();
   }
-  virtual void AnimationCanceled(const gfx::Animation* animation) override {
+  void AnimationCanceled(const gfx::Animation* animation) override {
     view_->layer()->SetOpacity(1.0f);
     view_->SchedulePaint();
   }
@@ -177,11 +177,10 @@ class ItemRemoveAnimationDelegate : public gfx::AnimationDelegate {
       : view_(view) {
   }
 
-  virtual ~ItemRemoveAnimationDelegate() {
-  }
+  ~ItemRemoveAnimationDelegate() override {}
 
   // gfx::AnimationDelegate overrides:
-  virtual void AnimationProgressed(const gfx::Animation* animation) override {
+  void AnimationProgressed(const gfx::Animation* animation) override {
     view_->layer()->SetOpacity(1 - animation->GetCurrentValue());
     view_->layer()->ScheduleDraw();
   }
@@ -199,10 +198,10 @@ class ItemMoveAnimationDelegate : public gfx::AnimationDelegate {
  public:
   ItemMoveAnimationDelegate(views::View* view) : view_(view) {}
 
-  virtual void AnimationEnded(const gfx::Animation* animation) override {
+  void AnimationEnded(const gfx::Animation* animation) override {
     view_->SchedulePaint();
   }
-  virtual void AnimationCanceled(const gfx::Animation* animation) override {
+  void AnimationCanceled(const gfx::Animation* animation) override {
     view_->SchedulePaint();
   }
 
@@ -786,7 +785,8 @@ void AppsGridView::ScheduleShowHideAnimation(bool show) {
 void AppsGridView::InitiateDragFromReparentItemInRootLevelGridView(
     AppListItemView* original_drag_view,
     const gfx::Rect& drag_view_rect,
-    const gfx::Point& drag_point) {
+    const gfx::Point& drag_point,
+    bool has_native_drag) {
   DCHECK(original_drag_view && !drag_view_);
   DCHECK(!dragging_for_reparent_item_);
 
@@ -806,10 +806,10 @@ void AppsGridView::InitiateDragFromReparentItemInRootLevelGridView(
   drag_view_->SetBoundsRect(drag_view_rect);
   drag_view_->SetDragUIState();  // Hide the title of the drag_view_.
 
-  // Hide the drag_view_ for drag icon proxy.
-  SetViewHidden(drag_view_,
-                true /* hide */,
-                true /* no animate */);
+  // Hide the drag_view_ for drag icon proxy when a native drag is responsible
+  // for showing the icon.
+  if (has_native_drag)
+    SetViewHidden(drag_view_, true /* hide */, true /* no animate */);
 
   // Add drag_view_ to the end of the view_model_.
   view_model_.Add(drag_view_, view_model_.view_size());
@@ -1476,7 +1476,12 @@ void AppsGridView::OnReorderTimer() {
 void AppsGridView::OnFolderItemReparentTimer() {
   DCHECK(folder_delegate_);
   if (drag_out_of_folder_container_ && drag_view_) {
-    folder_delegate_->ReparentItem(drag_view_, last_drag_point_);
+    bool has_native_drag = drag_and_drop_host_ != nullptr;
+#if defined(OS_WIN)
+    has_native_drag = has_native_drag || synchronous_drag_;
+#endif
+    folder_delegate_->ReparentItem(
+        drag_view_, last_drag_point_, has_native_drag);
 
     // Set the flag in the folder's grid view.
     dragging_for_reparent_item_ = true;

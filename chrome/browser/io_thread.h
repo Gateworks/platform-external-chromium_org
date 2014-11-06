@@ -14,6 +14,7 @@
 #include "base/memory/scoped_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/prefs/pref_member.h"
+#include "base/strings/string_piece.h"
 #include "base/time/time.h"
 #include "chrome/browser/net/chrome_network_delegate.h"
 #include "chrome/browser/net/ssl_config_service_manager.h"
@@ -189,6 +190,7 @@ class IOThread : public content::BrowserThreadDelegate {
     Optional<bool> enable_quic_port_selection;
     Optional<bool> quic_always_require_handshake_confirmation;
     Optional<bool> quic_disable_connection_pooling;
+    Optional<int> quic_load_server_info_timeout_ms;
     Optional<size_t> quic_max_packet_length;
     net::QuicTagVector quic_connection_options;
     Optional<std::string> quic_user_agent_id;
@@ -288,7 +290,7 @@ class IOThread : public content::BrowserThreadDelegate {
 
   // Configures available SPDY protocol versions from the given trial.
   // Used only if no command-line configuration was present.
-  static void ConfigureSpdyFromTrial(const std::string& spdy_trial_group,
+  static void ConfigureSpdyFromTrial(base::StringPiece spdy_trial_group,
                                      Globals* globals);
 
   // Global state must be initialized on the IO thread, then this
@@ -360,6 +362,12 @@ class IOThread : public content::BrowserThreadDelegate {
 
   // Returns true if QUIC should disable connection pooling.
   static bool ShouldQuicDisableConnectionPooling(
+      const VariationParameters& quic_trial_params);
+
+  // Returns the timeout value for loading of QUIC sever information from disk
+  // cache base on field trial. Returns 0 if there is an error parsing the
+  // field trial params, or if the default value should be used.
+  static int GetQuicLoadServerInfoTimeout(
       const VariationParameters& quic_trial_params);
 
   // Returns the maximum length for QUIC packets, based on any flags in

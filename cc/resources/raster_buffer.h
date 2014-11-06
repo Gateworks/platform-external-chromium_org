@@ -9,18 +9,16 @@
 #include "ui/gfx/geometry/rect.h"
 
 namespace cc {
-class PicturePileImpl;
-class RenderingStatsInstrumentation;
+class RasterSource;
 
 class CC_EXPORT RasterBuffer {
  public:
   RasterBuffer();
   virtual ~RasterBuffer();
 
-  virtual void Playback(const PicturePileImpl* picture_pile,
+  virtual void Playback(const RasterSource* raster_source,
                         const gfx::Rect& rect,
-                        float scale,
-                        RenderingStatsInstrumentation* stats) = 0;
+                        float scale) = 0;
 };
 
 }  // namespace cc

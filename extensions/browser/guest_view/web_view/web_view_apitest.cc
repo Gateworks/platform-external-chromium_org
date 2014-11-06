@@ -45,9 +45,7 @@ const char kTestWebSocketPort[] = "testWebSocketPort";
 
 class EmptyHttpResponse : public net::test_server::HttpResponse {
  public:
-  virtual std::string ToResponseString() const override {
-    return std::string();
-  }
+  std::string ToResponseString() const override { return std::string(); }
 };
 
 // Handles |request| by serving a redirect response if the |User-Agent| is
@@ -82,7 +80,7 @@ class WebContentsHiddenObserver : public content::WebContentsObserver {
   }
 
   // WebContentsObserver.
-  virtual void WasHidden() override {
+  void WasHidden() override {
     hidden_observed_ = true;
     hidden_callback_.Run();
   }
@@ -163,12 +161,10 @@ void WebViewAPITest::RunTest(const std::string& test_name,
 
   ExtensionTestMessageListener done_listener("TEST_PASSED", false);
   done_listener.set_failure_message("TEST_FAILED");
-  if (!content::ExecuteScript(
-          embedder_web_contents_,
-          base::StringPrintf("runTest('%s')", test_name.c_str()))) {
-    LOG(ERROR) << "Unable to start test.";
-    return;
-  }
+  ASSERT_TRUE(content::ExecuteScript(
+      embedder_web_contents_,
+      base::StringPrintf("runTest('%s')", test_name.c_str())))
+      << "Unable to start test.";
   ASSERT_TRUE(done_listener.WaitUntilSatisfied());
 }
 
@@ -619,8 +615,8 @@ IN_PROC_BROWSER_TEST_F(WebViewAPITest, TestOnEventProperty) {
   RunTest("testOnEventProperties", "web_view/apitest");
 }
 
-IN_PROC_BROWSER_TEST_F(WebViewAPITest, TestPartitionRaisesException) {
-  RunTest("testPartitionRaisesException", "web_view/apitest");
+IN_PROC_BROWSER_TEST_F(WebViewAPITest, TestPartitionChangeAfterNavigation) {
+  RunTest("testPartitionChangeAfterNavigation", "web_view/apitest");
 }
 
 IN_PROC_BROWSER_TEST_F(WebViewAPITest,

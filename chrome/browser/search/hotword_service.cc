@@ -19,6 +19,7 @@
 #include "chrome/browser/extensions/webstore_startup_installer.h"
 #include "chrome/browser/plugins/plugin_prefs.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/search/hotword_audio_history_handler.h"
 #include "chrome/browser/search/hotword_service_factory.h"
 #include "chrome/browser/ui/extensions/application_launch.h"
 #include "chrome/common/chrome_paths.h"
@@ -160,8 +161,11 @@ namespace hotword_internal {
 // Constants for the hotword field trial.
 const char kHotwordFieldTrialName[] = "VoiceTrigger";
 const char kHotwordFieldTrialDisabledGroupName[] = "Disabled";
+const char kHotwordFieldTrialExperimentalGroupName[] = "Experimental";
 // Old preference constant.
 const char kHotwordUnusablePrefName[] = "hotword.search_enabled";
+// String passed to indicate the training state has changed.
+const char kHotwordTrainingEnabled[] = "hotword_training_enabled";
 }  // namespace hotword_internal
 
 // static
@@ -179,6 +183,13 @@ bool HotwordService::DoesHotwordSupportLanguage(Profile* profile) {
 
 // static
 bool HotwordService::IsExperimentalHotwordingEnabled() {
+  std::string group = base::FieldTrialList::FindFullName(
+      hotword_internal::kHotwordFieldTrialName);
+  if (!group.empty() &&
+      group == hotword_internal::kHotwordFieldTrialExperimentalGroupName) {
+    return true;
+  }
+
   CommandLine* command_line = CommandLine::ForCurrentProcess();
   return command_line->HasSwitch(switches::kEnableExperimentalHotwording);
 }
@@ -189,6 +200,7 @@ HotwordService::HotwordService(Profile* profile)
       client_(NULL),
       error_message_(0),
       reinstall_pending_(false),
+      training_(false),
       weak_factory_(this) {
   extension_registry_observer_.Add(extensions::ExtensionRegistry::Get(profile));
   // This will be called during profile initialization which is a good time
@@ -232,6 +244,8 @@ HotwordService::HotwordService(Profile* profile)
           hotword_internal::kHotwordUnusablePrefName)) {
     profile_->GetPrefs()->ClearPref(hotword_internal::kHotwordUnusablePrefName);
   }
+
+  audio_history_handler_.reset(new HotwordAudioHistoryHandler(profile_));
 }
 
 HotwordService::~HotwordService() {
@@ -345,6 +359,13 @@ bool HotwordService::MaybeReinstallHotwordExtension() {
   // Ensure the call to OnExtensionUninstalled was triggered by a language
   // change so it's okay to reinstall.
   reinstall_pending_ = true;
+
+  // Disable always-on on a language change. We do this because the speaker-id
+  // model needs to be re-trained.
+  if (IsAlwaysOnEnabled()) {
+    profile_->GetPrefs()->SetBoolean(prefs::kHotwordAlwaysOnSearchEnabled,
+                                     false);
+  }
 
   return UninstallHotwordExtension(extension_service);
 }
@@ -472,6 +493,54 @@ void HotwordService::LaunchHotwordAudioVerificationApp(
 HotwordService::LaunchMode
 HotwordService::GetHotwordAudioVerificationLaunchMode() {
   return hotword_audio_verification_launch_mode_;
+}
+
+void HotwordService::StartTraining() {
+  training_ = true;
+
+  if (!IsServiceAvailable())
+    return;
+
+  HotwordPrivateEventService* event_service =
+      BrowserContextKeyedAPIFactory<HotwordPrivateEventService>::Get(profile_);
+  if (event_service)
+    event_service->OnEnabledChanged(hotword_internal::kHotwordTrainingEnabled);
+}
+
+void HotwordService::FinalizeSpeakerModel() {
+  if (!IsServiceAvailable())
+    return;
+
+  HotwordPrivateEventService* event_service =
+      BrowserContextKeyedAPIFactory<HotwordPrivateEventService>::Get(profile_);
+  if (event_service)
+    event_service->OnFinalizeSpeakerModel();
+}
+
+void HotwordService::StopTraining() {
+  training_ = false;
+
+  if (!IsServiceAvailable())
+    return;
+
+  HotwordPrivateEventService* event_service =
+      BrowserContextKeyedAPIFactory<HotwordPrivateEventService>::Get(profile_);
+  if (event_service)
+    event_service->OnEnabledChanged(hotword_internal::kHotwordTrainingEnabled);
+}
+
+void HotwordService::NotifyHotwordTriggered() {
+  if (!IsServiceAvailable())
+    return;
+
+  HotwordPrivateEventService* event_service =
+      BrowserContextKeyedAPIFactory<HotwordPrivateEventService>::Get(profile_);
+  if (event_service)
+    event_service->OnHotwordTriggered();
+}
+
+bool HotwordService::IsTraining() {
+  return training_;
 }
 
 void HotwordService::OnHotwordSearchEnabledChanged(

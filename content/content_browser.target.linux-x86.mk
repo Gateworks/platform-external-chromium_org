@@ -12,6 +12,7 @@ gyp_shared_intermediate_dir := $(call intermediates-dir-for,GYP,shared,,,$(GYP_V
 
 # Make sure our deps are built first.
 GYP_TARGET_DEPENDENCIES := \
+	$(call intermediates-dir-for,STATIC_LIBRARIES,device_battery_device_battery_mojo_bindings_gyp,,,$(GYP_VAR_PREFIX))/device_battery_device_battery_mojo_bindings_gyp.a \
 	$(call intermediates-dir-for,GYP,skia_skia_gyp,,,$(GYP_VAR_PREFIX))/skia.stamp \
 	$(call intermediates-dir-for,STATIC_LIBRARIES,skia_skia_library_gyp,,,$(GYP_VAR_PREFIX))/skia_skia_library_gyp.a \
 	$(call intermediates-dir-for,GYP,third_party_WebKit_public_blink_headers_gyp,,,$(GYP_VAR_PREFIX))/blink_headers.stamp \
@@ -59,7 +60,6 @@ GYP_COPIED_SOURCE_ORIGIN_DIRS := \
 	$(gyp_shared_intermediate_dir)/content/browser/devtools/protocol
 
 LOCAL_SRC_FILES := \
-	content/public/browser/android/synchronous_compositor.cc \
 	content/public/browser/ax_event_notification_details.cc \
 	content/public/browser/browser_child_process_host_delegate.cc \
 	content/public/browser/browser_child_process_host_iterator.cc \
@@ -156,9 +156,6 @@ LOCAL_SRC_FILES := \
 	content/browser/appcache/chrome_appcache_service.cc \
 	content/browser/appcache/appcache_manifest_parser.cc \
 	content/browser/appcache/view_appcache_internals_job.cc \
-	content/browser/battery_status/battery_status_manager_android.cc \
-	content/browser/battery_status/battery_status_message_filter.cc \
-	content/browser/battery_status/battery_status_service.cc \
 	content/browser/browser_child_process_host_impl.cc \
 	content/browser/browser_context.cc \
 	content/browser/browser_main.cc \
@@ -283,6 +280,8 @@ LOCAL_SRC_FILES := \
 	content/browser/geolocation/empty_wifi_data_provider.cc \
 	content/browser/geolocation/geolocation_dispatcher_host.cc \
 	content/browser/geolocation/geolocation_provider_impl.cc \
+	content/browser/geolocation/geolocation_service_context.cc \
+	content/browser/geolocation/geolocation_service_impl.cc \
 	content/browser/geolocation/location_api_adapter_android.cc \
 	content/browser/geolocation/location_arbitrator_impl.cc \
 	content/browser/geolocation/location_provider_android.cc \
@@ -337,6 +336,10 @@ LOCAL_SRC_FILES := \
 	content/browser/loader/cross_site_resource_handler.cc \
 	content/browser/loader/detachable_resource_handler.cc \
 	content/browser/loader/layered_resource_handler.cc \
+	content/browser/loader/navigation_resource_handler.cc \
+	content/browser/loader/navigation_url_loader.cc \
+	content/browser/loader/navigation_url_loader_impl.cc \
+	content/browser/loader/navigation_url_loader_impl_core.cc \
 	content/browser/loader/power_save_block_resource_throttle.cc \
 	content/browser/loader/redirect_to_file_resource_handler.cc \
 	content/browser/loader/resource_buffer.cc \
@@ -385,6 +388,8 @@ LOCAL_SRC_FILES := \
 	content/browser/net/sqlite_persistent_cookie_store.cc \
 	content/browser/net/view_blob_internals_job_factory.cc \
 	content/browser/net/view_http_cache_job_factory.cc \
+	content/browser/notifications/notification_message_filter.cc \
+	content/browser/notifications/page_notification_delegate.cc \
 	content/browser/notification_service_impl.cc \
 	content/browser/power_monitor_message_broadcaster.cc \
 	content/browser/power_profiler/power_event.cc \
@@ -630,11 +635,13 @@ MY_DEFS_Debug := \
 	'-DUSE_PROPRIETARY_CODECS' \
 	'-DENABLE_BROWSER_CDMS' \
 	'-DENABLE_CONFIGURATION_POLICY' \
+	'-DENABLE_NOTIFICATIONS' \
 	'-DDISCARDABLE_MEMORY_ALWAYS_SUPPORTED_NATIVELY' \
 	'-DSYSTEM_NATIVELY_SIGNALS_MEMORY_PRESSURE' \
-	'-DENABLE_EGLIMAGE=1' \
+	'-DDONT_EMBED_BUILD_METADATA' \
 	'-DCLD_VERSION=1' \
 	'-DENABLE_PRINTING=1' \
+	'-DENABLE_BASIC_PRINTING=1' \
 	'-DENABLE_MANAGED_USERS=1' \
 	'-DVIDEO_HOLE=1' \
 	'-DENABLE_LOAD_COMPLETION_HACKS=1' \
@@ -649,7 +656,7 @@ MY_DEFS_Debug := \
 	'-DSK_WILL_NEVER_DRAW_PERSPECTIVE_TEXT' \
 	'-DSK_FM_NEW_MATCH_FAMILY_STYLE_CHARACTER=1' \
 	'-DSK_SUPPORT_LEGACY_TEXTRENDERMODE' \
-	'-DSK_LEGACY_NO_DISTANCE_FIELD_PATHS' \
+	'-DSK_IGNORE_GPU_LAYER_HOISTING' \
 	'-DSK_BUILD_FOR_ANDROID' \
 	'-DSK_USE_POSIX_THREADS' \
 	'-DU_USING_ICU_NAMESPACE=0' \
@@ -672,6 +679,7 @@ MY_DEFS_Debug := \
 	'-DWEBRTC_POSIX' \
 	'-DXML_STATIC' \
 	'-DMEDIA_DISABLE_LIBVPX' \
+	'-DUSE_LIBPCI=1' \
 	'-DUSE_OPENSSL=1' \
 	'-DUSE_OPENSSL_CERTS=1' \
 	'-D__STDC_CONSTANT_MACROS' \
@@ -802,11 +810,13 @@ MY_DEFS_Release := \
 	'-DUSE_PROPRIETARY_CODECS' \
 	'-DENABLE_BROWSER_CDMS' \
 	'-DENABLE_CONFIGURATION_POLICY' \
+	'-DENABLE_NOTIFICATIONS' \
 	'-DDISCARDABLE_MEMORY_ALWAYS_SUPPORTED_NATIVELY' \
 	'-DSYSTEM_NATIVELY_SIGNALS_MEMORY_PRESSURE' \
-	'-DENABLE_EGLIMAGE=1' \
+	'-DDONT_EMBED_BUILD_METADATA' \
 	'-DCLD_VERSION=1' \
 	'-DENABLE_PRINTING=1' \
+	'-DENABLE_BASIC_PRINTING=1' \
 	'-DENABLE_MANAGED_USERS=1' \
 	'-DVIDEO_HOLE=1' \
 	'-DENABLE_LOAD_COMPLETION_HACKS=1' \
@@ -821,7 +831,7 @@ MY_DEFS_Release := \
 	'-DSK_WILL_NEVER_DRAW_PERSPECTIVE_TEXT' \
 	'-DSK_FM_NEW_MATCH_FAMILY_STYLE_CHARACTER=1' \
 	'-DSK_SUPPORT_LEGACY_TEXTRENDERMODE' \
-	'-DSK_LEGACY_NO_DISTANCE_FIELD_PATHS' \
+	'-DSK_IGNORE_GPU_LAYER_HOISTING' \
 	'-DSK_BUILD_FOR_ANDROID' \
 	'-DSK_USE_POSIX_THREADS' \
 	'-DU_USING_ICU_NAMESPACE=0' \
@@ -844,6 +854,7 @@ MY_DEFS_Release := \
 	'-DWEBRTC_POSIX' \
 	'-DXML_STATIC' \
 	'-DMEDIA_DISABLE_LIBVPX' \
+	'-DUSE_LIBPCI=1' \
 	'-DUSE_OPENSSL=1' \
 	'-DUSE_OPENSSL_CERTS=1' \
 	'-D__STDC_CONSTANT_MACROS' \

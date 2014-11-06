@@ -243,9 +243,9 @@ extern const char kChromeUIWorkersHost[];
 extern const char kChromeUIScreenshotPath[];
 extern const char kChromeUIThemePath[];
 
-#if defined(ENABLE_FULL_PRINTING)
+#if defined(ENABLE_PRINT_PREVIEW)
 extern const char kChromeUIPrintHost[];
-#endif  // ENABLE_FULL_PRINTING
+#endif  // ENABLE_PRINT_PREVIEW
 
 #if defined(OS_ANDROID)
 extern const char kChromeUIWelcomeHost[];
@@ -300,8 +300,8 @@ extern const char kOnlineEulaURLPath[];
 
 extern const char kChromeOSCreditsPath[];
 
-extern const char kChromeUILocalImageHost[];
-extern const char kChromeUILocalImagePath[];
+extern const char kChromeOSAssetHost[];
+extern const char kChromeOSAssetPath[];
 #endif
 
 #if (defined(OS_LINUX) && defined(TOOLKIT_VIEWS)) || defined(USE_AURA)

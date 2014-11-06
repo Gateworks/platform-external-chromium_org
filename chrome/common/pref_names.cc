@@ -1051,26 +1051,6 @@ const char kAutofillDialogDefaults[] = "autofill.rac_dialog_defaults";
 const char kPinnedTabs[] = "pinned_tabs";
 #endif
 
-#if defined(OS_ANDROID)
-// Boolean that controls the enabled-state of Geolocation in content.
-const char kGeolocationEnabled[] = "geolocation.enabled";
-#endif
-
-#if defined(ENABLE_GOOGLE_NOW)
-// Boolean that is true when Google services can use the user's location.
-const char kGoogleGeolocationAccessEnabled[] =
-    "googlegeolocationaccess.enabled";
-#endif
-
-// The default audio capture device used by the Media content setting.
-const char kDefaultAudioCaptureDevice[] = "media.default_audio_capture_device";
-
-// The default video capture device used by the Media content setting.
-const char kDefaultVideoCaptureDevice[] = "media.default_video_capture_Device";
-
-// The salt used for creating random MediaSource IDs.
-const char kMediaDeviceIdSalt[] = "media.device_id_salt";
-
 // Preference to disable 3D APIs (WebGL, Pepper 3D).
 const char kDisable3DAPIs[] = "disable_3d_apis";
 
@@ -1227,17 +1207,21 @@ const char kGCMChannelEnabled[] = "gcm.channel_enabled";
 const char kPushMessagingRegistrationCount[] =
     "gcm.push_messaging_registration_count";
 
+// Whether a user is allowed to use Easy Unlock.
+const char kEasyUnlockAllowed[] = "easy_unlock.allowed";
+
 // Whether Easy Unlock is enabled.
 const char kEasyUnlockEnabled[] = "easy_unlock.enabled";
-
-// Whether to show the Easy Unlock first run tutorial.
-const char kEasyUnlockShowTutorial[] = "easy_unlock.show_tutorial";
 
 // Preference storing Easy Unlock pairing data.
 const char kEasyUnlockPairing[] = "easy_unlock.pairing";
 
-// Whether a user is allowed to use Easy Unlock.
-const char kEasyUnlockAllowed[] = "easy_unlock.allowed";
+// Whether close proximity between the remote and the local device is required
+// in order to use Easy Unlock.
+const char kEasyUnlockProximityRequired[] = "easy_unlock.proximity_required";
+
+// Whether to show the Easy Unlock first run tutorial.
+const char kEasyUnlockShowTutorial[] = "easy_unlock.show_tutorial";
 
 // A cache of zero suggest results using JSON serialized into a string.
 const char kZeroSuggestCachedResults[] = "zerosuggest.cachedresults";
@@ -1632,7 +1616,7 @@ const char kInvalidationServiceUseGCMChannel[] =
 // when on-line authentication is not available.
 const char kGoogleServicesPasswordHash[] = "google.services.password_hash";
 
-#if !defined(OS_ANDROID)
+#if !defined(OS_ANDROID) && !defined(OS_IOS)
 // Tracks the number of times that we have shown the sign in promo at startup.
 const char kSignInPromoStartupCount[] = "sync_promo.startup_count";
 
@@ -1659,6 +1643,26 @@ const char kWebAppCreateInQuickLaunchBar[] =
 // Dictionary that maps Geolocation network provider server URLs to
 // corresponding access token.
 const char kGeolocationAccessToken[] = "geolocation.access_token";
+
+#if defined(OS_ANDROID)
+// Boolean that controls the enabled-state of Geolocation in content.
+const char kGeolocationEnabled[] = "geolocation.enabled";
+#endif
+
+#if defined(ENABLE_GOOGLE_NOW)
+// Boolean that is true when Google services can use the user's location.
+const char kGoogleGeolocationAccessEnabled[] =
+    "googlegeolocationaccess.enabled";
+#endif
+
+// The default audio capture device used by the Media content setting.
+const char kDefaultAudioCaptureDevice[] = "media.default_audio_capture_device";
+
+// The default video capture device used by the Media content setting.
+const char kDefaultVideoCaptureDevice[] = "media.default_video_capture_Device";
+
+// The salt used for creating random MediaSource IDs.
+const char kMediaDeviceIdSalt[] = "media.device_id_salt";
 
 // Boolean that indicates whether to allow firewall traversal while trying to
 // establish the initial connection from the client or host.
@@ -1788,6 +1792,12 @@ const char kHotwordAlwaysOnSearchEnabled[] = "hotword.always_on_search_enabled";
 // A boolean pref that controls whether the sound of "Ok, Google" plus a few
 // seconds of audio data before is sent back to improve voice search.
 const char kHotwordAudioLoggingEnabled[] = "hotword.audio_logging_enabled";
+
+// A boolean pref that controls the user's global account preference for
+// audio history is enabled. Updated whenever the user changes it in
+// chrome://settings and also polled for every 24 hours and on first voice
+// search action after profile startup.
+const char kHotwordAudioHistoryEnabled[] = "hotword.audio_history_enabled";
 
 // A string holding the locale information under which Hotword was installed.
 // It is used for comparison since the hotword voice search trigger must be
@@ -1930,7 +1940,7 @@ const char kLogoutStartedLast[] = "chromeos.logout-started";
 //   chrome/browser/chromeos/policy/consumer_management_service.h
 const char kConsumerManagementEnrollmentStage[] =
     "consumer_management.enrollment_stage";
-#endif
+#endif  // defined(OS_CHROMEOS)
 
 // Whether there is a Flash version installed that supports clearing LSO data.
 const char kClearPluginLSODataEnabled[] = "browser.clear_lso_data_enabled";
@@ -2247,9 +2257,6 @@ const char kEnableDRM[] = "settings.privacy.drm_enabled";
 // ActivityLog initialization before the extension system is initialized.
 const char kWatchdogExtensionActive[] =
     "profile.extensions.activity_log.num_consumers_active";
-// The old version was a bool.
-const char kWatchdogExtensionActiveOld[] =
-    "profile.extensions.activity_log.watchdog_extension_active";
 
 #if defined(OS_ANDROID)
 // A list of partner bookmark rename/remove mappings.

@@ -424,6 +424,7 @@
           'type': 'none',
           'dependencies': [
             '../base/base.gyp:base',
+            '../device/battery/battery.gyp:device_battery_java',
             '../media/media.gyp:media_java',
             '../mojo/mojo_base.gyp:mojo_system_java',
             '../mojo/public/mojo_public.gyp:mojo_bindings_java',
@@ -569,6 +570,23 @@
                   'destination': '<(PRODUCT_DIR)/content_shell/assets',
                   'files': [
                     '<(PRODUCT_DIR)/icudtl.dat',
+                  ],
+                },
+              ],
+            }],
+          ],
+        },
+        {
+          'target_name': 'content_v8_external_data',
+          'type': 'none',
+          'conditions': [
+            ['v8_use_external_startup_data==1', {
+              'copies': [
+                {
+                  'destination': '<(PRODUCT_DIR)/content_shell/assets',
+                  'files': [
+                    '<(PRODUCT_DIR)/natives_blob.bin',
+                    '<(PRODUCT_DIR)/snapshot_blob.bin',
                   ],
                 },
               ],

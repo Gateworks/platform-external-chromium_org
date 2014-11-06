@@ -20,6 +20,7 @@
 #include "base/logging.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/threading/thread_restrictions.h"
+#include "cc/base/switches.h"
 #include "content/browser/media/android/browser_media_player_manager.h"
 #include "content/public/browser/browser_main_runner.h"
 #include "content/public/browser/browser_thread.h"
@@ -54,7 +55,7 @@ bool AwMainDelegate::BasicStartupComplete(int* exit_code) {
 
   BrowserViewRenderer::CalculateTileMemoryPolicy();
 
-  CommandLine* cl = CommandLine::ForCurrentProcess();
+  base::CommandLine* cl = base::CommandLine::ForCurrentProcess();
   cl->AppendSwitch(switches::kEnableBeginFrameScheduling);
   cl->AppendSwitch(switches::kEnableImplSidePainting);
 
@@ -67,12 +68,6 @@ bool AwMainDelegate::BasicStartupComplete(int* exit_code) {
   // File system API not supported (requires some new API; internal bug 6930981)
   cl->AppendSwitch(switches::kDisableFileSystem);
 
-  // For fullscreen video we create a new container view to host the
-  // WebContents, ie. the FullscreenView. As a result we cannot reuse the
-  // embedded video blocker attached to the old container view, so we create a
-  // new blocker instead attached to the ContentVideoView.
-  cl->AppendSwitch(switches::kEnableContentVideoViewPowerSaveBlocker);
-
 #if defined(VIDEO_HOLE)
   // Support EME/L1 with hole-punching.
   cl->AppendSwitch(switches::kMediaDrmEnableNonCompositing);
@@ -83,6 +78,7 @@ bool AwMainDelegate::BasicStartupComplete(int* exit_code) {
 
   // This is needed for sharing textures across the different GL threads.
   cl->AppendSwitch(switches::kEnableThreadedTextureMailboxes);
+
   return false;
 }
 

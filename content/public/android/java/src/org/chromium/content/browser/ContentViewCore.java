@@ -87,8 +87,10 @@ import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 
 /**
  * Provides a Java-side 'wrapper' around a WebContent (native) instance.
@@ -141,6 +143,136 @@ public class ContentViewCore
     // on the interface object. Note we use HashSet rather than Set as the native side
     // expects HashSet (no bindings for interfaces).
     private final HashSet<Object> mRetainedJavaScriptObjects = new HashSet<Object>();
+
+    /**
+     * A {@link ViewAndroidDelegate} that delegates to the current container view.
+     *
+     * <p>This delegate handles the replacement of container views transparently so
+     * that clients can safely hold to instances of this class.
+     */
+    private class ContentViewAndroidDelegate implements ViewAndroidDelegate {
+        /**
+         * Represents the position of an anchor view.
+         */
+        @VisibleForTesting
+        private class Position {
+            private final float mX;
+            private final float mY;
+            private final float mWidth;
+            private final float mHeight;
+
+            public Position(float x, float y, float width, float height) {
+                mX = x;
+                mY = y;
+                mWidth = width;
+                mHeight = height;
+            }
+        }
+
+        /**
+         * The current container view. This view can be updated with
+         * {@link #updateCurrentContainerView()}.
+         */
+        private ViewGroup mCurrentContainerView;
+
+        /**
+         * List of anchor views stored in the order in which they were acquired mapped
+         * to their position.
+         */
+        private Map<View, Position> mAnchorViews = new LinkedHashMap<View, Position>();
+
+        @Override
+        public View acquireAnchorView() {
+            View anchorView = new View(mContext);
+            mAnchorViews.put(anchorView, null);
+            mCurrentContainerView.addView(anchorView);
+            return anchorView;
+        }
+
+        @Override
+        public void setAnchorViewPosition(
+                View view, float x, float y, float width, float height) {
+            mAnchorViews.put(view, new Position(x, y, width, height));
+            doSetAnchorViewPosition(view, x, y, width, height);
+        }
+
+        @SuppressWarnings("deprecation")  // AbsoluteLayout
+        private void doSetAnchorViewPosition(
+                View view, float x, float y, float width, float height) {
+            if (view.getParent() == null) {
+                // Ignore. setAnchorViewPosition has been called after the anchor view has
+                // already been released.
+                return;
+            }
+            assert view.getParent() == mCurrentContainerView;
+
+            float scale = (float) DeviceDisplayInfo.create(mContext).getDIPScale();
+
+            // The anchor view should not go outside the bounds of the ContainerView.
+            int leftMargin = Math.round(x * scale);
+            int topMargin = Math.round(mRenderCoordinates.getContentOffsetYPix() + y * scale);
+            int scaledWidth = Math.round(width * scale);
+            // ContentViewCore currently only supports these two container view types.
+            if (mCurrentContainerView instanceof FrameLayout) {
+                int startMargin;
+                if (ApiCompatibilityUtils.isLayoutRtl(mCurrentContainerView)) {
+                    startMargin = mCurrentContainerView.getMeasuredWidth()
+                            - Math.round((width + x) * scale);
+                } else {
+                    startMargin = leftMargin;
+                }
+                if (scaledWidth + startMargin > mCurrentContainerView.getWidth()) {
+                    scaledWidth = mCurrentContainerView.getWidth() - startMargin;
+                }
+                FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(
+                        scaledWidth, Math.round(height * scale));
+                ApiCompatibilityUtils.setMarginStart(lp, startMargin);
+                lp.topMargin = topMargin;
+                view.setLayoutParams(lp);
+            } else if (mCurrentContainerView instanceof android.widget.AbsoluteLayout) {
+                // This fixes the offset due to a difference in
+                // scrolling model of WebView vs. Chrome.
+                // TODO(sgurun) fix this to use mContainerViewAtCreation.getScroll[X/Y]()
+                // as it naturally accounts for scroll differences between
+                // these models.
+                leftMargin += mRenderCoordinates.getScrollXPixInt();
+                topMargin += mRenderCoordinates.getScrollYPixInt();
+
+                android.widget.AbsoluteLayout.LayoutParams lp =
+                        new android.widget.AbsoluteLayout.LayoutParams(
+                            scaledWidth, (int) (height * scale), leftMargin, topMargin);
+                view.setLayoutParams(lp);
+            } else {
+                Log.e(TAG, "Unknown layout " + mCurrentContainerView.getClass().getName());
+            }
+        }
+
+        @Override
+        public void releaseAnchorView(View anchorView) {
+            mAnchorViews.remove(anchorView);
+            mCurrentContainerView.removeView(anchorView);
+        }
+
+        /**
+         * Updates (or sets for the first time) the current container view to which
+         * this class delegates. Existing anchor views are transferred from the old to
+         * the new container view.
+         */
+        void updateCurrentContainerView() {
+            ViewGroup oldContainerView = mCurrentContainerView;
+            mCurrentContainerView = mContainerView;
+            for (Entry<View, Position> entry : mAnchorViews.entrySet()) {
+                View anchorView = entry.getKey();
+                Position position = entry.getValue();
+                oldContainerView.removeView(anchorView);
+                mCurrentContainerView.addView(anchorView);
+                if (position != null) {
+                    doSetAnchorViewPosition(anchorView,
+                            position.mX, position.mY, position.mWidth, position.mHeight);
+                }
+            }
+        }
+    }
 
     /**
      * Interface that consumers of {@link ContentViewCore} must implement to allow the proper
@@ -283,6 +415,7 @@ public class ContentViewCore
     private ActionMode mActionMode;
     private boolean mUnselectAllOnActionModeDismiss;
     private boolean mPreserveSelectionOnNextLossOfFocus;
+    private SelectActionModeCallback.ActionHandler mActionHandler;
 
     // Delegate that will handle GET downloads, and be notified of completion of POST downloads.
     private ContentViewDownloadDelegate mDownloadDelegate;
@@ -360,6 +493,9 @@ public class ContentViewCore
     // screen orientation.
     private boolean mFullscreenRequiredForOrientationLock = true;
 
+    // A ViewAndroidDelegate that delegates to the current container view.
+    private ContentViewAndroidDelegate mViewAndroidDelegate;
+
     /**
      * Constructs a new ContentViewCore. Embedders must call initialize() after constructing
      * a ContentViewCore and before using it.
@@ -392,6 +528,7 @@ public class ContentViewCore
     /**
      * @return The context used for creating this ContentViewCore.
      */
+    @CalledByNative
     public Context getContext() {
         return mContext;
     }
@@ -428,9 +565,11 @@ public class ContentViewCore
     }
 
     /**
-     * Returns a delegate that can be used to add and remove views from the ContainerView.
+     * Returns a delegate that can be used to add and remove views from the current
+     * container view. Clients can safely hold to instances of this class as it handles the
+     * replacement of container views transparently.
      *
-     * NOTE: Use with care, as not all ContentViewCore users setup their ContainerView in the same
+     * NOTE: Use with care, as not all ContentViewCore users setup their container view in the same
      * way. In particular, the Android WebView has limitations on what implementation details can
      * be provided via a child view, as they are visible in the API and could introduce
      * compatibility breaks with existing applications. If in doubt, contact the
@@ -438,77 +577,8 @@ public class ContentViewCore
      *
      * @return A ViewAndroidDelegate that can be used to add and remove views.
      */
-    @VisibleForTesting
     public ViewAndroidDelegate getViewAndroidDelegate() {
-        return new ViewAndroidDelegate() {
-            // mContainerView can change, but this ViewAndroidDelegate can only be used to
-            // add and remove views from the mContainerViewAtCreation.
-            private final ViewGroup mContainerViewAtCreation = mContainerView;
-
-            @Override
-            public View acquireAnchorView() {
-                View anchorView = new View(mContext);
-                mContainerViewAtCreation.addView(anchorView);
-                return anchorView;
-            }
-
-            @Override
-            @SuppressWarnings("deprecation")  // AbsoluteLayout
-            public void setAnchorViewPosition(
-                    View view, float x, float y, float width, float height) {
-                if (view.getParent() == null) {
-                    // Ignore. setAnchorViewPosition has been called after the anchor view has
-                    // already been released.
-                    return;
-                }
-                assert view.getParent() == mContainerViewAtCreation;
-
-                float scale = (float) DeviceDisplayInfo.create(mContext).getDIPScale();
-
-                // The anchor view should not go outside the bounds of the ContainerView.
-                int leftMargin = Math.round(x * scale);
-                int topMargin = Math.round(mRenderCoordinates.getContentOffsetYPix() + y * scale);
-                int scaledWidth = Math.round(width * scale);
-                // ContentViewCore currently only supports these two container view types.
-                if (mContainerViewAtCreation instanceof FrameLayout) {
-                    int startMargin;
-                    if (ApiCompatibilityUtils.isLayoutRtl(mContainerViewAtCreation)) {
-                        startMargin = mContainerViewAtCreation.getMeasuredWidth()
-                                - Math.round((width + x) * scale);
-                    } else {
-                        startMargin = leftMargin;
-                    }
-                    if (scaledWidth + startMargin > mContainerViewAtCreation.getWidth()) {
-                        scaledWidth = mContainerViewAtCreation.getWidth() - startMargin;
-                    }
-                    FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(
-                            scaledWidth, Math.round(height * scale));
-                    ApiCompatibilityUtils.setMarginStart(lp, startMargin);
-                    lp.topMargin = topMargin;
-                    view.setLayoutParams(lp);
-                } else if (mContainerViewAtCreation instanceof android.widget.AbsoluteLayout) {
-                    // This fixes the offset due to a difference in
-                    // scrolling model of WebView vs. Chrome.
-                    // TODO(sgurun) fix this to use mContainerViewAtCreation.getScroll[X/Y]()
-                    // as it naturally accounts for scroll differences between
-                    // these models.
-                    leftMargin += mRenderCoordinates.getScrollXPixInt();
-                    topMargin += mRenderCoordinates.getScrollYPixInt();
-
-                    android.widget.AbsoluteLayout.LayoutParams lp =
-                            new android.widget.AbsoluteLayout.LayoutParams(
-                                scaledWidth, (int) (height * scale), leftMargin, topMargin);
-                    view.setLayoutParams(lp);
-                } else {
-                    Log.e(TAG, "Unknown layout " + mContainerViewAtCreation.getClass().getName());
-                }
-            }
-
-            @Override
-            public void releaseAnchorView(View anchorView) {
-                mContainerViewAtCreation.removeView(anchorView);
-            }
-        };
+        return mViewAndroidDelegate;
     }
 
     @VisibleForTesting
@@ -534,6 +604,11 @@ public class ContentViewCore
     @VisibleForTesting
     public AdapterInputConnection getInputConnectionForTest() {
         return mInputConnection;
+    }
+
+    @VisibleForTesting
+    ViewAndroid getViewAndroid() {
+        return mViewAndroid;
     }
 
     private ImeAdapter createImeAdapter(Context context) {
@@ -562,8 +637,8 @@ public class ContentViewCore
                             @Override
                             public void onReceiveResult(int resultCode, Bundle resultData) {
                                 getContentViewClient().onImeStateChangeRequested(
-                                        resultCode == InputMethodManager.RESULT_SHOWN ||
-                                        resultCode == InputMethodManager.RESULT_UNCHANGED_SHOWN);
+                                        resultCode == InputMethodManager.RESULT_SHOWN
+                                        || resultCode == InputMethodManager.RESULT_UNCHANGED_SHOWN);
                                 if (resultCode == InputMethodManager.RESULT_SHOWN) {
                                     // If OSK is newly shown, delay the form focus until
                                     // the onSizeChanged (in order to adjust relative to the
@@ -572,8 +647,8 @@ public class ContentViewCore
                                     // always be called, crbug.com/294908.
                                     getContainerView().getWindowVisibleDisplayFrame(
                                             mFocusPreOSKViewportRect);
-                                } else if (hasFocus() && resultCode ==
-                                        InputMethodManager.RESULT_UNCHANGED_SHOWN) {
+                                } else if (hasFocus() && resultCode
+                                        == InputMethodManager.RESULT_UNCHANGED_SHOWN) {
                                     // If the OSK was already there, focus the form immediately.
                                     assert mWebContents != null;
                                     mWebContents.scrollFocusedEditableNodeIntoView();
@@ -604,11 +679,12 @@ public class ContentViewCore
     // deleting it after destroying the ContentViewCore.
     public void initialize(ViewGroup containerView, InternalAccessDelegate internalDispatcher,
             long nativeWebContents, WindowAndroid windowAndroid) {
+        createContentViewAndroidDelegate();
         setContainerView(containerView);
-
         long windowNativePointer = windowAndroid.getNativePointer();
         assert windowNativePointer != 0;
-        mViewAndroid = new ViewAndroid(windowAndroid, getViewAndroidDelegate());
+        createViewAndroid(windowAndroid);
+
         long viewAndroidNativePointer = mViewAndroid.getNativePointer();
         assert viewAndroidNativePointer != 0;
 
@@ -629,6 +705,15 @@ public class ContentViewCore
 
         mWebContentsObserver = new WebContentsObserver(mWebContents) {
             @Override
+            public void didFailLoad(boolean isProvisionalLoad, boolean isMainFrame, int errorCode,
+                    String description, String failingUrl) {
+                // Navigation that fails the provisional load will have the strong binding removed
+                // here. One for which the provisional load is commited will have the strong binding
+                // removed in navigationEntryCommitted() below.
+                if (isProvisionalLoad) determinedProcessVisibility();
+            }
+
+            @Override
             public void didNavigateMainFrame(String url, String baseUrl,
                     boolean isNavigationToDifferentPage, boolean isFragmentNavigation) {
                 if (!isNavigationToDifferentPage) return;
@@ -644,16 +729,39 @@ public class ContentViewCore
                 // No need to reset gesture detection as the detector will have
                 // been destroyed in the RenderWidgetHostView.
             }
+
+            @Override
+            public void navigationEntryCommitted() {
+                determinedProcessVisibility();
+            }
+
+            private void determinedProcessVisibility() {
+                // Signal to the process management logic that we can now rely on the process
+                // visibility signal for binding management. Before the navigation commits, its
+                // renderer is considered background even if the pending navigation happens in the
+                // foreground renderer.
+                ChildProcessLauncher.determinedVisibility(getCurrentRenderProcessId());
+            }
         };
+    }
+
+    @VisibleForTesting
+    void createContentViewAndroidDelegate() {
+        mViewAndroidDelegate = new ContentViewAndroidDelegate();
+    }
+
+    @VisibleForTesting
+    void createViewAndroid(WindowAndroid windowAndroid) {
+        mViewAndroid = new ViewAndroid(windowAndroid, mViewAndroidDelegate);
     }
 
     /**
      * Sets a new container view for this {@link ContentViewCore}.
      *
-     * <p>WARNING: This is not a general purpose method and has been designed with WebView
-     * fullscreen in mind. Please be aware that it might not be appropriate for other use cases
-     * and that it has a number of limitations. For example the PopupZoomer only works with the
-     * container view with which this ContentViewCore has been initialized.
+     * <p>WARNING: This method can also be used to replace the existing container view,
+     * but you should only do it if you have a very good reason to. Replacing the
+     * container view has been designed to support fullscreen in the Webview so it
+     * might not be appropriate for other use cases.
      *
      * <p>This method only performs a small part of replacing the container view and
      * embedders are responsible for:
@@ -675,8 +783,8 @@ public class ContentViewCore
 
         mContainerView = containerView;
         mPositionObserver = new ViewPositionObserver(mContainerView);
-        mContainerView.setWillNotDraw(false);
         mContainerView.setClickable(true);
+        mViewAndroidDelegate.updateCurrentContainerView();
         TraceEvent.end();
     }
 
@@ -695,7 +803,8 @@ public class ContentViewCore
         mContainerViewInternals = internalDispatcher;
     }
 
-    private void initPopupZoomer(Context context) {
+    @VisibleForTesting
+    void initPopupZoomer(Context context) {
         mPopupZoomer = new PopupZoomer(context);
         mPopupZoomer.setOnVisibilityChangedListener(new PopupZoomer.OnVisibilityChangedListener() {
             // mContainerView can change, but this OnVisibilityChangedListener can only be used
@@ -1183,7 +1292,6 @@ public class ContentViewCore
      * @return The ID of the renderer process that backs this tab or
      *         {@link #INVALID_RENDER_PROCESS_PID} if there is none.
      */
-    @VisibleForTesting
     public int getCurrentRenderProcessId() {
         return nativeGetCurrentRenderProcessId(mNativeContentViewCore);
     }
@@ -1731,6 +1839,11 @@ public class ContentViewCore
         return mDownloadDelegate;
     }
 
+    @VisibleForTesting
+    public SelectActionModeCallback.ActionHandler getSelectActionHandler() {
+        return mActionHandler;
+    }
+
     private void showSelectActionBar() {
         if (mActionMode != null) {
             mActionMode.invalidate();
@@ -1738,119 +1851,120 @@ public class ContentViewCore
         }
 
         // Start a new action mode with a SelectActionModeCallback.
-        SelectActionModeCallback.ActionHandler actionHandler =
-                new SelectActionModeCallback.ActionHandler() {
-            @Override
-            public void selectAll() {
-                mImeAdapter.selectAll();
-            }
-
-            @Override
-            public void cut() {
-                mImeAdapter.cut();
-            }
-
-            @Override
-            public void copy() {
-                mImeAdapter.copy();
-            }
-
-            @Override
-            public void paste() {
-                mImeAdapter.paste();
-            }
-
-            @Override
-            public void share() {
-                final String query = getSelectedText();
-                if (TextUtils.isEmpty(query)) return;
-
-                Intent send = new Intent(Intent.ACTION_SEND);
-                send.setType("text/plain");
-                send.putExtra(Intent.EXTRA_TEXT, query);
-                try {
-                    Intent i = Intent.createChooser(send, getContext().getString(
-                            R.string.actionbar_share));
-                    i.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                    getContext().startActivity(i);
-                } catch (android.content.ActivityNotFoundException ex) {
-                    // If no app handles it, do nothing.
-                }
-            }
-
-            @Override
-            public void search() {
-                final String query = getSelectedText();
-                if (TextUtils.isEmpty(query)) return;
-
-                // See if ContentViewClient wants to override
-                if (getContentViewClient().doesPerformWebSearch()) {
-                    getContentViewClient().performWebSearch(query);
-                    return;
+        if (mActionHandler == null) {
+            mActionHandler = new SelectActionModeCallback.ActionHandler() {
+                @Override
+                public void selectAll() {
+                    mImeAdapter.selectAll();
                 }
 
-                Intent i = new Intent(Intent.ACTION_WEB_SEARCH);
-                i.putExtra(SearchManager.EXTRA_NEW_SEARCH, true);
-                i.putExtra(SearchManager.QUERY, query);
-                i.putExtra(Browser.EXTRA_APPLICATION_ID, getContext().getPackageName());
-                if (!(getContext() instanceof Activity)) {
-                    i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                @Override
+                public void cut() {
+                    mImeAdapter.cut();
                 }
-                try {
-                    getContext().startActivity(i);
-                } catch (android.content.ActivityNotFoundException ex) {
-                    // If no app handles it, do nothing.
+
+                @Override
+                public void copy() {
+                    mImeAdapter.copy();
                 }
-            }
 
-            @Override
-            public boolean isSelectionPassword() {
-                return mImeAdapter.isSelectionPassword();
-            }
+                @Override
+                public void paste() {
+                    mImeAdapter.paste();
+                }
 
-            @Override
-            public boolean isSelectionEditable() {
-                return mFocusedNodeEditable;
-            }
+                @Override
+                public void share() {
+                    final String query = getSelectedText();
+                    if (TextUtils.isEmpty(query)) return;
 
-            @Override
-            public void onDestroyActionMode() {
-                mActionMode = null;
-                if (mUnselectAllOnActionModeDismiss) {
-                    hideTextHandles();
-                    if (isSelectionEditable()) {
-                        int selectionEnd = Selection.getSelectionEnd(mEditable);
-                        mInputConnection.setSelection(selectionEnd, selectionEnd);
-                    } else {
-                        mImeAdapter.unselect();
+                    Intent send = new Intent(Intent.ACTION_SEND);
+                    send.setType("text/plain");
+                    send.putExtra(Intent.EXTRA_TEXT, query);
+                    try {
+                        Intent i = Intent.createChooser(send, getContext().getString(
+                                R.string.actionbar_share));
+                        i.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                        getContext().startActivity(i);
+                    } catch (android.content.ActivityNotFoundException ex) {
+                        // If no app handles it, do nothing.
                     }
                 }
-                getContentViewClient().onContextualActionBarHidden();
-            }
 
-            @Override
-            public boolean isShareAvailable() {
-                Intent intent = new Intent(Intent.ACTION_SEND);
-                intent.setType("text/plain");
-                return getContext().getPackageManager().queryIntentActivities(intent,
-                        PackageManager.MATCH_DEFAULT_ONLY).size() > 0;
-            }
+                @Override
+                public void search() {
+                    final String query = getSelectedText();
+                    if (TextUtils.isEmpty(query)) return;
 
-            @Override
-            public boolean isWebSearchAvailable() {
-                if (getContentViewClient().doesPerformWebSearch()) return true;
-                Intent intent = new Intent(Intent.ACTION_WEB_SEARCH);
-                intent.putExtra(SearchManager.EXTRA_NEW_SEARCH, true);
-                return getContext().getPackageManager().queryIntentActivities(intent,
-                        PackageManager.MATCH_DEFAULT_ONLY).size() > 0;
-            }
-        };
+                    // See if ContentViewClient wants to override
+                    if (getContentViewClient().doesPerformWebSearch()) {
+                        getContentViewClient().performWebSearch(query);
+                        return;
+                    }
+
+                    Intent i = new Intent(Intent.ACTION_WEB_SEARCH);
+                    i.putExtra(SearchManager.EXTRA_NEW_SEARCH, true);
+                    i.putExtra(SearchManager.QUERY, query);
+                    i.putExtra(Browser.EXTRA_APPLICATION_ID, getContext().getPackageName());
+                    if (!(getContext() instanceof Activity)) {
+                        i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                    }
+                    try {
+                        getContext().startActivity(i);
+                    } catch (android.content.ActivityNotFoundException ex) {
+                        // If no app handles it, do nothing.
+                    }
+                }
+
+                @Override
+                public boolean isSelectionPassword() {
+                    return mImeAdapter.isSelectionPassword();
+                }
+
+                @Override
+                public boolean isSelectionEditable() {
+                    return mFocusedNodeEditable;
+                }
+
+                @Override
+                public void onDestroyActionMode() {
+                    mActionMode = null;
+                    if (mUnselectAllOnActionModeDismiss) {
+                        hideTextHandles();
+                        if (isSelectionEditable()) {
+                            int selectionEnd = Selection.getSelectionEnd(mEditable);
+                            mInputConnection.setSelection(selectionEnd, selectionEnd);
+                        } else {
+                            mImeAdapter.unselect();
+                        }
+                    }
+                    getContentViewClient().onContextualActionBarHidden();
+                }
+
+                @Override
+                public boolean isShareAvailable() {
+                    Intent intent = new Intent(Intent.ACTION_SEND);
+                    intent.setType("text/plain");
+                    return getContext().getPackageManager().queryIntentActivities(intent,
+                            PackageManager.MATCH_DEFAULT_ONLY).size() > 0;
+                }
+
+                @Override
+                public boolean isWebSearchAvailable() {
+                    if (getContentViewClient().doesPerformWebSearch()) return true;
+                    Intent intent = new Intent(Intent.ACTION_WEB_SEARCH);
+                    intent.putExtra(SearchManager.EXTRA_NEW_SEARCH, true);
+                    return getContext().getPackageManager().queryIntentActivities(intent,
+                            PackageManager.MATCH_DEFAULT_ONLY).size() > 0;
+                }
+            };
+        }
         mActionMode = null;
         // On ICS, startActionMode throws an NPE when getParent() is null.
         if (mContainerView.getParent() != null) {
             assert mWebContents != null;
             mActionMode = mContainerView.startActionMode(
-                    getContentViewClient().getSelectActionModeCallback(getContext(), actionHandler,
+                    getContentViewClient().getSelectActionModeCallback(getContext(), mActionHandler,
                             mWebContents.isIncognito()));
         }
         mUnselectAllOnActionModeDismiss = true;
@@ -2528,10 +2642,9 @@ public class ContentViewCore
             return mBrowserAccessibilityManager.getAccessibilityNodeProvider();
         }
 
-        if (mNativeAccessibilityAllowed &&
-                !mNativeAccessibilityEnabled &&
-                mNativeContentViewCore != 0 &&
-                Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN) {
+        if (mNativeAccessibilityAllowed && !mNativeAccessibilityEnabled
+                && mNativeContentViewCore != 0
+                && Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN) {
             mNativeAccessibilityEnabled = true;
             nativeSetAccessibilityEnabled(mNativeContentViewCore, true);
         }
@@ -2579,8 +2692,8 @@ public class ContentViewCore
         try {
             // On JellyBean and higher, native accessibility is the default so script
             // injection is only allowed if enabled via a flag.
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN &&
-                    !CommandLine.getInstance().hasSwitch(
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN
+                    && !CommandLine.getInstance().hasSwitch(
                             ContentSwitches.ENABLE_ACCESSIBILITY_SCRIPT_INJECTION)) {
                 return false;
             }

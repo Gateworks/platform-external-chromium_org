@@ -9,6 +9,7 @@
 #include "base/supports_user_data.h"
 #include "chrome/browser/platform_util.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/common/pref_names.h"
 #include "chrome/grit/chromium_strings.h"
 #include "chrome/grit/generated_resources.h"
 #include "components/constrained_window/constrained_window_views.h"
@@ -27,7 +28,7 @@ const void* kDialogStatusKey = &kDialogStatusKey;
 class DialogStatusData : public base::SupportsUserData::Data {
  public:
   DialogStatusData() : currently_shown_(false) {}
-  virtual ~DialogStatusData() {}
+  ~DialogStatusData() override {}
   bool currently_shown() const { return currently_shown_; }
   void set_currently_shown(bool shown) { currently_shown_ = shown; }
  private:

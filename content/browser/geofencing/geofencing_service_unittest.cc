@@ -31,6 +31,8 @@ class MockGeofencingRegistrationDelegate
  public:
   MOCK_METHOD2(RegistrationFinished,
                void(int64 geofencing_registration_id, GeofencingStatus status));
+  MOCK_METHOD1(RegionEntered, void(int64 geofencing_registration_id));
+  MOCK_METHOD1(RegionExited, void(int64 geofencing_registration_id));
 };
 
 class MockGeofencingProvider : public GeofencingProvider {
@@ -66,9 +68,9 @@ class GeofencingServiceTest : public testing::Test {
     test_region_.radius = 100;
   }
 
-  virtual void SetUp() { service_ = new GeofencingServiceImpl(); }
+  void SetUp() override { service_ = new GeofencingServiceImpl(); }
 
-  virtual void TearDown() { delete service_; }
+  void TearDown() override { delete service_; }
 
   void SetProviderForTests() {
     provider_ = new MockGeofencingProvider();

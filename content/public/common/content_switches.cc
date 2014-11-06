@@ -205,6 +205,10 @@ const char kDisableLogging[]                = "disable-logging";
 // Disables Media Source API (i.e., the MediaSource object).
 const char kDisableMediaSource[]            = "disable-media-source";
 
+// Disable rasterizer that writes directly to GPU memory.
+// Overrides the kEnableOneCopy flag.
+const char kDisableOneCopy[]                = "disable-one-copy";
+
 // Disable Pepper3D.
 const char kDisablePepper3d[]               = "disable-pepper-3d";
 
@@ -270,10 +274,6 @@ const char kDisableXSLT[]                   = "disable-xslt";
 
 // Disables Blink's XSSAuditor. The XSSAuditor mitigates reflective XSS.
 const char kDisableXSSAuditor[]             = "disable-xss-auditor";
-
-// Disable rasterizer that writes directly to GPU memory associated with tiles.
-// Overrides the kEnableZeroCopy flag.
-const char kDisableZeroCopy[]               = "disable-zero-copy";
 
 // Specifies if the |DOMAutomationController| needs to be bound in the
 // renderer. This binding happens on per-frame basis and hence can potentially
@@ -374,6 +374,9 @@ const char kEnableGpuRasterization[]        = "enable-gpu-rasterization";
 // tiles may be displayed during fast scrolls especially on slower devices.
 const char kEnableLowResTiling[] = "enable-low-res-tiling";
 
+// Dynamically apply color profiles to web content images.
+const char kEnableImageColorProfiles[]      = "enable-image-color-profiles";
+
 // Paint content on the compositor thread instead of the main thread.
 const char kEnableImplSidePainting[]        = "enable-impl-side-painting";
 
@@ -427,6 +430,9 @@ const char kEnableSeccompFilterSandbox[] =
 
 // Enables the Skia benchmarking extension
 const char kEnableSkiaBenchmarking[]        = "enable-skia-benchmarking";
+
+// Enables slimming paint: http://www.chromium.org/blink/slimming-paint
+const char kEnableSlimmingPaint[]           = "enable-slimming-paint";
 
 // On platforms that support it, enables smooth scroll animation.
 const char kEnableSmoothScrolling[]         = "enable-smooth-scrolling";
@@ -712,6 +718,9 @@ const char kRendererProcessLimit[]          = "renderer-process-limit";
 // Causes the renderer process to display a dialog on launch.
 const char kRendererStartupDialog[]         = "renderer-startup-dialog";
 
+// Handles frame scrolls via the root RenderLayer instead of the FrameView.
+const char kRootLayerScrolls[]              = "root-layer-scrolls";
+
 // Causes the process to run as a sandbox IPC subprocess.
 const char kSandboxIPCProcess[]             = "sandbox-ipc";
 
@@ -899,10 +908,6 @@ const char kDisableOverscrollEdgeEffect[]   = "disable-overscroll-edge-effect";
 
 // WebRTC is enabled by default on Android.
 const char kDisableWebRTC[]                 = "disable-webrtc";
-
-// Enable the PowerSaveBlocker in ContentVideoView. Android only.
-const char kEnableContentVideoViewPowerSaveBlocker[] =
-    "enable-content-video-view-power-save-blocker";
 
 // Enable the recognition part of the Web Speech API.
 const char kEnableSpeechRecognition[]       = "enable-speech-recognition";

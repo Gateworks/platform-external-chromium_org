@@ -116,7 +116,7 @@ bool IsHighContrastEnabled() {
 
 void SetSpokenFeedbackEnabled(bool enabled) {
   return AccessibilityManager::Get()->EnableSpokenFeedback(
-      enabled, ash::A11Y_NOTIFICATION_NONE);
+      enabled, ui::A11Y_NOTIFICATION_NONE);
 }
 
 bool IsSpokenFeedbackEnabled() {
@@ -666,7 +666,7 @@ IN_PROC_BROWSER_TEST_P(AccessibilityManagerUserTypeTest, BrailleWhenLoggedIn) {
   EXPECT_TRUE(IsBrailleImeActive());
 }
 
-IN_PROC_BROWSER_TEST_F(AccessibilityManagerTest, AcessibilityMenuVisibility) {
+IN_PROC_BROWSER_TEST_F(AccessibilityManagerTest, AccessibilityMenuVisibility) {
   // Log in.
   user_manager::UserManager::Get()->UserLoggedIn(
       kTestUserName, kTestUserName, true);

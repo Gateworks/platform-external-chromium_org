@@ -75,7 +75,7 @@ public class TabManager extends LinearLayout {
         mContentViewHolder = (ViewGroup) findViewById(R.id.content_container);
 
         mTabModelSelector = new ChromeShellTabModelSelector(
-                window, videoViewClient, mContentViewHolder);
+                window, videoViewClient, mContentViewHolder, this);
         mTabModelSelector.getModel(false).addObserver(mTabModelObserver);
 
         mToolbar = (ChromeShellToolbar) findViewById(R.id.toolbar);
@@ -188,6 +188,14 @@ public class TabManager extends LinearLayout {
      */
     public void toggleTabSwitcher() {
         mTabModelSelector.toggleTabSwitcher();
+    }
+
+    public boolean isTabSwitcherVisible() {
+        return mTabModelSelector.isTabSwitcherVisible();
+    }
+
+    public void hideTabSwitcher() {
+        mTabModelSelector.hideTabSwitcher();
     }
 
     /**

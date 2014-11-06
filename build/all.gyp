@@ -64,8 +64,6 @@
         ['OS=="android"', {
           'dependencies': [
             '../content/content_shell_and_tests.gyp:content_shell_apk',
-            '../mojo/mojo.gyp:mojo_shell_apk',
-            '../mojo/mojo_base.gyp:mojo_test_apk',
             '<@(android_app_targets)',
             'android_builder_tests',
             '../android_webview/android_webview.gyp:android_webview_apk',
@@ -158,7 +156,7 @@
             }],
           ],
         }],
-        ['OS=="mac" or OS=="ios" or OS=="win"', {
+        ['use_openssl==0 and (OS=="mac" or OS=="ios" or OS=="win")', {
           'dependencies': [
             '../third_party/nss/nss.gyp:*',
            ],
@@ -318,7 +316,6 @@
             '../chrome/chrome.gyp:browser_tests',
             '../chrome/chrome.gyp:chromedriver_tests',
             '../chrome/chrome.gyp:chromedriver_unittests',
-            '../chrome/chrome.gyp:interactive_ui_tests',
             '../cloud_print/cloud_print.gyp:cloud_print_unittests',
             '../content/content_shell_and_tests.gyp:content_browsertests',
             '../content/content_shell_and_tests.gyp:content_shell',
@@ -346,7 +343,8 @@
           ],
           'conditions': [
             ['use_athena!=1', {
-              'dependencies' : [ 
+              'dependencies' : [
+                '../chrome/chrome.gyp:interactive_ui_tests',
                 '../chrome/chrome.gyp:sync_integration_tests',
                 '../chrome/chrome.gyp:unit_tests',
                ],
@@ -355,6 +353,7 @@
         }],
         ['OS=="win"', {
           'dependencies': [
+            '../chrome/chrome.gyp:app_installer',
             '../chrome/chrome.gyp:crash_service',
             '../chrome/chrome.gyp:installer_util_unittests',
             # ../chrome/test/mini_installer requires mini_installer.
@@ -424,7 +423,7 @@
             '../google_apis/gcm/gcm.gyp:gcm_unit_tests',
           ],
         }],
-        ['enable_printing!=0', {
+        ['enable_basic_printing==1 or enable_print_preview==1', {
           'dependencies': [
             '../printing/printing.gyp:printing_unittests',
           ],
@@ -778,7 +777,7 @@
             '../android_webview/android_webview.gyp:android_webview_unittests',
             '../base/android/jni_generator/jni_generator.gyp:jni_generator_tests',
             '../base/base.gyp:base_unittests',
-            '../breakpad/breakpad.gyp:breakpad_unittests_stripped',
+            '../breakpad/breakpad.gyp:breakpad_unittests_deps',
             # Also compile the tools needed to deal with minidumps, they are
             # needed to run minidump tests upstream.
             '../breakpad/breakpad.gyp:dump_syms#host',
@@ -803,7 +802,7 @@
             '../media/media.gyp:media_perftests_apk',
             '../media/media.gyp:media_unittests',
             '../net/net.gyp:net_unittests',
-            '../sandbox/sandbox.gyp:sandbox_linux_unittests_stripped',
+            '../sandbox/sandbox.gyp:sandbox_linux_unittests_deps',
             '../sql/sql.gyp:sql_unittests',
             '../sync/sync.gyp:sync_unit_tests',
             '../testing/android/junit/junit_test.gyp:junit_unit_tests',
@@ -1180,6 +1179,7 @@
               'type': 'none',
               'dependencies': [
                 '../base/base.gyp:base_unittests',
+                '../chrome/chrome.gyp:app_installer',
                 '../chrome/chrome.gyp:browser_tests',
                 '../chrome/chrome.gyp:sync_integration_tests',
                 '../chrome/chrome.gyp:crash_service',

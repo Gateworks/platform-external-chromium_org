@@ -40,9 +40,6 @@
         # Note: sources list duplicated in GN build.
         'android/scroller.cc',
         'android/scroller.h',
-        'device_data_manager.cc',
-        'device_data_manager.h',
-        'device_hotplug_event_observer.h',
         'event_constants.h',
         'event_switches.cc',
         'event_switches.h',
@@ -52,12 +49,6 @@
         'gesture_event_details.h',
         'gestures/fling_curve.cc',
         'gestures/fling_curve.h',
-        'gestures/gesture_configuration.cc',
-        'gestures/gesture_configuration.h',
-        'input_device.cc',
-        'input_device.h',
-        'keyboard_device.cc',
-        'keyboard_device.h',
         'keycodes/keyboard_code_conversion.cc',
         'keycodes/keyboard_code_conversion.h',
         'keycodes/keyboard_code_conversion_android.cc',
@@ -71,18 +62,8 @@
         'keycodes/keyboard_codes.h',
         'latency_info.cc',
         'latency_info.h',
-        'touchscreen_device.cc',
-        'touchscreen_device.h',
-        'x/device_data_manager_x11.cc',
-        'x/device_data_manager_x11.h',
-        'x/device_list_cache_x.cc',
-        'x/device_list_cache_x.h',
-        'x/hotplug_event_handler_x11.cc',
-        'x/hotplug_event_handler_x11.h',
         'x/keysym_to_unicode.cc',
         'x/keysym_to_unicode.h',
-        'x/touch_factory_x11.cc',
-        'x/touch_factory_x11.h',
       ],
       'export_dependent_settings': [
         '../../ui/gfx/gfx.gyp:gfx',
@@ -157,6 +138,7 @@
       'conditions': [
         ['use_x11==1', {
           'dependencies': [
+            'devices/events_devices.gyp:events_devices',
             '../../build/linux/system.gyp:x11',
           ],
         }],
@@ -208,9 +190,10 @@
         'gesture_detection/bitset_32.h',
         'gesture_detection/filtered_gesture_provider.cc',
         'gesture_detection/filtered_gesture_provider.h',
-        'gesture_detection/gesture_config_helper.h',
-        'gesture_detection/gesture_config_helper_android.cc',
-        'gesture_detection/gesture_config_helper_aura.cc',
+        'gesture_detection/gesture_configuration.cc',
+        'gesture_detection/gesture_configuration.h',
+        'gesture_detection/gesture_configuration_android.cc',
+        'gesture_detection/gesture_configuration_aura.cc',
         'gesture_detection/gesture_detection_export.h',
         'gesture_detection/gesture_detector.cc',
         'gesture_detection/gesture_detector.h',
@@ -222,6 +205,8 @@
         'gesture_detection/gesture_listeners.h',
         'gesture_detection/gesture_provider.cc',
         'gesture_detection/gesture_provider.h',
+        "gesture_detection/gesture_provider_config_helper.cc",
+        "gesture_detection/gesture_provider_config_helper.h",
         'gesture_detection/gesture_touch_uma_histogram.cc',
         'gesture_detection/gesture_touch_uma_histogram.h',
         'gesture_detection/motion_event.cc',
@@ -246,7 +231,7 @@
       'conditions': [
         ['use_aura!=1 and OS!="android"', {
           'sources': [
-            'gesture_detection/gesture_config_helper.cc',
+            'gesture_detection/gesture_configuration_default.cc',
           ],
         }],
       ],
@@ -290,6 +275,11 @@
           # The cocoa files don't apply to iOS.
           'sources/': [['exclude', 'cocoa']],
         }],
+        ['use_x11==1', {
+          'dependencies': [
+            'devices/events_devices.gyp:events_devices',
+          ],
+        }],
       ],
     },
     {
@@ -305,6 +295,7 @@
         '../gfx/gfx.gyp:gfx',
         '../gfx/gfx.gyp:gfx_geometry',
         '../gfx/gfx.gyp:gfx_test_support',
+        'devices/events_devices.gyp:events_devices',
         'dom4_keycode_converter',
         'events',
         'events_base',
@@ -316,6 +307,7 @@
         # Note: sources list duplicated in GN build.
         'android/scroller_unittest.cc',
         'cocoa/events_mac_unittest.mm',
+        'devices/x11/device_data_manager_x11_unittest.cc',
         'event_dispatcher_unittest.cc',
         'event_processor_unittest.cc',
         'event_rewriter_unittest.cc',
@@ -325,6 +317,7 @@
         'gesture_detection/gesture_provider_unittest.cc',
         'gesture_detection/motion_event_buffer_unittest.cc',
         'gesture_detection/motion_event_generic_unittest.cc',
+        'gesture_detection/snap_scroll_controller_unittest.cc',
         'gesture_detection/touch_disposition_gesture_filter_unittest.cc',
         'gesture_detection/velocity_tracker_unittest.cc',
         'gestures/fling_curve_unittest.cc',
@@ -333,7 +326,6 @@
         'keycodes/dom4/keycode_converter_unittest.cc',
         'latency_info_unittest.cc',
         'platform/platform_event_source_unittest.cc',
-        'x/device_data_manager_x11_unittest.cc',
         'x/events_x_unittest.cc',
       ],
       'conditions': [
@@ -345,7 +337,7 @@
         }],
         ['use_ozone==1', {
           'sources': [
-            'ozone/evdev/key_event_converter_evdev_unittest.cc',
+            'ozone/evdev/event_converter_evdev_impl_unittest.cc',
             'ozone/evdev/touch_event_converter_evdev_unittest.cc',
           ],
           'dependencies': [

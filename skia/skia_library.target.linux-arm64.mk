@@ -173,6 +173,7 @@ LOCAL_SRC_FILES := \
 	third_party/skia/src/core/SkStroke.cpp \
 	third_party/skia/src/core/SkStrokeRec.cpp \
 	third_party/skia/src/core/SkStrokerPriv.cpp \
+	third_party/skia/src/core/SkTaskGroup.cpp \
 	third_party/skia/src/core/SkTextBlob.cpp \
 	third_party/skia/src/core/SkTileGrid.cpp \
 	third_party/skia/src/core/SkTLS.cpp \
@@ -294,6 +295,7 @@ LOCAL_SRC_FILES := \
 	third_party/skia/src/pdf/SkPDFStream.cpp \
 	third_party/skia/src/pdf/SkPDFTypes.cpp \
 	third_party/skia/src/pdf/SkPDFUtils.cpp \
+	third_party/skia/src/utils/SkCondVar.cpp \
 	third_party/skia/src/utils/SkBase64.cpp \
 	third_party/skia/src/utils/SkBitSet.cpp \
 	third_party/skia/src/utils/SkCanvasStack.cpp \
@@ -310,10 +312,13 @@ LOCAL_SRC_FILES := \
 	third_party/skia/src/utils/SkPatchUtils.cpp \
 	third_party/skia/src/utils/SkProxyCanvas.cpp \
 	third_party/skia/src/utils/SkRTConf.cpp \
+	third_party/skia/src/utils/SkTextBox.cpp \
 	third_party/skia/src/utils/SkTextureCompressor.cpp \
 	third_party/skia/src/utils/SkTextureCompressor_ASTC.cpp \
 	third_party/skia/src/utils/SkTextureCompressor_R11EAC.cpp \
 	third_party/skia/src/utils/SkTextureCompressor_LATC.cpp \
+	third_party/skia/src/utils/SkThreadUtils_pthread.cpp \
+	third_party/skia/src/utils/SkThreadUtils_pthread_other.cpp \
 	third_party/skia/src/fonts/SkTestScalerContext.cpp \
 	third_party/skia/src/gpu/gl/GrGLCreateNullInterface.cpp \
 	third_party/skia/src/gpu/gl/SkNullGLContext.cpp \
@@ -481,11 +486,13 @@ MY_DEFS_Debug := \
 	'-DUSE_PROPRIETARY_CODECS' \
 	'-DENABLE_BROWSER_CDMS' \
 	'-DENABLE_CONFIGURATION_POLICY' \
+	'-DENABLE_NOTIFICATIONS' \
 	'-DDISCARDABLE_MEMORY_ALWAYS_SUPPORTED_NATIVELY' \
 	'-DSYSTEM_NATIVELY_SIGNALS_MEMORY_PRESSURE' \
-	'-DENABLE_EGLIMAGE=1' \
+	'-DDONT_EMBED_BUILD_METADATA' \
 	'-DCLD_VERSION=1' \
 	'-DENABLE_PRINTING=1' \
+	'-DENABLE_BASIC_PRINTING=1' \
 	'-DENABLE_MANAGED_USERS=1' \
 	'-DVIDEO_HOLE=1' \
 	'-DENABLE_LOAD_COMPLETION_HACKS=1' \
@@ -498,7 +505,7 @@ MY_DEFS_Debug := \
 	'-DSK_WILL_NEVER_DRAW_PERSPECTIVE_TEXT' \
 	'-DSK_FM_NEW_MATCH_FAMILY_STYLE_CHARACTER=1' \
 	'-DSK_SUPPORT_LEGACY_TEXTRENDERMODE' \
-	'-DSK_LEGACY_NO_DISTANCE_FIELD_PATHS' \
+	'-DSK_IGNORE_GPU_LAYER_HOISTING' \
 	'-DSK_BUILD_FOR_ANDROID' \
 	'-DSK_ALLOW_STATIC_GLOBAL_INITIALIZERS=0' \
 	'-DSK_DISABLE_OFFSETIMAGEFILTER_OPTIMIZATION' \
@@ -512,6 +519,7 @@ MY_DEFS_Debug := \
 	'-DSK_GAMMA_CONTRAST=0.0' \
 	'-DSK_USE_POSIX_THREADS' \
 	'-DXML_STATIC' \
+	'-DUSE_LIBPCI=1' \
 	'-DUSE_OPENSSL=1' \
 	'-DUSE_OPENSSL_CERTS=1' \
 	'-DANDROID' \
@@ -612,11 +620,13 @@ MY_DEFS_Release := \
 	'-DUSE_PROPRIETARY_CODECS' \
 	'-DENABLE_BROWSER_CDMS' \
 	'-DENABLE_CONFIGURATION_POLICY' \
+	'-DENABLE_NOTIFICATIONS' \
 	'-DDISCARDABLE_MEMORY_ALWAYS_SUPPORTED_NATIVELY' \
 	'-DSYSTEM_NATIVELY_SIGNALS_MEMORY_PRESSURE' \
-	'-DENABLE_EGLIMAGE=1' \
+	'-DDONT_EMBED_BUILD_METADATA' \
 	'-DCLD_VERSION=1' \
 	'-DENABLE_PRINTING=1' \
+	'-DENABLE_BASIC_PRINTING=1' \
 	'-DENABLE_MANAGED_USERS=1' \
 	'-DVIDEO_HOLE=1' \
 	'-DENABLE_LOAD_COMPLETION_HACKS=1' \
@@ -629,7 +639,7 @@ MY_DEFS_Release := \
 	'-DSK_WILL_NEVER_DRAW_PERSPECTIVE_TEXT' \
 	'-DSK_FM_NEW_MATCH_FAMILY_STYLE_CHARACTER=1' \
 	'-DSK_SUPPORT_LEGACY_TEXTRENDERMODE' \
-	'-DSK_LEGACY_NO_DISTANCE_FIELD_PATHS' \
+	'-DSK_IGNORE_GPU_LAYER_HOISTING' \
 	'-DSK_BUILD_FOR_ANDROID' \
 	'-DSK_ALLOW_STATIC_GLOBAL_INITIALIZERS=0' \
 	'-DSK_DISABLE_OFFSETIMAGEFILTER_OPTIMIZATION' \
@@ -643,6 +653,7 @@ MY_DEFS_Release := \
 	'-DSK_GAMMA_CONTRAST=0.0' \
 	'-DSK_USE_POSIX_THREADS' \
 	'-DXML_STATIC' \
+	'-DUSE_LIBPCI=1' \
 	'-DUSE_OPENSSL=1' \
 	'-DUSE_OPENSSL_CERTS=1' \
 	'-DANDROID' \

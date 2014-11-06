@@ -45,7 +45,7 @@ class FormStructureBrowserTest : public InProcessBrowserTest,
                                  public DataDrivenTest {
  protected:
   FormStructureBrowserTest();
-  virtual ~FormStructureBrowserTest();
+  ~FormStructureBrowserTest() override;
 
   // DataDrivenTest:
   void GenerateResults(const std::string& input, std::string* output) override;
@@ -276,6 +276,24 @@ IN_PROC_BROWSER_TEST_F(FormStructureBrowserTest,
     MAYBE_DataDrivenHeuristics(21)) {
   const base::FilePath::CharType kFileNamePattern[] =
       FILE_PATH_LITERAL("21_*.html");
+  RunDataDrivenTest(GetInputDirectory(kTestName),
+                    GetOutputDirectory(kTestName),
+                    kFileNamePattern);
+}
+
+IN_PROC_BROWSER_TEST_F(FormStructureBrowserTest,
+    MAYBE_DataDrivenHeuristics(22)) {
+  const base::FilePath::CharType kFileNamePattern[] =
+      FILE_PATH_LITERAL("22_*.html");
+  RunDataDrivenTest(GetInputDirectory(kTestName),
+                    GetOutputDirectory(kTestName),
+                    kFileNamePattern);
+}
+
+IN_PROC_BROWSER_TEST_F(FormStructureBrowserTest,
+    MAYBE_DataDrivenHeuristics(23)) {
+  const base::FilePath::CharType kFileNamePattern[] =
+      FILE_PATH_LITERAL("23_*.html");
   RunDataDrivenTest(GetInputDirectory(kTestName),
                     GetOutputDirectory(kTestName),
                     kFileNamePattern);

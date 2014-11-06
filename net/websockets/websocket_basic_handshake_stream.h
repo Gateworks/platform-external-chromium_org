@@ -63,6 +63,9 @@ class NET_EXPORT_PRIVATE WebSocketBasicHandshakeStream
   bool IsSpdyHttpStream() const override;
   void Drain(HttpNetworkSession* session) override;
   void SetPriority(RequestPriority priority) override;
+  UploadProgress GetUploadProgress() const override;
+  HttpStream* RenewStreamForAuth() override;
+
 
   // This is called from the top level once correct handshake response headers
   // have been received. It creates an appropriate subclass of WebSocketStream
@@ -84,7 +87,7 @@ class NET_EXPORT_PRIVATE WebSocketBasicHandshakeStream
   void OnFinishOpeningHandshake();
 
   // Validates the response and sends the finished handshake event.
-  int ValidateResponse(int rv);
+  int ValidateResponse(int rv, bool* is_redirect);
 
   // Check that the headers are well-formed for a 101 response, and returns
   // OK if they are, otherwise returns ERR_INVALID_RESPONSE.

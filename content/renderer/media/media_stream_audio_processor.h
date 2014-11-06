@@ -35,6 +35,7 @@ class TypingDetection;
 
 namespace content {
 
+class EchoInformation;
 class MediaStreamAudioBus;
 class MediaStreamAudioFifo;
 class RTCMediaConstraints;
@@ -112,7 +113,6 @@ class CONTENT_EXPORT MediaStreamAudioProcessor :
   void OnIpcClosing() override;
 
  protected:
-  friend class base::RefCountedThreadSafe<MediaStreamAudioProcessor>;
   ~MediaStreamAudioProcessor() override;
 
  private:
@@ -202,6 +202,12 @@ class CONTENT_EXPORT MediaStreamAudioProcessor :
 
   // Flag to avoid executing Stop() more than once.
   bool stopped_;
+
+  // Object for logging echo information when the AEC is enabled. Accessible by
+  // the libjingle thread through GetStats().
+  scoped_ptr<EchoInformation> echo_information_;
+
+  DISALLOW_COPY_AND_ASSIGN(MediaStreamAudioProcessor);
 };
 
 }  // namespace content

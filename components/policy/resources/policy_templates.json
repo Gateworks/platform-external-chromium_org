@@ -1050,12 +1050,15 @@
         'dynamic_refresh': True,
         'per_profile': True,
       },
+      'deprecated': True,
       'example_value': True,
       'id': 190,
       'caption': '''Allows sign in to <ph name="PRODUCT_NAME">$1<ex>Google Chrome</ex></ph>''',
-      'desc': '''Allows the user to sign in to <ph name="PRODUCT_NAME">$1<ex>Google Chrome</ex></ph> and prevents users from changing this setting.
+      'desc': '''This policy is deprecated, consider using SyncDisabled instead.
 
-      If you set this policy, you can configure if a user is allowed to sign in to <ph name="PRODUCT_NAME">$1<ex>Google Chrome</ex></ph> or not.''',
+      Allows the user to sign in to <ph name="PRODUCT_NAME">$1<ex>Google Chrome</ex></ph>.
+
+      If you set this policy, you can configure whether a user is allowed to sign in to <ph name="PRODUCT_NAME">$1<ex>Google Chrome</ex></ph>. Setting this policy to 'False' will prevent apps and extensions that use the chrome.identity API from functioning, so you may want to use SyncDisabled instead.''',
     },
     {
       'name': 'EnableWebBasedSignin',
@@ -1747,8 +1750,19 @@
                     'enum': ['blocked', 'allowed', 'force_installed', 'normal_installed']
                   },
                   'update_url': { 'type': 'string' },
-                }
-              }
+                  'blocked_permissions': {
+                    'type': 'array',
+                    'items': {
+                      'type': 'string',
+                      'pattern': '^[a-z][a-zA-Z.]*$',
+                    },
+                    'id': 'ListOfPermissions',
+                  },
+                  'allowed_permissions': {
+                    '$ref': 'ListOfPermissions',
+                  },
+                },
+              },
             },
             'properties': {
               '*': {
@@ -1758,15 +1772,18 @@
                     'type': 'string',
                     'enum': ['blocked', 'allowed']
                   },
+                  'blocked_permissions': {
+                    '$ref': 'ListOfPermissions',
+                  },
                   'install_sources': {
                     '$ref': 'ExtensionInstallSources',
                   },
                   'allowed_types': {
                     '$ref': 'ExtensionAllowedTypes',
                   },
-                }
-              }
-            }
+                },
+              },
+            },
           },
           'future': True,
           'supported_on': ['chrome.*:40-', 'chrome_os:40-'],
@@ -1777,13 +1794,16 @@
           'example_value': {
             'abcdefghijklmnopabcdefghijklmnop' : {
               'installation_mode': 'allowed',
+              'blocked_permissions': ['history'],
             },
             'bcdefghijklmnopabcdefghijklmnopa' : {
               'installation_mode': 'force_installed',
               'update_url': 'http://example.com/update_url',
+              'allowed_permissions': ['downloads'],
             },
             '*': {
               'installation_mode': 'blocked',
+              'blocked_permissions': ['downloads', 'bookmarks'],
               'install_sources': ['http://company-intranet/chromeapps'],
               'allowed_types': ['hosted_app'],
             },
@@ -1805,6 +1825,10 @@
           The default "installation_mode" can be configured for the "*" extension. Only the "allowed" and "blocked" values can be used in this case.
 
           If the mode is set to "force_installed" or "normal_installed" then an "update_url" must be configured too. The update URL should point to an Update Manifest XML document as described at <ph name="LINK_TO_EXTENSION_DOC1">https://developer.chrome.com/extensions/autoupdate</ph>. Note that the update URL set in this policy is only used for the initial installation; subsequent updates of the extension will use the update URL indicated in the extension's manifest.
+
+          "blocked_permissions": maps to a list of strings indicating the blocked API permissions for the extension. The permissions names are same as the permission strings declared in manifest of extension as described at <ph name="LINK_TO_EXTENSION_DOC3">https://developer.chrome.com/extensions/declare_permissions</ph>. This setting also can be configured for "*" extension. If the extension requires a permission which is on the blocklist, it will not be allowed to load. If it contains a blocked permission as optional requirement, it will be handled in the normal way, but requesting conflicting permissions will be declined automatically at runtime.
+
+          "allowed_permissions": similar to "blocked_permissions", but instead explicitly allow some permissions which might be blocked by global blocked permission list, thus can not be configured for "*" extension. Note that this setting doesn't give granted permissions to extensions automatically.
 
           The following settings can be used only for the default "*" configuration:
 
@@ -6541,7 +6565,7 @@
 
       The policy is a list of bookmarks, and each bookmark is a dictionary containing the bookmark "name" and the target "url". A bookmark can also be configured as a folder. In that case, define the folder "name" but don't define an "url"; instead, define the folder contents as another list of bookmarks under the "children" key. Chrome will amend incomplete URLs as if they were submitted via the Omnibox. For example, "google.com" becomes "http://google.com/".
 
-      These bookmarks are placed in a Managed bookmarks folder that can't be modified by the user. Managed bookmarks are not synced to the user account and can't be modified by extensions.''',
+      These bookmarks are placed in a Managed bookmarks folder that can't be modified by the user, but the user can choose to hide it from the bookmark bar. Managed bookmarks are not synced to the user account and can't be modified by extensions.''',
     },
     {
       'name': 'DataCompressionProxyEnabled',

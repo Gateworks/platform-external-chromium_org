@@ -191,6 +191,7 @@ class AwContents : public FindHelper::Listener,
   // BrowserViewRendererClient implementation.
   virtual bool RequestDrawGL(bool wait_for_completion) override;
   virtual void PostInvalidate() override;
+  virtual void InvalidateOnFunctorDestroy() override;
   virtual void UpdateParentDrawConstraints() override;
   virtual void DidSkipCommitFrame() override;
   virtual void OnNewPicture() override;
@@ -232,9 +233,9 @@ class AwContents : public FindHelper::Listener,
   void HideGeolocationPrompt(const GURL& origin);
 
   JavaObjectWeakGlobalRef java_ref_;
-  scoped_ptr<content::WebContents> web_contents_;
   scoped_ptr<AwWebContentsDelegate> web_contents_delegate_;
   scoped_ptr<AwContentsClientBridge> contents_client_bridge_;
+  scoped_ptr<content::WebContents> web_contents_;
   scoped_ptr<AwRenderViewHostExt> render_view_host_ext_;
   scoped_ptr<FindHelper> find_helper_;
   scoped_ptr<IconHelper> icon_helper_;
@@ -242,10 +243,8 @@ class AwContents : public FindHelper::Listener,
   BrowserViewRenderer browser_view_renderer_;
   // SharedRendererState is owned by BrowserViewRenderer.
   // So keep a raw pointer here.
+  // TODO(hush): remove this pointer from AwContents.
   SharedRendererState* shared_renderer_state_;
-  // TODO(hush): hardware renderer will be owned by SharedRendererState,
-  // after DrawGL is moved to SharedRendererState.
-  scoped_ptr<HardwareRenderer> hardware_renderer_;
   scoped_ptr<AwPdfExporter> pdf_exporter_;
   scoped_ptr<PermissionRequestHandler> permission_request_handler_;
 

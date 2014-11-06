@@ -4,6 +4,7 @@
 
 #include "base/metrics/field_trial.h"
 
+#include "base/build_time.h"
 #include "base/message_loop/message_loop.h"
 #include "base/rand_util.h"
 #include "base/run_loop.h"
@@ -30,10 +31,10 @@ scoped_refptr<base::FieldTrial> CreateFieldTrial(
       base::FieldTrial::SESSION_RANDOMIZED, default_group_number);
 }
 
-int GetLastYear() {
-  Time last_year_time = Time::NowFromSystemTime() - TimeDelta::FromDays(365);
+int OneYearBeforeBuildTime() {
+  Time one_year_before_build_time = GetBuildTime() - TimeDelta::FromDays(365);
   Time::Exploded exploded;
-  last_year_time.LocalExplode(&exploded);
+  one_year_before_build_time.LocalExplode(&exploded);
   return exploded.year;
 }
 
@@ -249,7 +250,7 @@ TEST_F(FieldTrialTest, DisableProbability) {
   // Create a field trail that has expired.
   int default_group_number = -1;
   FieldTrial* trial = FieldTrialList::FactoryGetFieldTrial(
-      name, 1000000000, default_group_name, GetLastYear(), 1, 1,
+      name, 1000000000, default_group_name, OneYearBeforeBuildTime(), 1, 1,
       FieldTrial::SESSION_RANDOMIZED,
       &default_group_number);
   trial->AppendGroup(loser, 999999999);  // 99.9999999% chance of being chosen.
@@ -427,6 +428,12 @@ TEST_F(FieldTrialTest, BogusRestore) {
   EXPECT_FALSE(FieldTrialList::CreateTrialsFromString(
       "noname, only group/", FieldTrialList::DONT_ACTIVATE_TRIALS,
       std::set<std::string>()));
+  EXPECT_FALSE(FieldTrialList::CreateTrialsFromString(
+      "/emptyname", FieldTrialList::DONT_ACTIVATE_TRIALS,
+      std::set<std::string>()));
+  EXPECT_FALSE(FieldTrialList::CreateTrialsFromString(
+      "*/emptyname", FieldTrialList::DONT_ACTIVATE_TRIALS,
+      std::set<std::string>()));
 }
 
 TEST_F(FieldTrialTest, DuplicateRestore) {
@@ -485,6 +492,23 @@ TEST_F(FieldTrialTest, CreateTrialsFromStringNotActive) {
   ASSERT_EQ(2U, active_groups.size());
   EXPECT_EQ("Abc", active_groups[0].trial_name);
   EXPECT_EQ("def", active_groups[0].group_name);
+  EXPECT_EQ("Xyz", active_groups[1].trial_name);
+  EXPECT_EQ("zyx", active_groups[1].group_name);
+}
+
+TEST_F(FieldTrialTest, CreateTrialsFromStringForceActivation) {
+  ASSERT_FALSE(FieldTrialList::TrialExists("Abc"));
+  ASSERT_FALSE(FieldTrialList::TrialExists("def"));
+  ASSERT_FALSE(FieldTrialList::TrialExists("Xyz"));
+  ASSERT_TRUE(FieldTrialList::CreateTrialsFromString(
+      "*Abc/cba/def/fed/*Xyz/zyx/", FieldTrialList::DONT_ACTIVATE_TRIALS,
+      std::set<std::string>()));
+
+  FieldTrial::ActiveGroups active_groups;
+  FieldTrialList::GetActiveFieldTrialGroups(&active_groups);
+  ASSERT_EQ(2U, active_groups.size());
+  EXPECT_EQ("Abc", active_groups[0].trial_name);
+  EXPECT_EQ("cba", active_groups[0].group_name);
   EXPECT_EQ("Xyz", active_groups[1].trial_name);
   EXPECT_EQ("zyx", active_groups[1].group_name);
 }

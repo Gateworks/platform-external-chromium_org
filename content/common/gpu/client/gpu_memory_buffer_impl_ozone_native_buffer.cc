@@ -4,7 +4,6 @@
 
 #include "content/common/gpu/client/gpu_memory_buffer_impl_ozone_native_buffer.h"
 
-#include "base/atomic_sequence_num.h"
 #include "base/bind.h"
 #include "content/common/gpu/client/gpu_memory_buffer_factory_host.h"
 #include "ui/gl/gl_bindings.h"
@@ -12,26 +11,36 @@
 namespace content {
 namespace {
 
-base::StaticAtomicSequenceNumber g_next_buffer_id;
-
-void Noop() {
+void GpuMemoryBufferDeleted(gfx::GpuMemoryBufferId id,
+                            int client_id,
+                            uint32 sync_point) {
+  GpuMemoryBufferFactoryHost::GetInstance()->DestroyGpuMemoryBuffer(
+      gfx::OZONE_NATIVE_BUFFER, id, client_id, sync_point);
 }
 
 void GpuMemoryBufferCreated(
     const gfx::Size& size,
     gfx::GpuMemoryBuffer::Format format,
+    int client_id,
     const GpuMemoryBufferImpl::CreationCallback& callback,
     const gfx::GpuMemoryBufferHandle& handle) {
-  DCHECK_EQ(gfx::OZONE_NATIVE_BUFFER, handle.type);
+  if (handle.is_null()) {
+    callback.Run(scoped_ptr<GpuMemoryBufferImpl>());
+    return;
+  }
 
+  DCHECK_EQ(gfx::OZONE_NATIVE_BUFFER, handle.type);
   callback.Run(GpuMemoryBufferImplOzoneNativeBuffer::CreateFromHandle(
-      handle, size, format, base::Bind(&Noop)));
+      handle,
+      size,
+      format,
+      base::Bind(&GpuMemoryBufferDeleted, handle.id, client_id)));
 }
 
 void GpuMemoryBufferCreatedForChildProcess(
     const GpuMemoryBufferImpl::AllocationCallback& callback,
     const gfx::GpuMemoryBufferHandle& handle) {
-  DCHECK_EQ(gfx::OZONE_NATIVE_BUFFER, handle.type);
+  DCHECK_IMPLIES(!handle.is_null(), gfx::OZONE_NATIVE_BUFFER == handle.type);
 
   callback.Run(handle);
 }
@@ -39,11 +48,11 @@ void GpuMemoryBufferCreatedForChildProcess(
 }  // namespace
 
 GpuMemoryBufferImplOzoneNativeBuffer::GpuMemoryBufferImplOzoneNativeBuffer(
+    gfx::GpuMemoryBufferId id,
     const gfx::Size& size,
     Format format,
-    const DestructionCallback& callback,
-    const gfx::GpuMemoryBufferId& id)
-    : GpuMemoryBufferImpl(size, format, callback), id_(id) {
+    const DestructionCallback& callback)
+    : GpuMemoryBufferImpl(id, size, format, callback) {
 }
 
 GpuMemoryBufferImplOzoneNativeBuffer::~GpuMemoryBufferImplOzoneNativeBuffer() {
@@ -51,37 +60,35 @@ GpuMemoryBufferImplOzoneNativeBuffer::~GpuMemoryBufferImplOzoneNativeBuffer() {
 
 // static
 void GpuMemoryBufferImplOzoneNativeBuffer::Create(
+    gfx::GpuMemoryBufferId id,
     const gfx::Size& size,
     Format format,
     int client_id,
     const CreationCallback& callback) {
-  gfx::GpuMemoryBufferHandle handle;
-  handle.global_id.primary_id = g_next_buffer_id.GetNext();
-  handle.global_id.secondary_id = client_id;
-  handle.type = gfx::OZONE_NATIVE_BUFFER;
   GpuMemoryBufferFactoryHost::GetInstance()->CreateGpuMemoryBuffer(
-      handle,
+      gfx::OZONE_NATIVE_BUFFER,
+      id,
       size,
       format,
       SCANOUT,
-      base::Bind(&GpuMemoryBufferCreated, size, format, callback));
+      client_id,
+      base::Bind(&GpuMemoryBufferCreated, size, format, client_id, callback));
 }
 
 // static
 void GpuMemoryBufferImplOzoneNativeBuffer::AllocateForChildProcess(
+    gfx::GpuMemoryBufferId id,
     const gfx::Size& size,
     Format format,
     int child_client_id,
     const AllocationCallback& callback) {
-  gfx::GpuMemoryBufferHandle handle;
-  handle.global_id.primary_id = g_next_buffer_id.GetNext();
-  handle.global_id.secondary_id = child_client_id;
-  handle.type = gfx::OZONE_NATIVE_BUFFER;
   GpuMemoryBufferFactoryHost::GetInstance()->CreateGpuMemoryBuffer(
-      handle,
+      gfx::OZONE_NATIVE_BUFFER,
+      id,
       size,
       format,
       SCANOUT,
+      child_client_id,
       base::Bind(&GpuMemoryBufferCreatedForChildProcess, callback));
 }
 
@@ -96,7 +103,16 @@ GpuMemoryBufferImplOzoneNativeBuffer::CreateFromHandle(
 
   return make_scoped_ptr<GpuMemoryBufferImpl>(
       new GpuMemoryBufferImplOzoneNativeBuffer(
-          size, format, callback, handle.global_id));
+          handle.id, size, format, callback));
+}
+
+// static
+void GpuMemoryBufferImplOzoneNativeBuffer::DeletedByChildProcess(
+    gfx::GpuMemoryBufferId id,
+    int child_client_id,
+    uint32_t sync_point) {
+  GpuMemoryBufferFactoryHost::GetInstance()->DestroyGpuMemoryBuffer(
+      gfx::OZONE_NATIVE_BUFFER, id, child_client_id, sync_point);
 }
 
 // static
@@ -151,7 +167,7 @@ gfx::GpuMemoryBufferHandle GpuMemoryBufferImplOzoneNativeBuffer::GetHandle()
     const {
   gfx::GpuMemoryBufferHandle handle;
   handle.type = gfx::OZONE_NATIVE_BUFFER;
-  handle.global_id = id_;
+  handle.id = id_;
   return handle;
 }
 

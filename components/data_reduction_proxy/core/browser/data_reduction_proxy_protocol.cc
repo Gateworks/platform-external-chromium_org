@@ -6,10 +6,10 @@
 
 #include "base/memory/ref_counted.h"
 #include "base/time/time.h"
-#include "components/data_reduction_proxy/core/browser/data_reduction_proxy_params.h"
 #include "components/data_reduction_proxy/core/browser/data_reduction_proxy_tamper_detection.h"
 #include "components/data_reduction_proxy/core/browser/data_reduction_proxy_usage_stats.h"
 #include "components/data_reduction_proxy/core/common/data_reduction_proxy_headers.h"
+#include "components/data_reduction_proxy/core/common/data_reduction_proxy_params.h"
 #include "net/base/load_flags.h"
 #include "net/http/http_response_headers.h"
 #include "net/proxy/proxy_config.h"
@@ -110,9 +110,10 @@ bool MaybeBypassProxyAndPrepareToRetry(
       data_reduction_proxy_type_info.proxy_servers.first, &proxy_server);
 
   // Only record UMA if the proxy isn't already on the retry list.
-  const net::ProxyRetryInfoMap& proxy_retry_info =
-      request->context()->proxy_service()->proxy_retry_info();
-  if (proxy_retry_info.find(proxy_server.ToURI()) == proxy_retry_info.end()) {
+  if (!data_reduction_proxy_params->IsProxyBypassed(
+          request->context()->proxy_service()->proxy_retry_info(),
+          proxy_server,
+          NULL)) {
     DataReductionProxyUsageStats::RecordDataReductionProxyBypassInfo(
         !data_reduction_proxy_type_info.proxy_servers.second.is_empty(),
         data_reduction_proxy_info.bypass_all,
@@ -140,16 +141,19 @@ bool MaybeBypassProxyAndPrepareToRetry(
 void OnResolveProxyHandler(const GURL& url,
                            int load_flags,
                            const net::ProxyConfig& data_reduction_proxy_config,
+                           const net::ProxyConfig& proxy_service_proxy_config,
                            const net::ProxyRetryInfoMap& proxy_retry_info,
                            const DataReductionProxyParams* params,
                            net::ProxyInfo* result) {
   if (data_reduction_proxy_config.is_valid() &&
-      result->proxy_server().is_direct()) {
+      result->proxy_server().is_direct() &&
+      !data_reduction_proxy_config.Equals(proxy_service_proxy_config)) {
     net::ProxyInfo data_reduction_proxy_info;
     data_reduction_proxy_config.proxy_rules().Apply(
         url, &data_reduction_proxy_info);
     data_reduction_proxy_info.DeprioritizeBadProxies(proxy_retry_info);
-    result->Use(data_reduction_proxy_info);
+    if (!data_reduction_proxy_info.proxy_server().is_direct())
+      result->UseProxyList(data_reduction_proxy_info.proxy_list());
   }
 
   if ((load_flags & net::LOAD_BYPASS_DATA_REDUCTION_PROXY) &&

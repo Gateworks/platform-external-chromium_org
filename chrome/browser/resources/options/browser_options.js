@@ -224,8 +224,12 @@ cr.define('options', function() {
                     ['Options_Homepage_ShowSettings']);
       };
 
-      var hotwordIndicator = $('hotword-search-setting-indicator');
-      HotwordSearchSettingIndicator.decorate(hotwordIndicator);
+      HotwordSearchSettingIndicator.decorate(
+          $('hotword-search-setting-indicator'));
+      HotwordSearchSettingIndicator.decorate(
+          $('hotword-no-dsp-search-setting-indicator'));
+      HotwordSearchSettingIndicator.decorate(
+          $('hotword-always-on-search-setting-indicator'));
       chrome.send('requestHotwordAvailable');
 
       if ($('set-wallpaper')) {
@@ -269,6 +273,11 @@ cr.define('options', function() {
 
       // Device section (ChromeOS only).
       if (cr.isChromeOS) {
+        $('power-settings-button').onclick = function(evt) {
+          PageManager.showPageByName('power-overlay');
+          chrome.send('coreOptionsUserMetricsAction',
+                      ['Options_ShowPowerSettings']);
+        };
         $('battery-button').onclick = function(evt) {
           WebsiteSettingsManager.showWebsiteSettings('battery');
         };
@@ -532,6 +541,8 @@ cr.define('options', function() {
           PageManager.showPageByName('easyUnlockTurnOffOverlay');
         };
       }
+      $('easy-unlock-enable-proximity-detection').hidden =
+          !loadTimeData.getBoolean('easyUnlockProximityDetectionAllowed');
 
       // Website Settings section.
       if (loadTimeData.getBoolean('websiteSettingsManagerEnabled')) {
@@ -1122,26 +1133,56 @@ cr.define('options', function() {
 
     /**
      * Activates the Hotword section from the System settings page.
-     * @param {boolean} opt_enabled Current preference state for hotwording.
-     * @param {string} opt_error The error message to display.
+     * @param {string} sectionId The id of the section to display.
+     * @param {string} indicatorId The id of the indicator to display.
+     * @param {string=} opt_error The error message to display.
      * @private
      */
-    showHotwordSection_: function(opt_enabled, opt_error) {
-      $('hotword-search').hidden = false;
-      $('hotword-search-setting-indicator').setError(opt_error);
-      if (opt_enabled && opt_error)
-        $('hotword-search-setting-indicator').updateBasedOnError();
+    showHotwordCheckboxAndIndicator_: function(sectionId, indicatorId,
+                                               opt_error) {
+      $(sectionId).hidden = false;
+      $(indicatorId).setError(opt_error);
+      if (opt_error)
+        $(indicatorId).updateBasedOnError();
+    },
+
+    /**
+     * Activates the Hotword section from the System settings page.
+     * @param {string=} opt_error The error message to display.
+     * @private
+     */
+    showHotwordSection_: function(opt_error) {
+      this.showHotwordCheckboxAndIndicator_(
+          'hotword-search',
+          'hotword-search-setting-indicator',
+          opt_error);
     },
 
     /**
      * Activates the Audio History and Always-On Hotword sections from the
      * System settings page.
+     * @param {string=} opt_error The error message to display.
      * @private
      */
-    showHotwordAlwaysOnSection_: function() {
-      $('voice-section-title').hidden = false;
-      $('hotword-always-on-search').hidden = false;
+    showHotwordAlwaysOnSection_: function(opt_error) {
+      this.showHotwordCheckboxAndIndicator_(
+          'hotword-always-on-search',
+          'hotword-always-on-search-setting-indicator',
+          opt_error);
       $('audio-logging').hidden = false;
+    },
+
+    /**
+     * Activates the Hotword section on devices with no DSP
+     * from the System settings page.
+     * @param {string=} opt_error The error message to display.
+     * @private
+     */
+    showHotwordNoDspSection_: function(opt_error) {
+      this.showHotwordCheckboxAndIndicator_(
+          'hotword-no-dsp-search',
+          'hotword-no-dsp-search-setting-indicator',
+          opt_error);
     },
 
     /**
@@ -1372,7 +1413,7 @@ cr.define('options', function() {
       // date. If showing the "delete" overlay, close it.
       if (ManageProfileOverlay.getInstance().visible &&
           !$('manage-profile-overlay-manage').hidden) {
-        ManageProfileOverlay.showManageDialog();
+        ManageProfileOverlay.showManageDialog(false);
       } else {
         ManageProfileOverlay.getInstance().visible = false;
       }
@@ -1979,6 +2020,29 @@ cr.define('options', function() {
       else
         element.disabled = false;
     },
+
+    /**
+     * Sets the icon in the battery section.
+     * @param {string} iconData The data representing the icon to display.
+     * @private
+     */
+    setBatteryIcon_: function(iconData) {
+      $('battery-icon').style.backgroundImage = 'url(' + iconData + ')';
+      $('battery-icon').hidden = false;
+    },
+
+    /**
+     * Sets the text for the battery section.
+     * @param {string} statusText The battery status, with a relevant label.
+     * @private
+     */
+    setBatteryStatusText_: function(statusText) {
+      $('battery').hidden = !statusText.length;
+      if (statusText.length) {
+        $('battery-status').textContent = statusText;
+        chrome.send('requestBatteryIcon');
+      }
+    },
   };
 
   //Forward public APIs to private implementations.
@@ -1997,6 +2061,8 @@ cr.define('options', function() {
     'setAccountPictureManaged',
     'setWallpaperManaged',
     'setAutoOpenFileTypesDisplayed',
+    'setBatteryIcon',
+    'setBatteryStatusText',
     'setBluetoothState',
     'setCanSetTime',
     'setFontSize',
@@ -2016,6 +2082,7 @@ cr.define('options', function() {
     'showCreateProfileSuccess',
     'showCreateProfileWarning',
     'showHotwordAlwaysOnSection',
+    'showHotwordNoDspSection',
     'showHotwordSection',
     'showMouseControls',
     'showSupervisedUserImportError',

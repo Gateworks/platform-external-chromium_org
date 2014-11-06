@@ -62,7 +62,7 @@ class SerialConnectionTest : public testing::Test, public mojo::ErrorHandler {
         receive_error_(serial::RECEIVE_ERROR_NONE),
         expected_event_(EVENT_NONE) {}
 
-  virtual void SetUp() override {
+  void SetUp() override {
     message_loop_.reset(new base::MessageLoop);
     mojo::InterfacePtr<serial::SerialService> service;
     mojo::BindToProxy(
@@ -269,13 +269,18 @@ TEST_F(SerialConnectionTest, Flush) {
   EXPECT_EQ(1, io_handler_->flushes());
 }
 
-TEST_F(SerialConnectionTest, Disconnect) {
+TEST_F(SerialConnectionTest, DisconnectWithSend) {
   connection_.reset();
   io_handler_->set_send_callback(base::Bind(base::DoNothing));
   ASSERT_NO_FATAL_FAILURE(Send("data"));
   WaitForEvent(EVENT_SEND_ERROR);
   EXPECT_EQ(serial::SEND_ERROR_DISCONNECTED, send_error_);
   EXPECT_EQ(0, bytes_sent_);
+  EXPECT_TRUE(io_handler_->HasOneRef());
+}
+
+TEST_F(SerialConnectionTest, DisconnectWithReceive) {
+  connection_.reset();
   ASSERT_NO_FATAL_FAILURE(Receive());
   WaitForEvent(EVENT_RECEIVE_ERROR);
   EXPECT_EQ(serial::RECEIVE_ERROR_DISCONNECTED, receive_error_);

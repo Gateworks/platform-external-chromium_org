@@ -13,8 +13,8 @@
 #include "chrome/browser/ui/webui/downloads_dom_handler.h"
 #include "chrome/common/pref_names.h"
 #include "chrome/test/base/in_process_browser_test.h"
-#include "chrome/test/base/ui_test_utils.h"
 #include "content/public/browser/web_contents.h"
+#include "content/public/test/test_utils.h"
 
 namespace {
 
@@ -116,7 +116,7 @@ class DownloadsDOMHandlerTest : public InProcessBrowserTest {
  public:
   DownloadsDOMHandlerTest() {}
 
-  virtual ~DownloadsDOMHandlerTest() {}
+  ~DownloadsDOMHandlerTest() override {}
 
   void SetUpOnMainThread() override {
     mock_handler_.reset(new MockDownloadsDOMHandler(download_manager()));

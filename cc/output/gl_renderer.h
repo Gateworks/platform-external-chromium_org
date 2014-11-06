@@ -89,7 +89,8 @@ class CC_EXPORT GLRenderer : public DirectRenderer {
     return shared_geometry_.get();
   }
 
-  void GetFramebufferPixelsAsync(const gfx::Rect& rect,
+  void GetFramebufferPixelsAsync(const DrawingFrame* frame,
+                                 const gfx::Rect& rect,
                                  scoped_ptr<CopyOutputRequest> request);
   void GetFramebufferTexture(unsigned texture_id,
                              ResourceFormat texture_format,
@@ -114,7 +115,8 @@ class CC_EXPORT GLRenderer : public DirectRenderer {
   void DoDrawQuad(DrawingFrame* frame, const class DrawQuad*) override;
   void BeginDrawingFrame(DrawingFrame* frame) override;
   void FinishDrawingFrame(DrawingFrame* frame) override;
-  bool FlippedFramebuffer() const override;
+  bool FlippedFramebuffer(const DrawingFrame* frame) const override;
+  bool FlippedRootFramebuffer() const;
   void EnsureScissorTestEnabled() override;
   void EnsureScissorTestDisabled() override;
   void CopyCurrentRenderPassToBitmap(
@@ -334,9 +336,11 @@ class CC_EXPORT GLRenderer : public DirectRenderer {
                                                     BlendMode blend_mode);
   const RenderPassMaskProgram* GetRenderPassMaskProgram(
       TexCoordPrecision precision,
+      SamplerType sampler,
       BlendMode blend_mode);
   const RenderPassMaskProgramAA* GetRenderPassMaskProgramAA(
       TexCoordPrecision precision,
+      SamplerType sampler,
       BlendMode blend_mode);
   const RenderPassColorMatrixProgram* GetRenderPassColorMatrixProgram(
       TexCoordPrecision precision,
@@ -346,9 +350,11 @@ class CC_EXPORT GLRenderer : public DirectRenderer {
       BlendMode blend_mode);
   const RenderPassMaskColorMatrixProgram* GetRenderPassMaskColorMatrixProgram(
       TexCoordPrecision precision,
+      SamplerType sampler,
       BlendMode blend_mode);
   const RenderPassMaskColorMatrixProgramAA*
   GetRenderPassMaskColorMatrixProgramAA(TexCoordPrecision precision,
+                                        SamplerType sampler,
                                         BlendMode blend_mode);
 
   const TextureProgram* GetTextureProgram(
@@ -397,18 +403,18 @@ class CC_EXPORT GLRenderer : public DirectRenderer {
   RenderPassProgram render_pass_program_[NumTexCoordPrecisions][NumBlendModes];
   RenderPassProgramAA
       render_pass_program_aa_[NumTexCoordPrecisions][NumBlendModes];
-  RenderPassMaskProgram
-      render_pass_mask_program_[NumTexCoordPrecisions][NumBlendModes];
-  RenderPassMaskProgramAA
-      render_pass_mask_program_aa_[NumTexCoordPrecisions][NumBlendModes];
+  RenderPassMaskProgram render_pass_mask_program_
+      [NumTexCoordPrecisions][NumSamplerTypes][NumBlendModes];
+  RenderPassMaskProgramAA render_pass_mask_program_aa_
+      [NumTexCoordPrecisions][NumSamplerTypes][NumBlendModes];
   RenderPassColorMatrixProgram
       render_pass_color_matrix_program_[NumTexCoordPrecisions][NumBlendModes];
   RenderPassColorMatrixProgramAA render_pass_color_matrix_program_aa_
       [NumTexCoordPrecisions][NumBlendModes];
   RenderPassMaskColorMatrixProgram render_pass_mask_color_matrix_program_
-      [NumTexCoordPrecisions][NumBlendModes];
+      [NumTexCoordPrecisions][NumSamplerTypes][NumBlendModes];
   RenderPassMaskColorMatrixProgramAA render_pass_mask_color_matrix_program_aa_
-      [NumTexCoordPrecisions][NumBlendModes];
+      [NumTexCoordPrecisions][NumSamplerTypes][NumBlendModes];
 
   VideoYUVProgram video_yuv_program_[NumTexCoordPrecisions];
   VideoYUVAProgram video_yuva_program_[NumTexCoordPrecisions];
@@ -448,7 +454,6 @@ class CC_EXPORT GLRenderer : public DirectRenderer {
   ScopedPtrDeque<SyncQuery> available_sync_queries_;
   scoped_ptr<SyncQuery> current_sync_query_;
   bool use_sync_query_;
-  bool use_blend_minmax_;
   bool use_blend_equation_advanced_;
   bool use_blend_equation_advanced_coherent_;
 

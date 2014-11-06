@@ -9,8 +9,8 @@
 #include "base/message_loop/message_loop_proxy.h"
 #include "base/prefs/pref_member.h"
 #include "base/threading/thread_checker.h"
-#include "components/data_reduction_proxy/core/browser/data_reduction_proxy_params.h"
 #include "components/data_reduction_proxy/core/common/data_reduction_proxy_headers.h"
+#include "components/data_reduction_proxy/core/common/data_reduction_proxy_params.h"
 #include "net/base/host_port_pair.h"
 #include "net/base/network_change_notifier.h"
 #include "net/url_request/url_request.h"
@@ -76,6 +76,11 @@ class DataReductionProxyUsageStats
   // list. Used to track when the data reduction proxy falls back.
   void OnProxyFallback(const net::ProxyServer& bypassed_proxy,
                        int net_error);
+
+  // Called by |ChromeNetworkDelegate| when an HTTP connect has been called.
+  // Used to track proxy connection failures.
+  void OnConnectComplete(const net::HostPortPair& proxy_server,
+                         int net_error);
 
  private:
   friend class DataReductionProxyUsageStatsTest;

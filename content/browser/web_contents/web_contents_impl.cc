@@ -36,6 +36,7 @@
 #include "content/browser/frame_host/render_frame_host_impl.h"
 #include "content/browser/frame_host/render_widget_host_view_child_frame.h"
 #include "content/browser/geolocation/geolocation_dispatcher_host.h"
+#include "content/browser/geolocation/geolocation_service_context.h"
 #include "content/browser/host_zoom_map_impl.h"
 #include "content/browser/loader/resource_dispatcher_host_impl.h"
 #include "content/browser/manifest/manifest_manager_host.h"
@@ -44,6 +45,7 @@
 #include "content/browser/media/midi_dispatcher_host.h"
 #include "content/browser/message_port_message_filter.h"
 #include "content/browser/message_port_service.h"
+#include "content/browser/plugin_content_origin_whitelist.h"
 #include "content/browser/power_save_blocker_impl.h"
 #include "content/browser/renderer_host/render_process_host_impl.h"
 #include "content/browser/renderer_host/render_view_host_delegate_view.h"
@@ -104,11 +106,9 @@
 #include "ui/gl/gl_switches.h"
 
 #if defined(OS_ANDROID)
-#include "content/browser/android/content_view_core_impl.h"
 #include "content/browser/android/date_time_chooser_android.h"
 #include "content/browser/media/android/browser_media_player_manager.h"
 #include "content/browser/web_contents/web_contents_android.h"
-#include "content/public/browser/android/content_view_core.h"
 #endif
 
 #if defined(OS_MACOSX)
@@ -284,9 +284,8 @@ WebContentsImpl::ColorChooserInfo::~ColorChooserInfo() {
 
 // WebContentsImpl -------------------------------------------------------------
 
-WebContentsImpl::WebContentsImpl(
-    BrowserContext* browser_context,
-    WebContentsImpl* opener)
+WebContentsImpl::WebContentsImpl(BrowserContext* browser_context,
+                                 WebContentsImpl* opener)
     : delegate_(NULL),
       controller_(this, browser_context),
       render_view_host_delegate_view_(NULL),
@@ -296,7 +295,10 @@ WebContentsImpl::WebContentsImpl(
       accessible_parent_(NULL),
 #endif
       frame_tree_(new NavigatorImpl(&controller_, this),
-                  this, this, this, this),
+                  this,
+                  this,
+                  this,
+                  this),
       is_loading_(false),
       is_load_to_different_document_(false),
       crashed_status_(base::TERMINATION_STATUS_STILL_RUNNING),
@@ -327,6 +329,7 @@ WebContentsImpl::WebContentsImpl(
       is_subframe_(false),
       force_disable_overscroll_content_(false),
       last_dialog_suppressed_(false),
+      geolocation_service_context_(new GeolocationServiceContext()),
       accessibility_mode_(
           BrowserAccessibilityStateImpl::GetInstance()->accessibility_mode()),
       audio_stream_monitor_(this),
@@ -491,8 +494,6 @@ bool WebContentsImpl::OnMessageReceived(RenderViewHost* render_view_host,
 
   bool handled = true;
   IPC_BEGIN_MESSAGE_MAP(WebContentsImpl, message)
-    IPC_MESSAGE_HANDLER(FrameHostMsg_PepperPluginHung, OnPepperPluginHung)
-    IPC_MESSAGE_HANDLER(FrameHostMsg_PluginCrashed, OnPluginCrashed)
     IPC_MESSAGE_HANDLER(FrameHostMsg_DomOperationResponse,
                         OnDomOperationResponse)
     IPC_MESSAGE_HANDLER(FrameHostMsg_DidChangeThemeColor,
@@ -531,6 +532,8 @@ bool WebContentsImpl::OnMessageReceived(RenderViewHost* render_view_host,
     IPC_MESSAGE_HANDLER(ViewHostMsg_AppCacheAccessed, OnAppCacheAccessed)
     IPC_MESSAGE_HANDLER(ViewHostMsg_WebUISend, OnWebUISend)
 #if defined(ENABLE_PLUGINS)
+    IPC_MESSAGE_HANDLER(FrameHostMsg_PepperPluginHung, OnPepperPluginHung)
+    IPC_MESSAGE_HANDLER(FrameHostMsg_PluginCrashed, OnPluginCrashed)
     IPC_MESSAGE_HANDLER(ViewHostMsg_RequestPpapiBrokerPermission,
                         OnRequestPpapiBrokerPermission)
     IPC_MESSAGE_HANDLER_GENERIC(BrowserPluginHostMsg_Attach,
@@ -689,6 +692,11 @@ void WebContentsImpl::AddAccessibilityMode(AccessibilityMode mode) {
 
 void WebContentsImpl::RemoveAccessibilityMode(AccessibilityMode mode) {
   SetAccessibilityMode(RemoveAccessibilityModeFrom(accessibility_mode_, mode));
+}
+
+void WebContentsImpl::ClearNavigationTransitionData() {
+  FrameTreeNode* node = frame_tree_.root();
+  node->render_manager()->ClearNavigationTransitionData();
 }
 
 WebUI* WebContentsImpl::CreateWebUI(const GURL& url) {
@@ -1171,6 +1179,11 @@ void WebContentsImpl::Init(const WebContents::CreateParams& params) {
   // Listen for whether our opener gets destroyed.
   if (opener_)
     AddDestructionObserver(opener_);
+
+#if defined(ENABLE_PLUGINS)
+  plugin_content_origin_whitelist_.reset(
+      new PluginContentOriginWhitelist(this));
+#endif
 
   registrar_.Add(this,
                  NOTIFICATION_RENDER_WIDGET_HOST_DESTROYED,
@@ -1803,6 +1816,10 @@ RenderFrameHost* WebContentsImpl::GetGuestByInstanceID(
   if (!guest)
     return NULL;
   return guest->GetMainFrame();
+}
+
+GeolocationServiceContext* WebContentsImpl::GetGeolocationServiceContext() {
+  return geolocation_service_context_.get();
 }
 
 void WebContentsImpl::OnShowValidationMessage(
@@ -2865,7 +2882,7 @@ void WebContentsImpl::OnFindMatchRectsReply(
 
 void WebContentsImpl::OnOpenDateTimeDialog(
     const ViewHostMsg_DateTimeDialogValue_Params& value) {
-  date_time_chooser_->ShowDialog(ContentViewCore::FromWebContents(this),
+  date_time_chooser_->ShowDialog(GetTopLevelNativeWindow(),
                                  GetRenderViewHost(),
                                  value.dialog_type,
                                  value.dialog_value,
@@ -2874,23 +2891,7 @@ void WebContentsImpl::OnOpenDateTimeDialog(
                                  value.step,
                                  value.suggestions);
 }
-
 #endif
-
-void WebContentsImpl::OnPepperPluginHung(int plugin_child_id,
-                                         const base::FilePath& path,
-                                         bool is_hung) {
-  UMA_HISTOGRAM_COUNTS("Pepper.PluginHung", 1);
-
-  FOR_EACH_OBSERVER(WebContentsObserver, observers_,
-                    PluginHungStatusChanged(plugin_child_id, path, is_hung));
-}
-
-void WebContentsImpl::OnPluginCrashed(const base::FilePath& plugin_path,
-                                      base::ProcessId plugin_pid) {
-  FOR_EACH_OBSERVER(WebContentsObserver, observers_,
-                    PluginCrashed(plugin_path, plugin_pid));
-}
 
 void WebContentsImpl::OnDomOperationResponse(const std::string& json_string,
                                              int automation_id) {
@@ -2950,6 +2951,21 @@ void WebContentsImpl::OnWebUISend(const GURL& source_url,
 }
 
 #if defined(ENABLE_PLUGINS)
+void WebContentsImpl::OnPepperPluginHung(int plugin_child_id,
+                                         const base::FilePath& path,
+                                         bool is_hung) {
+  UMA_HISTOGRAM_COUNTS("Pepper.PluginHung", 1);
+
+  FOR_EACH_OBSERVER(WebContentsObserver, observers_,
+                    PluginHungStatusChanged(plugin_child_id, path, is_hung));
+}
+
+void WebContentsImpl::OnPluginCrashed(const base::FilePath& plugin_path,
+                                      base::ProcessId plugin_pid) {
+  FOR_EACH_OBSERVER(WebContentsObserver, observers_,
+                    PluginCrashed(plugin_path, plugin_pid));
+}
+
 void WebContentsImpl::OnRequestPpapiBrokerPermission(
     int routing_id,
     const GURL& url,
@@ -2983,7 +2999,7 @@ void WebContentsImpl::OnBrowserPluginMessage(const IPC::Message& message) {
   browser_plugin_embedder_.reset(BrowserPluginEmbedder::Create(this));
   browser_plugin_embedder_->OnMessageReceived(message);
 }
-#endif
+#endif  // defined(ENABLE_PLUGINS)
 
 void WebContentsImpl::OnDidDownloadImage(
     int id,
@@ -3158,14 +3174,23 @@ void WebContentsImpl::SetIsLoading(RenderViewHost* render_view_host,
       type, Source<NavigationController>(&controller_), det);
 }
 
-void WebContentsImpl::SelectRange(const gfx::Point& start,
-                                  const gfx::Point& end) {
+void WebContentsImpl::MoveRangeSelectionExtent(const gfx::Point& extent) {
+  RenderFrameHost* focused_frame = GetFocusedFrame();
+  if (!focused_frame)
+    return;
+
+  focused_frame->Send(new InputMsg_MoveRangeSelectionExtent(
+      focused_frame->GetRoutingID(), extent));
+}
+
+void WebContentsImpl::SelectRange(const gfx::Point& base,
+                                  const gfx::Point& extent) {
   RenderFrameHost* focused_frame = GetFocusedFrame();
   if (!focused_frame)
     return;
 
   focused_frame->Send(
-      new InputMsg_SelectRange(focused_frame->GetRoutingID(), start, end));
+      new InputMsg_SelectRange(focused_frame->GetRoutingID(), base, extent));
 }
 
 void WebContentsImpl::UpdateMaxPageIDIfNecessary(RenderViewHost* rvh) {
@@ -4120,13 +4145,14 @@ bool WebContentsImpl::CreateRenderViewForRenderManager(
 
 bool WebContentsImpl::CreateRenderFrameForRenderManager(
     RenderFrameHost* render_frame_host,
-    int parent_routing_id) {
+    int parent_routing_id,
+    int proxy_routing_id) {
   TRACE_EVENT0("browser,navigation",
                "WebContentsImpl::CreateRenderFrameForRenderManager");
 
   RenderFrameHostImpl* rfh =
       static_cast<RenderFrameHostImpl*>(render_frame_host);
-  if (!rfh->CreateRenderFrame(parent_routing_id))
+  if (!rfh->CreateRenderFrame(parent_routing_id, proxy_routing_id))
     return false;
 
   // TODO(nasko): When RenderWidgetHost is owned by RenderFrameHost, the passed

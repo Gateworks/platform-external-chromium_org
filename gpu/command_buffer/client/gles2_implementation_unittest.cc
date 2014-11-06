@@ -445,11 +445,13 @@ class GLES2ImplementationTest : public testing::Test {
             .RetiresOnSaturation();
         GetNextToken();  // eat the token that starting up will use.
 
+        const bool support_client_side_arrays = true;
         gl_.reset(new GLES2Implementation(helper_.get(),
                                           share_group,
                                           transfer_buffer_.get(),
                                           bind_generates_resource_client,
                                           lose_context_when_out_of_memory,
+                                          support_client_side_arrays,
                                           gpu_control_.get()));
 
         if (!gl_->Initialize(kTransferBufferSize,
@@ -504,8 +506,8 @@ class GLES2ImplementationTest : public testing::Test {
 
   GLES2ImplementationTest() : commands_(NULL) {}
 
-  virtual void SetUp() override;
-  virtual void TearDown() override;
+  void SetUp() override;
+  void TearDown() override;
 
   bool NoCommandsWritten() {
     scoped_refptr<Buffer> ring_buffer = helper_->get_ring_buffer();
@@ -628,12 +630,12 @@ void GLES2ImplementationTest::TearDown() {
 
 class GLES2ImplementationManualInitTest : public GLES2ImplementationTest {
  protected:
-  virtual void SetUp() override {}
+  void SetUp() override {}
 };
 
 class GLES2ImplementationStrictSharedTest : public GLES2ImplementationTest {
  protected:
-  virtual void SetUp() override;
+  void SetUp() override;
 
   template <class ResApi>
   void FlushGenerationTest() {

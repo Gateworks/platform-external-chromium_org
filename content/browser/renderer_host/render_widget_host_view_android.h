@@ -130,6 +130,9 @@ class CONTENT_EXPORT RenderWidgetHostViewAndroid
                                     bool can_compose_inline,
                                     int flags) override;
   virtual void ImeCancelComposition() override;
+  virtual void ImeCompositionRangeChanged(
+      const gfx::Range& range,
+      const std::vector<gfx::Rect>& character_bounds) override;
   virtual void FocusedNodeChanged(bool is_editable_node) override;
   virtual void RenderProcessGone(base::TerminationStatus status,
                                  int error_code) override;
@@ -266,8 +269,9 @@ class CONTENT_EXPORT RenderWidgetHostViewAndroid
   virtual bool SupportsAnimation() const override;
   virtual void SetNeedsAnimate() override;
   virtual void MoveCaret(const gfx::PointF& position) override;
-  virtual void SelectBetweenCoordinates(const gfx::PointF& start,
-                                        const gfx::PointF& end) override;
+  virtual void MoveRangeSelectionExtent(const gfx::PointF& extent) override;
+  virtual void SelectBetweenCoordinates(const gfx::PointF& base,
+                                        const gfx::PointF& extent) override;
   virtual void OnSelectionEvent(SelectionEventType event,
                                 const gfx::PointF& anchor_position) override;
   virtual scoped_ptr<TouchHandleDrawable> CreateDrawable() override;

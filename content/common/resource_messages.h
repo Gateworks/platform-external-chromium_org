@@ -132,6 +132,7 @@ IPC_STRUCT_TRAITS_BEGIN(content::ResourceResponseInfo)
   IPC_STRUCT_TRAITS_MEMBER(service_worker_fetch_start)
   IPC_STRUCT_TRAITS_MEMBER(service_worker_fetch_ready)
   IPC_STRUCT_TRAITS_MEMBER(service_worker_fetch_end)
+  IPC_STRUCT_TRAITS_MEMBER(proxy_server)
 IPC_STRUCT_TRAITS_END()
 
 IPC_STRUCT_TRAITS_BEGIN(net::RedirectInfo)
@@ -223,6 +224,9 @@ IPC_STRUCT_BEGIN(ResourceHostMsg_Request)
 
   // True if load timing data should be collected for request.
   IPC_STRUCT_MEMBER(bool, enable_load_timing)
+
+  // True if upload progress should be available for request.
+  IPC_STRUCT_MEMBER(bool, enable_upload_progress)
 
   // The routing id of the RenderFrame.
   IPC_STRUCT_MEMBER(int, render_frame_id)

@@ -44,6 +44,7 @@
 #include "content/public/browser/web_ui.h"
 #include "content/public/common/content_switches.h"
 #include "content/public/common/page_zoom.h"
+#include "content/public/common/url_constants.h"
 #include "extensions/browser/extension_registry.h"
 #include "extensions/common/extension_set.h"
 #include "extensions/common/permissions/api_permission.h"
@@ -497,7 +498,14 @@ void ContentSettingsHandler::InitializeHandler() {
                      base::Unretained(this)));
 
   flash_settings_manager_.reset(new PepperFlashSettingsManager(this, context));
-  observer_.Add(Profile::FromWebUI(web_ui())->GetHostContentSettingsMap());
+
+  Profile* profile = Profile::FromWebUI(web_ui());
+  observer_.Add(profile->GetHostContentSettingsMap());
+  if (profile->HasOffTheRecordProfile()) {
+    auto map = profile->GetOffTheRecordProfile()->GetHostContentSettingsMap();
+    if (!observer_.IsObserving(map))
+      observer_.Add(map);
+  }
 }
 
 void ContentSettingsHandler::InitializePage() {
@@ -529,16 +537,22 @@ void ContentSettingsHandler::Observe(
     const content::NotificationDetails& details) {
   switch (type) {
     case chrome::NOTIFICATION_PROFILE_DESTROYED: {
-      if (content::Source<Profile>(source).ptr()->IsOffTheRecord()) {
+      Profile* profile = content::Source<Profile>(source).ptr();
+      if (profile->IsOffTheRecord() &&
+          observer_.IsObserving(profile->GetHostContentSettingsMap())) {
         web_ui()->CallJavascriptFunction(
             "ContentSettingsExceptionsArea.OTRProfileDestroyed");
+        observer_.Remove(profile->GetHostContentSettingsMap());
       }
       break;
     }
 
     case chrome::NOTIFICATION_PROFILE_CREATED: {
-      if (content::Source<Profile>(source).ptr()->IsOffTheRecord())
+      Profile* profile = content::Source<Profile>(source).ptr();
+      if (profile->IsOffTheRecord()) {
         UpdateAllOTRExceptionsViewsFromModel();
+        observer_.Add(profile->GetHostContentSettingsMap());
+      }
       break;
     }
 
@@ -983,9 +997,15 @@ void ContentSettingsHandler::UpdateZoomLevelsExceptionsView() {
        ++i) {
     scoped_ptr<base::DictionaryValue> exception(new base::DictionaryValue);
     switch (i->mode) {
-      case content::HostZoomMap::ZOOM_CHANGED_FOR_HOST:
+      case content::HostZoomMap::ZOOM_CHANGED_FOR_HOST: {
         exception->SetString(kOrigin, i->host);
-        break;
+        std::string host = i->host;
+        if (host == content::kUnreachableWebDataURL) {
+          host =
+              l10n_util::GetStringUTF8(IDS_ZOOMLEVELS_CHROME_ERROR_PAGES_LABEL);
+        }
+        exception->SetString(kOrigin, host);
+      }
       case content::HostZoomMap::ZOOM_CHANGED_FOR_SCHEME_AND_HOST:
         // These are not stored in preferences and get cleared on next browser
         // start. Therefore, we don't care for them.
@@ -1205,6 +1225,11 @@ void ContentSettingsHandler::RemoveZoomLevelException(
   std::string pattern;
   rv = args->GetString(2, &pattern);
   DCHECK(rv);
+
+  if (pattern ==
+          l10n_util::GetStringUTF8(IDS_ZOOMLEVELS_CHROME_ERROR_PAGES_LABEL)) {
+    pattern = content::kUnreachableWebDataURL;
+  }
 
   content::HostZoomMap* host_zoom_map =
       content::HostZoomMap::GetDefaultForBrowserContext(

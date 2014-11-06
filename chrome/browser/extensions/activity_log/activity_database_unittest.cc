@@ -44,11 +44,11 @@ namespace extensions {
 // the unit tests.
 class ActivityDatabaseTestPolicy : public ActivityDatabase::Delegate {
  public:
-  ActivityDatabaseTestPolicy() {};
+  ActivityDatabaseTestPolicy() {}
 
   static const char kTableName[];
-  static const char* kTableContentFields[];
-  static const char* kTableFieldTypes[];
+  static const char* const kTableContentFields[];
+  static const char* const kTableFieldTypes[];
 
   virtual void Record(ActivityDatabase* db, scoped_refptr<Action> action);
 
@@ -62,9 +62,9 @@ class ActivityDatabaseTestPolicy : public ActivityDatabase::Delegate {
 };
 
 const char ActivityDatabaseTestPolicy::kTableName[] = "actions";
-const char* ActivityDatabaseTestPolicy::kTableContentFields[] = {
+const char* const ActivityDatabaseTestPolicy::kTableContentFields[] = {
     "extension_id", "time", "action_type", "api_name"};
-const char* ActivityDatabaseTestPolicy::kTableFieldTypes[] = {
+const char* const ActivityDatabaseTestPolicy::kTableFieldTypes[] = {
     "LONGVARCHAR NOT NULL", "INTEGER", "INTEGER", "LONGVARCHAR"};
 
 bool ActivityDatabaseTestPolicy::InitDatabase(sql::Connection* db) {
@@ -107,7 +107,7 @@ void ActivityDatabaseTestPolicy::Record(ActivityDatabase* db,
 
 class ActivityDatabaseTest : public ChromeRenderViewHostTestHarness {
  protected:
-  virtual void SetUp() override {
+  void SetUp() override {
     ChromeRenderViewHostTestHarness::SetUp();
 #if defined OS_CHROMEOS
     test_user_manager_.reset(new chromeos::ScopedTestUserManager());
@@ -117,7 +117,7 @@ class ActivityDatabaseTest : public ChromeRenderViewHostTestHarness {
         switches::kEnableExtensionActivityLogTesting);
   }
 
-  virtual void TearDown() override {
+  void TearDown() override {
 #if defined OS_CHROMEOS
     test_user_manager_.reset();
 #endif

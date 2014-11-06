@@ -31,14 +31,11 @@ class MockExtensionSystem : public ExtensionSystem {
   RuntimeData* runtime_data() override;
   ManagementPolicy* management_policy() override;
   SharedUserScriptMaster* shared_user_script_master() override;
-  ProcessManager* process_manager() override;
   StateStore* state_store() override;
   StateStore* rules_store() override;
   InfoMap* info_map() override;
   LazyBackgroundTaskQueue* lazy_background_task_queue() override;
   EventRouter* event_router() override;
-  WarningService* warning_service() override;
-  Blacklist* blacklist() override;
   ErrorConsole* error_console() override;
   InstallVerifier* install_verifier() override;
   QuotaService* quota_service() override;

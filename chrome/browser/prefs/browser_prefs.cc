@@ -59,7 +59,6 @@
 #include "chrome/browser/search/search.h"
 #include "chrome/browser/services/gcm/gcm_profile_service.h"
 #include "chrome/browser/signin/signin_manager_factory.h"
-#include "chrome/browser/signin/signin_promo.h"
 #include "chrome/browser/task_manager/task_manager.h"
 #include "chrome/browser/ui/app_list/app_list_prefs.h"
 #include "chrome/browser/ui/app_list/app_list_service.h"
@@ -148,6 +147,10 @@
 #include "chrome/browser/ui/autofill/generated_credit_card_bubble_controller.h"
 #endif
 
+#if !defined(OS_ANDROID) && !defined(OS_IOS)
+#include "chrome/browser/signin/signin_promo.h"
+#endif
+
 #if defined(OS_CHROMEOS)
 #include "chrome/browser/chromeos/app_mode/kiosk_app_manager.h"
 #include "chrome/browser/chromeos/attestation/platform_verification_flow.h"
@@ -165,7 +168,6 @@
 #include "chrome/browser/chromeos/login/users/avatar/user_image_sync_observer.h"
 #include "chrome/browser/chromeos/login/users/chrome_user_manager_impl.h"
 #include "chrome/browser/chromeos/login/users/multi_profile_user_controller.h"
-#include "chrome/browser/chromeos/login/users/wallpaper/wallpaper_manager.h"
 #include "chrome/browser/chromeos/net/proxy_config_handler.h"
 #include "chrome/browser/chromeos/policy/auto_enrollment_client.h"
 #include "chrome/browser/chromeos/policy/browser_policy_connector_chromeos.h"
@@ -208,6 +210,10 @@
 
 #if defined(USE_ASH)
 #include "chrome/browser/ui/ash/chrome_launcher_prefs.h"
+#endif
+
+#if !defined(USE_ATHENA)
+#include "chrome/browser/chromeos/login/users/wallpaper/wallpaper_manager.h"
 #endif
 
 namespace {
@@ -338,7 +344,9 @@ void RegisterLocalState(PrefRegistrySimple* registry) {
   chromeos::system::AutomaticRebootManager::RegisterPrefs(registry);
   chromeos::UserImageManager::RegisterPrefs(registry);
   chromeos::UserSessionManager::RegisterPrefs(registry);
+#if !defined(USE_ATHENA)
   chromeos::WallpaperManager::RegisterPrefs(registry);
+#endif
   chromeos::echo_offer::RegisterPrefs(registry);
   extensions::ExtensionAssetsManagerChromeOS::RegisterPrefs(registry);
   invalidation::InvalidatorStorage::RegisterPrefs(registry);
@@ -431,7 +439,7 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry) {
   app_list::AppListPrefs::RegisterProfilePrefs(registry);
 #endif
 
-#if defined(ENABLE_FULL_PRINTING)
+#if defined(ENABLE_PRINT_PREVIEW)
   print_dialog_cloud::RegisterProfilePrefs(registry);
   printing::StickySettings::RegisterProfilePrefs(registry);
 #endif

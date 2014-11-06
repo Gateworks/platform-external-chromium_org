@@ -82,6 +82,7 @@ bool DecodeHexString(const base::StringPiece& hex, std::string* bytes);
 size_t GetPacketLengthForOneStream(
     QuicVersion version,
     bool include_version,
+    QuicConnectionIdLength connection_id_length,
     QuicSequenceNumberLength sequence_number_length,
     InFecGroup is_in_fec_group,
     size_t* payload_length);
@@ -537,7 +538,7 @@ class MockNetworkChangeVisitor :
   MockNetworkChangeVisitor();
   virtual ~MockNetworkChangeVisitor();
 
-  MOCK_METHOD1(OnCongestionWindowChange, void(QuicByteCount));
+  MOCK_METHOD0(OnCongestionWindowChange, void());
 
  private:
   DISALLOW_COPY_AND_ASSIGN(MockNetworkChangeVisitor);

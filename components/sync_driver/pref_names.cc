@@ -40,7 +40,6 @@ const char kSyncAutofill[] = "sync.autofill";
 const char kSyncBookmarks[] = "sync.bookmarks";
 const char kSyncDeviceInfo[] = "sync.device_info";
 const char kSyncDictionary[] = "sync.dictionary";
-const char kSyncEnhancedBookmarks[] = "sync.enhanced_bookmarks";
 const char kSyncExtensionSettings[] = "sync.extension_settings";
 const char kSyncExtensions[] = "sync.extensions";
 const char kSyncFaviconImages[] = "sync.favicon_images";
@@ -61,6 +60,7 @@ const char kSyncSyncedNotifications[] = "sync.synced_notifications";
 const char kSyncTabs[] = "sync.tabs";
 const char kSyncThemes[] = "sync.themes";
 const char kSyncTypedUrls[] = "sync.typed_urls";
+const char kSyncWifiCredentials[] = "sync.wifi_credentials";
 
 // Boolean used by enterprise configuration management in order to lock down
 // sync.

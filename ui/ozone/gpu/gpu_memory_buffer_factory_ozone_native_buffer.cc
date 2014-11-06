@@ -48,11 +48,10 @@ class GLImageOzoneNativePixmapDmaBuf : public gfx::GLImageLinuxDMABuffer {
                                           unsigned internalformat)
       : GLImageLinuxDMABuffer(size, internalformat) {}
 
-  bool Initialize(NativePixmap* pixmap,
-                  gfx::GpuMemoryBuffer::Format format) {
+  bool Initialize(NativePixmap* pixmap, gfx::GpuMemoryBuffer::Format format) {
     base::FileDescriptor handle(pixmap->GetDmaBufFd(), false);
-    if (!GLImageLinuxDMABuffer::Initialize(
-            handle, format, pixmap->GetDmaBufPitch()))
+    if (!GLImageLinuxDMABuffer::Initialize(handle, format,
+                                           pixmap->GetDmaBufPitch()))
       return false;
     pixmap_ = pixmap;
     return true;
@@ -90,8 +89,9 @@ SurfaceFactoryOzone::BufferFormat GetOzoneFormatFor(
   return SurfaceFactoryOzone::RGBA_8888;
 }
 
-std::pair<uint32_t, uint32_t> GetIndex(const gfx::GpuMemoryBufferId& id) {
-  return std::pair<uint32_t, uint32_t>(id.primary_id, id.secondary_id);
+std::pair<uint32_t, uint32_t> GetIndex(gfx::GpuMemoryBufferId id,
+                                       int client_id) {
+  return std::pair<uint32_t, uint32_t>(id, client_id);
 }
 }  // namespace
 
@@ -104,10 +104,11 @@ GpuMemoryBufferFactoryOzoneNativeBuffer::
 }
 
 bool GpuMemoryBufferFactoryOzoneNativeBuffer::CreateGpuMemoryBuffer(
-    const gfx::GpuMemoryBufferId& id,
+    gfx::GpuMemoryBufferId id,
     const gfx::Size& size,
     gfx::GpuMemoryBuffer::Format format,
-    gfx::GpuMemoryBuffer::Usage usage) {
+    gfx::GpuMemoryBuffer::Usage usage,
+    int client_id) {
   scoped_refptr<NativePixmap> pixmap =
       SurfaceFactoryOzone::GetInstance()->CreateNativePixmap(
           size, GetOzoneFormatFor(format));
@@ -116,22 +117,25 @@ bool GpuMemoryBufferFactoryOzoneNativeBuffer::CreateGpuMemoryBuffer(
                << size.height() << " format " << format << ", usage " << usage;
     return false;
   }
-  native_pixmap_map_[GetIndex(id)] = pixmap;
+  native_pixmap_map_[GetIndex(id, client_id)] = pixmap;
   return true;
 }
 
 void GpuMemoryBufferFactoryOzoneNativeBuffer::DestroyGpuMemoryBuffer(
-    const gfx::GpuMemoryBufferId& id) {
-  native_pixmap_map_.erase(GetIndex(id));
+    gfx::GpuMemoryBufferId id,
+    int client_id) {
+  native_pixmap_map_.erase(GetIndex(id, client_id));
 }
 
 scoped_refptr<gfx::GLImage>
 GpuMemoryBufferFactoryOzoneNativeBuffer::CreateImageForGpuMemoryBuffer(
-    const gfx::GpuMemoryBufferId& id,
+    gfx::GpuMemoryBufferId id,
     const gfx::Size& size,
     gfx::GpuMemoryBuffer::Format format,
-    unsigned internalformat) {
-  BufferToPixmapMap::iterator it = native_pixmap_map_.find(GetIndex(id));
+    unsigned internalformat,
+    int client_id) {
+  BufferToPixmapMap::iterator it =
+      native_pixmap_map_.find(GetIndex(id, client_id));
   if (it == native_pixmap_map_.end()) {
     return scoped_refptr<gfx::GLImage>();
   }

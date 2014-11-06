@@ -12,7 +12,7 @@ if (is_android) {
   import("//build/config/android/rules.gni")
 }
 
-if (!is_android) {
+if (!is_android && !(is_chromeos && !use_ozone)) {
 
 # TODO(GYP) for Windows need to the the reorder-imports step which probably
 # means adding another target and renaming this to chrome_initial like in GYP.
@@ -218,9 +218,9 @@ group("browser_dependencies") {
     ]
   }
 
-  if (printing_mode != 0) {
+  if (enable_basic_printing || enable_print_preview) {
     deps += [ "//printing" ]
-    if (printing_mode == 1) {
+    if (enable_print_preview) {
       deps += [ "//chrome/service" ]
     }
   }

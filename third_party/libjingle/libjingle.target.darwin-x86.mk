@@ -25,46 +25,46 @@ LOCAL_GENERATED_SOURCES :=
 GYP_COPIED_SOURCE_ORIGIN_DIRS :=
 
 LOCAL_SRC_FILES := \
-	third_party/libjingle/source/talk/p2p/base/asyncstuntcpsocket.cc \
-	third_party/libjingle/source/talk/p2p/base/basicpacketsocketfactory.cc \
-	third_party/libjingle/source/talk/p2p/base/dtlstransportchannel.cc \
-	third_party/libjingle/source/talk/p2p/base/p2ptransport.cc \
-	third_party/libjingle/source/talk/p2p/base/p2ptransportchannel.cc \
-	third_party/libjingle/source/talk/p2p/base/parsing.cc \
-	third_party/libjingle/source/talk/p2p/base/port.cc \
-	third_party/libjingle/source/talk/p2p/base/portallocator.cc \
-	third_party/libjingle/source/talk/p2p/base/portallocatorsessionproxy.cc \
-	third_party/libjingle/source/talk/p2p/base/portproxy.cc \
-	third_party/libjingle/source/talk/p2p/base/pseudotcp.cc \
-	third_party/libjingle/source/talk/p2p/base/rawtransport.cc \
-	third_party/libjingle/source/talk/p2p/base/rawtransportchannel.cc \
-	third_party/libjingle/source/talk/p2p/base/relayport.cc \
-	third_party/libjingle/source/talk/p2p/base/session.cc \
-	third_party/libjingle/source/talk/p2p/base/sessiondescription.cc \
-	third_party/libjingle/source/talk/p2p/base/sessionmanager.cc \
-	third_party/libjingle/source/talk/p2p/base/sessionmessages.cc \
-	third_party/libjingle/source/talk/p2p/base/stun.cc \
-	third_party/libjingle/source/talk/p2p/base/stunport.cc \
-	third_party/libjingle/source/talk/p2p/base/stunrequest.cc \
-	third_party/libjingle/source/talk/p2p/base/tcpport.cc \
-	third_party/libjingle/source/talk/p2p/base/transport.cc \
-	third_party/libjingle/source/talk/p2p/base/transportchannel.cc \
-	third_party/libjingle/source/talk/p2p/base/transportchannelproxy.cc \
-	third_party/libjingle/source/talk/p2p/base/transportdescription.cc \
-	third_party/libjingle/source/talk/p2p/base/transportdescriptionfactory.cc \
-	third_party/libjingle/source/talk/p2p/base/turnport.cc \
-	third_party/libjingle/source/talk/p2p/client/basicportallocator.cc \
-	third_party/libjingle/source/talk/p2p/client/httpportallocator.cc \
-	third_party/libjingle/source/talk/p2p/client/socketmonitor.cc \
-	third_party/libjingle/source/talk/xmpp/constants.cc \
-	third_party/libjingle/source/talk/xmpp/jid.cc \
-	third_party/libjingle/source/talk/xmpp/saslmechanism.cc \
-	third_party/libjingle/source/talk/xmpp/xmppclient.cc \
-	third_party/libjingle/source/talk/xmpp/xmppengineimpl.cc \
-	third_party/libjingle/source/talk/xmpp/xmppengineimpl_iq.cc \
-	third_party/libjingle/source/talk/xmpp/xmpplogintask.cc \
-	third_party/libjingle/source/talk/xmpp/xmppstanzaparser.cc \
-	third_party/libjingle/source/talk/xmpp/xmpptask.cc
+	third_party/webrtc/p2p/base/asyncstuntcpsocket.cc \
+	third_party/webrtc/p2p/base/basicpacketsocketfactory.cc \
+	third_party/webrtc/p2p/base/dtlstransportchannel.cc \
+	third_party/webrtc/p2p/base/p2ptransport.cc \
+	third_party/webrtc/p2p/base/p2ptransportchannel.cc \
+	third_party/webrtc/p2p/base/parsing.cc \
+	third_party/webrtc/p2p/base/port.cc \
+	third_party/webrtc/p2p/base/portallocator.cc \
+	third_party/webrtc/p2p/base/portallocatorsessionproxy.cc \
+	third_party/webrtc/p2p/base/portproxy.cc \
+	third_party/webrtc/p2p/base/pseudotcp.cc \
+	third_party/webrtc/p2p/base/rawtransport.cc \
+	third_party/webrtc/p2p/base/rawtransportchannel.cc \
+	third_party/webrtc/p2p/base/relayport.cc \
+	third_party/webrtc/p2p/base/session.cc \
+	third_party/webrtc/p2p/base/sessiondescription.cc \
+	third_party/webrtc/p2p/base/sessionmanager.cc \
+	third_party/webrtc/p2p/base/sessionmessages.cc \
+	third_party/webrtc/p2p/base/stun.cc \
+	third_party/webrtc/p2p/base/stunport.cc \
+	third_party/webrtc/p2p/base/stunrequest.cc \
+	third_party/webrtc/p2p/base/tcpport.cc \
+	third_party/webrtc/p2p/base/transport.cc \
+	third_party/webrtc/p2p/base/transportchannel.cc \
+	third_party/webrtc/p2p/base/transportchannelproxy.cc \
+	third_party/webrtc/p2p/base/transportdescription.cc \
+	third_party/webrtc/p2p/base/transportdescriptionfactory.cc \
+	third_party/webrtc/p2p/base/turnport.cc \
+	third_party/webrtc/p2p/client/basicportallocator.cc \
+	third_party/webrtc/p2p/client/httpportallocator.cc \
+	third_party/webrtc/p2p/client/socketmonitor.cc \
+	third_party/webrtc/libjingle/xmpp/constants.cc \
+	third_party/webrtc/libjingle/xmpp/jid.cc \
+	third_party/webrtc/libjingle/xmpp/saslmechanism.cc \
+	third_party/webrtc/libjingle/xmpp/xmppclient.cc \
+	third_party/webrtc/libjingle/xmpp/xmppengineimpl.cc \
+	third_party/webrtc/libjingle/xmpp/xmppengineimpl_iq.cc \
+	third_party/webrtc/libjingle/xmpp/xmpplogintask.cc \
+	third_party/webrtc/libjingle/xmpp/xmppstanzaparser.cc \
+	third_party/webrtc/libjingle/xmpp/xmpptask.cc
 
 
 # Flags passed to both C and C++ files.
@@ -135,11 +135,13 @@ MY_DEFS_Debug := \
 	'-DUSE_PROPRIETARY_CODECS' \
 	'-DENABLE_BROWSER_CDMS' \
 	'-DENABLE_CONFIGURATION_POLICY' \
+	'-DENABLE_NOTIFICATIONS' \
 	'-DDISCARDABLE_MEMORY_ALWAYS_SUPPORTED_NATIVELY' \
 	'-DSYSTEM_NATIVELY_SIGNALS_MEMORY_PRESSURE' \
-	'-DENABLE_EGLIMAGE=1' \
+	'-DDONT_EMBED_BUILD_METADATA' \
 	'-DCLD_VERSION=1' \
 	'-DENABLE_PRINTING=1' \
+	'-DENABLE_BASIC_PRINTING=1' \
 	'-DENABLE_MANAGED_USERS=1' \
 	'-DVIDEO_HOLE=1' \
 	'-DENABLE_LOAD_COMPLETION_HACKS=1' \
@@ -149,6 +151,7 @@ MY_DEFS_Debug := \
 	'-DWEBRTC_ANDROID_OPENSLES' \
 	'-DFEATURE_ENABLE_VOICEMAIL' \
 	'-DANDROID' \
+	'-DUSE_LIBPCI=1' \
 	'-DUSE_OPENSSL=1' \
 	'-DUSE_OPENSSL_CERTS=1' \
 	'-D__GNU_SOURCE=1' \
@@ -259,11 +262,13 @@ MY_DEFS_Release := \
 	'-DUSE_PROPRIETARY_CODECS' \
 	'-DENABLE_BROWSER_CDMS' \
 	'-DENABLE_CONFIGURATION_POLICY' \
+	'-DENABLE_NOTIFICATIONS' \
 	'-DDISCARDABLE_MEMORY_ALWAYS_SUPPORTED_NATIVELY' \
 	'-DSYSTEM_NATIVELY_SIGNALS_MEMORY_PRESSURE' \
-	'-DENABLE_EGLIMAGE=1' \
+	'-DDONT_EMBED_BUILD_METADATA' \
 	'-DCLD_VERSION=1' \
 	'-DENABLE_PRINTING=1' \
+	'-DENABLE_BASIC_PRINTING=1' \
 	'-DENABLE_MANAGED_USERS=1' \
 	'-DVIDEO_HOLE=1' \
 	'-DENABLE_LOAD_COMPLETION_HACKS=1' \
@@ -273,6 +278,7 @@ MY_DEFS_Release := \
 	'-DWEBRTC_ANDROID_OPENSLES' \
 	'-DFEATURE_ENABLE_VOICEMAIL' \
 	'-DANDROID' \
+	'-DUSE_LIBPCI=1' \
 	'-DUSE_OPENSSL=1' \
 	'-DUSE_OPENSSL_CERTS=1' \
 	'-D__GNU_SOURCE=1' \

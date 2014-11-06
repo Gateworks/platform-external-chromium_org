@@ -8,7 +8,6 @@
 
 #include "athena/screen/public/screen_manager.h"
 #include "athena/util/container_priorities.h"
-#include "athena/wm/bezel_controller.h"
 #include "athena/wm/public/window_manager_observer.h"
 #include "athena/wm/split_view_controller.h"
 #include "athena/wm/title_drag_controller.h"
@@ -16,8 +15,10 @@
 #include "athena/wm/window_overview_mode.h"
 #include "base/bind.h"
 #include "base/logging.h"
+#include "ui/aura/client/aura_constants.h"
 #include "ui/aura/layout_manager.h"
 #include "ui/aura/window.h"
+#include "ui/aura/window_delegate.h"
 #include "ui/compositor/closure_animation_observer.h"
 #include "ui/compositor/scoped_layer_animation_settings.h"
 #include "ui/gfx/display.h"
@@ -38,6 +39,16 @@ void SetWindowState(aura::Window* window,
                     const gfx::Transform& transform) {
   window->SetBounds(bounds);
   window->SetTransform(transform);
+}
+
+// Tests whether the given window can be maximized
+bool CanWindowMaximize(const aura::Window* const window) {
+  const aura::WindowDelegate* delegate = window->delegate();
+  const bool no_max_size =
+      !delegate || delegate->GetMaximumSize().IsEmpty();
+  return no_max_size &&
+         window->GetProperty(aura::client::kCanMaximizeKey) &&
+         window->GetProperty(aura::client::kCanResizeKey);
 }
 
 }  // namespace
@@ -88,12 +99,12 @@ void AthenaContainerLayoutManager::OnWindowResized() {
     if (is_splitview) {
       if (window == instance->split_view_controller_->left_window())
         window->SetBounds(gfx::Rect(split_size));
-      else if (window == instance->split_view_controller_->right_window())
+      else if (window == instance->split_view_controller_->right_window()) {
         window->SetBounds(
             gfx::Rect(gfx::Point(split_size.width(), 0), split_size));
-      else
-        window->SetBounds(gfx::Rect(work_area));
-    } else {
+      } else if (CanWindowMaximize(window))
+          window->SetBounds(gfx::Rect(work_area));
+    } else if (CanWindowMaximize(window)) {
       window->SetBounds(gfx::Rect(work_area));
     }
   }
@@ -119,6 +130,14 @@ void AthenaContainerLayoutManager::OnWindowRemovedFromLayout(
 void AthenaContainerLayoutManager::OnChildWindowVisibilityChanged(
     aura::Window* child,
     bool visible) {
+  if (visible && CanWindowMaximize(child)) {
+    // Make sure we're resizing a window that actually exists in the window list
+    // to avoid resizing the divider in the split mode.
+    if(instance->window_list_provider_->IsWindowInList(child)) {
+       child->SetBounds(
+          gfx::Screen::GetNativeScreen()->GetPrimaryDisplay().work_area());
+    }
+  }
 }
 
 void AthenaContainerLayoutManager::SetChildBounds(
@@ -138,12 +157,9 @@ WindowManagerImpl::WindowManagerImpl() {
   container_->AddObserver(this);
   window_list_provider_.reset(new WindowListProviderImpl(container_.get()));
   window_list_provider_->AddObserver(this);
-  bezel_controller_.reset(new BezelController(container_.get()));
   split_view_controller_.reset(
       new SplitViewController(container_.get(), window_list_provider_.get()));
   AddObserver(split_view_controller_.get());
-  bezel_controller_->set_left_right_delegate(split_view_controller_.get());
-  container_->AddPreTargetHandler(bezel_controller_.get());
   title_drag_controller_.reset(new TitleDragController(container_.get(), this));
   wm_state_.reset(new wm::WMState());
   aura::client::ActivationClient* activation_client =
@@ -161,10 +177,9 @@ WindowManagerImpl::~WindowManagerImpl() {
   RemoveObserver(split_view_controller_.get());
   split_view_controller_.reset();
   window_list_provider_.reset();
-  if (container_) {
+  if (container_)
     container_->RemoveObserver(this);
-    container_->RemovePreTargetHandler(bezel_controller_.get());
-  }
+
   // |title_drag_controller_| needs to be reset before |container_|.
   title_drag_controller_.reset();
   container_.reset();
@@ -192,7 +207,6 @@ void WindowManagerImpl::EnterOverview() {
   if (IsOverviewModeActive())
     return;
 
-  bezel_controller_->set_left_right_delegate(nullptr);
   FOR_EACH_OBSERVER(WindowManagerObserver, observers_, OnOverviewModeEnter());
 
   // Note: The window_list_provider_ resembles the exact window list of the
@@ -229,7 +243,6 @@ void WindowManagerImpl::ExitOverviewNoActivate() {
   if (!IsOverviewModeActive())
     return;
 
-  bezel_controller_->set_left_right_delegate(split_view_controller_.get());
   overview_.reset();
   FOR_EACH_OBSERVER(WindowManagerObserver, observers_, OnOverviewModeExit());
   AcceleratorManager::Get()->UnregisterAccelerator(kEscAcceleratorData, this);
@@ -291,7 +304,11 @@ void WindowManagerImpl::OnSelectWindow(aura::Window* window) {
   // resized.
   const gfx::Size work_area =
       gfx::Screen::GetNativeScreen()->GetPrimaryDisplay().work_area().size();
-  if (window->GetTargetBounds().size() != work_area) {
+
+  // Resize to the screen bounds only if the window is maximize-able, and
+  // is not already maximized
+  if (window->GetTargetBounds().size() != work_area &&
+      CanWindowMaximize(window)) {
     const gfx::Rect& window_bounds = window->bounds();
     const gfx::Rect desired_bounds(work_area);
     gfx::Transform transform;
@@ -342,6 +359,25 @@ void WindowManagerImpl::OnWindowAddedToList(aura::Window* child) {
 
 void WindowManagerImpl::OnWindowRemovedFromList(aura::Window* removed_window,
                                                 int index) {
+  aura::Window::Windows windows = window_list_provider_->GetWindowList();
+  DCHECK(!window_list_provider_->IsWindowInList(removed_window));
+  DCHECK_LE(index, static_cast<int>(windows.size()));
+
+  // Splitted windows are handled in SplitViewController.
+  if (split_view_controller_->IsSplitViewModeActive())
+    return;
+
+  // In overview mode, windows are handled in WindowOverviewMode class.
+  if (!IsOverviewModeActive())
+    return;
+
+  // Shows the next window if the removed window was top.
+  if (!windows.empty() && index == static_cast<int>(windows.size())) {
+    aura::Window* next_window = windows.back();
+    next_window->Show();
+
+   // Don't activate the window here, since it should be done in focus manager.
+  }
 }
 
 void WindowManagerImpl::OnWindowDestroying(aura::Window* window) {

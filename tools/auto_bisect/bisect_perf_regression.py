@@ -35,7 +35,8 @@ Example usage using git hashes:
 import copy
 import errno
 import hashlib
-import optparse
+import logging
+import argparse
 import os
 import re
 import shlex
@@ -53,6 +54,7 @@ from bisect_results import BisectResults
 from bisect_state import BisectState
 import bisect_utils
 import builder
+import query_crbug
 import math_utils
 import request_build
 import source_control
@@ -60,8 +62,6 @@ from telemetry.util import cloud_storage
 
 # The script is in chromium/src/tools/auto_bisect. Throughout this script,
 # we use paths to other things in the chromium/src repository.
-
-CROS_CHROMEOS_PATTERN = 'chromeos-base/chromeos-chrome'
 
 # Possible return values from BisectPerformanceMetrics.RunTest.
 BUILD_RESULT_SUCCEED = 0
@@ -151,7 +151,7 @@ def GetZipFileName(build_revision=None, target_arch='ia32', patch_sha=None):
   if not build_revision:
     return base_name
   if patch_sha:
-    build_revision = '%s_%s' % (build_revision , patch_sha)
+    build_revision = '%s_%s' % (build_revision, patch_sha)
   return '%s_%s.zip' % (base_name, build_revision)
 
 
@@ -192,30 +192,19 @@ def FetchFromCloudStorage(bucket_name, source_path, destination_path):
   target_file = os.path.join(destination_path, os.path.basename(source_path))
   try:
     if cloud_storage.Exists(bucket_name, source_path):
-      print 'Fetching file from gs//%s/%s ...' % (bucket_name, source_path)
+      logging.info('Fetching file from gs//%s/%s ...',
+                   bucket_name, source_path)
       cloud_storage.Get(bucket_name, source_path, destination_path)
       if os.path.exists(target_file):
         return target_file
     else:
-      print ('File gs://%s/%s not found in cloud storage.' % (
-          bucket_name, source_path))
+      logging.info('File gs://%s/%s not found in cloud storage.',
+                    bucket_name, source_path)
   except Exception as e:
-    print 'Something went wrong while fetching file from cloud: %s' % e
+    logging.warn('Something went wrong while fetching file from cloud: %s', e)
     if os.path.exists(target_file):
       os.remove(target_file)
   return None
-
-
-# This is copied from build/scripts/common/chromium_utils.py.
-def MaybeMakeDirectory(*path):
-  """Creates an entire path, if it doesn't already exist."""
-  file_path = os.path.join(*path)
-  try:
-    os.makedirs(file_path)
-  except OSError as e:
-    if e.errno != errno.EEXIST:
-      return False
-  return True
 
 
 # This was copied from build/scripts/common/chromium_utils.py.
@@ -257,7 +246,7 @@ def ExtractZip(filename, output_dir, verbose=True):
     zf = zipfile.ZipFile(filename)
     for name in zf.namelist():
       if verbose:
-        print 'Extracting %s' % name
+        logging.info('Extracting %s', name)
       zf.extract(name, output_dir)
       if bisect_utils.IsMacHost():
         # Restore permission bits.
@@ -271,7 +260,7 @@ def WriteStringToFile(text, file_name):
     with open(file_name, 'wb') as f:
       f.write(text)
   except IOError:
-    raise RuntimeError('Error writing to file [%s]' % file_name )
+    raise RuntimeError('Error writing to file [%s]' % file_name)
 
 
 def ReadStringFromFile(file_name):
@@ -280,7 +269,7 @@ def ReadStringFromFile(file_name):
     with open(file_name) as f:
       return f.read()
   except IOError:
-    raise RuntimeError('Error reading file [%s]' % file_name )
+    raise RuntimeError('Error reading file [%s]' % file_name)
 
 
 def ChangeBackslashToSlashInPatch(diff_text):
@@ -315,7 +304,7 @@ def _ParseRevisionsFromDEPSFileManually(deps_file_contents):
   # the DEPS file with the following format:
   # 'depot_name': 'revision',
   vars_body = re_results.group('vars_body')
-  rxp = re.compile("'(?P<depot_body>[\w_-]+)':[\s]+'(?P<rev_body>[\w@]+)'",
+  rxp = re.compile(r"'(?P<depot_body>[\w_-]+)':[\s]+'(?P<rev_body>[\w@]+)'",
                    re.MULTILINE)
   re_results = rxp.findall(vars_body)
 
@@ -371,7 +360,7 @@ def _WaitUntilBuildIsReady(
     if elapsed_time > max_timeout:
       return (None, 'Timed out: %ss without build' % max_timeout)
 
-    print 'Time elapsed: %ss without build.' % elapsed_time
+    logging.info('Time elapsed: %ss without build.', elapsed_time)
     time.sleep(poll_interval)
     # For some reason, mac bisect bots were not flushing stdout periodically.
     # As a result buildbot command is timed-out. Flush stdout on all platforms
@@ -442,14 +431,14 @@ def _UpdateDEPSForAngle(revision, depot, deps_file):
           r'(?<=angle\.git@)([a-fA-F0-9]{40})(?=")', re.MULTILINE)
       match = re.search(angle_rev_pattern, deps_contents)
       if not match:
-        print 'Could not find angle revision information in DEPS file.'
+        logging.info('Could not find angle revision information in DEPS file.')
         return False
       new_data = re.sub(angle_rev_pattern, revision, deps_contents)
     # Write changes to DEPS file
     WriteStringToFile(new_data, deps_file)
     return True
   except IOError, e:
-    print 'Something went wrong while updating DEPS file, %s' % e
+    logging.warn('Something went wrong while updating DEPS file, %s', e)
   return False
 
 
@@ -501,18 +490,18 @@ def _TryParseResultValuesFromOutput(metric, text):
   # The log will be parsed looking for format:
   # <*>RESULT <graph_name>: <trace_name>= <value>
   single_result_re = re.compile(
-      metric_re + '\s*(?P<VALUE>[-]?\d*(\.\d*)?)')
+      metric_re + r'\s*(?P<VALUE>[-]?\d*(\.\d*)?)')
 
   # The log will be parsed looking for format:
   # <*>RESULT <graph_name>: <trace_name>= [<value>,value,value,...]
   multi_results_re = re.compile(
-      metric_re + '\s*\[\s*(?P<VALUES>[-]?[\d\., ]+)\s*\]')
+      metric_re + r'\s*\[\s*(?P<VALUES>[-]?[\d\., ]+)\s*\]')
 
   # The log will be parsed looking for format:
   # <*>RESULT <graph_name>: <trace_name>= {<mean>, <std deviation>}
   mean_stddev_re = re.compile(
       metric_re +
-      '\s*\{\s*(?P<MEAN>[-]?\d*(\.\d*)?),\s*(?P<STDDEV>\d+(\.\d*)?)\s*\}')
+      r'\s*\{\s*(?P<MEAN>[-]?\d*(\.\d*)?),\s*(?P<STDDEV>\d+(\.\d*)?)\s*\}')
 
   text_lines = text.split('\n')
   values_list = []
@@ -661,7 +650,6 @@ class DepotDirectoryRegistry(object):
       self.SetDepotDir(depot, os.path.join(src_cwd, path_in_src))
 
     self.SetDepotDir('chromium', src_cwd)
-    self.SetDepotDir('cros', os.path.join(src_cwd, 'tools', 'cros'))
 
   def SetDepotDir(self, depot_name, depot_dir):
     self.depot_cwd[depot_name] = depot_dir
@@ -701,7 +689,7 @@ def _PrepareBisectBranch(parent_branch, new_branch):
       raise RunGitError('Failed to checkout branch: %s.' % output)
 
   # Delete new branch if exists.
-  output, returncode = bisect_utils.RunGit(['branch', '--list' ])
+  output, returncode = bisect_utils.RunGit(['branch', '--list'])
   if new_branch in output:
     output, returncode = bisect_utils.RunGit(['branch', '-D', new_branch])
     if returncode:
@@ -757,8 +745,8 @@ def _BuilderTryjob(git_revision, bot_name, bisect_job_name, patch=None):
     if returncode:
       raise RunGitError('Could not execute tryjob: %s.\n Error: %s' % (
                          'git %s' % ' '.join(try_cmd), output))
-    print ('Try job successfully submitted.\n TryJob Details: %s\n%s' % (
-           'git %s' % ' '.join(try_cmd), output))
+    logging.info('Try job successfully submitted.\n TryJob Details: %s\n%s',
+           'git %s' % ' '.join(try_cmd), output)
   finally:
     # Delete patch file if exists
     try:
@@ -778,17 +766,19 @@ class BisectPerformanceMetrics(object):
   The main entry-point is the Run method.
   """
 
-  def __init__(self, opts):
+  def __init__(self, opts, src_cwd):
+    """Constructs a BisectPerformancesMetrics object.
+
+    Args:
+      opts: BisectOptions object containing parsed options.
+      src_cwd: Root src/ directory of the test repository (inside bisect/ dir).
+    """
     super(BisectPerformanceMetrics, self).__init__()
 
     self.opts = opts
-
-    # The src directory here is NOT the src/ directory for the repository
-    # where the bisect script is running from. Instead, it's the src/ directory
-    # inside the bisect/ directory which is created before running.
-    self.src_cwd = os.getcwd()
-
+    self.src_cwd = src_cwd
     self.depot_registry = DepotDirectoryRegistry(self.src_cwd)
+    self.printer = BisectPrinter(self.opts, self.depot_registry)
     self.cleanup_commands = []
     self.warnings = []
     self.builder = builder.Builder.FromOpts(opts)
@@ -806,38 +796,8 @@ class BisectPerformanceMetrics(object):
     """Retrieves a list of all the commits between the bad revision and
     last known good revision."""
 
-    revision_work_list = []
-
-    if depot == 'cros':
-      revision_range_start = good_revision
-      revision_range_end = bad_revision
-
-      cwd = os.getcwd()
-      self.depot_registry.ChangeToDepotDir('cros')
-
-      # Print the commit timestamps for every commit in the revision time
-      # range. We'll sort them and bisect by that. There is a remote chance that
-      # 2 (or more) commits will share the exact same timestamp, but it's
-      # probably safe to ignore that case.
-      cmd = ['repo', 'forall', '-c',
-          'git log --format=%%ct --before=%d --after=%d' % (
-          revision_range_end, revision_range_start)]
-      output, return_code = bisect_utils.RunProcessAndRetrieveOutput(cmd)
-
-      assert not return_code, ('An error occurred while running '
-                               '"%s"' % ' '.join(cmd))
-
-      os.chdir(cwd)
-
-      revision_work_list = list(set(
-          [int(o) for o in output.split('\n') if bisect_utils.IsStringInt(o)]))
-      revision_work_list = sorted(revision_work_list, reverse=True)
-    else:
-      cwd = self.depot_registry.GetDepotDir(depot)
-      revision_work_list = source_control.GetRevisionList(bad_revision,
-          good_revision, cwd=cwd)
-
-    return revision_work_list
+    cwd = self.depot_registry.GetDepotDir(depot)
+    return source_control.GetRevisionList(bad_revision, good_revision, cwd=cwd)
 
   def _ParseRevisionsFromDEPSFile(self, depot):
     """Parses the local DEPS file to determine blink/skia/v8 revisions which may
@@ -868,7 +828,7 @@ class BisectPerformanceMetrics(object):
             depot_data.get('platform') != os.name):
           continue
 
-        if (depot_data.get('recurse') and depot in depot_data.get('from')):
+        if depot_data.get('recurse') and depot in depot_data.get('from'):
           depot_data_src = depot_data.get('src') or depot_data.get('src_old')
           src_dir = deps_data.get(depot_data_src)
           if src_dir:
@@ -891,7 +851,7 @@ class BisectPerformanceMetrics(object):
       results = {}
       for depot_name, depot_revision in parse_results.iteritems():
         depot_revision = depot_revision.strip('@')
-        print depot_name, depot_revision
+        logging.warn(depot_name, depot_revision)
         for cur_name, cur_data in bisect_utils.DEPOT_DEPS_NAME.iteritems():
           if (cur_data.has_key('deps_var') and
               cur_data['deps_var'] == depot_name):
@@ -917,48 +877,6 @@ class BisectPerformanceMetrics(object):
     if depot == 'chromium' or depot == 'android-chrome':
       results = self._ParseRevisionsFromDEPSFile(depot)
       os.chdir(cwd)
-
-    if depot == 'cros':
-      cmd = [
-          bisect_utils.CROS_SDK_PATH,
-          '--',
-          'portageq-%s' % self.opts.cros_board,
-          'best_visible',
-          '/build/%s' % self.opts.cros_board,
-          'ebuild',
-          CROS_CHROMEOS_PATTERN
-      ]
-      output, return_code = bisect_utils.RunProcessAndRetrieveOutput(cmd)
-
-      assert not return_code, ('An error occurred while running '
-                               '"%s"' % ' '.join(cmd))
-
-      if len(output) > CROS_CHROMEOS_PATTERN:
-        output = output[len(CROS_CHROMEOS_PATTERN):]
-
-      if len(output) > 1:
-        output = output.split('_')[0]
-
-        if len(output) > 3:
-          contents = output.split('.')
-
-          version = contents[2]
-
-          if contents[3] != '0':
-            warningText = ('Chrome version: %s.%s but using %s.0 to bisect.' %
-                           (version, contents[3], version))
-            if not warningText in self.warnings:
-              self.warnings.append(warningText)
-
-          cwd = os.getcwd()
-          self.depot_registry.ChangeToDepotDir('chromium')
-          cmd = ['log', '-1', '--format=%H',
-                 '--author=chrome-release@google.com',
-                 '--grep=to %s' % version, 'origin/master']
-          return_code = bisect_utils.CheckRunGit(cmd)
-          os.chdir(cwd)
-
-          results['chromium'] = output.strip()
 
     if depot == 'v8':
       # We can't try to map the trunk revision to bleeding edge yet, because
@@ -1129,10 +1047,10 @@ class BisectPerformanceMetrics(object):
           fetch_build, bot_name, self.opts.builder_host,
           self.opts.builder_port, build_request_id, build_timeout)
       if not target_file:
-        print '%s [revision: %s]' % (error_msg, git_revision)
+        logging.warn('%s [revision: %s]', error_msg, git_revision)
     except RunGitError as e:
-      print ('Failed to post builder try job for revision: [%s].\n'
-             'Error: %s' % (git_revision, e))
+      logging.warn('Failed to post builder try job for revision: [%s].\n'
+             'Error: %s', git_revision, e)
 
     return target_file
 
@@ -1193,12 +1111,12 @@ class BisectPerformanceMetrics(object):
         else:
           raise IOError('Missing extracted folder %s ' % output_dir)
 
-      print 'Moving build from %s to %s' % (
-          output_dir, target_build_output_dir)
+      logging.info('Moving build from %s to %s',
+                   output_dir, target_build_output_dir)
       shutil.move(output_dir, target_build_output_dir)
       return True
     except Exception as e:
-      print 'Something went wrong while extracting archive file: %s' % e
+      logging.info('Something went wrong while extracting archive file: %s', e)
       self.BackupOrRestoreOutputDirectory(restore=True)
       # Cleanup any leftovers from unzipping.
       if os.path.exists(output_dir):
@@ -1239,7 +1157,7 @@ class BisectPerformanceMetrics(object):
       commit_position = source_control.GetCommitPosition(
           git_revision, self.depot_registry.GetDepotDir(depot))
       if not commit_position:
-        print 'Could not determine commit position for %s' % git_revision
+        logging.warn('Could not determine commit position for %s', git_revision)
         return None
       # Update the revision information for the given depot
       new_data = re.sub(deps_revision, str(commit_position), deps_contents)
@@ -1281,7 +1199,7 @@ class BisectPerformanceMetrics(object):
     deps_var = bisect_utils.DEPOT_DEPS_NAME[depot]['deps_var']
     # Don't update DEPS file if deps_var is not set in DEPOT_DEPS_NAME.
     if not deps_var:
-      print 'DEPS update not supported for Depot: %s', depot
+      logging.warn('DEPS update not supported for Depot: %s', depot)
       return False
 
     # Hack for Angle repository. In the DEPS file, "vars" dictionary variable
@@ -1301,7 +1219,7 @@ class BisectPerformanceMetrics(object):
         WriteStringToFile(updated_deps_content, deps_file)
         return True
     except IOError, e:
-      print 'Something went wrong while updating DEPS file. [%s]' % e
+      logging.warn('Something went wrong while updating DEPS file. [%s]', e)
     return False
 
   def CreateDEPSPatch(self, depot, revision):
@@ -1346,7 +1264,7 @@ class BisectPerformanceMetrics(object):
             'DEPS checkout Failed for chromium revision : [%s]' % chromium_sha)
     return (None, None)
 
-  def _ObtainBuild(self, depot, revision=None):
+  def ObtainBuild(self, depot, revision=None):
     """Obtains a build by either downloading or building directly.
 
     Args:
@@ -1411,7 +1329,7 @@ class BisectPerformanceMetrics(object):
                                                          cwd=self.src_cwd)
       if not commit_position:
         return command_to_run
-      cmd_re = re.compile('--browser=(?P<browser_type>\S+)')
+      cmd_re = re.compile(r'--browser=(?P<browser_type>\S+)')
       matches = cmd_re.search(command_to_run)
       if bisect_utils.IsStringInt(commit_position) and matches:
         cmd_browser = matches.group('browser_type')
@@ -1477,9 +1395,6 @@ class BisectPerformanceMetrics(object):
     # If running a Telemetry test for Chrome OS, insert the remote IP and
     # identity parameters.
     is_telemetry = bisect_utils.IsTelemetryCommand(command_to_run)
-    if self.opts.target_platform == 'cros' and is_telemetry:
-      args.append('--remote=%s' % self.opts.cros_remote_ip)
-      args.append('--identity=%s' % bisect_utils.CROS_TEST_KEY_PATH)
 
     start_time = time.time()
 
@@ -1500,8 +1415,8 @@ class BisectPerformanceMetrics(object):
             current_args, cwd=self.src_cwd)
       except OSError, e:
         if e.errno == errno.ENOENT:
-          err_text  = ('Something went wrong running the performance test. '
-                       'Please review the command line:\n\n')
+          err_text = ('Something went wrong running the performance test. '
+                      'Please review the command line:\n\n')
           if 'src/' in ' '.join(args):
             err_text += ('Check that you haven\'t accidentally specified a '
                          'path with src/ in the command.\n\n')
@@ -1593,8 +1508,7 @@ class BisectPerformanceMetrics(object):
     """
     revisions_to_sync = [[depot, revision]]
 
-    is_base = ((depot == 'chromium') or (depot == 'cros') or
-        (depot == 'android-chrome'))
+    is_base = ((depot == 'chromium') or (depot == 'android-chrome'))
 
     # Some SVN depots were split into multiple git depots, so we need to
     # figure out for each mirror which git revision to grab. There's no
@@ -1617,7 +1531,7 @@ class BisectPerformanceMetrics(object):
 
       self.depot_registry.ChangeToDepotDir(depot)
 
-      if not ((num_resolved - 1) == num_needed):
+      if not (num_resolved - 1) == num_needed:
         return None
 
     return revisions_to_sync
@@ -1634,46 +1548,7 @@ class BisectPerformanceMetrics(object):
           path_to_file = os.path.join(path, cur_file)
           os.remove(path_to_file)
 
-  def PerformCrosChrootCleanup(self):
-    """Deletes the chroot.
-
-    Returns:
-      True if successful.
-    """
-    cwd = os.getcwd()
-    self.depot_registry.ChangeToDepotDir('cros')
-    cmd = [bisect_utils.CROS_SDK_PATH, '--delete']
-    return_code = bisect_utils.RunProcess(cmd)
-    os.chdir(cwd)
-    return not return_code
-
-  def CreateCrosChroot(self):
-    """Creates a new chroot.
-
-    Returns:
-      True if successful.
-    """
-    cwd = os.getcwd()
-    self.depot_registry.ChangeToDepotDir('cros')
-    cmd = [bisect_utils.CROS_SDK_PATH, '--create']
-    return_code = bisect_utils.RunProcess(cmd)
-    os.chdir(cwd)
-    return not return_code
-
-  def _PerformPreSyncCleanup(self, depot):
-    """Performs any necessary cleanup before syncing.
-
-    Args:
-      depot: Depot name.
-
-    Returns:
-      True if successful.
-    """
-    if depot == 'cros':
-      return self.PerformCrosChrootCleanup()
-    return True
-
-  def _RunPostSync(self, depot):
+  def _RunPostSync(self, _depot):
     """Performs any work after syncing.
 
     Args:
@@ -1687,11 +1562,7 @@ class BisectPerformanceMetrics(object):
           path_to_src=self.src_cwd):
         return False
 
-    if depot == 'cros':
-      return self.CreateCrosChroot()
-    else:
-      return self.RunGClientHooks()
-    return True
+    return self.RunGClientHooks()
 
   @staticmethod
   def ShouldSkipRevision(depot, revision):
@@ -1731,20 +1602,17 @@ class BisectPerformanceMetrics(object):
       On success, a tuple containing the results of the performance test.
       Otherwise, a tuple with the error message.
     """
+    logging.info('Running RunTest with rev "%s", command "%s"',
+                 revision, command)
     # Decide which sync program to use.
     sync_client = None
     if depot == 'chromium' or depot == 'android-chrome':
       sync_client = 'gclient'
-    elif depot == 'cros':
-      sync_client = 'repo'
 
     # Decide what depots will need to be synced to what revisions.
     revisions_to_sync = self._FindAllRevisionsToSync(revision, depot)
     if not revisions_to_sync:
       return ('Failed to resolve dependent depots.', BUILD_RESULT_FAIL)
-
-    if not self._PerformPreSyncCleanup(depot):
-      return ('Failed to perform pre-sync cleanup.', BUILD_RESULT_FAIL)
 
     # Do the syncing for all depots.
     if not self.opts.debug_ignore_sync:
@@ -1763,7 +1631,7 @@ class BisectPerformanceMetrics(object):
     # Obtain a build for this revision. This may be done by requesting a build
     # from another builder, waiting for it and downloading it.
     start_build_time = time.time()
-    build_success = self._ObtainBuild(depot, revision)
+    build_success = self.ObtainBuild(depot, revision)
     if not build_success:
       return ('Failed to build revision: [%s]' % str(revision),
               BUILD_RESULT_FAIL)
@@ -1800,7 +1668,7 @@ class BisectPerformanceMetrics(object):
 
     Args:
       revisions_to_sync: A list of (depot, revision) pairs to be synced.
-      sync_client: Program used to sync, e.g. "gclient", "repo". Can be None.
+      sync_client: Program used to sync, e.g. "gclient". Can be None.
 
     Returns:
       True if successful, False otherwise.
@@ -1880,9 +1748,6 @@ class BisectPerformanceMetrics(object):
       regex_results = version_re.search(revision_info['subject'])
       if regex_results:
         git_revision = None
-        # TODO (prasadv): Support the v8 git migration based subject
-        # "based on <githash>"
-        # Look for "based on bleeding_edge" and parse out revision
         if 'based on bleeding_edge' in revision_info['subject']:
           try:
             bleeding_edge_revision = revision_info['subject'].split(
@@ -1900,6 +1765,16 @@ class BisectPerformanceMetrics(object):
             if output:
               git_revision = output.strip()
             return git_revision
+          except (IndexError, ValueError):
+            pass
+        else:
+          # V8 rolls description changed after V8 git migration, new description
+          # includes "Version 3.X.Y (based on <git hash>)"
+          try:
+            rxp = re.compile('based on (?P<git_revision>[a-fA-F0-9]+)')
+            re_results = rxp.search(revision_info['subject'])
+            if re_results:
+              return re_results.group('git_revision')
           except (IndexError, ValueError):
             pass
         if not git_revision:
@@ -2200,14 +2075,9 @@ class BisectPerformanceMetrics(object):
     Returns:
       True if the revisions are in the proper order (good earlier than bad).
     """
-    if target_depot != 'cros':
-      cwd = self.depot_registry.GetDepotDir(target_depot)
-      good_position = source_control.GetCommitPosition(good_revision, cwd)
-      bad_position = source_control.GetCommitPosition(bad_revision, cwd)
-    else:
-      # CrOS and SVN use integers.
-      good_position = int(good_revision)
-      bad_position = int(bad_revision)
+    cwd = self.depot_registry.GetDepotDir(target_depot)
+    good_position = source_control.GetCommitPosition(good_revision, cwd)
+    bad_position = source_control.GetCommitPosition(bad_revision, cwd)
 
     return good_position <= bad_position
 
@@ -2265,11 +2135,10 @@ class BisectPerformanceMetrics(object):
     Returns:
       A BisectResults object.
     """
+
     # Choose depot to bisect first
     target_depot = 'chromium'
-    if self.opts.target_platform == 'cros':
-      target_depot = 'cros'
-    elif self.opts.target_platform == 'android-chrome':
+    if self.opts.target_platform == 'android-chrome':
       target_depot = 'android-chrome'
 
     cwd = os.getcwd()
@@ -2372,22 +2241,13 @@ class BisectPerformanceMetrics(object):
                    '\'good\' - \'bad\' range of revisions represent an '
                    'improvement (and not a regression).')
           return BisectResults(error=error)
-        print message, "Therefore we continue to bisect."
+        logging.info(message + "Therefore we continue to bisect.")
 
       bisect_state = BisectState(target_depot, revision_list)
       revision_states = bisect_state.GetRevisionStates()
 
       min_revision = 0
       max_revision = len(revision_states) - 1
-      # Check how likely it is that the good and bad results are different
-      # beyond chance-induced variation.
-      if not self.opts.debug_ignore_regression_confidence:
-        error = _CheckRegressionConfidenceError(good_revision,
-                                                bad_revision,
-                                                known_good_value,
-                                                known_bad_value)
-        if error:
-          return BisectResults(error=error)
 
       # Can just mark the good and bad revisions explicitly here since we
       # already know the results.
@@ -2405,7 +2265,19 @@ class BisectPerformanceMetrics(object):
       good_revision_state.passed = True
       good_revision_state.value = known_good_value
 
-      bisect_printer = BisectPrinter(self.opts, self.depot_registry)
+      # Check how likely it is that the good and bad results are different
+      # beyond chance-induced variation.
+      confidence_error = False
+      if not self.opts.debug_ignore_regression_confidence:
+        confidence_error = _CheckRegressionConfidenceError(good_revision,
+                                                           bad_revision,
+                                                           known_good_value,
+                                                           known_bad_value)
+        if confidence_error:
+          self.warnings.append(confidence_error)
+          bad_revision_state.passed = True # Marking the 'bad' revision as good.
+          return BisectResults(bisect_state, self.depot_registry, self.opts,
+                               self.warnings)
 
       while True:
         if not revision_states:
@@ -2420,7 +2292,7 @@ class BisectPerformanceMetrics(object):
             next_revision_index = min_revision
           elif max_revision_state.passed == '?':
             next_revision_index = max_revision
-          elif current_depot in ['android-chrome', 'cros', 'chromium', 'v8']:
+          elif current_depot in ['android-chrome', 'chromium', 'v8']:
             previous_revision = revision_states[min_revision].revision
             # If there were changes to any of the external libraries we track,
             # should bisect the changes there as well.
@@ -2517,7 +2389,7 @@ class BisectPerformanceMetrics(object):
           max_revision -= 1
 
         if self.opts.output_buildbot_annotations:
-          bisect_printer.PrintPartialResults(bisect_state)
+          self.printer.PrintPartialResults(bisect_state)
           bisect_utils.OutputAnnotationStepClosed()
 
       return BisectResults(bisect_state, self.depot_registry, self.opts,
@@ -2543,14 +2415,26 @@ def _IsPlatformSupported():
   return os.name in supported
 
 
+def RemoveBuildFiles(build_type):
+  """Removes build files from previous runs."""
+  out_dir = os.path.join('out', build_type)
+  build_dir = os.path.join('build', build_type)
+  logging.info('Removing build files in "%s" and "%s".',
+               os.path.abspath(out_dir), os.path.abspath(build_dir))
+  try:
+    RemakeDirectoryTree(out_dir)
+    RemakeDirectoryTree(build_dir)
+  except Exception as e:
+    raise RuntimeError('Got error in RemoveBuildFiles: %s' % e)
+
+
 def RemakeDirectoryTree(path_to_dir):
   """Removes a directory tree and replaces it with an empty one.
 
   Returns True if successful, False otherwise.
   """
-  if not RemoveDirectoryTree(path_to_dir):
-    return False
-  return MaybeMakeDirectory(path_to_dir)
+  RemoveDirectoryTree(path_to_dir)
+  MaybeMakeDirectory(path_to_dir)
 
 
 def RemoveDirectoryTree(path_to_dir):
@@ -2560,15 +2444,18 @@ def RemoveDirectoryTree(path_to_dir):
       shutil.rmtree(path_to_dir)
   except OSError, e:
     if e.errno != errno.ENOENT:
-      return False
-  return True
+      raise
 
 
-def RemoveBuildFiles(build_type):
-  """Removes build files from previous runs."""
-  out_dir = os.path.join('out', build_type)
-  build_dir = os.path.join('build', build_type)
-  return RemakeDirectoryTree(out_dir) and RemakeDirectoryTree(build_dir)
+# This is copied from build/scripts/common/chromium_utils.py.
+def MaybeMakeDirectory(*path):
+  """Creates an entire path, if it doesn't already exist."""
+  file_path = os.path.join(*path)
+  try:
+    os.makedirs(file_path)
+  except OSError as e:
+    if e.errno != errno.EEXIST:
+      raise
 
 
 class BisectOptions(object):
@@ -2582,8 +2469,7 @@ class BisectOptions(object):
     self.bad_revision = None
     self.use_goma = None
     self.goma_dir = None
-    self.cros_board = None
-    self.cros_remote_ip = None
+    self.goma_threads = 64
     self.repeat_test_count = 20
     self.truncate_percent = 25
     self.max_time_minutes = 20
@@ -2605,9 +2491,136 @@ class BisectOptions(object):
     self.builder_port = None
     self.bisect_mode = bisect_utils.BISECT_MODE_MEAN
     self.improvement_direction = 0
+    self.bug_id = ''
 
   @staticmethod
-  def _CreateCommandLineParser():
+  def _AddBisectOptionsGroup(parser):
+    group = parser.add_argument_group('Bisect options')
+    group.add_argument('-c', '--command', required=True,
+                       help='A command to execute your performance test at '
+                            'each point in the bisection.')
+    group.add_argument('-b', '--bad_revision', required=True,
+                       help='A bad revision to start bisection. Must be later '
+                            'than good revision. May be either a git or svn '
+                            'revision.')
+    group.add_argument('-g', '--good_revision', required=True,
+                       help='A revision to start bisection where performance '
+                            'test is known to pass. Must be earlier than the '
+                            'bad revision. May be either a git or a svn '
+                            'revision.')
+    group.add_argument('-m', '--metric',
+                       help='The desired metric to bisect on. For example '
+                            '"vm_rss_final_b/vm_rss_f_b"')
+    group.add_argument('-d', '--improvement_direction', type=int, default=0,
+                       help='An integer number representing the direction of '
+                            'improvement. 1 for higher is better, -1 for lower '
+                            'is better, 0 for ignore (default).')
+    group.add_argument('-r', '--repeat_test_count', type=int, default=20,
+                       choices=range(1, 101),
+                       help='The number of times to repeat the performance '
+                            'test. Values will be clamped to range [1, 100]. '
+                            'Default value is 20.')
+    group.add_argument('--max_time_minutes', type=int, default=20,
+                       choices=range(1, 61),
+                       help='The maximum time (in minutes) to take running the '
+                            'performance tests. The script will run the '
+                            'performance tests according to '
+                            '--repeat_test_count, so long as it doesn\'t exceed'
+                            ' --max_time_minutes. Values will be clamped to '
+                            'range [1, 60]. Default value is 20.')
+    group.add_argument('-t', '--truncate_percent', type=int, default=25,
+                       help='The highest/lowest % are discarded to form a '
+                            'truncated mean. Values will be clamped to range '
+                            '[0, 25]. Default value is 25 (highest/lowest 25% '
+                            'will be discarded).')
+    group.add_argument('--bisect_mode', default=bisect_utils.BISECT_MODE_MEAN,
+                       choices=[bisect_utils.BISECT_MODE_MEAN,
+                                bisect_utils.BISECT_MODE_STD_DEV,
+                                bisect_utils.BISECT_MODE_RETURN_CODE],
+                       help='The bisect mode. Choices are to bisect on the '
+                            'difference in mean, std_dev, or return_code.')
+    group.add_argument('--bug_id', default='',
+                       help='The id for the bug associated with this bisect. ' +
+                            'If this number is given, bisect will attempt to ' +
+                            'verify that the bug is not closed before '
+                            'starting.')
+
+  @staticmethod
+  def _AddBuildOptionsGroup(parser):
+    group = parser.add_argument_group('Build options')
+    group.add_argument('-w', '--working_directory',
+                       help='Path to the working directory where the script '
+                       'will do an initial checkout of the chromium depot. The '
+                       'files will be placed in a subdirectory "bisect" under '
+                       'working_directory and that will be used to perform the '
+                       'bisection. This parameter is optional, if it is not '
+                       'supplied, the script will work from the current depot.')
+    group.add_argument('--build_preference',
+                       choices=['msvs', 'ninja', 'make'],
+                       help='The preferred build system to use. On linux/mac '
+                            'the options are make/ninja. On Windows, the '
+                            'options are msvs/ninja.')
+    group.add_argument('--target_platform', default='chromium',
+                       choices=['chromium', 'android', 'android-chrome'],
+                       help='The target platform. Choices are "chromium" '
+                            '(current platform), or "android". If you specify '
+                            'something other than "chromium", you must be '
+                            'properly set up to build that platform.')
+    group.add_argument('--no_custom_deps', dest='no_custom_deps',
+                       action='store_true', default=False,
+                       help='Run the script with custom_deps or not.')
+    group.add_argument('--extra_src',
+                       help='Path to a script which can be used to modify the '
+                            'bisect script\'s behavior.')
+    group.add_argument('--use_goma', action='store_true',
+                       help='Add a bunch of extra threads for goma, and enable '
+                            'goma')
+    group.add_argument('--goma_dir',
+                       help='Path to goma tools (or system default if not '
+                            'specified).')
+    group.add_argument('--goma_threads', type=int, default='64',
+                       help='Number of threads for goma, only if using goma.')
+    group.add_argument('--output_buildbot_annotations', action='store_true',
+                       help='Add extra annotation output for buildbot.')
+    group.add_argument('--gs_bucket', default='', dest='gs_bucket',
+                       help='Name of Google Storage bucket to upload or '
+                            'download build. e.g., chrome-perf')
+    group.add_argument('--target_arch', default='ia32',
+                       dest='target_arch', choices=['ia32', 'x64', 'arm'],
+                       help='The target build architecture. Choices are "ia32" '
+                            '(default), "x64" or "arm".')
+    group.add_argument('--target_build_type', default='Release',
+                       choices=['Release', 'Debug'],
+                       help='The target build type. Choices are "Release" '
+                            '(default), or "Debug".')
+    group.add_argument('--builder_host', dest='builder_host',
+                       help='Host address of server to produce build by '
+                            'posting try job request.')
+    group.add_argument('--builder_port', dest='builder_port', type=int,
+                       help='HTTP port of the server to produce build by '
+                            'posting try job request.')
+
+  @staticmethod
+  def _AddDebugOptionsGroup(parser):
+    group = parser.add_argument_group('Debug options')
+    group.add_argument('--debug_ignore_build', action='store_true',
+                       help='DEBUG: Don\'t perform builds.')
+    group.add_argument('--debug_ignore_sync', action='store_true',
+                       help='DEBUG: Don\'t perform syncs.')
+    group.add_argument('--debug_ignore_perf_test', action='store_true',
+                       help='DEBUG: Don\'t perform performance tests.')
+    group.add_argument('--debug_ignore_regression_confidence',
+                       action='store_true',
+                       help='DEBUG: Don\'t score the confidence of the initial '
+                            'good and bad revisions\' test results.')
+    group.add_argument('--debug_fake_first_test_mean', type=int, default='0',
+                       help='DEBUG: When faking performance tests, return this '
+                            'value as the mean of the first performance test, '
+                            'and return a mean of 0.0 for further tests.')
+    return group
+
+  @classmethod
+  def _CreateCommandLineParser(cls):
     """Creates a parser with bisect options.
 
     Returns:
@@ -2617,182 +2630,18 @@ class BisectOptions(object):
              'Perform binary search on revision history to find a minimal '
              'range of revisions where a performance metric regressed.\n')
 
-    parser = optparse.OptionParser(usage=usage)
-
-    group = optparse.OptionGroup(parser, 'Bisect options')
-    group.add_option('-c', '--command',
-                     type='str',
-                     help='A command to execute your performance test at' +
-                     ' each point in the bisection.')
-    group.add_option('-b', '--bad_revision',
-                     type='str',
-                     help='A bad revision to start bisection. ' +
-                     'Must be later than good revision. May be either a git' +
-                     ' or svn revision.')
-    group.add_option('-g', '--good_revision',
-                     type='str',
-                     help='A revision to start bisection where performance' +
-                     ' test is known to pass. Must be earlier than the ' +
-                     'bad revision. May be either a git or svn revision.')
-    group.add_option('-m', '--metric',
-                     type='str',
-                     help='The desired metric to bisect on. For example ' +
-                     '"vm_rss_final_b/vm_rss_f_b"')
-    group.add_option('-d', '--improvement_direction',
-                     type='int',
-                     default=0,
-                     help='An integer number representing the direction of ' +
-                     'improvement. 1 for higher is better, -1 for lower is ' +
-                     'better, 0 for ignore (default).')
-    group.add_option('-r', '--repeat_test_count',
-                     type='int',
-                     default=20,
-                     help='The number of times to repeat the performance '
-                     'test. Values will be clamped to range [1, 100]. '
-                     'Default value is 20.')
-    group.add_option('--max_time_minutes',
-                     type='int',
-                     default=20,
-                     help='The maximum time (in minutes) to take running the '
-                     'performance tests. The script will run the performance '
-                     'tests according to --repeat_test_count, so long as it '
-                     'doesn\'t exceed --max_time_minutes. Values will be '
-                     'clamped to range [1, 60].'
-                     'Default value is 20.')
-    group.add_option('-t', '--truncate_percent',
-                     type='int',
-                     default=25,
-                     help='The highest/lowest % are discarded to form a '
-                     'truncated mean. Values will be clamped to range [0, '
-                     '25]. Default value is 25 (highest/lowest 25% will be '
-                     'discarded).')
-    group.add_option('--bisect_mode',
-                     type='choice',
-                     choices=[bisect_utils.BISECT_MODE_MEAN,
-                              bisect_utils.BISECT_MODE_STD_DEV,
-                              bisect_utils.BISECT_MODE_RETURN_CODE],
-                     default=bisect_utils.BISECT_MODE_MEAN,
-                     help='The bisect mode. Choices are to bisect on the '
-                     'difference in mean, std_dev, or return_code.')
-    parser.add_option_group(group)
-
-    group = optparse.OptionGroup(parser, 'Build options')
-    group.add_option('-w', '--working_directory',
-                     type='str',
-                     help='Path to the working directory where the script '
-                     'will do an initial checkout of the chromium depot. The '
-                     'files will be placed in a subdirectory "bisect" under '
-                     'working_directory and that will be used to perform the '
-                     'bisection. This parameter is optional, if it is not '
-                     'supplied, the script will work from the current depot.')
-    group.add_option('--build_preference',
-                     type='choice',
-                     choices=['msvs', 'ninja', 'make'],
-                     help='The preferred build system to use. On linux/mac '
-                     'the options are make/ninja. On Windows, the options '
-                     'are msvs/ninja.')
-    group.add_option('--target_platform',
-                     type='choice',
-                     choices=['chromium', 'cros', 'android', 'android-chrome'],
-                     default='chromium',
-                     help='The target platform. Choices are "chromium" '
-                     '(current platform), "cros", or "android". If you '
-                     'specify something other than "chromium", you must be '
-                     'properly set up to build that platform.')
-    group.add_option('--no_custom_deps',
-                     dest='no_custom_deps',
-                     action='store_true',
-                     default=False,
-                     help='Run the script with custom_deps or not.')
-    group.add_option('--extra_src',
-                     type='str',
-                     help='Path to a script which can be used to modify '
-                     'the bisect script\'s behavior.')
-    group.add_option('--cros_board',
-                     type='str',
-                     help='The cros board type to build.')
-    group.add_option('--cros_remote_ip',
-                     type='str',
-                     help='The remote machine to image to.')
-    group.add_option('--use_goma',
-                     action='store_true',
-                     help='Add a bunch of extra threads for goma, and enable '
-                     'goma')
-    group.add_option('--goma_dir',
-                     help='Path to goma tools (or system default if not '
-                     'specified).')
-    group.add_option('--output_buildbot_annotations',
-                     action='store_true',
-                     help='Add extra annotation output for buildbot.')
-    group.add_option('--gs_bucket',
-                     default='',
-                     dest='gs_bucket',
-                     type='str',
-                     help=('Name of Google Storage bucket to upload or '
-                     'download build. e.g., chrome-perf'))
-    group.add_option('--target_arch',
-                     type='choice',
-                     choices=['ia32', 'x64', 'arm'],
-                     default='ia32',
-                     dest='target_arch',
-                     help=('The target build architecture. Choices are "ia32" '
-                     '(default), "x64" or "arm".'))
-    group.add_option('--target_build_type',
-                     type='choice',
-                     choices=['Release', 'Debug'],
-                     default='Release',
-                     help='The target build type. Choices are "Release" '
-                     '(default), or "Debug".')
-    group.add_option('--builder_host',
-                     dest='builder_host',
-                     type='str',
-                     help=('Host address of server to produce build by posting'
-                           ' try job request.'))
-    group.add_option('--builder_port',
-                     dest='builder_port',
-                     type='int',
-                     help=('HTTP port of the server to produce build by posting'
-                           ' try job request.'))
-    parser.add_option_group(group)
-
-    group = optparse.OptionGroup(parser, 'Debug options')
-    group.add_option('--debug_ignore_build',
-                     action='store_true',
-                     help='DEBUG: Don\'t perform builds.')
-    group.add_option('--debug_ignore_sync',
-                     action='store_true',
-                     help='DEBUG: Don\'t perform syncs.')
-    group.add_option('--debug_ignore_perf_test',
-                     action='store_true',
-                     help='DEBUG: Don\'t perform performance tests.')
-    group.add_option('--debug_ignore_regression_confidence',
-                     action='store_true',
-                     help='DEBUG: Don\'t score the confidence of the initial '
-                          'good and bad revisions\' test results.')
-    group.add_option('--debug_fake_first_test_mean',
-                     type='int',
-                     default='0',
-                     help=('DEBUG: When faking performance tests, return this '
-                           'value as the mean of the first performance test, '
-                           'and return a mean of 0.0 for further tests.'))
-    parser.add_option_group(group)
+    parser = argparse.ArgumentParser(usage=usage)
+    cls._AddBisectOptionsGroup(parser)
+    cls._AddBuildOptionsGroup(parser)
+    cls._AddDebugOptionsGroup(parser)
     return parser
 
   def ParseCommandLine(self):
     """Parses the command line for bisect options."""
     parser = self._CreateCommandLineParser()
-    opts, _ = parser.parse_args()
+    opts = parser.parse_args()
 
     try:
-      if not opts.command:
-        raise RuntimeError('missing required parameter: --command')
-
-      if not opts.good_revision:
-        raise RuntimeError('missing required parameter: --good_revision')
-
-      if not opts.bad_revision:
-        raise RuntimeError('missing required parameter: --bad_revision')
-
       if (not opts.metric and
           opts.bisect_mode != bisect_utils.BISECT_MODE_RETURN_CODE):
         raise RuntimeError('missing required parameter: --metric')
@@ -2806,20 +2655,6 @@ class BisectOptions(object):
         if not opts.builder_port:
           raise RuntimeError('Must specify try server port number using '
                              '--builder_port when gs_bucket is used.')
-      if opts.target_platform == 'cros':
-        # Run sudo up front to make sure credentials are cached for later.
-        print 'Sudo is required to build cros:'
-        print
-        bisect_utils.RunProcess(['sudo', 'true'])
-
-        if not opts.cros_board:
-          raise RuntimeError('missing required parameter: --cros_board')
-
-        if not opts.cros_remote_ip:
-          raise RuntimeError('missing required parameter: --cros_remote_ip')
-
-        if not opts.working_directory:
-          raise RuntimeError('missing required parameter: --working_directory')
 
       if opts.bisect_mode != bisect_utils.BISECT_MODE_RETURN_CODE:
         metric_values = opts.metric.split('/')
@@ -2827,10 +2662,7 @@ class BisectOptions(object):
           raise RuntimeError('Invalid metric specified: [%s]' % opts.metric)
         opts.metric = metric_values
 
-      opts.repeat_test_count = min(max(opts.repeat_test_count, 1), 100)
-      opts.max_time_minutes = min(max(opts.max_time_minutes, 1), 60)
-      opts.truncate_percent = min(max(opts.truncate_percent, 0), 25)
-      opts.truncate_percent = opts.truncate_percent / 100.0
+      opts.truncate_percent = min(max(opts.truncate_percent, 0), 25) / 100.0
 
       for k, v in opts.__dict__.iteritems():
         assert hasattr(self, k), 'Invalid %s attribute in BisectOptions.' % k
@@ -2871,11 +2703,39 @@ class BisectOptions(object):
     return opts
 
 
-def main():
+def _ConfigureLogging():
+  """Trivial logging config.
 
+  Configures logging to output any messages at or above INFO to standard out,
+  without any additional formatting.
+  """
+  logging_format = '%(message)s'
+  logging.basicConfig(
+      stream=logging.sys.stdout, level=logging.INFO, format=logging_format)
+
+
+def main():
+  _ConfigureLogging()
   try:
     opts = BisectOptions()
     opts.ParseCommandLine()
+
+    if opts.bug_id:
+      if opts.output_buildbot_annotations:
+        bisect_utils.OutputAnnotationStepStart('Checking Issue Tracker')
+      issue_closed = query_crbug.CheckIssueClosed(opts.bug_id)
+      if issue_closed:
+        print 'Aborting bisect because bug is closed'
+      else:
+        print 'Could not confirm bug is closed, proceeding.'
+      if opts.output_buildbot_annotations:
+        bisect_utils.OutputAnnotationStepClosed()
+      if issue_closed:
+        results = BisectResults(abort_reason='the bug is closed.')
+        bisect_test = BisectPerformanceMetrics(opts, os.getcwd())
+        bisect_test.printer.FormatAndPrintResults(results)
+        return 0
+
 
     if opts.extra_src:
       extra_src = bisect_utils.LoadExtraSrc(opts.extra_src)
@@ -2890,9 +2750,7 @@ def main():
       bisect_utils.CreateBisectDirectoryAndSetupDepot(opts, custom_deps)
 
       os.chdir(os.path.join(os.getcwd(), 'src'))
-
-      if not RemoveBuildFiles(opts.target_build_type):
-        raise RuntimeError('Something went wrong removing the build files.')
+      RemoveBuildFiles(opts.target_build_type)
 
     if not _IsPlatformSupported():
       raise RuntimeError('Sorry, this platform isn\'t supported yet.')
@@ -2906,23 +2764,22 @@ def main():
         not opts.debug_ignore_sync and
         not opts.working_directory):
       raise RuntimeError('You must switch to master branch to run bisection.')
-    bisect_test = BisectPerformanceMetrics(opts)
-    bisect_printer = BisectPrinter(opts, bisect_test.depot_registry)
+    bisect_test = BisectPerformanceMetrics(opts, os.getcwd())
     try:
       results = bisect_test.Run(opts.command, opts.bad_revision,
                                 opts.good_revision, opts.metric)
       if results.error:
         raise RuntimeError(results.error)
-      bisect_printer.FormatAndPrintResults(results)
+      bisect_test.printer.FormatAndPrintResults(results)
       return 0
     finally:
       bisect_test.PerformCleanup()
-  except RuntimeError, e:
+  except RuntimeError as e:
     if opts.output_buildbot_annotations:
       # The perf dashboard scrapes the "results" step in order to comment on
       # bugs. If you change this, please update the perf dashboard as well.
       bisect_utils.OutputAnnotationStepStart('Results')
-    print 'Error: %s' % e.message
+    print 'Runtime Error: %s' % e
     if opts.output_buildbot_annotations:
       bisect_utils.OutputAnnotationStepClosed()
   return 1

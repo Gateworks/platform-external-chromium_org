@@ -294,9 +294,8 @@ class MockQuicCryptoServerStream : public QuicCryptoServerStream {
       : QuicCryptoServerStream(crypto_config, session) {}
   virtual ~MockQuicCryptoServerStream() {}
 
-  MOCK_METHOD2(SendServerConfigUpdate,
-               void(const CachedNetworkParameters* cached_network_parameters,
-                    bool on_handshake_complete));
+  MOCK_METHOD1(SendServerConfigUpdate,
+               void(const CachedNetworkParameters* cached_network_parameters));
 
  private:
   DISALLOW_COPY_AND_ASSIGN(MockQuicCryptoServerStream);
@@ -340,11 +339,18 @@ TEST_P(QuicServerSessionTest, BandwidthEstimates) {
       bandwidth_estimate_kbytes_per_second * 1.6;
   session_->OnCongestionWindowChange(now);
 
-  // Bandwidth estimate has now changed sufficiently and enough time has passed.
+  // Bandwidth estimate has now changed sufficiently and enough time has passed,
+  // but not enough packets have been sent.
   int64 srtt_ms =
       sent_packet_manager->GetRttStats()->SmoothedRtt().ToMilliseconds();
   now = now.Add(QuicTime::Delta::FromMilliseconds(
       kMinIntervalBetweenServerConfigUpdatesRTTs * srtt_ms));
+  session_->OnCongestionWindowChange(now);
+
+  // Bandwidth estimate has now changed sufficiently, enough time has passed,
+  // and enough packets have been sent.
+  QuicConnectionPeer::SetSequenceNumberOfLastSentPacket(
+      session_->connection(), kMinPacketsBetweenServerConfigUpdates);
 
   // Verify that the proto has exactly the values we expect.
   CachedNetworkParameters expected_network_params;
@@ -366,7 +372,7 @@ TEST_P(QuicServerSessionTest, BandwidthEstimates) {
   expected_network_params.set_serving_region(serving_region);
 
   EXPECT_CALL(*crypto_stream,
-              SendServerConfigUpdate(EqualsProto(expected_network_params), _))
+              SendServerConfigUpdate(EqualsProto(expected_network_params)))
       .Times(1);
   session_->OnCongestionWindowChange(now);
 }

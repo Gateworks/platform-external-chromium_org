@@ -14,7 +14,6 @@
 #include "chrome/browser/search/search.h"
 #include "chrome/browser/ui/browser_instant_controller.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
-#include "chrome/common/pref_names.h"
 #include "chrome/common/url_constants.h"
 #include "content/public/browser/navigation_controller.h"
 #include "content/public/browser/render_process_host.h"
@@ -27,7 +26,7 @@ namespace {
 
 class BrowserInstantControllerTest : public InstantUnitTestBase {
  public:
-  virtual void SetUp() override {
+  void SetUp() override {
     ASSERT_TRUE(base::FieldTrialList::CreateFieldTrial(
         "EmbeddedSearch", "Group1 use_cacheable_ntp:1"));
     InstantUnitTestBase::SetUp();

@@ -186,6 +186,15 @@ input[type='range'] {
   -webkit-margin-start: 22px;
 }
 
+.hotword-description {
+  -webkit-margin-start: 1.8em;
+  color: gray;
+}
+
+.hotword-learn-more-link {
+  -webkit-padding-start: 8px;
+}
+
 /* Internet settings */
 
 #network-settings {
@@ -451,6 +460,13 @@ list:not([disabled]) > .network-group[selected] {
 #accessibility-autoclick-label {
   /* Same as .controlled-setting-with-label > input + span. */
   -webkit-margin-start: 0.6em;
+}
+
+#battery-icon {
+  display: inline-block;
+  height: 25px;
+  vertical-align: middle;
+  width: 25px;
 }
 
 div[guestmode=true] :-webkit-any(

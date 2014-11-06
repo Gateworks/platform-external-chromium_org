@@ -4,6 +4,7 @@
 
 #include "content/browser/gpu/browser_gpu_memory_buffer_manager.h"
 
+#include "base/atomic_sequence_num.h"
 #include "base/bind.h"
 #include "base/debug/trace_event.h"
 #include "base/lazy_instance.h"
@@ -24,6 +25,9 @@ void GpuMemoryBufferAllocatedForChildProcess(
 }
 
 BrowserGpuMemoryBufferManager* g_gpu_memory_buffer_manager = nullptr;
+
+// Global atomic to generate gpu memory buffer unique IDs.
+base::StaticAtomicSequenceNumber g_next_gpu_memory_buffer_id;
 
 }  // namespace
 
@@ -93,6 +97,7 @@ void BrowserGpuMemoryBufferManager::AllocateGpuMemoryBufferForChildProcess(
   DCHECK(BrowserThread::CurrentlyOn(BrowserThread::IO));
 
   GpuMemoryBufferImpl::AllocateForChildProcess(
+      g_next_gpu_memory_buffer_id.GetNext(),
       size,
       format,
       usage,
@@ -109,11 +114,14 @@ BrowserGpuMemoryBufferManager::GpuMemoryBufferFromClientBuffer(
 
 void BrowserGpuMemoryBufferManager::ChildProcessDeletedGpuMemoryBuffer(
     gfx::GpuMemoryBufferType type,
-    const gfx::GpuMemoryBufferId& id,
-    base::ProcessHandle child_process_handle) {
+    gfx::GpuMemoryBufferId id,
+    base::ProcessHandle child_process_handle,
+    int child_client_id,
+    uint32 sync_point) {
   DCHECK(BrowserThread::CurrentlyOn(BrowserThread::IO));
 
-  GpuMemoryBufferImpl::DeletedByChildProcess(type, id, child_process_handle);
+  GpuMemoryBufferImpl::DeletedByChildProcess(
+      type, id, child_process_handle, child_client_id, sync_point);
 }
 
 void BrowserGpuMemoryBufferManager::ProcessRemoved(
@@ -125,6 +133,7 @@ void BrowserGpuMemoryBufferManager::ProcessRemoved(
 void BrowserGpuMemoryBufferManager::AllocateGpuMemoryBufferOnIO(
     AllocateGpuMemoryBufferRequest* request) {
   GpuMemoryBufferImpl::Create(
+      g_next_gpu_memory_buffer_id.GetNext(),
       request->size,
       request->format,
       request->usage,
@@ -141,6 +150,13 @@ void BrowserGpuMemoryBufferManager::GpuMemoryBufferCreatedOnIO(
 
   request->result = buffer.Pass();
   request->event.Signal();
+}
+
+void BrowserGpuMemoryBufferManager::SetDestructionSyncPoint(
+    gfx::GpuMemoryBuffer* buffer,
+    uint32 sync_point) {
+  static_cast<GpuMemoryBufferImpl*>(buffer)
+      ->set_destruction_sync_point(sync_point);
 }
 
 }  // namespace content

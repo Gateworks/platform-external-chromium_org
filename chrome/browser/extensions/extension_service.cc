@@ -598,7 +598,8 @@ void ExtensionService::ReloadExtensionImpl(
     // the inspector and hang onto a cookie for it, so that we can reattach
     // later.
     // TODO(yoz): this is not incognito-safe!
-    extensions::ProcessManager* manager = system_->process_manager();
+    extensions::ProcessManager* manager =
+        extensions::ProcessManager::Get(profile_);
     extensions::ExtensionHost* host =
         manager->GetBackgroundHostForExtension(extension_id);
     if (host && DevToolsAgentHost::HasFor(host->host_contents())) {
@@ -1708,6 +1709,23 @@ void ExtensionService::OnExtensionInstalled(
 
 void ExtensionService::OnExtensionManagementSettingsChanged() {
   error_controller_->ShowErrorIfNeeded();
+
+  // Revokes blocked permissions from active_permissions for all extensions.
+  extensions::ExtensionManagement* settings =
+      extensions::ExtensionManagementFactory::GetForBrowserContext(profile());
+  CHECK(settings);
+  scoped_ptr<ExtensionSet> all_extensions(
+      registry_->GenerateInstalledExtensionsSet());
+  for (const auto& extension : *all_extensions.get()) {
+    if (!settings->IsPermissionSetAllowed(
+            extension->id(),
+            extension->permissions_data()->active_permissions())) {
+      extensions::PermissionsUpdater(profile()).RemovePermissions(
+          extension.get(),
+          settings->GetBlockedPermissions(extension->id()).get());
+    }
+  }
+
   CheckManagementPolicy();
 }
 

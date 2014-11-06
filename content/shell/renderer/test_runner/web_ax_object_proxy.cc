@@ -142,8 +142,6 @@ std::string RoleToString(blink::WebAXRole role)
       return result.append("Main");
     case blink::WebAXRoleMarquee:
       return result.append("Marquee");
-    case blink::WebAXRoleMathElement:
-      return result.append("MathElement");
     case blink::WebAXRoleMath:
       return result.append("Math");
     case blink::WebAXRoleMatte:
@@ -756,12 +754,17 @@ bool WebAXObjectProxy::IsSelectedOptionActive() {
 
 bool WebAXObjectProxy::IsExpanded() {
   accessibility_object_.updateLayoutAndCheckValidity();
-  return !accessibility_object_.isCollapsed();
+  return accessibility_object_.isExpanded() == blink::WebAXExpandedExpanded;
 }
 
 bool WebAXObjectProxy::IsChecked() {
   accessibility_object_.updateLayoutAndCheckValidity();
   return accessibility_object_.isChecked();
+}
+
+bool WebAXObjectProxy::IsCollapsed() {
+  accessibility_object_.updateLayoutAndCheckValidity();
+  return accessibility_object_.isExpanded() == blink::WebAXExpandedCollapsed;
 }
 
 bool WebAXObjectProxy::IsVisible() {
@@ -772,11 +775,6 @@ bool WebAXObjectProxy::IsVisible() {
 bool WebAXObjectProxy::IsOffScreen() {
   accessibility_object_.updateLayoutAndCheckValidity();
   return accessibility_object_.isOffScreen();
-}
-
-bool WebAXObjectProxy::IsCollapsed() {
-  accessibility_object_.updateLayoutAndCheckValidity();
-  return accessibility_object_.isCollapsed();
 }
 
 bool WebAXObjectProxy::HasPopup() {

@@ -12,7 +12,6 @@
 #include "content/browser/renderer_host/input/touch_emulator_client.h"
 #include "content/common/input/web_input_event_traits.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "ui/events/gesture_detection/gesture_config_helper.h"
 
 #if defined(USE_AURA)
 #include "ui/aura/env.h"
@@ -43,10 +42,10 @@ class TouchEmulatorTest : public testing::Test,
     event_time_delta_seconds_ = 0.1;
   }
 
-  virtual ~TouchEmulatorTest() {}
+  ~TouchEmulatorTest() override {}
 
   // testing::Test
-  virtual void SetUp() override {
+  void SetUp() override {
 #if defined(USE_AURA)
     aura::Env::CreateInstance(true);
     screen_.reset(aura::TestScreen::Create(gfx::Size()));
@@ -57,7 +56,7 @@ class TouchEmulatorTest : public testing::Test,
     emulator_->Enable();
   }
 
-  virtual void TearDown() override {
+  void TearDown() override {
     emulator_->Disable();
     EXPECT_EQ("", ExpectedEvents());
 

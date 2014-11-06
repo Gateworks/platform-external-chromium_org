@@ -107,6 +107,8 @@
       'browser/android/tab_android.cc',
       'browser/android/tab_android.h',
       'browser/android/tab_load_status.h',
+      'browser/android/tab_state.cc',
+      'browser/android/tab_state.h',
       'browser/android/thumbnail/thumbnail.cc',
       'browser/android/thumbnail/thumbnail.h',
       'browser/android/thumbnail/thumbnail_store.cc',
@@ -255,10 +257,6 @@
       'browser/chrome_elf_init_win.cc',
       'browser/chrome_elf_init_win.h',
       'browser/chrome_notification_types.h',
-      'browser/chrome_page_zoom.cc',
-      'browser/chrome_page_zoom.h',
-      'browser/chrome_page_zoom_constants.cc',
-      'browser/chrome_page_zoom_constants.h',
       'browser/chrome_select_file_dialog_factory_win.cc',
       'browser/chrome_select_file_dialog_factory_win.h',
       'browser/chrome_quota_permission_context.cc',
@@ -402,6 +400,7 @@
       'browser/favicon/favicon_service_factory.h',
       'browser/favicon/favicon_tab_helper.cc',
       'browser/favicon/favicon_tab_helper.h',
+      'browser/favicon/favicon_tab_helper_observer.h',
       'browser/file_select_helper.cc',
       'browser/file_select_helper.h',
       'browser/file_select_helper_mac.mm',
@@ -657,6 +656,7 @@
       'browser/memory_details_win.cc',
       'browser/metrics/chrome_browser_main_extra_parts_metrics.cc',
       'browser/metrics/chrome_browser_main_extra_parts_metrics.h',
+      'browser/metrics/chrome_browser_main_extra_parts_metrics_mac.mm',
       'browser/metrics/chrome_metrics_service_accessor.cc',
       'browser/metrics/chrome_metrics_service_accessor.h',
       'browser/metrics/chrome_metrics_service_client.cc',
@@ -704,6 +704,8 @@
       'browser/net/about_protocol_handler.h',
       'browser/net/async_dns_field_trial.cc',
       'browser/net/async_dns_field_trial.h',
+      'browser/net/bit_stream_reader.cc',
+      'browser/net/bit_stream_reader.h',
       'browser/net/chrome_cookie_notification_details.h',
       'browser/net/chrome_extensions_network_delegate.cc',
       'browser/net/chrome_extensions_network_delegate.h',
@@ -743,6 +745,8 @@
       'browser/net/net_pref_observer.h',
       'browser/net/network_stats.cc',
       'browser/net/network_stats.h',
+      'browser/net/packed_ct_ev_whitelist.cc',
+      'browser/net/packed_ct_ev_whitelist.h',
       'browser/net/preconnect.cc',
       'browser/net/preconnect.h',
       'browser/net/prediction_options.cc',
@@ -816,8 +820,6 @@
       'browser/platform_util_chromeos.cc',
       'browser/platform_util_mac.mm',
       'browser/platform_util_win.cc',
-      'browser/power/process_power_collector.cc',
-      'browser/power/process_power_collector.h',
       'browser/precache/most_visited_urls_provider.cc',
       'browser/precache/most_visited_urls_provider.h',
       'browser/predictors/autocomplete_action_predictor.cc',
@@ -1107,9 +1109,13 @@
       'browser/services/gcm/push_messaging_service_impl.h',
       'browser/sessions/base_session_service.cc',
       'browser/sessions/base_session_service.h',
+      'browser/sessions/base_session_service_commands.cc',
+      'browser/sessions/base_session_service_commands.h',
       'browser/sessions/base_session_service_delegate_impl.cc',
       'browser/sessions/base_session_service_delegate_impl.h',
       'browser/sessions/base_session_service_delegate.h',
+      'browser/sessions/session_service_commands.cc',
+      'browser/sessions/session_service_commands.h',
       'browser/sessions/session_data_deleter.cc',
       'browser/sessions/session_data_deleter.h',
       'browser/sessions/session_restore_android.cc',
@@ -1149,6 +1155,8 @@
       'browser/signin/profile_oauth2_token_service_factory.h',
       'browser/signin/screenlock_bridge.cc',
       'browser/signin/screenlock_bridge.h',
+      'browser/signin/signin_cookie_changed_subscription.cc',
+      'browser/signin/signin_cookie_changed_subscription.h',
       'browser/signin/signin_manager_factory.cc',
       'browser/signin/signin_manager_factory.h',
       'browser/signin/signin_names_io_thread.cc',
@@ -1157,8 +1165,6 @@
       'browser/signin/signin_header_helper.h',
       'browser/signin/signin_tracker_factory.cc',
       'browser/signin/signin_tracker_factory.h',
-      'browser/signin/signin_promo.cc',
-      'browser/signin/signin_promo.h',
       'browser/site_details.cc',
       'browser/site_details.h',
       'browser/speech/chrome_speech_recognition_manager_delegate.cc',
@@ -1368,6 +1374,11 @@
       'browser/media_galleries/fileapi/iphoto_file_util.cc',
       'browser/media_galleries/fileapi/iphoto_file_util.h',
     ],
+    # Sources used by Mac and iOS.
+    'chrome_browser_mac_ios_sources': [
+      'browser/mac/handoff_utility.h',
+      'browser/mac/handoff_utility.mm',
+    ],
     # Sources (generally "desktop OS importers") used only on Mac & Windows.
     'chrome_browser_win_mac_sources': [
       'browser/media_galleries/fileapi/iapps_data_provider.cc',
@@ -1444,6 +1455,8 @@
       'browser/renderer_host/chrome_extension_message_filter.h',
       'browser/safe_json_parser.cc',
       'browser/safe_json_parser.h',
+      'browser/search/hotword_audio_history_handler.cc',
+      'browser/search/hotword_audio_history_handler.h',
       'browser/search/hotword_client.h',
       'browser/search/hotword_service.cc',
       'browser/search/hotword_service.h',
@@ -1759,6 +1772,8 @@
       'browser/notifications/message_center_notification_manager_win.cc',
       'browser/notifications/notification.cc',
       'browser/notifications/notification.h',
+      'browser/notifications/profile_notification.cc',
+      'browser/notifications/profile_notification.h',
       'browser/notifications/screen_lock_notification_blocker.cc',
       'browser/notifications/screen_lock_notification_blocker.h',
       'browser/notifications/fullscreen_notification_blocker.cc',
@@ -1768,8 +1783,6 @@
       'browser/notifications/notification_delegate.h',
       'browser/notifications/notification_object_proxy.cc',
       'browser/notifications/notification_object_proxy.h',
-      'browser/notifications/notification_system_observer.cc',
-      'browser/notifications/notification_system_observer.h',
       'browser/notifications/notification_ui_manager.h',
       'browser/notifications/notification_ui_manager_android.cc',
       'browser/notifications/notification_ui_manager_android.h',
@@ -1790,6 +1803,8 @@
       'browser/notifications/message_center_stats_collector.h',
       'browser/notifications/notification_conversion_helper.h',
       'browser/notifications/notification_conversion_helper.cc',
+      'browser/notifications/notification_system_observer.cc',
+      'browser/notifications/notification_system_observer.h',
       'browser/notifications/notification_ui_manager_desktop.cc',
       'browser/notifications/sync_notifier/chrome_notifier_service.cc',
       'browser/notifications/sync_notifier/chrome_notifier_service_factory.cc',
@@ -1813,7 +1828,7 @@
       'browser/themes/theme_syncable_service.cc',
       'browser/themes/theme_syncable_service.h',
     ],
-    # Used both when enable_printing == 1 (full) and == 2 (basic)
+    # Used both when (enable_basic_printing==1 or enable_print_preview==1).
     'chrome_browser_basic_printing_sources': [
       'browser/printing/print_job.cc',
       'browser/printing/print_job.h',
@@ -1830,7 +1845,7 @@
       'browser/printing/printing_message_filter.cc',
       'browser/printing/printing_message_filter.h',
     ],
-    # Used on top of the "basic" sources when enable_printing == 1 (full).
+    # Used on top of the "basic" sources when enable_print_preview==1.
     'chrome_browser_full_printing_sources': [
       'browser/local_discovery/pwg_raster_converter.cc',
       'browser/local_discovery/pwg_raster_converter.h',
@@ -1865,7 +1880,7 @@
       'browser/task_manager/printing_information.cc',
       'browser/task_manager/printing_information.h',
     ],
-    # Used only in basic printing (enable_printing == 2) mode.
+    # Used only in (enable_basic_printing==1 and enable_print_preview==0) mode.
     'chrome_browser_basic_only_printing_sources': [
       'browser/printing/print_view_manager_basic.cc',
       'browser/printing/print_view_manager_basic.h',
@@ -1880,6 +1895,8 @@
       'browser/sessions/session_service.h',
       'browser/sessions/session_service_factory.cc',
       'browser/sessions/session_service_factory.h',
+      'browser/sessions/session_service_utils.cc',
+      'browser/sessions/session_service_utils.h',
     ],
     'chrome_browser_android_sources': [
       'browser/metrics/android_metrics_provider.cc',
@@ -1897,6 +1914,8 @@
       'browser/media/protected_media_identifier_permission_context.h',
       'browser/media/protected_media_identifier_permission_context_factory.cc',
       'browser/media/protected_media_identifier_permission_context_factory.h',
+      'browser/password_manager/generated_password_saved_infobar_delegate_android.cc',
+      'browser/password_manager/generated_password_saved_infobar_delegate_android.h',
     ],
     # Used everywhere but Android.
     'chrome_browser_non_android_sources': [
@@ -1904,6 +1923,8 @@
       'browser/accessibility/accessibility_events.h',
       'browser/accessibility/accessibility_extension_api_constants.cc',
       'browser/accessibility/accessibility_extension_api_constants.h',
+      'browser/accessibility/ax_tree_id_registry.cc',
+      'browser/accessibility/ax_tree_id_registry.h',
       'browser/accessibility/invert_bubble_prefs.cc',
       'browser/accessibility/invert_bubble_prefs.h',
       'browser/auto_launch_trial.cc',
@@ -2247,12 +2268,31 @@
       'browser/chrome_browser_field_trials_desktop.h',
       'browser/chrome_device_client.cc',
       'browser/chrome_device_client.h',
+      'browser/chrome_page_zoom.cc',
+      'browser/chrome_page_zoom.h',
+      'browser/chrome_page_zoom_constants.cc',
+      'browser/chrome_page_zoom_constants.h',
+      'browser/power/process_power_collector.cc',
+      'browser/power/process_power_collector.h',
+      'browser/signin/signin_promo.cc',
+      'browser/signin/signin_promo.h',
+    ],
+    # Everything but Android, iOS, and CrOS.
+    'chrome_browser_desktop_sources': [
+      'browser/profiles/avatar_menu_desktop.cc',
+      'browser/profiles/avatar_menu_observer.h',
+      'browser/profiles/avatar_menu_actions_desktop.cc',
+      'browser/profiles/avatar_menu_actions_desktop.h',
+      'browser/profiles/profile_list_desktop.cc',
+      'browser/profiles/profile_list_desktop.h',
     ],
     'chrome_browser_supervised_user_sources': [
       'browser/supervised_user/custodian_profile_downloader_service.cc',
       'browser/supervised_user/custodian_profile_downloader_service.h',
       'browser/supervised_user/custodian_profile_downloader_service_factory.cc',
       'browser/supervised_user/custodian_profile_downloader_service_factory.h',
+      'browser/supervised_user/experimental/supervised_user_async_url_checker.cc',
+      'browser/supervised_user/experimental/supervised_user_async_url_checker.h',
       'browser/supervised_user/experimental/supervised_user_blacklist.cc',
       'browser/supervised_user/experimental/supervised_user_blacklist.h',
       'browser/supervised_user/experimental/supervised_user_blacklist_downloader.cc',
@@ -2591,6 +2631,8 @@
       'browser/safe_browsing/incident_reporting/delayed_analysis_callback.h',
       'browser/safe_browsing/incident_reporting/delayed_callback_runner.cc',
       'browser/safe_browsing/incident_reporting/delayed_callback_runner.h',
+      'browser/safe_browsing/incident_reporting/download_metadata_manager.cc',
+      'browser/safe_browsing/incident_reporting/download_metadata_manager.h',
       'browser/safe_browsing/incident_reporting/environment_data_collection.cc',
       'browser/safe_browsing/incident_reporting/environment_data_collection.h',
       'browser/safe_browsing/incident_reporting/environment_data_collection_win.cc',
@@ -2648,14 +2690,6 @@
     ],
     # Used everywhere but ChromeOS.
     'chrome_browser_non_chromeos_sources': [
-      # TODO(brettw) it's suspicious that these _desktop.cc files are compiled
-      # for Android. We should test removing them on Android.
-      'browser/profiles/avatar_menu_desktop.cc',
-      'browser/profiles/avatar_menu_observer.h',
-      'browser/profiles/avatar_menu_actions_desktop.cc',
-      'browser/profiles/avatar_menu_actions_desktop.h',
-      'browser/profiles/profile_list_desktop.cc',
-      'browser/profiles/profile_list_desktop.h',
       'browser/signin/signin_global_error.cc',
       'browser/signin/signin_global_error.h',
       'browser/signin/signin_global_error_factory.cc',
@@ -2703,6 +2737,7 @@
       'android/java/src/org/chromium/chrome/browser/autofill/AutofillDialogResult.java',
       'android/java/src/org/chromium/chrome/browser/autofill/AutofillLogger.java',
       'android/java/src/org/chromium/chrome/browser/autofill/AutofillPopupBridge.java',
+      'android/java/src/org/chromium/chrome/browser/autofill/PasswordGenerationPopupBridge.java',
       'android/java/src/org/chromium/chrome/browser/autofill/PersonalDataManager.java',
       'android/java/src/org/chromium/chrome/browser/BookmarksBridge.java',
       'android/java/src/org/chromium/chrome/browser/banners/AppBannerManager.java',
@@ -2750,6 +2785,7 @@
       'android/java/src/org/chromium/chrome/browser/sync/ProfileSyncService.java',
       'android/java/src/org/chromium/chrome/browser/tabmodel/TabModelJniBridge.java',
       'android/java/src/org/chromium/chrome/browser/Tab.java',
+      'android/java/src/org/chromium/chrome/browser/TabState.java',
       'android/java/src/org/chromium/chrome/browser/TtsPlatformImpl.java',
       'android/java/src/org/chromium/chrome/browser/UmaBridge.java',
       'android/java/src/org/chromium/chrome/browser/UmaUtils.java',
@@ -2761,6 +2797,7 @@
       'android/java/src/org/chromium/chrome/browser/infobar/AutoLoginDelegate.java',
       'android/java/src/org/chromium/chrome/browser/infobar/ConfirmInfoBarDelegate.java',
       'android/java/src/org/chromium/chrome/browser/infobar/DataReductionProxyInfoBarDelegate.java',
+      'android/java/src/org/chromium/chrome/browser/infobar/GeneratedPasswordSavedInfoBarDelegate.java',
       'android/java/src/org/chromium/chrome/browser/infobar/InfoBar.java',
       'android/java/src/org/chromium/chrome/browser/infobar/InfoBarContainer.java',
       'android/java/src/org/chromium/chrome/browser/infobar/TranslateInfoBarDelegate.java',
@@ -3009,6 +3046,9 @@
           ],
           'sources': [ '<@(chrome_browser_mac_sources)' ]
         }],
+        ['OS=="mac" or OS=="ios"', {
+          'sources': [ '<@(chrome_browser_mac_ios_sources)' ]
+        }],
         ['chromeos==1 or OS=="ios"', {
           'sources!': [
             'browser/metrics/signin_status_metrics_provider.cc',
@@ -3218,7 +3258,7 @@
           'sources': [ '<@(chrome_browser_themes_sources)' ],
         }],
         # Some form of printing support.
-        ['enable_printing!=0', {
+        ['enable_basic_printing==1 or enable_print_preview==1', {
           'dependencies': [
             '../printing/printing.gyp:printing',
           ],
@@ -3227,21 +3267,24 @@
             ['OS=="win"', {
               'sources': [ '<@(chrome_browser_printing_emf_sources)' ],
             }],
-            # Full printing on top of the above.
-            ['enable_printing==1', {
-              'sources': [ '<@(chrome_browser_full_printing_sources)' ],
-            }],
-            # Partial-only printing support.
-            ['enable_printing==2', {
-              'sources': [ '<@(chrome_browser_basic_only_printing_sources)' ],
-            }],
           ],
+        }],
+        # Full printing on top of the above.
+        ['enable_print_preview==1', {
+          'sources': [ '<@(chrome_browser_full_printing_sources)' ],
+        }],
+        # Partial-only printing support.
+        ['enable_basic_printing==1 and enable_print_preview==0', {
+          'sources': [ '<@(chrome_browser_basic_only_printing_sources)' ],
         }],
         ['enable_captive_portal_detection==1', {
           'sources': [ '<@(chrome_browser_captive_portal_sources)' ]
         }],
         ['enable_session_service==1', {
           'sources': [ '<@(chrome_browser_session_service_sources)' ],
+        }],
+        ['OS!="android" and OS!="ios" and chromeos==0', {
+          'sources': [ '<@(chrome_browser_desktop_sources)' ],
         }],
         ['OS=="android" or OS=="ios"', {
           'sources': [ '<@(chrome_browser_mobile_sources)' ],
@@ -3361,6 +3404,7 @@
             ['use_x11==1', {
               'dependencies': [
                 '../build/linux/system.gyp:x11',
+                '../ui/events/devices/events_devices.gyp:events_devices',
                 '../ui/gfx/x/gfx_x11.gyp:gfx_x11',
               ],
             }],
@@ -3379,13 +3423,6 @@
         }],
         ['enable_managed_users==1', {
           'sources': [ '<@(chrome_browser_supervised_user_sources)' ],
-          'conditions' : [
-            [ 'use_ash==1', {
-              'dependencies': [
-                '<(DEPTH)/components/components.gyp:user_manager',
-              ]
-            }]
-          ]
         }],
         ['enable_webrtc==1', {
           'sources': [ '<@(chrome_browser_webrtc_sources)' ]

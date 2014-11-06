@@ -21,14 +21,16 @@
       'sources': [
         # Note: sources list duplicated in GN build.
         'copresence/copresence_constants.cc',
-        'copresence/copresence_manager.cc',
         'copresence/copresence_manager_impl.cc',
         'copresence/copresence_switches.cc',
         'copresence/copresence_switches.h',
-        'copresence/handlers/audio/audio_directive_handler.cc',
         'copresence/handlers/audio/audio_directive_handler.h',
+        'copresence/handlers/audio/audio_directive_handler_impl.cc',
+        'copresence/handlers/audio/audio_directive_handler_impl.h',
         'copresence/handlers/audio/audio_directive_list.cc',
         'copresence/handlers/audio/audio_directive_list.h',
+        'copresence/handlers/audio/tick_clock_ref_counted.cc',
+        'copresence/handlers/audio/tick_clock_ref_counted.h',
         'copresence/handlers/directive_handler.cc',
         'copresence/handlers/directive_handler.h',
         'copresence/mediums/audio/audio_manager.h',
@@ -63,6 +65,8 @@
       'sources': [
         'copresence/test/audio_test_support.cc',
         'copresence/test/audio_test_support.h',
+        'copresence/test/stub_whispernet_client.cc',
+        'copresence/test/stub_whispernet_client.h',
       ],
     },
     {

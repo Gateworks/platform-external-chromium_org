@@ -57,7 +57,7 @@ class WebRtcApprtcBrowserTest : public WebRtcTestBase {
         switches::kUseFakeDeviceForMediaStream);
   }
 
-  virtual void TearDown() override {
+  void TearDown() override {
     // Kill any processes we may have brought up.
     LOG(INFO) << "Entering TearDown";
     if (dev_appserver_ != base::kNullProcessHandle)
@@ -254,7 +254,8 @@ IN_PROC_BROWSER_TEST_F(WebRtcApprtcBrowserTest, MANUAL_WorksOnApprtc) {
 }
 
 #if defined(OS_LINUX)
-#define MAYBE_MANUAL_FirefoxApprtcInteropTest MANUAL_FirefoxApprtcInteropTest
+// Disabled: https://code.google.com/p/chromium/issues/detail?id=430333.
+#define MAYBE_MANUAL_FirefoxApprtcInteropTest DISABLED_MANUAL_FirefoxApprtcInteropTest
 #else
 // Not implemented yet on Windows and Mac.
 #define MAYBE_MANUAL_FirefoxApprtcInteropTest DISABLED_MANUAL_FirefoxApprtcInteropTest
@@ -266,20 +267,13 @@ IN_PROC_BROWSER_TEST_F(WebRtcApprtcBrowserTest,
   if (OnWinXp())
     return;
 
-  if (!HasWebcamOnSystem()) {
-    LOG(INFO)
-        << "Didn't find a webcam on the system; skipping test since Firefox "
-        << "needs to be able to acquire a webcam.";
-    return;
-  }
-
   DetectErrorsInJavaScript();
   ASSERT_TRUE(LaunchApprtcInstanceOnLocalhost());
   while (!LocalApprtcInstanceIsUp())
     VLOG(1) << "Waiting for AppRTC to come up...";
 
-  GURL room_url = GURL(base::StringPrintf("http://localhost:9999?r=room_%d",
-                                          base::RandInt(0, 65536)));
+  GURL room_url = GURL(
+      "http://localhost:9999?r=some_room_id&firefox_fake_device=1");
   content::WebContents* chrome_tab = OpenPageAndAcceptUserMedia(room_url);
 
   ASSERT_TRUE(LaunchFirefoxWithUrl(room_url));

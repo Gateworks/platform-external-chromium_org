@@ -55,6 +55,7 @@
 #include "chrome/browser/extensions/pack_extension_job.h"
 #include "chrome/browser/extensions/pending_extension_info.h"
 #include "chrome/browser/extensions/pending_extension_manager.h"
+#include "chrome/browser/extensions/permissions_updater.h"
 #include "chrome/browser/extensions/test_blacklist.h"
 #include "chrome/browser/extensions/test_extension_system.h"
 #include "chrome/browser/extensions/unpacked_installer.h"
@@ -99,6 +100,7 @@
 #include "extensions/common/feature_switch.h"
 #include "extensions/common/manifest_constants.h"
 #include "extensions/common/manifest_handlers/background_info.h"
+#include "extensions/common/manifest_handlers/permissions_parser.h"
 #include "extensions/common/manifest_url_handlers.h"
 #include "extensions/common/permissions/permission_set.h"
 #include "extensions/common/permissions/permissions_data.h"
@@ -107,6 +109,7 @@
 #include "extensions/common/value_builder.h"
 #include "gpu/config/gpu_info.h"
 #include "grit/browser_resources.h"
+#include "grit/generated_resources.h"
 #include "net/cookies/canonical_cookie.h"
 #include "net/cookies/cookie_monster.h"
 #include "net/cookies/cookie_options.h"
@@ -126,6 +129,7 @@
 #include "sync/protocol/sync.pb.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "testing/platform_test.h"
+#include "ui/base/l10n/l10n_util.h"
 #include "url/gurl.h"
 
 #if defined(ENABLE_MANAGED_USERS)
@@ -189,6 +193,7 @@ const char theme2_crx[] = "pjpgmfcmabopnnfonnhmdjglfpjjfkbf";
 const char permissions_crx[] = "eagpmdpfmaekmmcejjbmjoecnejeiiin";
 const char unpacked[] = "cbcdidchbppangcjoddlpdjlenngjldk";
 const char updates_from_webstore[] = "akjooamlhcgeopfifcmlggaebeocgokj";
+const char permissions_blocklist[] = "noffkehfcaggllbcojjbopcmlhcnhcdn";
 
 struct ExtensionsOrder {
   bool operator()(const scoped_refptr<const Extension>& a,
@@ -767,6 +772,16 @@ class ExtensionServiceTest : public extensions::ExtensionServiceTestBase,
         json_blacklist, gpu_info);
   }
 
+  // Grants all optional permissions stated in manifest to active permission
+  // set for extension |id|.
+  void GrantAllOptionalPermissions(const std::string& id) {
+    const Extension* extension = service()->GetInstalledExtension(id);
+    scoped_refptr<const PermissionSet> all_optional_permissions =
+        extensions::PermissionsParser::GetOptionalPermissions(extension);
+    extensions::PermissionsUpdater perms_updater(profile());
+    perms_updater.AddPermissions(extension, all_optional_permissions.get());
+  }
+
   // Helper method to set up a WindowedNotificationObserver to wait for a
   // specific CrxInstaller to finish if we don't know the value of the
   // |installer| yet.
@@ -1294,7 +1309,7 @@ TEST_F(ExtensionServiceTest, LoadAllExtensionsFromDirectorySuccess) {
             extensions::ContentScriptsInfo::GetContentScripts(
                 loaded_[index].get()).size());
   EXPECT_EQ(Manifest::INTERNAL, loaded_[index]->location());
-};
+}
 
 // Test loading bad extensions from the profile directory.
 TEST_F(ExtensionServiceTest, LoadAllExtensionsFromDirectoryFail) {
@@ -1312,25 +1327,25 @@ TEST_F(ExtensionServiceTest, LoadAllExtensionsFromDirectoryFail) {
   ASSERT_EQ(0u, loaded_.size());
 
   EXPECT_TRUE(MatchPattern(base::UTF16ToUTF8(GetErrors()[0]),
-      std::string("Could not load extension from '*'. ") +
+      l10n_util::GetStringUTF8(IDS_EXTENSIONS_LOAD_ERROR_MESSAGE) + " *. " +
       extensions::manifest_errors::kManifestUnreadable)) <<
       base::UTF16ToUTF8(GetErrors()[0]);
 
   EXPECT_TRUE(MatchPattern(base::UTF16ToUTF8(GetErrors()[1]),
-      std::string("Could not load extension from '*'. ") +
+      l10n_util::GetStringUTF8(IDS_EXTENSIONS_LOAD_ERROR_MESSAGE) + " *. " +
       extensions::manifest_errors::kManifestUnreadable)) <<
       base::UTF16ToUTF8(GetErrors()[1]);
 
   EXPECT_TRUE(MatchPattern(base::UTF16ToUTF8(GetErrors()[2]),
-      std::string("Could not load extension from '*'. ") +
+      l10n_util::GetStringUTF8(IDS_EXTENSIONS_LOAD_ERROR_MESSAGE) + " *. " +
       extensions::manifest_errors::kMissingFile)) <<
       base::UTF16ToUTF8(GetErrors()[2]);
 
   EXPECT_TRUE(MatchPattern(base::UTF16ToUTF8(GetErrors()[3]),
-      std::string("Could not load extension from '*'. ") +
+      l10n_util::GetStringUTF8(IDS_EXTENSIONS_LOAD_ERROR_MESSAGE) + " *. " +
       extensions::manifest_errors::kManifestUnreadable)) <<
       base::UTF16ToUTF8(GetErrors()[3]);
-};
+}
 
 // Test various cases for delayed install because of missing imports.
 TEST_F(ExtensionServiceTest, PendingImports) {
@@ -2819,7 +2834,6 @@ TEST_F(ExtensionServiceTest, LoadExtensionsWithPlugins) {
 
   InitPluginService();
   InitializeEmptyExtensionService();
-  InitializeProcessManager();
   service()->set_show_extensions_prompts(true);
 
   // Start by canceling any install prompts.
@@ -3844,6 +3858,219 @@ TEST_F(ExtensionServiceTest, ManagementPolicyRequiresEnable) {
   EXPECT_EQ(0u, registry()->disabled_extensions().size());
 }
 
+// Tests that extensions with conflicting required permissions by enterprise
+// policy cannot be installed.
+TEST_F(ExtensionServiceTest, PolicyBlockedPermissionNewExtensionInstall) {
+  InitializeEmptyExtensionServiceWithTestingPrefs();
+  base::FilePath path = data_dir().AppendASCII("permissions_blocklist");
+
+  {
+    // Update policy to block one of the required permissions of target.
+    ManagementPrefUpdater pref(profile_->GetTestingPrefService());
+    pref.AddBlockedPermission("*", "tabs");
+  }
+
+  // The extension should be failed to install.
+  PackAndInstallCRX(path, INSTALL_FAILED);
+
+  {
+    // Update policy to block one of the optional permissions instead.
+    ManagementPrefUpdater pref(profile_->GetTestingPrefService());
+    pref.ClearBlockedPermissions("*");
+    pref.AddBlockedPermission("*", "history");
+  }
+
+  // The extension should succeed to install this time.
+  std::string id = PackAndInstallCRX(path, INSTALL_NEW)->id();
+
+  // Uninstall the extension and update policy to block some arbitrary
+  // unknown permission.
+  UninstallExtension(id, false);
+  {
+    ManagementPrefUpdater pref(profile_->GetTestingPrefService());
+    pref.ClearBlockedPermissions("*");
+    pref.AddBlockedPermission("*", "unknown.permission.for.testing");
+  }
+
+  // The extension should succeed to install as well.
+  PackAndInstallCRX(path, INSTALL_NEW);
+}
+
+// Tests that extension supposed to be force installed but with conflicting
+// required permissions cannot be installed.
+TEST_F(ExtensionServiceTest, PolicyBlockedPermissionConflictsWithForceInstall) {
+  InitializeEmptyExtensionServiceWithTestingPrefs();
+
+  // Pack the crx file.
+  base::FilePath path = data_dir().AppendASCII("permissions_blocklist");
+  base::FilePath pem_path = data_dir().AppendASCII("permissions_blocklist.pem");
+  base::ScopedTempDir temp_dir;
+  EXPECT_TRUE(temp_dir.CreateUniqueTempDir());
+  base::FilePath crx_path = temp_dir.path().AppendASCII("temp.crx");
+
+  PackCRX(path, pem_path, crx_path);
+
+  {
+    // Block one of the required permissions.
+    ManagementPrefUpdater pref(profile_->GetTestingPrefService());
+    pref.AddBlockedPermission("*", "tabs");
+  }
+
+  // Use MockExtensionProvider to simulate force installing extension.
+  MockExtensionProvider* provider =
+      new MockExtensionProvider(service(), Manifest::EXTERNAL_POLICY_DOWNLOAD);
+  AddMockExternalProvider(provider);
+  provider->UpdateOrAddExtension(permissions_blocklist, "1.0", crx_path);
+
+  {
+    // Attempts to force install this extension.
+    content::WindowedNotificationObserver observer(
+        extensions::NOTIFICATION_CRX_INSTALLER_DONE,
+        content::NotificationService::AllSources());
+    service()->CheckForExternalUpdates();
+    observer.Wait();
+  }
+
+  // The extension should not be installed.
+  ASSERT_FALSE(service()->GetInstalledExtension(permissions_blocklist));
+
+  // Remove this extension from pending extension manager as we would like to
+  // give another attempt later.
+  service()->pending_extension_manager()->Remove(permissions_blocklist);
+
+  {
+    // Clears the permission block list.
+    ManagementPrefUpdater pref(profile_->GetTestingPrefService());
+    pref.ClearBlockedPermissions("*");
+  }
+
+  {
+    // Attempts to force install this extension again.
+    content::WindowedNotificationObserver observer(
+        extensions::NOTIFICATION_CRX_INSTALLER_DONE,
+        content::NotificationService::AllSources());
+    service()->CheckForExternalUpdates();
+    observer.Wait();
+  }
+
+  const Extension* installed =
+      service()->GetInstalledExtension(permissions_blocklist);
+  ASSERT_TRUE(installed);
+  EXPECT_EQ(installed->location(), Manifest::EXTERNAL_POLICY_DOWNLOAD);
+}
+
+// Tests that newer versions of an extension with conflicting required
+// permissions by enterprise policy cannot be updated to.
+TEST_F(ExtensionServiceTest, PolicyBlockedPermissionExtensionUpdate) {
+  InitializeEmptyExtensionServiceWithTestingPrefs();
+
+  base::FilePath path = data_dir().AppendASCII("permissions_blocklist");
+  base::FilePath path2 = data_dir().AppendASCII("permissions_blocklist2");
+  base::FilePath pem_path = data_dir().AppendASCII("permissions_blocklist.pem");
+
+  // Install 'permissions_blocklist'.
+  const Extension* installed = PackAndInstallCRX(path, pem_path, INSTALL_NEW);
+  EXPECT_EQ(installed->id(), permissions_blocklist);
+
+  {
+    // Block one of the required permissions of 'permissions_blocklist2'.
+    ManagementPrefUpdater pref(profile_->GetTestingPrefService());
+    pref.AddBlockedPermission("*", "downloads");
+  }
+
+  // Install 'permissions_blocklist' again, should be updated.
+  const Extension* updated = PackAndInstallCRX(path, pem_path, INSTALL_UPDATED);
+  EXPECT_EQ(updated->id(), permissions_blocklist);
+
+  std::string old_version = updated->VersionString();
+
+  // Attempts to update to 'permissions_blocklist2' should fail.
+  PackAndInstallCRX(path2, pem_path, INSTALL_FAILED);
+
+  // Verify that the old version is still enabled.
+  updated = service()->GetExtensionById(permissions_blocklist, false);
+  ASSERT_TRUE(updated);
+  EXPECT_EQ(old_version, updated->VersionString());
+}
+
+// Tests that policy update with additional permissions blocked revoke
+// conflicting granted optional permissions and unload extensions with
+// conflicting required permissions, including the force installed ones.
+TEST_F(ExtensionServiceTest, PolicyBlockedPermissionPolicyUpdate) {
+  InitializeEmptyExtensionServiceWithTestingPrefs();
+
+  base::FilePath path = data_dir().AppendASCII("permissions_blocklist");
+  base::FilePath path2 = data_dir().AppendASCII("permissions_blocklist2");
+  base::FilePath pem_path = data_dir().AppendASCII("permissions_blocklist.pem");
+
+  // Pack the crx file.
+  base::ScopedTempDir temp_dir;
+  EXPECT_TRUE(temp_dir.CreateUniqueTempDir());
+  base::FilePath crx_path = temp_dir.path().AppendASCII("temp.crx");
+
+  PackCRX(path2, pem_path, crx_path);
+
+  // Install two arbitary extensions with specified manifest.
+  std::string ext1 = PackAndInstallCRX(path, INSTALL_NEW)->id();
+  std::string ext2 = PackAndInstallCRX(path2, INSTALL_NEW)->id();
+  ASSERT_NE(ext1, permissions_blocklist);
+  ASSERT_NE(ext2, permissions_blocklist);
+  ASSERT_NE(ext1, ext2);
+
+  // Force install another extension with known id and same manifest as 'ext2'.
+  std::string ext2_forced = permissions_blocklist;
+  MockExtensionProvider* provider =
+      new MockExtensionProvider(service(), Manifest::EXTERNAL_POLICY_DOWNLOAD);
+  AddMockExternalProvider(provider);
+  provider->UpdateOrAddExtension(ext2_forced, "2.0", crx_path);
+
+  content::WindowedNotificationObserver observer(
+      extensions::NOTIFICATION_CRX_INSTALLER_DONE,
+      content::NotificationService::AllSources());
+  service()->CheckForExternalUpdates();
+  observer.Wait();
+
+  extensions::ExtensionRegistry* registry =
+      extensions::ExtensionRegistry::Get(profile());
+
+  // Verify all three extensions are installed and enabled.
+  ASSERT_TRUE(registry->enabled_extensions().GetByID(ext1));
+  ASSERT_TRUE(registry->enabled_extensions().GetByID(ext2));
+  ASSERT_TRUE(registry->enabled_extensions().GetByID(ext2_forced));
+
+  // Grant all optional permissions to each extension.
+  GrantAllOptionalPermissions(ext1);
+  GrantAllOptionalPermissions(ext2);
+  GrantAllOptionalPermissions(ext2_forced);
+
+  scoped_refptr<const PermissionSet> active_permissions(
+      ExtensionPrefs::Get(profile())->GetActivePermissions(ext1));
+  EXPECT_TRUE(active_permissions->HasAPIPermission(
+      extensions::APIPermission::kDownloads));
+
+  // Set policy to block 'downloads' permission.
+  {
+    ManagementPrefUpdater pref(profile_->GetTestingPrefService());
+    pref.AddBlockedPermission("*", "downloads");
+  }
+
+  base::RunLoop().RunUntilIdle();
+
+  // 'ext1' should still be enabled, but with 'downloads' permission revoked.
+  EXPECT_TRUE(registry->enabled_extensions().GetByID(ext1));
+  active_permissions =
+      ExtensionPrefs::Get(profile())->GetActivePermissions(ext1);
+  EXPECT_FALSE(active_permissions->HasAPIPermission(
+      extensions::APIPermission::kDownloads));
+
+  // 'ext2' should be disabled because one of its required permissions is
+  // blocked.
+  EXPECT_FALSE(registry->enabled_extensions().GetByID(ext2));
+
+  // 'ext2_forced' should be handled the same as 'ext2'
+  EXPECT_FALSE(registry->enabled_extensions().GetByID(ext2_forced));
+}
+
 // Flaky on windows; http://crbug.com/309833
 #if defined(OS_WIN)
 #define MAYBE_ExternalExtensionAutoAcknowledgement DISABLED_ExternalExtensionAutoAcknowledgement
@@ -4033,7 +4260,7 @@ TEST_F(ExtensionServiceTest, ReloadExtensions) {
   base::FilePath path = data_dir().AppendASCII("good.crx");
   InstallCRX(path, INSTALL_NEW,
              Extension::FROM_WEBSTORE | Extension::WAS_INSTALLED_BY_DEFAULT);
-  const char* extension_id = good_crx;
+  const char* const extension_id = good_crx;
   service()->DisableExtension(extension_id, Extension::DISABLE_USER_ACTION);
 
   EXPECT_EQ(0u, registry()->enabled_extensions().size());
@@ -4070,10 +4297,9 @@ TEST_F(ExtensionServiceTest, ReloadExtensions) {
 // Tests reloading an extension.
 TEST_F(ExtensionServiceTest, ReloadExtension) {
   InitializeEmptyExtensionService();
-  InitializeProcessManager();
 
   // Simple extension that should install without error.
-  const char* extension_id = "behllobkkfkfnphdnhnkndlbkcpglgmj";
+  const char extension_id[] = "behllobkkfkfnphdnhnkndlbkcpglgmj";
   base::FilePath ext = data_dir()
                            .AppendASCII("good")
                            .AppendASCII("Extensions")
@@ -5558,7 +5784,6 @@ TEST_F(ExtensionServiceTest, GetSyncDataFilter) {
 
 TEST_F(ExtensionServiceTest, GetSyncExtensionDataUserSettings) {
   InitializeEmptyExtensionService();
-  InitializeProcessManager();
   InitializeExtensionSyncService();
   InstallCRX(data_dir().AppendASCII("good.crx"), INSTALL_NEW);
   const Extension* extension = service()->GetInstalledExtension(good_crx);
@@ -5880,7 +6105,6 @@ TEST_F(ExtensionServiceTest, ProcessSyncDataWrongType) {
 
 TEST_F(ExtensionServiceTest, ProcessSyncDataSettings) {
   InitializeEmptyExtensionService();
-  InitializeProcessManager();
   InitializeExtensionSyncService();
   syncer::FakeSyncChangeProcessor processor;
   extension_sync_service()->MergeDataAndStartSyncing(
@@ -6252,7 +6476,7 @@ TEST_F(ExtensionServiceTest,
   EXPECT_FALSE(
       registry()->GenerateInstalledExtensionsSet()->Contains(extension_ids[1]));
 }
-#endif // defined(ENABLE_MANAGED_USERS)
+#endif  // defined(ENABLE_MANAGED_USERS)
 
 TEST_F(ExtensionServiceTest, InstallPriorityExternalUpdateUrl) {
   InitializeEmptyExtensionService();
@@ -6620,7 +6844,7 @@ TEST_F(ExtensionServiceTest, InstallWhitelistedExtension) {
 // are provided.
 class ExtensionSourcePriorityTest : public ExtensionServiceTest {
  public:
-  virtual void SetUp() {
+  void SetUp() override {
     ExtensionServiceTest::SetUp();
 
     // All tests use a single extension.  Put the id and path in member vars

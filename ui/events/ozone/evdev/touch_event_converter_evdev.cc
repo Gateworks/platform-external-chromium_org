@@ -23,6 +23,7 @@
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
+#include "ui/events/devices/device_util_linux.h"
 #include "ui/events/event.h"
 #include "ui/events/event_constants.h"
 #include "ui/events/event_switches.h"
@@ -93,7 +94,8 @@ TouchEventConverterEvdev::TouchEventConverterEvdev(
       callback_(callback),
       syn_dropped_(false),
       is_type_a_(false),
-      current_slot_(0) {
+      current_slot_(0),
+      is_internal_(IsTouchscreenInternal(path)) {
   Init(info);
 }
 
@@ -170,6 +172,10 @@ bool TouchEventConverterEvdev::HasTouchscreen() const {
 
 gfx::Size TouchEventConverterEvdev::GetTouchscreenSize() const {
   return native_size_;
+}
+
+bool TouchEventConverterEvdev::IsInternal() const {
+  return is_internal_;
 }
 
 void TouchEventConverterEvdev::OnFileCanReadWithoutBlocking(int fd) {
@@ -304,7 +310,7 @@ void TouchEventConverterEvdev::ReportEvents(base::TimeDelta delta) {
   for (int i = 0; i < MAX_FINGERS; i++) {
     if (altered_slots_[i]) {
       // TODO(rikroege): Support elliptical finger regions.
-      callback_.Run(make_scoped_ptr(
+      scoped_ptr<TouchEvent> event(
           new TouchEvent(events_[i].type_,
                          gfx::PointF(events_[i].x_, events_[i].y_),
                          /* flags */ 0,
@@ -313,7 +319,9 @@ void TouchEventConverterEvdev::ReportEvents(base::TimeDelta delta) {
                          /* radius_x */ events_[i].radius_x_,
                          /* radius_y */ events_[i].radius_y_,
                          /* angle */ 0.,
-                         events_[i].pressure_)));
+                         events_[i].pressure_));
+      event->set_source_device_id(id_);
+      callback_.Run(event.Pass());
 
       // Subsequent events for this finger will be touch-move until it
       // is released.

@@ -248,6 +248,10 @@ class ContentViewCoreImpl : public ContentViewCore,
 
   void DidStopFlinging();
 
+  // Returns the context with which the ContentViewCore was created, typically
+  // the Activity context.
+  base::android::ScopedJavaLocalRef<jobject> GetContext() const;
+
   // Returns the viewport size after accounting for the viewport offset.
   gfx::Size GetViewSize() const;
 
@@ -266,8 +270,10 @@ class ContentViewCoreImpl : public ContentViewCore,
   void AttachLayer(scoped_refptr<cc::Layer> layer);
   void RemoveLayer(scoped_refptr<cc::Layer> layer);
 
-  void SelectBetweenCoordinates(const gfx::PointF& start,
-                                const gfx::PointF& end);
+  void MoveRangeSelectionExtent(const gfx::PointF& extent);
+
+  void SelectBetweenCoordinates(const gfx::PointF& base,
+                                const gfx::PointF& extent);
 
  private:
   class ContentViewUserData;

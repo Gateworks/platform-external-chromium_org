@@ -280,6 +280,8 @@ static jint GetErrorCode(JNIEnv* env, jobject object, jlong urlRequestAdapter) {
 
     case net::ERR_NAME_NOT_RESOLVED:
       return REQUEST_ERROR_UNKNOWN_HOST;
+    case net::ERR_TOO_MANY_REDIRECTS:
+      return REQUEST_ERROR_TOO_MANY_REDIRECTS;
   }
   return REQUEST_ERROR_UNKNOWN;
 }
@@ -306,6 +308,14 @@ static jint GetHttpStatusCode(JNIEnv* env,
   URLRequestAdapter* request =
       reinterpret_cast<URLRequestAdapter*>(urlRequestAdapter);
   return request->http_status_code();
+}
+
+static jstring GetHttpStatusText(JNIEnv* env,
+                                 jobject object,
+                                 jlong urlRequestAdapter) {
+  URLRequestAdapter* request =
+      reinterpret_cast<URLRequestAdapter*>(urlRequestAdapter);
+  return ConvertUTF8ToJavaString(env, request->http_status_text()).Release();
 }
 
 static jstring GetContentType(JNIEnv* env,
@@ -397,6 +407,14 @@ static jstring GetNegotiatedProtocol(JNIEnv* env,
 
   std::string negotiated_protocol = request->GetNegotiatedProtocol();
   return ConvertUTF8ToJavaString(env, negotiated_protocol.c_str()).Release();
+}
+
+static void DisableRedirects(JNIEnv* env, jobject jcaller,
+                             jlong jrequest_adapter) {
+  URLRequestAdapter* request_adapter =
+      reinterpret_cast<URLRequestAdapter*>(jrequest_adapter);
+  if (request_adapter != NULL)
+    request_adapter->DisableRedirects();
 }
 
 }  // namespace cronet

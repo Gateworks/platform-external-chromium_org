@@ -17,6 +17,7 @@
 #include "base/debug/stack_trace.h"
 #include "base/logging.h"
 #include "base/stl_util.h"
+#include "base/strings/stringprintf.h"
 #include "net/base/net_errors.h"
 #include "net/quic/crypto/quic_decrypter.h"
 #include "net/quic/crypto/quic_encrypter.h"
@@ -28,6 +29,7 @@
 #include "net/quic/quic_utils.h"
 
 using base::StringPiece;
+using base::StringPrintf;
 using base::hash_map;
 using base::hash_set;
 using std::list;
@@ -56,6 +58,9 @@ const size_t kMaxFecGroups = 2;
 
 // Maximum number of acks received before sending an ack in response.
 const size_t kMaxPacketsReceivedBeforeAckSend = 20;
+
+// Maximum number of tracked packets.
+const size_t kMaxTrackedPackets = 5 * kMaxTcpCongestionWindow;;
 
 bool Near(QuicPacketSequenceNumber a, QuicPacketSequenceNumber b) {
   QuicPacketSequenceNumber delta = (a > b) ? a - b : b - a;
@@ -191,6 +196,8 @@ QuicConnection::QuicConnection(QuicConnectionId connection_id,
       writer_(writer_factory.Create(this)),
       owns_writer_(owns_writer),
       encryption_level_(ENCRYPTION_NONE),
+      has_forward_secure_encrypter_(false),
+      first_required_forward_secure_packet_(0),
       clock_(helper->GetClock()),
       random_generator_(helper->GetRandomGenerator()),
       connection_id_(connection_id),
@@ -232,7 +239,8 @@ QuicConnection::QuicConnection(QuicConnectionId connection_id,
       peer_ip_changed_(false),
       peer_port_changed_(false),
       self_ip_changed_(false),
-      self_port_changed_(false) {
+      self_port_changed_(false),
+      can_truncate_connection_ids_(true) {
   DVLOG(1) << ENDPOINT << "Created connection with connection_id: "
            << connection_id;
   if (!FLAGS_quic_unified_timeouts) {
@@ -270,7 +278,17 @@ void QuicConnection::SetFromConfig(const QuicConfig& config) {
     SetIdleNetworkTimeout(config.IdleConnectionStateLifetime());
   }
   sent_packet_manager_.SetFromConfig(config);
+  if (FLAGS_allow_truncated_connection_ids_for_quic &&
+      config.HasReceivedBytesForConnectionId() &&
+      can_truncate_connection_ids_) {
+    packet_generator_.SetConnectionIdLength(
+        config.ReceivedBytesForConnectionId());
+  }
   max_undecryptable_packets_ = config.max_undecryptable_packets();
+}
+
+void QuicConnection::SetNumOpenStreams(size_t num_streams) {
+  sent_packet_manager_.SetNumOpenStreams(num_streams);
 }
 
 bool QuicConnection::SelectMutualVersion(
@@ -445,6 +463,14 @@ bool QuicConnection::OnUnauthenticatedHeader(const QuicPacketHeader& header) {
 void QuicConnection::OnDecryptedPacket(EncryptionLevel level) {
   last_decrypted_packet_level_ = level;
   last_packet_decrypted_ = true;
+  // If this packet was foward-secure encrypted and the forward-secure encrypter
+  // is not being used, start using it.
+  if (FLAGS_enable_quic_delay_forward_security &&
+      encryption_level_ != ENCRYPTION_FORWARD_SECURE &&
+      has_forward_secure_encrypter_ &&
+      level == ENCRYPTION_FORWARD_SECURE) {
+    SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
+  }
 }
 
 bool QuicConnection::OnPacketHeader(const QuicPacketHeader& header) {
@@ -875,8 +901,8 @@ void QuicConnection::OnPacketComplete() {
   }
 
   UpdateStopWaitingCount();
-
   ClearLastFrames();
+  MaybeCloseIfTooManyOutstandingPackets();
 }
 
 void QuicConnection::MaybeQueueAck() {
@@ -915,6 +941,27 @@ void QuicConnection::ClearLastFrames() {
   last_blocked_frames_.clear();
   last_ping_frames_.clear();
   last_close_frames_.clear();
+}
+
+void QuicConnection::MaybeCloseIfTooManyOutstandingPackets() {
+  if (!FLAGS_quic_too_many_outstanding_packets) {
+    return;
+  }
+  // This occurs if we don't discard old packets we've sent fast enough.
+  // It's possible largest observed is less than least unacked.
+  if (sent_packet_manager_.largest_observed() >
+          (sent_packet_manager_.GetLeastUnacked() + kMaxTrackedPackets)) {
+    SendConnectionCloseWithDetails(
+        QUIC_TOO_MANY_OUTSTANDING_SENT_PACKETS,
+        StringPrintf("More than %zu outstanding.", kMaxTrackedPackets));
+  }
+  // This occurs if there are received packet gaps and the peer does not raise
+  // the least unacked fast enough.
+  if (received_packet_manager_.NumTrackedPackets() > kMaxTrackedPackets) {
+    SendConnectionCloseWithDetails(
+        QUIC_TOO_MANY_OUTSTANDING_RECEIVED_PACKETS,
+        StringPrintf("More than %zu outstanding.", kMaxTrackedPackets));
+  }
 }
 
 QuicAckFrame* QuicConnection::CreateAckFrame() {
@@ -1520,6 +1567,16 @@ void QuicConnection::OnWriteError(int error_code) {
 
 void QuicConnection::OnSerializedPacket(
     const SerializedPacket& serialized_packet) {
+  // If a forward-secure encrypter is available but is not being used and this
+  // packet's sequence number is after the first packet which requires
+  // forward security, start using the forward-secure encrypter.
+  if (FLAGS_enable_quic_delay_forward_security &&
+      encryption_level_ != ENCRYPTION_FORWARD_SECURE &&
+      has_forward_secure_encrypter_ &&
+      serialized_packet.sequence_number >=
+          first_required_forward_secure_packet_) {
+    SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
+  }
   if (serialized_packet.retransmittable_frames) {
     serialized_packet.retransmittable_frames->
         set_encryption_level(encryption_level_);
@@ -1527,8 +1584,9 @@ void QuicConnection::OnSerializedPacket(
   SendOrQueuePacket(QueuedPacket(serialized_packet, encryption_level_));
 }
 
-void QuicConnection::OnCongestionWindowChange(QuicByteCount congestion_window) {
-  packet_generator_.OnCongestionWindowChange(congestion_window);
+void QuicConnection::OnCongestionWindowChange() {
+  packet_generator_.OnCongestionWindowChange(
+      sent_packet_manager_.GetCongestionWindow());
   visitor_->OnCongestionWindowChange(clock_->ApproximateNow());
 }
 
@@ -1620,6 +1678,16 @@ void QuicConnection::OnRetransmissionTimeout() {
 void QuicConnection::SetEncrypter(EncryptionLevel level,
                                   QuicEncrypter* encrypter) {
   framer_.SetEncrypter(level, encrypter);
+  if (FLAGS_enable_quic_delay_forward_security &&
+      level == ENCRYPTION_FORWARD_SECURE) {
+    has_forward_secure_encrypter_ = true;
+    first_required_forward_secure_packet_ =
+        sequence_number_of_last_sent_packet_ +
+        // 3 times the current congestion window (in slow start) should cover
+        // about two full round trips worth of packets, which should be
+        // sufficient.
+        3 * sent_packet_manager_.GetCongestionWindow() / max_packet_length();
+  }
 }
 
 const QuicEncrypter* QuicConnection::encrypter(EncryptionLevel level) const {

@@ -15,10 +15,12 @@ using namespace pairing_chromeos;
 namespace chromeos {
 
 ControllerPairingScreen::ControllerPairingScreen(
-    ScreenObserver* observer,
+    BaseScreenDelegate* base_screen_delegate,
+    Delegate* delegate,
     ControllerPairingScreenActor* actor,
     ControllerPairingController* shark_controller)
-    : BaseScreen(observer),
+    : BaseScreen(base_screen_delegate),
+      delegate_(delegate),
       actor_(actor),
       shark_controller_(shark_controller),
       current_stage_(ControllerPairingController::STAGE_NONE),
@@ -99,7 +101,8 @@ void ControllerPairingScreen::PairingStageChanged(Stage new_stage) {
       break;
     }
     case ControllerPairingController::STAGE_PAIRING_DONE: {
-      get_screen_observer()->SetHostConfiguration();
+      if (delegate_)
+        delegate_->SetHostConfiguration();
       break;
     }
     case ControllerPairingController::STAGE_HOST_UPDATE_IN_PROGRESS: {
@@ -112,7 +115,7 @@ void ControllerPairingScreen::PairingStageChanged(Stage new_stage) {
     }
     case ControllerPairingController::STAGE_WAITING_FOR_CREDENTIALS: {
       shark_controller_->RemoveObserver(this);
-      get_screen_observer()->OnExit(
+      get_base_screen_delegate()->OnExit(
           WizardController::CONTROLLER_PAIRING_FINISHED);
       desired_page = kPageEnrollmentIntroduction;
       break;

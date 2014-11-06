@@ -55,12 +55,15 @@
       'renderer/custom_menu_commands.h',
       'renderer/external_extension.cc',
       'renderer/external_extension.h',
+      'renderer/instant_restricted_id_cache.h',
       'renderer/page_load_histograms.cc',
       'renderer/page_load_histograms.h',
       'renderer/plugins/chrome_plugin_placeholder.cc',
       'renderer/plugins/chrome_plugin_placeholder.h',
       'renderer/plugins/plugin_uma.cc',
       'renderer/plugins/plugin_uma.h',
+      'renderer/plugins/shadow_dom_plugin_placeholder.cc',
+      'renderer/plugins/shadow_dom_plugin_placeholder.h',
       'renderer/prefetch_helper.cc',
       'renderer/prefetch_helper.h',
       'renderer/prerender/prerender_dispatcher.cc',
@@ -368,7 +371,7 @@
             '../third_party/mach_override/mach_override.gyp:mach_override',
           ],
         }],
-        ['enable_printing!=0', {
+        ['enable_basic_printing==1 or enable_print_preview==1', {
           'dependencies': [
             '../printing/printing.gyp:printing',
           ],
@@ -376,7 +379,7 @@
             '<@(chrome_renderer_printing_sources)',
           ],
         }],
-        ['enable_printing==1', {
+        ['enable_print_preview==1', {
           'sources': [
             '<@(chrome_renderer_full_printing_sources)',
           ],

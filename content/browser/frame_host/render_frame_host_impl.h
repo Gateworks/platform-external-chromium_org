@@ -134,6 +134,8 @@ class CONTENT_EXPORT RenderFrameHostImpl
   void AccessibilitySetTextSelection(int acc_obj_id,
                                      int start_offset,
                                      int end_offset) override;
+  void AccessibilitySetValue(int acc_obj_id, const base::string16& value)
+      override;
   bool AccessibilityViewHasFocus() const override;
   gfx::Rect AccessibilityGetViewBounds() const override;
   gfx::Point AccessibilityOriginInScreen(
@@ -148,7 +150,7 @@ class CONTENT_EXPORT RenderFrameHostImpl
 
   // Creates a RenderFrame in the renderer process.  Only called for
   // cross-process subframe navigations in --site-per-process.
-  bool CreateRenderFrame(int parent_routing_id);
+  bool CreateRenderFrame(int parent_routing_id, int proxy_routing_id);
 
   // Returns whether the RenderFrame in the renderer process has been created
   // and still has a connection.  This is valid for all frames.
@@ -435,8 +437,7 @@ class CONTENT_EXPORT RenderFrameHostImpl
   void OnDidAccessInitialDocument();
   void OnDidDisownOpener();
   void OnDidAssignPageId(int32 page_id);
-  void OnUpdateTitle(int32 page_id,
-                     const base::string16& title,
+  void OnUpdateTitle(const base::string16& title,
                      blink::WebTextDirection title_direction);
   void OnUpdateEncoding(const std::string& encoding);
   void OnBeginNavigation(const FrameHostMsg_BeginNavigation_Params& params,
@@ -451,6 +452,9 @@ class CONTENT_EXPORT RenderFrameHostImpl
   void OnShowPopup(const FrameHostMsg_ShowPopup_Params& params);
   void OnHidePopup();
 #endif
+
+  // Registers Mojo services that this frame host makes available.
+  void RegisterMojoServices();
 
   // Updates the state of this RenderFrameHost and clears any waiting state
   // that is no longer relevant.
@@ -474,6 +478,9 @@ class CONTENT_EXPORT RenderFrameHostImpl
   // guest WebContents.
   void UpdateGuestFrameAccessibility(
       const std::map<int32, int> node_to_browser_plugin_instance_id_map);
+
+  // Informs the content client that geolocation permissions were used.
+  void DidUseGeolocationPermission();
 
   // For now, RenderFrameHosts indirectly keep RenderViewHosts alive via a
   // refcount that calls Shutdown when it reaches zero.  This allows each

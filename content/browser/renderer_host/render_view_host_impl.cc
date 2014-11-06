@@ -399,8 +399,14 @@ WebPreferences RenderViewHostImpl::ComputeWebkitPrefs(const GURL& url) {
   prefs.use_solid_color_scrollbars = ui::IsOverlayScrollbarEnabled();
 
 #if defined(OS_ANDROID)
+  // On Android, user gestures are normally required, unless that requirement
+  // is disabled with a command-line switch or the equivalent field trial is
+  // is set to "Enabled".
+  const std::string autoplay_group_name = base::FieldTrialList::FindFullName(
+      "MediaElementAutoplay");
   prefs.user_gesture_required_for_media_playback = !command_line.HasSwitch(
-      switches::kDisableGestureRequirementForMediaPlayback);
+      switches::kDisableGestureRequirementForMediaPlayback) &&
+          (autoplay_group_name.empty() || autoplay_group_name != "Enabled");
 #endif
 
   prefs.touch_enabled = ui::AreTouchEventsEnabled();
@@ -414,6 +420,9 @@ WebPreferences RenderViewHostImpl::ComputeWebkitPrefs(const GURL& url) {
 
   prefs.touch_adjustment_enabled =
       !command_line.HasSwitch(switches::kDisableTouchAdjustment);
+
+  prefs.slimming_paint_enabled =
+      command_line.HasSwitch(switches::kEnableSlimmingPaint);
 
 #if defined(OS_MACOSX) || defined(OS_CHROMEOS)
   bool default_enable_scroll_animator = true;
@@ -455,6 +464,9 @@ WebPreferences RenderViewHostImpl::ComputeWebkitPrefs(const GURL& url) {
       command_line.HasSwitch(switches::kEnableDeferredImageDecoding) ||
       content::IsImplSidePaintingEnabled();
 
+  prefs.image_color_profiles_enabled =
+      command_line.HasSwitch(switches::kEnableImageColorProfiles);
+
   prefs.spatial_navigation_enabled = command_line.HasSwitch(
       switches::kEnableSpatialNavigation);
 
@@ -470,9 +482,22 @@ WebPreferences RenderViewHostImpl::ComputeWebkitPrefs(const GURL& url) {
     }
   }
 
+  std::string streaming_experiment_group =
+      base::FieldTrialList::FindFullName("V8ScriptStreaming");
   prefs.v8_script_streaming_enabled =
-      command_line.HasSwitch(switches::kEnableV8ScriptStreaming) ||
-      base::FieldTrialList::FindFullName("V8ScriptStreaming") == "Enabled";
+      command_line.HasSwitch(switches::kEnableV8ScriptStreaming);
+  if (streaming_experiment_group == "Enabled") {
+    prefs.v8_script_streaming_enabled = true;
+    prefs.v8_script_streaming_mode = V8_SCRIPT_STREAMING_MODE_ALL;
+  } else if (streaming_experiment_group == "OnlyAsyncAndDefer") {
+    prefs.v8_script_streaming_enabled = true;
+    prefs.v8_script_streaming_mode =
+        V8_SCRIPT_STREAMING_MODE_ONLY_ASYNC_AND_DEFER;
+  } else if (streaming_experiment_group == "AllPlusBlockParserBlocking") {
+    prefs.v8_script_streaming_enabled = true;
+    prefs.v8_script_streaming_mode =
+        V8_SCRIPT_STREAMING_MODE_ALL_PLUS_BLOCK_PARSER_BLOCKING;
+  }
 
   GetContentClient()->browser()->OverrideWebkitPrefs(this, url, &prefs);
   return prefs;
@@ -1021,6 +1046,12 @@ void RenderViewHostImpl::OnRenderProcessGone(int status, int exit_code) {
 }
 
 void RenderViewHostImpl::OnUpdateState(int32 page_id, const PageState& state) {
+  // If the following DCHECK fails, you have encountered a tricky edge-case that
+  // has evaded reproduction for a very long time. Please report what you were
+  // doing on http://crbug.com/407376, whether or not you can reproduce the
+  // failure.
+  DCHECK_EQ(page_id, page_id_);
+
   // Without this check, the renderer can trick the browser into using
   // filenames it can't access in a future session restore.
   if (!CanAccessFilesOfPageState(state)) {

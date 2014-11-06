@@ -253,12 +253,12 @@ class HttpNetworkTransactionTest
     LoadTimingInfo load_timing_info;
   };
 
-  virtual void SetUp() {
+  void SetUp() override {
     NetworkChangeNotifier::NotifyObserversOfIPAddressChangeForTests();
     base::MessageLoop::current()->RunUntilIdle();
   }
 
-  virtual void TearDown() {
+  void TearDown() override {
     NetworkChangeNotifier::NotifyObserversOfIPAddressChangeForTests();
     base::MessageLoop::current()->RunUntilIdle();
     // Empty the current queue.
@@ -12193,8 +12193,8 @@ TEST_P(HttpNetworkTransactionTest, GetFullRequestHeadersIncludesExtraHeader) {
 
 namespace {
 
-// Fake HttpStreamBase that simply records calls to SetPriority().
-class FakeStream : public HttpStreamBase,
+// Fake HttpStream that simply records calls to SetPriority().
+class FakeStream : public HttpStream,
                    public base::SupportsWeakPtr<FakeStream> {
  public:
   explicit FakeStream(RequestPriority priority) : priority_(priority) {}
@@ -12273,6 +12273,10 @@ class FakeStream : public HttpStreamBase,
   void Drain(HttpNetworkSession* session) override { ADD_FAILURE(); }
 
   void SetPriority(RequestPriority priority) override { priority_ = priority; }
+
+  UploadProgress GetUploadProgress() const override { return UploadProgress(); }
+
+  HttpStream* RenewStreamForAuth() override { return NULL; }
 
  private:
   RequestPriority priority_;

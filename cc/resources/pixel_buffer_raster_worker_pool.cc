@@ -35,21 +35,15 @@ class RasterBufferImpl : public RasterBuffer {
   }
 
   // Overridden from RasterBuffer:
-  void Playback(const PicturePileImpl* picture_pile,
+  void Playback(const RasterSource* raster_source,
                 const gfx::Rect& rect,
-                float scale,
-                RenderingStatsInstrumentation* stats) override {
+                float scale) override {
     if (!memory_)
       return;
 
-    RasterWorkerPool::PlaybackToMemory(memory_,
-                                       resource_->format(),
-                                       resource_->size(),
-                                       stride_,
-                                       picture_pile,
-                                       rect,
-                                       scale,
-                                       stats);
+    RasterWorkerPool::PlaybackToMemory(memory_, resource_->format(),
+                                       resource_->size(), stride_,
+                                       raster_source, rect, scale);
   }
 
  private:
@@ -169,7 +163,7 @@ void PixelBufferRasterWorkerPool::Shutdown() {
   CheckForCompletedRasterizerTasks();
   CheckForCompletedUploads();
 
-  check_for_completed_raster_task_notifier_.Cancel();
+  check_for_completed_raster_task_notifier_.Shutdown();
 
   for (RasterTaskState::Vector::iterator it = raster_task_states_.begin();
        it != raster_task_states_.end();

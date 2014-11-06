@@ -66,9 +66,11 @@ void SyncPrefs::RegisterProfilePrefs(
   // although they don't have sync representations.
   user_types.PutAll(syncer::ProxyTypes());
 
-  // Treat bookmarks specially.
+  // Treat bookmarks and device info specially.
   RegisterDataTypePreferredPref(registry, syncer::BOOKMARKS, true);
+  RegisterDataTypePreferredPref(registry, syncer::DEVICE_INFO, true);
   user_types.Remove(syncer::BOOKMARKS);
+  user_types.Remove(syncer::DEVICE_INFO);
 
   // These two prefs are set from sync experiment to enable enhanced bookmarks.
   registry->RegisterIntegerPref(
@@ -137,6 +139,7 @@ void SyncPrefs::RegisterProfilePrefs(
   model_set.Put(syncer::TYPED_URLS);
   model_set.Put(syncer::SESSIONS);
   model_set.Put(syncer::ARTICLES);
+  model_set.Put(syncer::WIFI_CREDENTIALS);
   registry->RegisterListPref(prefs::kSyncAcknowledgedSyncTypes,
                              syncer::ModelTypeSetToValue(model_set),
                              user_prefs::PrefRegistrySyncable::UNSYNCABLE_PREF);
@@ -301,8 +304,6 @@ const char* SyncPrefs::GetPrefNameForDataType(syncer::ModelType data_type) {
       return prefs::kSyncThemes;
     case syncer::TYPED_URLS:
       return prefs::kSyncTypedUrls;
-    case syncer::ENHANCED_BOOKMARKS:
-      return prefs::kSyncEnhancedBookmarks;
     case syncer::EXTENSION_SETTINGS:
       return prefs::kSyncExtensionSettings;
     case syncer::EXTENSIONS:
@@ -345,10 +346,12 @@ const char* SyncPrefs::GetPrefNameForDataType(syncer::ModelType data_type) {
       return prefs::kSyncSupervisedUserSharedSettings;
     case syncer::DEVICE_INFO:
       return prefs::kSyncDeviceInfo;
+    case syncer::WIFI_CREDENTIALS:
+      return prefs::kSyncWifiCredentials;
     default:
       break;
   }
-  NOTREACHED();
+  NOTREACHED() << "Type is " << data_type;
   return NULL;
 }
 
@@ -453,6 +456,11 @@ bool SyncPrefs::GetDataTypePreferred(syncer::ModelType type) const {
     NOTREACHED();
     return false;
   }
+
+  // Device info is always enabled.
+  if (pref_name == prefs::kSyncDeviceInfo)
+    return true;
+
   if (type == syncer::PROXY_TABS &&
       pref_service_->GetUserPrefValue(pref_name) == NULL &&
       pref_service_->IsUserModifiablePreference(pref_name)) {
@@ -472,6 +480,11 @@ void SyncPrefs::SetDataTypePreferred(syncer::ModelType type,
     NOTREACHED();
     return;
   }
+
+  // Device info is always preferred.
+  if (type == syncer::DEVICE_INFO)
+    return;
+
   pref_service_->SetBoolean(pref_name, is_preferred);
 }
 

@@ -123,6 +123,8 @@
         'bpf_dsl/bpf_dsl_forward.h',
         'bpf_dsl/bpf_dsl_impl.h',
         'bpf_dsl/cons.h',
+        'bpf_dsl/dump_bpf.cc',
+        'bpf_dsl/dump_bpf.h',
         'bpf_dsl/policy.cc',
         'bpf_dsl/policy.h',
         'bpf_dsl/policy_compiler.cc',
@@ -218,16 +220,23 @@
     { 'target_name': 'sandbox_services',
       'type': '<(component)',
       'sources': [
-        'services/broker_process.cc',
-        'services/broker_process.h',
         'services/init_process_reaper.cc',
         'services/init_process_reaper.h',
         'services/scoped_process.cc',
         'services/scoped_process.h',
         'services/thread_helpers.cc',
         'services/thread_helpers.h',
-        'services/yama.h',
         'services/yama.cc',
+        'services/yama.h',
+        'syscall_broker/broker_client.cc',
+        'syscall_broker/broker_client.h',
+        'syscall_broker/broker_common.h',
+        'syscall_broker/broker_host.cc',
+        'syscall_broker/broker_host.h',
+        'syscall_broker/broker_policy.cc',
+        'syscall_broker/broker_policy.h',
+        'syscall_broker/broker_process.cc',
+        'syscall_broker/broker_process.h',
       ],
       'dependencies': [
         '../base/base.gyp:base',
@@ -311,7 +320,7 @@
   'conditions': [
     [ 'OS=="android"', {
       'targets': [
-        {
+      {
         'target_name': 'sandbox_linux_unittests_stripped',
         'type': 'none',
         'dependencies': [ 'sandbox_linux_unittests' ],
@@ -320,9 +329,26 @@
           'inputs': [ '<(PRODUCT_DIR)/sandbox_linux_unittests' ],
           'outputs': [ '<(PRODUCT_DIR)/sandbox_linux_unittests_stripped' ],
           'action': [ '<(android_strip)', '<@(_inputs)', '-o', '<@(_outputs)' ],
-          }],
-        }
-      ],
+        }],
+      },
+      {
+        'target_name': 'sandbox_linux_unittests_deps',
+        'type': 'none',
+        'dependencies': [
+          'sandbox_linux_unittests_stripped',
+        ],
+        # For the component build, ensure dependent shared libraries are
+        # stripped and put alongside sandbox_linux_unittests to simplify pushing
+        # to the device.
+        'variables': {
+           'output_dir': '<(PRODUCT_DIR)/sandbox_linux_unittests_deps/',
+           'native_binary': '<(PRODUCT_DIR)/sandbox_linux_unittests_stripped',
+           'include_main_binary': 0,
+        },
+        'includes': [
+          '../../build/android/native_app_dependencies.gypi'
+        ],
+      }],
     }],
     [ 'OS=="android"', {
       'targets': [

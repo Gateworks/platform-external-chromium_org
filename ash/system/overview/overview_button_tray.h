@@ -8,6 +8,7 @@
 #include "ash/ash_export.h"
 #include "ash/shell_observer.h"
 #include "ash/system/tray/tray_background_view.h"
+#include "ash/wm/overview/window_selector_controller.h"
 
 namespace views {
 class ImageView;
@@ -24,25 +25,25 @@ class ASH_EXPORT OverviewButtonTray : public TrayBackgroundView,
                                       public ShellObserver {
  public:
   explicit OverviewButtonTray(StatusAreaWidget* status_area_widget);
-  virtual ~OverviewButtonTray();
+  ~OverviewButtonTray() override;
 
   // Updates the tray's visibility based on the LoginStatus and the current
   // state of MaximizeMode
   virtual void UpdateAfterLoginStatusChange(user::LoginStatus status);
 
   // ActionableView:
-  virtual bool PerformAction(const ui::Event& event) override;
+  bool PerformAction(const ui::Event& event) override;
 
   // ShellObserver:
-  virtual void OnMaximizeModeStarted() override;
-  virtual void OnMaximizeModeEnded() override;
+  void OnMaximizeModeStarted() override;
+  void OnMaximizeModeEnded() override;
+  void OnOverviewModeEnding() override;
 
   // TrayBackgroundView:
-  virtual bool ClickedOutsideBubble() override;
-  virtual base::string16 GetAccessibleNameForTray() override;
-  virtual void HideBubbleWithView(
-      const views::TrayBubbleView* bubble_view) override;
-  virtual void SetShelfAlignment(ShelfAlignment alignment) override;
+  bool ClickedOutsideBubble() override;
+  base::string16 GetAccessibleNameForTray() override;
+  void HideBubbleWithView(const views::TrayBubbleView* bubble_view) override;
+  void SetShelfAlignment(ShelfAlignment alignment) override;
 
  private:
   friend class OverviewButtonTrayTest;

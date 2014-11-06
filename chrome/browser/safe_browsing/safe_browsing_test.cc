@@ -40,9 +40,9 @@
 #include "chrome/common/chrome_switches.h"
 #include "chrome/common/url_constants.h"
 #include "chrome/test/base/in_process_browser_test.h"
-#include "chrome/test/base/ui_test_utils.h"
 #include "content/public/browser/browser_context.h"
 #include "content/public/test/test_browser_thread.h"
+#include "content/public/test/test_utils.h"
 #include "net/base/load_flags.h"
 #include "net/base/net_log.h"
 #include "net/dns/host_resolver.h"
@@ -160,8 +160,7 @@ class SafeBrowsingServerTest : public InProcessBrowserTest {
       is_checked_url_safe_(false) {
   }
 
-  virtual ~SafeBrowsingServerTest() {
-  }
+  ~SafeBrowsingServerTest() override {}
 
   void UpdateSafeBrowsingStatus() {
     ASSERT_TRUE(safe_browsing_service_);
@@ -255,7 +254,7 @@ class SafeBrowsingServerTest : public InProcessBrowserTest {
     return safe_browsing_service_ != NULL;
   }
 
-  virtual void SetUp() override {
+  void SetUp() override {
     base::FilePath datafile_path;
     ASSERT_TRUE(PathService::Get(base::DIR_SOURCE_ROOT, &datafile_path));
 
@@ -275,7 +274,7 @@ class SafeBrowsingServerTest : public InProcessBrowserTest {
     InProcessBrowserTest::SetUp();
   }
 
-  virtual void TearDown() override {
+  void TearDown() override {
     InProcessBrowserTest::TearDown();
 
     SafeBrowsingService::RegisterFactory(NULL);
