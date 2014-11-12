@@ -297,7 +297,7 @@ GYP_TARGET_DEPENDENCIES := \
 	$(call intermediates-dir-for,STATIC_LIBRARIES,content_content_renderer_gyp,,,$(GYP_VAR_PREFIX))/content_content_renderer_gyp.a \
 	$(call intermediates-dir-for,STATIC_LIBRARIES,cc_blink_cc_blink_gyp,,,$(GYP_VAR_PREFIX))/cc_blink_cc_blink_gyp.a \
 	$(call intermediates-dir-for,STATIC_LIBRARIES,media_blink_media_blink_gyp,,,$(GYP_VAR_PREFIX))/media_blink_media_blink_gyp.a \
-	$(call intermediates-dir-for,STATIC_LIBRARIES,mojo_mojo_js_bindings_lib_gyp,,,$(GYP_VAR_PREFIX))/mojo_mojo_js_bindings_lib_gyp.a \
+	$(call intermediates-dir-for,STATIC_LIBRARIES,mojo_edk_mojo_js_lib_gyp,,,$(GYP_VAR_PREFIX))/mojo_edk_mojo_js_lib_gyp.a \
 	$(call intermediates-dir-for,STATIC_LIBRARIES,ui_native_theme_native_theme_gyp,,,$(GYP_VAR_PREFIX))/ui_native_theme_native_theme_gyp.a \
 	$(call intermediates-dir-for,STATIC_LIBRARIES,third_party_libjingle_libjingle_webrtc_gyp,,,$(GYP_VAR_PREFIX))/third_party_libjingle_libjingle_webrtc_gyp.a \
 	$(call intermediates-dir-for,STATIC_LIBRARIES,third_party_libjingle_libjingle_webrtc_common_gyp,,,$(GYP_VAR_PREFIX))/third_party_libjingle_libjingle_webrtc_common_gyp.a \
@@ -336,13 +336,13 @@ GYP_TARGET_DEPENDENCIES := \
 	$(call intermediates-dir-for,STATIC_LIBRARIES,third_party_webrtc_modules_video_render_module_impl_gyp,,,$(GYP_VAR_PREFIX))/third_party_webrtc_modules_video_render_module_impl_gyp.a \
 	$(call intermediates-dir-for,STATIC_LIBRARIES,third_party_webrtc_modules_video_render_module_gyp,,,$(GYP_VAR_PREFIX))/third_party_webrtc_modules_video_render_module_gyp.a \
 	$(call intermediates-dir-for,STATIC_LIBRARIES,third_party_usrsctp_usrsctplib_gyp,,,$(GYP_VAR_PREFIX))/third_party_usrsctp_usrsctplib_gyp.a \
-	$(call intermediates-dir-for,STATIC_LIBRARIES,third_party_libjingle_libpeerconnection_gyp,,,$(GYP_VAR_PREFIX))/third_party_libjingle_libpeerconnection_gyp.a \
 	$(call intermediates-dir-for,STATIC_LIBRARIES,third_party_webrtc_modules_audio_processing_gyp,,,$(GYP_VAR_PREFIX))/third_party_webrtc_modules_audio_processing_gyp.a \
 	$(call intermediates-dir-for,STATIC_LIBRARIES,third_party_webrtc_modules_audioproc_debug_proto_gyp,,,$(GYP_VAR_PREFIX))/third_party_webrtc_modules_audioproc_debug_proto_gyp.a \
 	$(call intermediates-dir-for,STATIC_LIBRARIES,third_party_webrtc_modules_audio_processing_neon_gyp,,,$(GYP_VAR_PREFIX))/third_party_webrtc_modules_audio_processing_neon_gyp.a \
 	$(call intermediates-dir-for,GYP,third_party_webrtc_modules_audio_processing_gen_nsx_core_neon_offsets_h_gyp,,,$(GYP_VAR_PREFIX))/gen_nsx_core_neon_offsets_h.stamp \
 	$(call intermediates-dir-for,STATIC_LIBRARIES,lib_core_neon_offsets,,,$(GYP_VAR_PREFIX))/lib_core_neon_offsets.a \
 	$(call intermediates-dir-for,GYP,third_party_webrtc_modules_audio_processing_gen_aecm_core_neon_offsets_h_gyp,,,$(GYP_VAR_PREFIX))/gen_aecm_core_neon_offsets_h.stamp \
+	$(call intermediates-dir-for,STATIC_LIBRARIES,third_party_libjingle_libpeerconnection_gyp,,,$(GYP_VAR_PREFIX))/third_party_libjingle_libpeerconnection_gyp.a \
 	$(call intermediates-dir-for,STATIC_LIBRARIES,third_party_webrtc_voice_engine_voice_engine_gyp,,,$(GYP_VAR_PREFIX))/third_party_webrtc_voice_engine_voice_engine_gyp.a \
 	$(call intermediates-dir-for,STATIC_LIBRARIES,third_party_webrtc_modules_audio_conference_mixer_gyp,,,$(GYP_VAR_PREFIX))/third_party_webrtc_modules_audio_conference_mixer_gyp.a \
 	$(call intermediates-dir-for,STATIC_LIBRARIES,third_party_webrtc_modules_audio_device_gyp,,,$(GYP_VAR_PREFIX))/third_party_webrtc_modules_audio_device_gyp.a \
@@ -816,7 +816,7 @@ LOCAL_STATIC_LIBRARIES := \
 	content_content_renderer_gyp \
 	cc_blink_cc_blink_gyp \
 	media_blink_media_blink_gyp \
-	mojo_mojo_js_bindings_lib_gyp \
+	mojo_edk_mojo_js_lib_gyp \
 	ui_native_theme_native_theme_gyp \
 	third_party_libjingle_libjingle_webrtc_gyp \
 	third_party_libjingle_libjingle_webrtc_common_gyp \
@@ -853,11 +853,11 @@ LOCAL_STATIC_LIBRARIES := \
 	third_party_webrtc_modules_video_render_module_impl_gyp \
 	third_party_webrtc_modules_video_render_module_gyp \
 	third_party_usrsctp_usrsctplib_gyp \
-	third_party_libjingle_libpeerconnection_gyp \
 	third_party_webrtc_modules_audio_processing_gyp \
 	third_party_webrtc_modules_audioproc_debug_proto_gyp \
 	third_party_webrtc_modules_audio_processing_neon_gyp \
 	lib_core_neon_offsets \
+	third_party_libjingle_libpeerconnection_gyp \
 	third_party_webrtc_voice_engine_voice_engine_gyp \
 	third_party_webrtc_modules_audio_conference_mixer_gyp \
 	third_party_webrtc_modules_audio_device_gyp \

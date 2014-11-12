@@ -26,9 +26,14 @@ class TestPicturePile : public PicturePile {
   PictureMap& picture_map() { return picture_map_; }
   const gfx::Rect& recorded_viewport() const { return recorded_viewport_; }
 
-  bool CanRasterLayerRect(const gfx::Rect& layer_rect) {
-    return CanRaster(1.f, layer_rect);
+  bool CanRasterLayerRect(gfx::Rect layer_rect) {
+    layer_rect.Intersect(gfx::Rect(tiling_.tiling_size()));
+    if (recorded_viewport_.Contains(layer_rect))
+      return true;
+    return CanRasterSlowTileCheck(layer_rect);
   }
+
+  bool HasRecordings() const { return has_any_recordings_; }
 
   typedef PicturePile::PictureInfo PictureInfo;
   typedef PicturePile::PictureMapKey PictureMapKey;
@@ -1454,6 +1459,18 @@ TEST_F(PicturePileTest, NonSolidRectangleOnOffsettedLayerIsNonSolid) {
   Region invalidation(visible_rect);
   UpdateAndExpandInvalidation(&invalidation, tiling_size, visible_rect);
   EXPECT_FALSE(pile_.is_solid_color());
+}
+
+TEST_F(PicturePileTest, SetEmptyBounds) {
+  EXPECT_TRUE(pile_.is_solid_color());
+  EXPECT_FALSE(pile_.tiling_size().IsEmpty());
+  EXPECT_FALSE(pile_.picture_map().empty());
+  EXPECT_TRUE(pile_.HasRecordings());
+  pile_.SetEmptyBounds();
+  EXPECT_FALSE(pile_.is_solid_color());
+  EXPECT_TRUE(pile_.tiling_size().IsEmpty());
+  EXPECT_TRUE(pile_.picture_map().empty());
+  EXPECT_FALSE(pile_.HasRecordings());
 }
 
 }  // namespace

@@ -189,14 +189,16 @@ PYTHON_UNIT_TEST_SUITES = {
       'pylib.device.device_utils_test',
     ]
   },
-# TODO(mkosiba) Enable after fixing these tests.
-# 'gyp_py_unittests': {
-#   'path': os.path.join(constants.DIR_SOURCE_ROOT, 'build', 'android', 'gyp'),
-#   'test_modules': [
-#     'java_cpp_enum_tests'
-#   ]
-# },
+  'gyp_py_unittests': {
+    'path': os.path.join(DIR_SOURCE_ROOT, 'build', 'android', 'gyp'),
+    'test_modules': [
+      'java_cpp_enum_tests',
+    ]
+  },
 }
+
+LOCAL_MACHINE_TESTS = ['junit', 'python']
+VALID_ENVIRONMENTS = ['local']
 
 
 def GetBuildType():

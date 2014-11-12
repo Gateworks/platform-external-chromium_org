@@ -538,9 +538,20 @@ bool PicturePile::UpdateAndExpandInvalidation(
 
 void PicturePile::SetEmptyBounds() {
   tiling_.SetTilingSize(gfx::Size());
-  picture_map_.clear();
-  has_any_recordings_ = false;
-  recorded_viewport_ = gfx::Rect();
+  Clear();
+}
+
+bool PicturePile::CanRasterSlowTileCheck(const gfx::Rect& layer_rect) const {
+  bool include_borders = false;
+  for (TilingData::Iterator tile_iter(&tiling_, layer_rect, include_borders);
+       tile_iter; ++tile_iter) {
+    PictureMap::const_iterator map_iter = picture_map_.find(tile_iter.index());
+    if (map_iter == picture_map_.end())
+      return false;
+    if (!map_iter->second.GetPicture())
+      return false;
+  }
+  return true;
 }
 
 void PicturePile::DetermineIfSolidColor() {

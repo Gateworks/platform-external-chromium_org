@@ -398,8 +398,8 @@ LOCAL_SRC_FILES := \
 	content/browser/power_save_blocker_impl.cc \
 	content/browser/profiler_controller_impl.cc \
 	content/browser/profiler_message_filter.cc \
-	content/browser/push_messaging_message_filter.cc \
-	content/browser/push_messaging_router.cc \
+	content/browser/push_messaging/push_messaging_message_filter.cc \
+	content/browser/push_messaging/push_messaging_router.cc \
 	content/browser/quota_dispatcher_host.cc \
 	content/browser/renderer_host/clipboard_message_filter.cc \
 	content/browser/renderer_host/compositor_impl_android.cc \

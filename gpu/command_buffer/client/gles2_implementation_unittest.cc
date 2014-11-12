@@ -383,6 +383,7 @@ class GLES2ImplementationTest : public testing::Test {
   static const GLuint kTexturesStartId = 1;
   static const GLuint kQueriesStartId = 1;
   static const GLuint kVertexArraysStartId = 1;
+  static const GLuint kValuebuffersStartId = 1;
 
   typedef MockTransferBuffer::ExpectedMemoryInfo ExpectedMemoryInfo;
 
@@ -467,7 +468,7 @@ class GLES2ImplementationTest : public testing::Test {
 
       scoped_refptr<Buffer> ring_buffer = helper_->get_ring_buffer();
       commands_ = static_cast<CommandBufferEntry*>(ring_buffer->memory()) +
-                  command_buffer()->GetLastState().put_offset;
+                  command_buffer()->GetPutOffset();
       ClearCommands();
       EXPECT_TRUE(transfer_buffer_->InSync());
 
@@ -755,6 +756,7 @@ const GLuint GLES2ImplementationTest::kRenderbuffersStartId;
 const GLuint GLES2ImplementationTest::kTexturesStartId;
 const GLuint GLES2ImplementationTest::kQueriesStartId;
 const GLuint GLES2ImplementationTest::kVertexArraysStartId;
+const GLuint GLES2ImplementationTest::kValuebuffersStartId;
 #endif
 
 TEST_F(GLES2ImplementationTest, Basic) {

@@ -43,12 +43,9 @@ RendererAccessibility::RendererAccessibility(RenderFrameImpl* render_frame)
   WebSettings* settings = web_view->settings();
   settings->setAccessibilityEnabled(true);
 
-#if !defined(OS_ANDROID)
-  // Skip inline text boxes on Android - since there are no native Android
-  // APIs that compute the bounds of a range of text, it's a waste to
-  // include these in the AX tree.
+  // TODO(dmazzoni): remove this on Android while still supporting
+  // moving by granularities.
   settings->setInlineTextBoxAccessibilityEnabled(true);
-#endif
 
   const WebDocument& document = GetMainDocument();
   if (!document.isNull()) {
@@ -84,6 +81,23 @@ bool RendererAccessibility::OnMessageReceived(const IPC::Message& message) {
 void RendererAccessibility::HandleWebAccessibilityEvent(
     const blink::WebAXObject& obj, blink::WebAXEvent event) {
   HandleAXEvent(obj, AXEventFromBlink(event));
+}
+
+void RendererAccessibility::HandleAccessibilityFindInPageResult(
+    int identifier,
+    int match_index,
+    const blink::WebAXObject& start_object,
+    int start_offset,
+    const blink::WebAXObject& end_object,
+    int end_offset) {
+  AccessibilityHostMsg_FindInPageResultParams params;
+  params.request_id = identifier;
+  params.match_index = match_index;
+  params.start_id = start_object.axID();
+  params.start_offset = start_offset;
+  params.end_id = end_object.axID();
+  params.end_offset = end_offset;
+  Send(new AccessibilityHostMsg_FindInPageResult(routing_id(), params));
 }
 
 void RendererAccessibility::FocusedNodeChanged(const WebNode& node) {

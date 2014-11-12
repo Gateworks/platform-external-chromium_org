@@ -376,6 +376,9 @@ int IpcPacketSocket::SendTo(const void *data, size_t data_size,
 
   net::IPEndPoint address_chrome;
   if (!jingle_glue::SocketAddressToIPEndPoint(address, &address_chrome)) {
+    VLOG(1) << "Failed to convert remote address to IPEndPoint: address = "
+            << address.ToSensitiveString() << ", remote_address_ = "
+            << remote_address_.ToSensitiveString();
     NOTREACHED();
     error_ = EINVAL;
     return -1;
@@ -498,7 +501,6 @@ void IpcPacketSocket::OnOpen(const net::IPEndPoint& local_address,
 
   SignalAddressReady(this, local_address_);
   if (IsTcpClientSocket(type_)) {
-    SignalConnect(this);
     // If remote address is unresolved, set resolved remote IP address received
     // in the callback. This address will be used while sending the packets
     // over the network.
@@ -511,6 +513,10 @@ void IpcPacketSocket::OnOpen(const net::IPEndPoint& local_address,
       // Set only the IP address.
       remote_address_.SetResolvedIP(jingle_socket_address.ipaddr());
     }
+
+    // SignalConnect after updating the |remote_address_| so that the listener
+    // can get the resolved remote address.
+    SignalConnect(this);
   }
 }
 
@@ -653,7 +659,7 @@ IpcPacketSocketFactory::~IpcPacketSocketFactory() {
 }
 
 rtc::AsyncPacketSocket* IpcPacketSocketFactory::CreateUdpSocket(
-    const rtc::SocketAddress& local_address, int min_port, int max_port) {
+    const rtc::SocketAddress& local_address, uint16 min_port, uint16 max_port) {
   rtc::SocketAddress crome_address;
   P2PSocketClientImpl* socket_client =
       new P2PSocketClientImpl(socket_dispatcher_);
@@ -668,7 +674,7 @@ rtc::AsyncPacketSocket* IpcPacketSocketFactory::CreateUdpSocket(
 }
 
 rtc::AsyncPacketSocket* IpcPacketSocketFactory::CreateServerTcpSocket(
-    const rtc::SocketAddress& local_address, int min_port, int max_port,
+    const rtc::SocketAddress& local_address, uint16 min_port, uint16 max_port,
     int opts) {
   // TODO(sergeyu): Implement SSL support.
   if (opts & rtc::PacketSocketFactory::OPT_SSLTCP)

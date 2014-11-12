@@ -7,7 +7,6 @@
 #include "base/basictypes.h"
 #include "base/command_line.h"
 #include "base/compiler_specific.h"
-#include "base/path_service.h"
 #include "base/prefs/pref_registry_simple.h"
 #include "base/prefs/pref_service.h"
 #include "base/prefs/pref_service_factory.h"
@@ -442,7 +441,7 @@ class WizardControllerFlowTest : public WizardControllerTest {
         make_linked_ptr(new DeviceDisabledScreen(
             wizard_controller,
             device_disabled_screen_actor_.get()));
-    EXPECT_CALL(*device_disabled_screen_actor_, Show(_)).Times(0);
+    EXPECT_CALL(*device_disabled_screen_actor_, Show()).Times(0);
 
     // Switch to the initial screen.
     EXPECT_EQ(NULL, wizard_controller->current_screen());
@@ -567,7 +566,7 @@ IN_PROC_BROWSER_TEST_F(WizardControllerFlowTest, ControlFlowMain) {
   OnExit(BaseScreenDelegate::UPDATE_INSTALLED);
 
   CheckCurrentScreen(WizardController::kAutoEnrollmentCheckScreenName);
-  EXPECT_CALL(*mock_auto_enrollment_check_screen_, Hide()).Times(1);
+  EXPECT_CALL(*mock_auto_enrollment_check_screen_, Hide()).Times(0);
   EXPECT_CALL(*mock_eula_screen_, Show()).Times(0);
   OnExit(BaseScreenDelegate::ENTERPRISE_AUTO_ENROLLMENT_CHECK_COMPLETED);
 
@@ -605,7 +604,7 @@ IN_PROC_BROWSER_TEST_F(WizardControllerFlowTest, ControlFlowErrorUpdate) {
   OnExit(BaseScreenDelegate::UPDATE_ERROR_UPDATING);
 
   CheckCurrentScreen(WizardController::kAutoEnrollmentCheckScreenName);
-  EXPECT_CALL(*mock_auto_enrollment_check_screen_, Hide()).Times(1);
+  EXPECT_CALL(*mock_auto_enrollment_check_screen_, Hide()).Times(0);
   EXPECT_CALL(*mock_eula_screen_, Show()).Times(0);
   OnExit(BaseScreenDelegate::ENTERPRISE_AUTO_ENROLLMENT_CHECK_COMPLETED);
 
@@ -853,7 +852,6 @@ IN_PROC_BROWSER_TEST_F(WizardControllerDeviceStateTest,
       AutoEnrollmentCheckScreen::Get(WizardController::default_controller());
   EXPECT_EQ(screen,
             WizardController::default_controller()->current_screen());
-  EXPECT_CALL(*mock_auto_enrollment_check_screen_, Hide()).Times(1);
   screen->Start();
   EXPECT_EQ(policy::AUTO_ENROLLMENT_STATE_NO_ENROLLMENT,
             LoginDisplayHostImpl::default_host()
@@ -902,7 +900,9 @@ IN_PROC_BROWSER_TEST_F(WizardControllerDeviceStateTest,
   device_state.SetString(policy::kDeviceStateDisabledMessage, kDisabledMessage);
   g_browser_process->local_state()->Set(prefs::kServerBackedDeviceState,
                                         device_state);
-  EXPECT_CALL(*device_disabled_screen_actor_, Show(kDisabledMessage)).Times(1);
+  EXPECT_CALL(*device_disabled_screen_actor_,
+              UpdateMessage(kDisabledMessage)).Times(1);
+  EXPECT_CALL(*device_disabled_screen_actor_, Show()).Times(1);
   OnExit(BaseScreenDelegate::ENTERPRISE_AUTO_ENROLLMENT_CHECK_COMPLETED);
 
   ResetAutoEnrollmentCheckScreen();
@@ -1095,7 +1095,6 @@ IN_PROC_BROWSER_TEST_F(WizardControllerKioskFlowTest,
 
   EXPECT_TRUE(ExistingUserController::current_controller() == NULL);
   CheckCurrentScreen(WizardController::kNetworkScreenName);
-  EXPECT_CALL(*mock_network_screen_, Show()).Times(1);
   EXPECT_CALL(*mock_network_screen_, Hide()).Times(1);
   EXPECT_CALL(*mock_eula_screen_, Show()).Times(1);
   OnExit(BaseScreenDelegate::NETWORK_CONNECTED);
@@ -1124,9 +1123,10 @@ IN_PROC_BROWSER_TEST_F(WizardControllerKioskFlowTest,
 
   // Make sure enterprise enrollment page shows up right after update screen.
   CheckCurrentScreen(WizardController::kEnrollmentScreenName);
+  EXPECT_CALL(*mock_auto_enrollment_check_screen_, Show()).Times(1);
   OnExit(BaseScreenDelegate::ENTERPRISE_ENROLLMENT_BACK);
 
-  CheckCurrentScreen(WizardController::kNetworkScreenName);
+  CheckCurrentScreen(WizardController::kAutoEnrollmentCheckScreenName);
   EXPECT_FALSE(StartupUtils::IsOobeCompleted());
 }
 
@@ -1205,7 +1205,7 @@ IN_PROC_BROWSER_TEST_F(WizardControllerOobeResumeTest,
 // TODO(dzhioev): Add tests for controller/host pairing flow.
 // http://crbug.com/375191
 
-COMPILE_ASSERT(BaseScreenDelegate::EXIT_CODES_COUNT == 24,
+COMPILE_ASSERT(BaseScreenDelegate::EXIT_CODES_COUNT == 23,
                add_tests_for_new_control_flow_you_just_introduced);
 
 }  // namespace chromeos

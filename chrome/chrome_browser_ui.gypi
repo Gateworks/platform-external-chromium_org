@@ -71,8 +71,7 @@
       'browser/ui/app_list/app_list_util.cc',
       'browser/ui/app_list/app_list_util.h',
       # All other browser/ui/app_list files go in chrome_browser_ui_app_list_sources.
-      'browser/ui/app_modal_dialogs/javascript_dialog_manager.cc',
-      'browser/ui/app_modal_dialogs/javascript_dialog_manager.h',
+      'browser/ui/app_modal_dialogs/chrome_javascript_native_dialog_factory.h',
       'browser/ui/autofill/autofill_dialog_controller.cc',
       'browser/ui/autofill/autofill_dialog_controller.h',
       'browser/ui/autofill/autofill_dialog_models.cc',
@@ -302,7 +301,7 @@
       'browser/ui/cocoa/browser_window_layout.mm',
       'browser/ui/cocoa/browser_window_controller_private.h',
       'browser/ui/cocoa/browser_window_controller_private.mm',
-      'browser/ui/cocoa/browser_window_factory.mm',
+      'browser/ui/cocoa/browser_window_factory_cocoa.mm',
       'browser/ui/cocoa/browser_window_utils.h',
       'browser/ui/cocoa/browser_window_utils.mm',
       'browser/ui/cocoa/bubble_combobox.h',
@@ -1739,6 +1738,8 @@
       'browser/ui/webui/options/supervised_user_import_handler.h',
       'browser/ui/webui/options/supervised_user_learn_more_handler.cc',
       'browser/ui/webui/options/supervised_user_learn_more_handler.h',
+      'browser/ui/webui/options/sync_setup_handler.cc',
+      'browser/ui/webui/options/sync_setup_handler.h',
       'browser/ui/webui/options/website_settings_handler.cc',
       'browser/ui/webui/options/website_settings_handler.h',
       'browser/ui/webui/plugins_ui.cc',
@@ -1777,8 +1778,6 @@
       'browser/ui/webui/sync_file_system_internals/sync_file_system_internals_handler.h',
       'browser/ui/webui/sync_file_system_internals/sync_file_system_internals_ui.cc',
       'browser/ui/webui/sync_file_system_internals/sync_file_system_internals_ui.h',
-      'browser/ui/webui/sync_setup_handler.cc',
-      'browser/ui/webui/sync_setup_handler.h',
       'browser/ui/webui/system_info_ui.cc',
       'browser/ui/webui/system_info_ui.h',
       'browser/ui/webui/theme_handler.cc',
@@ -1926,6 +1925,7 @@
       'browser/ui/views/certificate_viewer_win.cc',
       'browser/ui/views/chrome_constrained_window_views_client.cc',
       'browser/ui/views/chrome_constrained_window_views_client.h',
+      'browser/ui/views/chrome_javascript_native_dialog_factory_views.cc',
       'browser/ui/views/chrome_views_delegate_chromeos.cc',
       'browser/ui/views/chrome_web_dialog_view.cc',
       'browser/ui/views/collected_cookies_views.cc',
@@ -2006,9 +2006,11 @@
       'browser/ui/views/first_run_bubble.cc',
       'browser/ui/views/first_run_bubble.h',
       'browser/ui/views/frame/browser_frame.cc',
+      'browser/ui/views/frame/browser_frame.h',
       'browser/ui/views/frame/browser_frame_common_win.cc',
       'browser/ui/views/frame/browser_frame_common_win.h',
-      'browser/ui/views/frame/browser_frame.h',
+      'browser/ui/views/frame/browser_frame_mac.h',
+      'browser/ui/views/frame/browser_frame_mac.mm',
       'browser/ui/views/frame/browser_non_client_frame_view.cc',
       'browser/ui/views/frame/browser_non_client_frame_view_factory_aura.cc',
       'browser/ui/views/frame/browser_non_client_frame_view.h',
@@ -2021,6 +2023,7 @@
       'browser/ui/views/frame/browser_view_layout.cc',
       'browser/ui/views/frame/browser_view_layout_delegate.h',
       'browser/ui/views/frame/browser_view_layout.h',
+      'browser/ui/views/frame/browser_window_factory.cc',
       'browser/ui/views/frame/browser_window_property_manager_win.cc',
       'browser/ui/views/frame/browser_window_property_manager_win.h',
       'browser/ui/views/frame/contents_layout_manager.cc',
@@ -2028,7 +2031,8 @@
       'browser/ui/views/frame/contents_web_view.cc',
       'browser/ui/views/frame/contents_web_view.h',
       'browser/ui/views/frame/immersive_mode_controller.cc',
-      'browser/ui/views/frame/immersive_mode_controller_factory.cc',
+      'browser/ui/views/frame/immersive_mode_controller_factory_ash.cc',
+      'browser/ui/views/frame/immersive_mode_controller_factory_mac.cc',
       'browser/ui/views/frame/immersive_mode_controller.h',
       'browser/ui/views/frame/immersive_mode_controller_stub.cc',
       'browser/ui/views/frame/immersive_mode_controller_stub.h',
@@ -2037,6 +2041,7 @@
       'browser/ui/views/frame/native_browser_frame_factory.cc',
       'browser/ui/views/frame/native_browser_frame_factory.h',
       'browser/ui/views/frame/native_browser_frame_factory_chromeos.cc',
+      'browser/ui/views/frame/native_browser_frame_factory_mac.cc',
       'browser/ui/views/frame/native_browser_frame.h',
       'browser/ui/views/frame/opaque_browser_frame_view_layout.cc',
       'browser/ui/views/frame/opaque_browser_frame_view_layout_delegate.h',
@@ -2078,8 +2083,6 @@
       'browser/ui/views/infobars/infobar_container_view.h',
       'browser/ui/views/infobars/infobar_view.cc',
       'browser/ui/views/infobars/infobar_view.h',
-      'browser/ui/views/javascript_app_modal_dialog_views.cc',
-      'browser/ui/views/javascript_app_modal_dialog_views.h',
       'browser/ui/views/load_complete_listener.cc',
       'browser/ui/views/load_complete_listener.h',
       'browser/ui/views/location_bar/bubble_icon_view.cc',
@@ -2504,7 +2507,7 @@
       'browser/ui/webui/certificate_viewer_webui.cc',
       'browser/ui/webui/certificate_viewer_webui.h',
     ],
-    # Desktop Linux. Assume aura/ash/views.
+    # Desktop Linux. Assume aura/ash/views/x11.
     'chrome_browser_ui_desktop_linux_sources': [
       'browser/ui/views/app_list/linux/app_list_linux.cc',
       'browser/ui/views/app_list/linux/app_list_linux.h',
@@ -2517,6 +2520,8 @@
       'browser/ui/views/frame/browser_desktop_window_tree_host_x11.h',
       'browser/ui/views/frame/native_browser_frame_factory_auralinux.cc',
       'browser/ui/views/frame/native_browser_frame_factory_desktop_ash.cc',
+      'browser/ui/views/javascript_app_modal_dialog_views_x11.cc',
+      'browser/ui/views/javascript_app_modal_dialog_views_x11.h',
       'browser/ui/views/status_icons/status_icon_linux_wrapper.cc',
       'browser/ui/views/status_icons/status_icon_linux_wrapper.h',
       'browser/ui/webui/help/version_updater_basic.cc',
@@ -2798,7 +2803,15 @@
             ['use_ash == 1', {
               'sources': [ '<@(chrome_browser_ui_ash_views_sources)' ],
             }],
-            ['OS!="mac"', {
+            ['OS=="mac"', {
+              'conditions': [
+                ['mac_views_browser==1', {
+                  'sources!': [ 'browser/ui/cocoa/browser_window_factory_cocoa.mm', ],
+                }, {
+                  'sources!': [ 'browser/ui/views/frame/browser_window_factory.cc', ],              
+                }],
+              ],
+            }, {
               'sources': [ '<@(chrome_browser_ui_views_non_mac_sources)' ],
               'dependencies': [
                 '<(DEPTH)/extensions/components/extensions_components.gyp:native_app_window',
@@ -3050,6 +3063,11 @@
         ['enable_spellcheck==1', {
           'dependencies': [
             '../third_party/hunspell/hunspell.gyp:hunspell',
+          ],
+        }],
+        ['enable_extensions==1', {
+          'dependencies': [
+            '<(DEPTH)/extensions/components/extensions_components.gyp:javascript_dialog_extensions_client',
           ],
         }],
         # Temporary fix to break the browser_ui target into smaller chunks so it

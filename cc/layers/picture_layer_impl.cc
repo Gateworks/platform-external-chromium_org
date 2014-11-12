@@ -173,10 +173,11 @@ void PictureLayerImpl::AppendQuads(RenderPass* render_pass,
                                    AppendQuadsData* append_quads_data) {
   DCHECK(!needs_post_commit_initialization_);
   // The bounds and the pile size may differ if the pile wasn't updated (ie.
-  // PictureLayer::Update didn't happen). But that should never be the case if
-  // the layer is part of the visible frame, which is why we're appending quads
-  // in the first place
-  DCHECK_EQ(bounds().ToString(), pile_->tiling_size().ToString());
+  // PictureLayer::Update didn't happen). In that case the pile will be empty.
+  DCHECK_IMPLIES(!pile_->tiling_size().IsEmpty(),
+                 bounds() == pile_->tiling_size())
+      << " bounds " << bounds().ToString() << " pile "
+      << pile_->tiling_size().ToString();
 
   SharedQuadState* shared_quad_state =
       render_pass->CreateAndAppendSharedQuadState();
@@ -628,7 +629,7 @@ skia::RefPtr<SkPicture> PictureLayerImpl::GetPicture() {
 scoped_refptr<Tile> PictureLayerImpl::CreateTile(PictureLayerTiling* tiling,
                                                const gfx::Rect& content_rect) {
   DCHECK(!pile_->is_solid_color());
-  if (!pile_->CanRaster(tiling->contents_scale(), content_rect))
+  if (!pile_->CoversRect(content_rect, tiling->contents_scale()))
     return scoped_refptr<Tile>();
 
   int flags = 0;

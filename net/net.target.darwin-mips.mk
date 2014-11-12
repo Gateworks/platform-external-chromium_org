@@ -133,8 +133,8 @@ LOCAL_SRC_FILES := \
 	net/base/platform_mime_util_linux.cc \
 	net/base/prioritized_dispatcher.cc \
 	net/base/request_priority.cc \
-	net/base/sdch_dictionary_fetcher.cc \
 	net/base/sdch_manager.cc \
+	net/base/sdch_observer.cc \
 	net/base/static_cookie_policy.cc \
 	net/base/test_data_stream.cc \
 	net/base/trace_net_log_observer.cc \
@@ -476,6 +476,7 @@ LOCAL_SRC_FILES := \
 	net/url_request/file_protocol_handler.cc \
 	net/url_request/ftp_protocol_handler.cc \
 	net/url_request/redirect_info.cc \
+	net/url_request/sdch_dictionary_fetcher.cc \
 	net/url_request/static_http_user_agent_settings.cc \
 	net/url_request/url_fetcher.cc \
 	net/url_request/url_fetcher_core.cc \

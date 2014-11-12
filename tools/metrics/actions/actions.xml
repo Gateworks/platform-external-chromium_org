@@ -2659,7 +2659,7 @@ should be able to be added at any place in this file.
 
 <action name="Flash.PluginInstanceCreated">
   <owner>thestig@chromium.org</owner>
-  <description>Count of frame loads that also load PPAPI Flash.</description>
+  <description>Count of Flash plugin instances.</description>
 </action>
 
 <action name="FocusAppMenu">
@@ -8521,6 +8521,16 @@ should be able to be added at any place in this file.
 <action name="Options_DoNotTrackCheckbox_Enable">
   <owner>Please list the metric's owners. Add more owner tags as needed.</owner>
   <description>Please enter the description of this user action.</description>
+</action>
+
+<action name="Options_EasyUnlockRequireProximity_Disable">
+  <owner>Please list the metric's owners. Add more owner tags as needed.</owner>
+  <description>Please enter the description of the metric.</description>
+</action>
+
+<action name="Options_EasyUnlockRequireProximity_Enable">
+  <owner>Please list the metric's owners. Add more owner tags as needed.</owner>
+  <description>Please enter the description of the metric.</description>
 </action>
 
 <action name="Options_EnableCloudPrintProxy">

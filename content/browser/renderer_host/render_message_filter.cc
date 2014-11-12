@@ -326,7 +326,10 @@ RenderMessageFilter::~RenderMessageFilter() {
   DCHECK_CURRENTLY_ON(BrowserThread::IO);
   DCHECK(plugin_host_clients_.empty());
   HostSharedBitmapManager::current()->ProcessRemoved(PeerHandle());
-  BrowserGpuMemoryBufferManager::current()->ProcessRemoved(PeerHandle());
+  BrowserGpuMemoryBufferManager* gpu_memory_buffer_manager =
+      BrowserGpuMemoryBufferManager::current();
+  if (gpu_memory_buffer_manager)
+    gpu_memory_buffer_manager->ProcessRemoved(PeerHandle(), render_process_id_);
   HostDiscardableSharedMemoryManager::current()->ProcessRemoved(PeerHandle());
 }
 
@@ -1227,14 +1230,15 @@ void RenderMessageFilter::OnWebAudioMediaCodec(
 
 void RenderMessageFilter::OnAddNavigationTransitionData(
     FrameHostMsg_AddNavigationTransitionData_Params params) {
+  if (params.elements.size() > TransitionRequestManager::kMaxNumOfElements)
+    return;
   TransitionRequestManager::GetInstance()->AddPendingTransitionRequestData(
       render_process_id_,
       params.render_frame_id,
       params.allowed_destination_host_pattern,
       params.selector,
       params.markup,
-      params.names,
-      params.rects);
+      params.elements);
 }
 
 void RenderMessageFilter::OnAllocateGpuMemoryBuffer(
@@ -1243,6 +1247,8 @@ void RenderMessageFilter::OnAllocateGpuMemoryBuffer(
     gfx::GpuMemoryBuffer::Format format,
     gfx::GpuMemoryBuffer::Usage usage,
     IPC::Message* reply) {
+  DCHECK(BrowserGpuMemoryBufferManager::current());
+
   base::CheckedNumeric<int> size = width;
   size *= height;
   if (!size.IsValid()) {
@@ -1271,11 +1277,12 @@ void RenderMessageFilter::GpuMemoryBufferAllocated(
 }
 
 void RenderMessageFilter::OnDeletedGpuMemoryBuffer(
-    gfx::GpuMemoryBufferType type,
     gfx::GpuMemoryBufferId id,
     uint32 sync_point) {
+  DCHECK(BrowserGpuMemoryBufferManager::current());
+
   BrowserGpuMemoryBufferManager::current()->ChildProcessDeletedGpuMemoryBuffer(
-      type, id, PeerHandle(), render_process_id_, sync_point);
+      id, PeerHandle(), render_process_id_, sync_point);
 }
 
 }  // namespace content

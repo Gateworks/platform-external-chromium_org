@@ -800,9 +800,6 @@ void IOThread::InitializeNetworkOptions(const CommandLine& command_line) {
     } else if (command_line.HasSwitch(switches::kEnableSpdy4)) {
       globals_->next_protos = net::NextProtosSpdy4Http2();
       globals_->use_alternate_protocols.set(true);
-    } else if (command_line.HasSwitch(switches::kDisableSpdy31)) {
-      globals_->next_protos = net::NextProtosSpdy3();
-      globals_->use_alternate_protocols.set(true);
     } else if (command_line.HasSwitch(switches::kEnableNpnHttpOnly)) {
       globals_->next_protos = net::NextProtosHttpOnly();
       globals_->use_alternate_protocols.set(false);
@@ -897,11 +894,11 @@ void IOThread::EnableSpdy(const std::string& mode) {
     if (option == kOff) {
       net::HttpStreamFactory::set_spdy_enabled(false);
     } else if (option == kDisableSSL) {
-      globals_->spdy_default_protocol.set(net::kProtoSPDY3);
+      globals_->spdy_default_protocol.set(net::kProtoSPDY31);
       globals_->force_spdy_over_ssl.set(false);
       globals_->force_spdy_always.set(true);
     } else if (option == kSSL) {
-      globals_->spdy_default_protocol.set(net::kProtoSPDY3);
+      globals_->spdy_default_protocol.set(net::kProtoSPDY31);
       globals_->force_spdy_over_ssl.set(true);
       globals_->force_spdy_always.set(true);
     } else if (option == kDisablePing) {

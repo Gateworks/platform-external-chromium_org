@@ -485,7 +485,11 @@ config("runtime_library") {
       "-isystem" + rebase_path("$android_stlport_root/stlport",
                                root_build_dir)
     ]
-    lib_dirs += [ "$android_stlport_root/libs/$android_app_abi" ]
+    if (arm_use_thumb) {
+      lib_dirs += [ "$android_stlport_root/libs/$android_app_abi/thumb" ]
+    } else {
+      lib_dirs += [ "$android_stlport_root/libs/$android_app_abi" ]
+    }
 
     if (component_mode == "shared_library") {
       libs += [ "stlport_shared" ]
@@ -556,6 +560,7 @@ config("no_chromium_code") {
     cflags += [
       "/W3",  # Warning level 3.
       "/wd4800",  # Disable warning when forcing value to bool.
+      "/wd4267",  # TODO(jschuh): size_t to int.
     ]
     defines += [
       "_CRT_NONSTDC_NO_WARNINGS",

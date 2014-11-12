@@ -201,7 +201,6 @@
       'browser/chromeos/login/hwid_checker_unittest.cc',
       'browser/chromeos/login/profile_auth_data_unittest.cc',
       'browser/chromeos/login/saml/saml_offline_signin_limiter_unittest.cc',
-      'browser/chromeos/login/screens/device_disabled_screen_unittest.cc',
       'browser/chromeos/login/signin/merge_session_load_page_unittest.cc',
       'browser/chromeos/login/supervised/supervised_user_authentication_unittest.cc',
       'browser/chromeos/login/users/multi_profile_user_controller_unittest.cc',
@@ -248,6 +247,7 @@
       'browser/chromeos/settings/session_manager_operation_unittest.cc',
       'browser/chromeos/settings/stub_cros_settings_provider_unittest.cc',
       'browser/chromeos/system/automatic_reboot_manager_unittest.cc',
+      'browser/chromeos/system/device_disabling_manager_unittest.cc',
       'browser/chromeos/timezone/timezone_unittest.cc',
       'browser/chromeos/ui/accessibility_focus_ring_controller_unittest.cc',
       'browser/chromeos/ui/idle_app_name_notification_view_unittest.cc',
@@ -1236,9 +1236,9 @@
       'browser/ui/webui/options/chromeos/cros_language_options_handler_unittest.cc',
       'browser/ui/webui/options/language_options_handler_unittest.cc',
       'browser/ui/webui/options/pepper_flash_content_settings_utils_unittest.cc',
+      'browser/ui/webui/options/sync_setup_handler_unittest.cc',
       'browser/ui/webui/print_preview/print_preview_ui_unittest.cc',
       'browser/ui/webui/signin/login_ui_service_unittest.cc',
-      'browser/ui/webui/sync_setup_handler_unittest.cc',
       'browser/ui/webui/theme_source_unittest.cc',
       'browser/ui/webui/web_dialog_web_contents_delegate_unittest.cc',
       'browser/ui/window_sizer/window_sizer_ash_unittest.cc',
@@ -1930,6 +1930,7 @@
         # 2) test-specific support libraries:
         '../base/base.gyp:test_support_base',
         '../components/components_resources.gyp:components_resources',
+	'../components/components.gyp:content_settings_core_test_support',
         '../content/content_shell_and_tests.gyp:test_support_content',
         '../content/content.gyp:content_app_both',
         '../crypto/crypto.gyp:crypto_test_support',
@@ -2569,7 +2570,7 @@
             'common/multi_process_lock_unittest.cc',
 
             # Sync setup uses native ui.
-            'browser/ui/webui/sync_setup_handler_unittest.cc',
+            'browser/ui/webui/options/sync_setup_handler_unittest.cc',
             'browser/sync/sync_ui_util_unittest.cc',
 
             'browser/browser_commands_unittest.cc',

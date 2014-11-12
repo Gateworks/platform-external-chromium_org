@@ -72,6 +72,7 @@ LOCAL_SRC_FILES := \
 	gpu/command_buffer/service/texture_definition.cc \
 	gpu/command_buffer/service/texture_manager.cc \
 	gpu/command_buffer/service/transfer_buffer_manager.cc \
+	gpu/command_buffer/service/valuebuffer_manager.cc \
 	gpu/command_buffer/service/vertex_array_manager.cc \
 	gpu/command_buffer/service/vertex_attrib_manager.cc \
 	gpu/command_buffer/service/async_pixel_transfer_manager_egl.cc

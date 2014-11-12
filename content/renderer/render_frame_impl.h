@@ -74,6 +74,7 @@ class PageState;
 class PepperPluginInstanceImpl;
 class PluginPowerSaverHelper;
 class PushMessagingDispatcher;
+class PushPermissionDispatcher;
 class RendererAccessibility;
 class RendererCdmManager;
 class RendererMediaPlayerManager;
@@ -448,6 +449,7 @@ class CONTENT_EXPORT RenderFrameImpl
                                    blink::WebStorageQuotaCallbacks callbacks);
   virtual void willOpenWebSocket(blink::WebSocketHandle* handle);
   virtual blink::WebGeolocationClient* geolocationClient();
+  virtual void requestPushPermission(blink::WebCallback* callback);
   virtual blink::WebPushClient* pushClient();
   virtual void willStartUsingPeerConnectionHandler(
       blink::WebLocalFrame* frame,
@@ -470,6 +472,13 @@ class CONTENT_EXPORT RenderFrameImpl
   virtual int64_t serviceWorkerID(blink::WebDataSource& data_source);
   virtual void postAccessibilityEvent(const blink::WebAXObject& obj,
                                       blink::WebAXEvent event);
+  virtual void handleAccessibilityFindInPageResult(
+        int identifier,
+        int match_index,
+        const blink::WebAXObject& start_object,
+        int start_offset,
+        const blink::WebAXObject& end_object,
+        int end_offset);
   virtual void didChangeManifest(blink::WebLocalFrame*);
 
   // WebMediaPlayerDelegate implementation:
@@ -773,7 +782,11 @@ class CONTENT_EXPORT RenderFrameImpl
   // The geolocation dispatcher attached to this frame, lazily initialized.
   GeolocationDispatcher* geolocation_dispatcher_;
 
+  // Dispatches permission requests for the Push API. Lazily initialized.
+  PushPermissionDispatcher* push_permission_dispatcher_;
+
   // The push messaging dispatcher attached to this frame, lazily initialized.
+  // TODO(mvanouwerkerk): Route this functionality through Platform.
   PushMessagingDispatcher* push_messaging_dispatcher_;
 
   ServiceRegistryImpl service_registry_;

@@ -24,7 +24,7 @@ LOCAL_GENERATED_SOURCES :=
 GYP_COPIED_SOURCE_ORIGIN_DIRS :=
 
 LOCAL_SRC_FILES := \
-	mojo/public/js/bindings/constants.cc
+	mojo/public/js/constants.cc
 
 
 # Flags passed to both C and C++ files.

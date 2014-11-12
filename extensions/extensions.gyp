@@ -747,6 +747,10 @@
         'browser/updater/request_queue_impl.h',
         'browser/updater/safe_manifest_parser.cc',
         'browser/updater/safe_manifest_parser.h',
+        'browser/updater/update_service.cc',
+        'browser/updater/update_service.h',
+        'browser/updater/update_service_factory.cc',
+        'browser/updater/update_service_factory.h',
         'browser/url_request_util.cc',
         'browser/url_request_util.h',
         'browser/value_store/leveldb_value_store.cc',
@@ -871,10 +875,14 @@
         'renderer/extensions_renderer_client.h',
         'renderer/file_system_natives.cc',
         'renderer/file_system_natives.h',
+        'renderer/guest_view/extensions_guest_view_container.cc',
+        'renderer/guest_view/extensions_guest_view_container.h',
         'renderer/guest_view/guest_view_container.cc',
         'renderer/guest_view/guest_view_container.h',
         'renderer/guest_view/guest_view_internal_custom_bindings.cc',
         'renderer/guest_view/guest_view_internal_custom_bindings.h',
+        'renderer/guest_view/mime_handler_view_container.cc',
+        'renderer/guest_view/mime_handler_view_container.h',
         'renderer/i18n_custom_bindings.cc',
         'renderer/i18n_custom_bindings.h',
         'renderer/id_generator_custom_bindings.cc',
@@ -977,6 +985,22 @@
       ],
       # Disable c4267 warnings until we fix size_t to int truncations.
       'msvs_disabled_warnings': [ 4267, ],
+    },
+    {
+      # GN version: //extensions/utility
+      'target_name': 'extensions_utility',
+      'type': 'static_library',
+      'dependencies': [
+        '../content/content.gyp:content_utility',
+        'extensions_common',
+      ],
+      'include_dirs': [
+        '..',
+      ],
+      'sources': [
+        'utility/utility_handler.cc',
+        'utility/utility_handler.h',
+      ],
     },
     {
       # GN version: //extensions:test_support
@@ -1106,9 +1130,9 @@
         '../device/bluetooth/bluetooth.gyp:device_bluetooth_mocks',
         '../device/serial/serial.gyp:device_serial',
         '../device/serial/serial.gyp:device_serial_test_util',
+        '../mojo/edk/mojo_edk.gyp:mojo_js_lib',
         '../mojo/edk/mojo_edk.gyp:mojo_system_impl',
         '../mojo/mojo_base.gyp:mojo_environment_chromium',
-        '../mojo/mojo_base.gyp:mojo_js_bindings_lib',
         '../mojo/public/mojo_public.gyp:mojo_cpp_bindings',
         '../testing/gmock.gyp:gmock',
         '../testing/gtest.gyp:gtest',

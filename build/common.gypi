@@ -813,6 +813,7 @@
           'enable_basic_printing%': 0,
           'enable_print_preview%': 0,
           'enable_session_service%': 0,
+          'enable_spellcheck%': 0,
           'enable_themes%': 0,
           'enable_webrtc%': 0,
           'notifications%': 0,
@@ -1509,6 +1510,9 @@
     'ozone_platform_ozonex%': 0,
     'ozone_platform_test%': 0,
 
+    # Whether the browser is non-native (using Views Toolkit) on Mac.
+    'mac_views_browser%': 0,
+
     'conditions': [
       ['buildtype=="Official"', {
         # Continue to embed build meta data in Official builds, basically the
@@ -2070,8 +2074,11 @@
         ],
       }],
       ['OS=="android"', {
-        'grit_defines': ['-t', 'android',
-                         '-E', 'ANDROID_JAVA_TAGGED_ONLY=true'],
+        'grit_defines': [
+          '-t', 'android',
+          '-E', 'ANDROID_JAVA_TAGGED_ONLY=true',
+          '--no-output-all-resource-defines',
+        ],
       }],
       ['OS=="mac" or OS=="ios"', {
         'grit_defines': ['-D', 'scale_factors=2x'],
@@ -2080,7 +2087,8 @@
         'grit_defines': [
           '-t', 'ios',
           # iOS uses a whitelist to filter resources.
-          '-w', '<(DEPTH)/build/ios/grit_whitelist.txt'
+          '-w', '<(DEPTH)/build/ios/grit_whitelist.txt',
+          '--no-output-all-resource-defines',
         ],
 
         # Enable host builds when generating with ninja-ios.
@@ -2354,6 +2362,7 @@
       }, {
          'use_seccomp_bpf%': 0,
       }],
+
       # Set component build with LTO until all tests pass.
       # This also reduces link time.
       ['use_lto==1', {
@@ -2392,7 +2401,7 @@
     # Whether to allow building of the GPU-related isolates.
     'archive_gpu_tests%': 0,
 
-     # Whether to allow building of chromoting related isolates.
+    # Whether to allow building of chromoting related isolates.
     'archive_chromoting_tests%': 0,
   },
   'target_defaults': {
@@ -4654,10 +4663,19 @@
                   '--sysroot=<(android_ndk_sysroot)',
                   '-nostdlib',
                 ],
+                'variables': {
+                  'conditions': [
+                    ['target_arch=="arm" and arm_thumb==1', {
+                      'thumb_option%': '-mthumb',
+                    }, {
+                      'thumb_option%': '',
+                    }],
+                  ],
+                },
                 'libraries': [
                   '-l<(android_stlport_library)',
                   # Manually link the libgcc.a that the cross compiler uses.
-                  '<!(<(android_toolchain)/*-gcc -print-libgcc-file-name)',
+                  '<!(<(android_toolchain)/*-gcc <(thumb_option) -print-libgcc-file-name)',
                   '-lc',
                   '-ldl',
                   '-lm',
@@ -4722,8 +4740,12 @@
                 'cflags': [
                   '-isystem<(android_stlport_include)',
                 ],
-                'ldflags': [
-                  '-L<(android_stlport_libs_dir)',
+                'conditions': [
+                  ['target_arch=="arm" and arm_thumb==1', {
+                    'ldflags': [ '-L<(android_stlport_libs_dir)/thumb' ]
+                  }, {
+                    'ldflags': [ '-L<(android_stlport_libs_dir)' ]
+                  }],
                 ],
               }, { # else: android_webview_build!=0
                 'aosp_build_settings': {

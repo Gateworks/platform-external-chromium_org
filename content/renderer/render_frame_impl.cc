@@ -84,6 +84,7 @@
 #include "content/renderer/notification_provider.h"
 #include "content/renderer/npapi/plugin_channel_host.h"
 #include "content/renderer/push_messaging_dispatcher.h"
+#include "content/renderer/push_permission_dispatcher.h"
 #include "content/renderer/render_frame_proxy.h"
 #include "content/renderer/render_process.h"
 #include "content/renderer/render_thread_impl.h"
@@ -101,8 +102,8 @@
 #include "media/blink/webmediaplayer_impl.h"
 #include "media/blink/webmediaplayer_params.h"
 #include "media/filters/gpu_video_accelerator_factories.h"
-#include "mojo/bindings/js/core.h"
-#include "mojo/bindings/js/support.h"
+#include "mojo/edk/js/core.h"
+#include "mojo/edk/js/support.h"
 #include "net/base/data_url.h"
 #include "net/base/net_errors.h"
 #include "net/base/registry_controlled_domains/registry_controlled_domain.h"
@@ -1672,8 +1673,8 @@ blink::WebPlugin* RenderFrameImpl::createPlugin(
 
   if (base::UTF16ToUTF8(params.mimeType) == kBrowserPluginMimeType) {
     scoped_ptr<BrowserPluginDelegate> browser_plugin_delegate(
-        GetContentClient()->renderer()->CreateBrowserPluginDelegate(
-            this, std::string()));
+        GetContentClient()->renderer()->CreateBrowserPluginDelegate(this,
+            kBrowserPluginMimeType, GURL(params.url)));
     return render_view_->GetBrowserPluginManager()->CreateBrowserPlugin(
         render_view_.get(), frame, browser_plugin_delegate.Pass());
   }
@@ -1691,7 +1692,7 @@ blink::WebPlugin* RenderFrameImpl::createPlugin(
   if (info.type == WebPluginInfo::PLUGIN_TYPE_BROWSER_PLUGIN) {
     scoped_ptr<BrowserPluginDelegate> browser_plugin_delegate(
         GetContentClient()->renderer()->CreateBrowserPluginDelegate(
-            this, base::UTF16ToUTF8(params.mimeType)));
+            this, mime_type, GURL(params.url)));
     return render_view_->GetBrowserPluginManager()->CreateBrowserPlugin(
         render_view_.get(), frame, browser_plugin_delegate.Pass());
   }
@@ -2585,11 +2586,10 @@ void RenderFrameImpl::addNavigationTransitionData(
       allowed_destination_host_pattern.utf8();
   params.selector = selector.utf8();
   params.markup = markup.utf8();
+  params.elements.resize(web_names.size());
   for (size_t i = 0; i < web_names.size(); i++) {
-    params.names.push_back(web_names[i].utf8());
-  }
-  for (size_t i = 0; i < web_rects.size(); i++) {
-    params.rects.push_back(gfx::Rect(web_rects[i]));
+    params.elements[i].name = web_names[i].utf8();
+    params.elements[i].rect = gfx::Rect(web_rects[i]);
   }
 
   Send(new FrameHostMsg_AddNavigationTransitionData(params));
@@ -3177,6 +3177,12 @@ blink::WebGeolocationClient* RenderFrameImpl::geolocationClient() {
   return geolocation_dispatcher_;
 }
 
+void RenderFrameImpl::requestPushPermission(blink::WebCallback* callback) {
+  if (!push_permission_dispatcher_)
+    push_permission_dispatcher_ = new PushPermissionDispatcher(this);
+  push_permission_dispatcher_->RequestPermission(callback);
+}
+
 blink::WebPushClient* RenderFrameImpl::pushClient() {
   if (!push_messaging_dispatcher_)
     push_messaging_dispatcher_ = new PushMessagingDispatcher(this);
@@ -3345,6 +3351,20 @@ int64_t RenderFrameImpl::serviceWorkerID(WebDataSource& data_source) {
 void RenderFrameImpl::postAccessibilityEvent(const blink::WebAXObject& obj,
                                              blink::WebAXEvent event) {
   HandleWebAccessibilityEvent(obj, event);
+}
+
+void RenderFrameImpl::handleAccessibilityFindInPageResult(
+    int identifier,
+    int match_index,
+    const blink::WebAXObject& start_object,
+    int start_offset,
+    const blink::WebAXObject& end_object,
+    int end_offset) {
+  if (renderer_accessibility_) {
+    renderer_accessibility_->HandleAccessibilityFindInPageResult(
+        identifier, match_index, start_object, start_offset,
+        end_object, end_offset);
+  }
 }
 
 void RenderFrameImpl::didChangeManifest(blink::WebLocalFrame* frame)

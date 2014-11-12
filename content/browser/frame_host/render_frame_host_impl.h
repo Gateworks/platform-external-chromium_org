@@ -32,6 +32,7 @@
 
 class GURL;
 struct AccessibilityHostMsg_EventParams;
+struct AccessibilityHostMsg_FindInPageResultParams;
 struct AccessibilityHostMsg_LocationChangeParams;
 struct FrameHostMsg_DidFailProvisionalLoadWithError_Params;
 struct FrameHostMsg_OpenURL_Params;
@@ -116,6 +117,7 @@ class CONTENT_EXPORT RenderFrameHostImpl
   void ExecuteJavaScriptForTests(const base::string16& javascript) override;
   RenderViewHost* GetRenderViewHost() override;
   ServiceRegistry* GetServiceRegistry() override;
+  void ActivateFindInPageResultForAccessibility(int request_id) override;
 
   // IPC::Sender
   bool Send(IPC::Message* msg) override;
@@ -447,6 +449,9 @@ class CONTENT_EXPORT RenderFrameHostImpl
       int reset_token);
   void OnAccessibilityLocationChanges(
       const std::vector<AccessibilityHostMsg_LocationChangeParams>& params);
+  void OnAccessibilityFindInPageResult(
+      const AccessibilityHostMsg_FindInPageResultParams& params);
+  void OnRequestPushPermission(int request_id, bool user_gesture);
 
 #if defined(OS_MACOSX) || defined(OS_ANDROID)
   void OnShowPopup(const FrameHostMsg_ShowPopup_Params& params);
@@ -467,17 +472,19 @@ class CONTENT_EXPORT RenderFrameHostImpl
 
   void PlatformNotificationPermissionRequestDone(int request_id, bool granted);
 
+  void PushPermissionRequestDone(int request_id, bool allowed);
+
   // Update the the singleton FrameAccessibility instance with a map
   // from accessibility node id to the frame routing id of a cross-process
   // iframe.
   void UpdateCrossProcessIframeAccessibility(
-      const std::map<int32, int> node_to_frame_routing_id_map);
+      const std::map<int32, int>& node_to_frame_routing_id_map);
 
   // Update the the singleton FrameAccessibility instance with a map
   // from accessibility node id to the browser plugin instance id of a
   // guest WebContents.
   void UpdateGuestFrameAccessibility(
-      const std::map<int32, int> node_to_browser_plugin_instance_id_map);
+      const std::map<int32, int>& node_to_browser_plugin_instance_id_map);
 
   // Informs the content client that geolocation permissions were used.
   void DidUseGeolocationPermission();

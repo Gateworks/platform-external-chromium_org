@@ -2030,6 +2030,14 @@ Therefore, the affected-histogram name has to have at least one dot in it.
   </summary>
 </histogram>
 
+<histogram name="Blink.MediaElement.Autoplay" enum="MediaElementAutoPlay">
+  <owner>oysteine@chromium.org</owner>
+  <summary>
+    Records user observation and interaction with Media HTML elements that
+    feature autoplay, either script-controlled or through the attribute.
+  </summary>
+</histogram>
+
 <histogram name="BlinkGC.CollectGarbage" units="milliseconds">
   <owner>haraken@chromium.org</owner>
   <summary>Duration of time taken to run Heap::collectGarbage().</summary>
@@ -11086,12 +11094,14 @@ Therefore, the affected-histogram name has to have at least one dot in it.
 <histogram name="interstitial.ssl" enum="SSLResponseTypesV2">
   <owner>felt@chromium.org</owner>
   <summary>
-    User action when the user is shown a SSL interstitial.  SHOW_ALL and MORE
+    User action when the user is shown a SSL interstitial. SHOW_ALL and MORE
     refer to the total number of SSL errors; all of the other numbers pertain to
-    the number of actions related to SSL errors that are overridable.  The
-    counts do not sum to 100%; SHOW_ALL is a superset of SHOW_OVERRIDABLE, which
-    in turn will be a supserset of the PROCEED/DONT_PROCEED variables.
-    SHOW_UNDERSTAND is only being used by an experimental field trial.
+    the number of actions related to SSL errors that are overridable. The counts
+    do not sum to 100%; SHOW_ALL is a superset of SHOW_OVERRIDABLE, which in
+    turn will be a supserset of the PROCEED/DONT_PROCEED variables.
+    SHOW_UNDERSTAND is only being used by an experimental field trial. The
+    interstitials due to captive portals are now recorded in the
+    &quot;SSLCaptivePortal&quot;.
   </summary>
 </histogram>
 
@@ -11165,6 +11175,13 @@ Therefore, the affected-histogram name has to have at least one dot in it.
     Records when a user has made a decision to proceed on an overridable SSL
     interstitial. Also records whether a prior decision had been made but the
     decision expired.
+  </summary>
+</histogram>
+
+<histogram name="interstitial.ssl.severity_score.authority_invalid" units="%">
+  <owner>felt@chromium.org</owner>
+  <summary>
+    The likelihood of a |CERT_AUTHORITY_INVALID| error being an attack.
   </summary>
 </histogram>
 
@@ -11991,6 +12008,15 @@ Therefore, the affected-histogram name has to have at least one dot in it.
   <owner>sandersd@chromium.org</owner>
   <summary>
     Result of Clear Key loadSession promises handled by Chromium code.
+  </summary>
+</histogram>
+
+<histogram name="Media.EME.KeySystemSupport.Widevine"
+    enum="MediaKeySystemSupportStatus">
+  <owner>xhwang@chromium.org</owner>
+  <summary>
+    Key system support query status and result. Each enum value will be reported
+    at most once per renderer process.
   </summary>
 </histogram>
 
@@ -17315,6 +17341,15 @@ Therefore, the affected-histogram name has to have at least one dot in it.
   </summary>
 </histogram>
 
+<histogram name="Net.QuicCryptoClientConfig.PopulatedFromCanonicalConfig"
+    enum="BooleanPopulated">
+  <owner>rtenneti@chromium.org</owner>
+  <summary>
+    The number of times CryptoClientConfig's CachedState is populated from
+    canonical config whenever we create a new CryptoClientConfig::CachedState.
+  </summary>
+</histogram>
+
 <histogram name="Net.QuicDiskCache.APICall" enum="QuicDiskCacheAPICall">
   <owner>rtenneti@chromium.org</owner>
   <summary>
@@ -21649,6 +21684,14 @@ Therefore, the affected-histogram name has to have at least one dot in it.
   </summary>
 </histogram>
 
+<histogram name="Omnibox.AnswerParseSuccess" enum="BooleanSuccess">
+  <owner>jdonnelly@chromium.org</owner>
+  <summary>
+    For each answer received in suggest responses, the number that are
+    well-formed and contain all the required elements.
+  </summary>
+</histogram>
+
 <histogram name="Omnibox.CutOrCopyAllText" units="count">
   <owner>mpearson@chromium.org</owner>
   <summary>
@@ -25078,6 +25121,26 @@ Therefore, the affected-histogram name has to have at least one dot in it.
   <owner>yzshen@chromium.org</owner>
   <owner>thestig@chromium.org</owner>
   <summary>Collects Flash usage data.</summary>
+</histogram>
+
+<histogram name="Plugin.PowerSaverPeripheralHeuristic"
+    enum="PluginPowerSaverPeripheralHeuristicDecision">
+  <owner>tommycli@chromium.org</owner>
+  <summary>
+    Record the initial decision of the Plugin Power Saver peripheral content
+    heuristic. For each plugin instance, this heuristic decides whether the
+    plugin instance is essential content or peripheral. All same-origin content
+    is essential. Cross-origin content is peripheral if it is small and not on
+    the origin whitelist.
+  </summary>
+</histogram>
+
+<histogram name="Plugin.PowerSaverUnthrottle"
+    enum="PluginPowerSaverUnthrottleMethod">
+  <owner>tommycli@chromium.org</owner>
+  <summary>
+    Record how many throttled plugins are unthrottled, and by what method.
+  </summary>
 </histogram>
 
 <histogram name="Plugin.PpapiBrokerLoadErrorCode" units="code">
@@ -40019,6 +40082,17 @@ Therefore, the affected-histogram name has to have at least one dot in it.
   </summary>
 </histogram>
 
+<histogram name="WebRTC.SystemSendPacketDuration" units="milliseconds">
+  <owner>guoweis@chromium.org</owner>
+  <summary>
+    The duration that it takes to send out a packet in system layer. This
+    includes both the queuing time (under the condition when socket returns
+    EWOULDBLOCK from system) as well as the time system takes to finish the
+    asynchronous send. For UDP, it's the time from P2PSocketHostUdp::Send to
+    P2PSocketHostUdp::HandleSendResult. Tcp part is to be implemented.
+  </summary>
+</histogram>
+
 <histogram name="WebRTC.UnreliableDataChannelMessageSize" units="bytes">
   <owner>perkj@chromium.org</owner>
   <summary>
@@ -41222,6 +41296,11 @@ Therefore, the affected-histogram name has to have at least one dot in it.
 <enum name="BooleanOrphan" type="int">
   <int value="0" label="Non-orphan"/>
   <int value="1" label="Orphan"/>
+</enum>
+
+<enum name="BooleanPopulated" type="int">
+  <int value="0" label="Not populated"/>
+  <int value="1" label="Populated"/>
 </enum>
 
 <enum name="BooleanPresent" type="int">
@@ -42621,9 +42700,10 @@ Therefore, the affected-histogram name has to have at least one dot in it.
   <int value="9" label="Password sign-in: Phone not authenticated"/>
   <int value="10" label="Password sign-in: Phone locked"/>
   <int value="11" label="Password sign-in: Phone not lockable"/>
-  <int value="12" label="Password sign-in: Phone not nearby"/>
+  <int value="12" label="Password sign-in: RSSI too low"/>
   <int value="13" label="Password sign-in: Phone not supported"/>
   <int value="14" label="Password sign-in: Phone authenticated"/>
+  <int value="15" label="Password sign-in: Tx power too high"/>
 </enum>
 
 <enum name="EasyUnlockNotificationEvent" type="int">
@@ -44486,6 +44566,7 @@ Therefore, the affected-histogram name has to have at least one dot in it.
   <int value="919" label="VPNPROVIDER_SENDPACKET"/>
   <int value="920" label="VPNPROVIDER_NOTIFYCONNECTIONSTATECHANGED"/>
   <int value="921" label="DOCUMENT_SCAN_SCAN"/>
+  <int value="922" label="EASYUNLOCKPRIVATE_GETUSERIMAGE"/>
 </enum>
 
 <enum name="ExtensionInstallCause" type="int">
@@ -47633,7 +47714,7 @@ Therefore, the affected-histogram name has to have at least one dot in it.
   <int value="1" label="Not supported"/>
   <int value="2" label="Supported"/>
   <int value="3" label="Successful"/>
-  <int value="4" label="Not aligned"/>
+  <int value="4" label="Used unpack library fallback"/>
   <int value="5" label="Used no map executable support fallback"/>
 </enum>
 
@@ -48809,6 +48890,15 @@ To add a new entry, add it with any value and run test to compute valid value.
   <int value="39" label="SmoothStream"/>
 </enum>
 
+<enum name="MediaElementAutoPlay" type="int">
+  <int value="0" label="Media element with autoplay seen"/>
+  <int value="1"
+      label="Autoplay enabled and user stopped media play at any point"/>
+  <int value="2"
+      label="Autoplay enabled but user bailed out on media play early"/>
+  <int value="3" label="Autoplay disabled but user manually started media"/>
+</enum>
+
 <enum name="MediaGalleriesUsageType" type="int">
   <int value="0" label="Gallery added from permission dialog"/>
   <int value="1" label="Gallery permission added from permission dialog"/>
@@ -48846,6 +48936,13 @@ To add a new entry, add it with any value and run test to compute valid value.
   <int value="1" label="kSuccess"/>
   <int value="2" label="kKeySystemNotSupported"/>
   <int value="3" label="kInvalidPlayerState"/>
+</enum>
+
+<enum name="MediaKeySystemSupportStatus" type="int">
+  <int value="0" label="Queried"/>
+  <int value="1" label="Supported"/>
+  <int value="2" label="Queried with type"/>
+  <int value="3" label="Supported with type"/>
 </enum>
 
 <enum name="MediaOutputProtectionStatus" type="int">
@@ -51016,6 +51113,7 @@ To add a new entry, add it with any value and run test to compute valid value.
   <int value="588532407" label="PPB_Graphics2D;1.1"/>
   <int value="612625164" label="PPB_InputEvent;1.0"/>
   <int value="615811055" label="PPB_Flash_MessageLoop;0.1"/>
+  <int value="617438958" label="PPB_VideoDecoder;1.0"/>
   <int value="629092173" label="PPB_VideoCapture(Dev);0.3"/>
   <int value="630100238" label="PPB_AudioBuffer;0.1"/>
   <int value="631212065" label="PPB_MouseInputEvent;1.0"/>
@@ -51048,6 +51146,7 @@ To add a new entry, add it with any value and run test to compute valid value.
   <int value="930528031" label="PPB_OpenGLES2DrawBuffers(Dev);1.0"/>
   <int value="930786862" label="PPB_Flash_Clipboard;5.0"/>
   <int value="941275733" label="PPB_Flash;12.6"/>
+  <int value="943174056" label="PPB_VideoDecoder;0.2"/>
   <int value="944161065" label="PPB_Flash_DRM;1.1"/>
   <int value="946515854" label="PPB_View(Dev);0.1"/>
   <int value="948969343" label="PPB_OpenGLES2;1.0"/>
@@ -51263,6 +51362,19 @@ To add a new entry, add it with any value and run test to compute valid value.
   <int value="2" label="ENTRY_POINT_MISSING"/>
   <int value="3" label="INIT_FAILED"/>
   <int value="4" label="FILE_MISSING"/>
+</enum>
+
+<enum name="PluginPowerSaverPeripheralHeuristicDecision" type="int">
+  <int value="0" label="Peripheral"/>
+  <int value="1" label="Essential Same-Origin"/>
+  <int value="2" label="Essential Cross-Origin Big"/>
+  <int value="3" label="Essential Cross-Origin Whitelisted"/>
+</enum>
+
+<enum name="PluginPowerSaverUnthrottleMethod" type="int">
+  <int value="0" label="Never Unthrottled"/>
+  <int value="1" label="Unthrottled by Click"/>
+  <int value="2" label="Unthrottled by Retroactive Whitelist"/>
 </enum>
 
 <enum name="PNaClOptionsOptLevelEnum" type="int">
@@ -52198,6 +52310,7 @@ To add a new entry, add it with any value and run test to compute valid value.
   <int value="3" label="WaitForDataReadyCancel"/>
   <int value="4" label="ReadyToPersist"/>
   <int value="5" label="Persist"/>
+  <int value="6" label="ExternalCacheHit"/>
 </enum>
 
 <enum name="QuicDiskCacheEntryState" type="int">
@@ -53683,6 +53796,7 @@ To add a new entry, add it with any value and run test to compute valid value.
   <int value="1" label="SPDY 3.0"/>
   <int value="2" label="SPDY 3.1"/>
   <int value="3" label="HTTP/2 draft-14"/>
+  <int value="4" label="HTTP/2 draft-15"/>
 </enum>
 
 <enum name="SpdySessionGet" type="int">
@@ -54398,6 +54512,17 @@ To add a new entry, add it with any value and run test to compute valid value.
     of the heuristics which decide as to what constitutes a shared certificate.
     In cases of overlap, we emit to only one bucket.
   </int>
+  <int value="8" label="LOCALHOST: The user is trying to connect to local host">
+    This cause is recorded only for CERT_AUTHORITY_INVALID errors.
+  </int>
+  <int value="9" label="PRIVATE_URL: The user is trying to connect to a VPN">
+    This cause is recorded only for CERT_AUTHORITY_INVALID errors. The user did
+    not receive a certificate signed by a valid CA.
+  </int>
+  <int value="10"
+      label="AUTHORTIY_ERROR_CAPTIVE_PORTAL: Captive portal was detected">
+    This cause is recorded only for CERT_AUTHORITY_INVALID errors.
+  </int>
 </enum>
 
 <enum name="SSLProtocolNegotiation" type="int">
@@ -54434,8 +54559,12 @@ To add a new entry, add it with any value and run test to compute valid value.
   <int value="9" label="DONT_PROCEED_AUTHORITY"/>
   <int value="10" label="MORE"/>
   <int value="11" label="SHOW_UNDERSTAND"/>
-  <int value="12" label="SHOW_INTERNAL_HOSTNAME"/>
-  <int value="13" label="PROCEED_INTERNAL_HOSTNAME"/>
+  <int value="12" label="SHOW_INTERNAL_HOSTNAME">
+    As of M40, this now also includes dotless domains.
+  </int>
+  <int value="13" label="PROCEED_INTERNAL_HOSTNAME">
+    As of M40, this now also includes dotless domains.
+  </int>
   <int value="14" label="SHOW_NEW_SITE"/>
   <int value="15" label="PROCEED_NEW_SITE"/>
   <int value="16"
@@ -54460,7 +54589,8 @@ To add a new entry, add it with any value and run test to compute valid value.
       label="Received no response or Non-HTTP login page on an overridable
              SSL error page
              (DEPRECATED_CAPTIVE_PORTAL_NO_RESPONSE_OVERRIDABLE)"/>
-  <int value="23" label="Detected captive portal (CAPTIVE_PORTAL_DETECTED)"/>
+  <int value="23"
+      label="Detected captive portal (DEPRECATED_CAPTIVE_PORTAL_DETECTED)"/>
   <int value="24"
       label="Detected captive portal on an overridable SSL error page
              (DEPRECATED_CAPTIVE_PORTAL_DETECTED_OVERRIDABLE)"/>
@@ -56843,6 +56973,7 @@ To add a new entry, add it with any value and run test to compute valid value.
   <suffix name="TCP"/>
   <affected-histogram name="WebRTC.SystemMaxConsecutiveBytesDelayed"/>
   <affected-histogram name="WebRTC.SystemPercentPacketsDelayed"/>
+  <affected-histogram name="WebRTC.SystemSendPacketDuration"/>
 </histogram_suffixes>
 
 <histogram_suffixes name="IPv6_Probe">
@@ -58271,6 +58402,15 @@ To add a new entry, add it with any value and run test to compute valid value.
   <suffix name="UrlOver8K" label="URL length was over 8K"/>
   <suffix name="UrlOver128K" label="URL length was over 128K"/>
   <affected-histogram name="Net.ProxyResolver.ExecutionTime"/>
+</histogram_suffixes>
+
+<histogram_suffixes name="NetQuicDiskCacheBackend" separator=".">
+  <owner>rtenneti@chromium.org</owner>
+  <suffix name="NoBackend" label="DiskCache didn't have a backend"/>
+  <suffix name="DiskCache" label="DiskCache backend is using disk cache."/>
+  <suffix name="MemoryCache" label="DiskCache backend is using memory cache."/>
+  <affected-histogram name="Net.QuicDiskCache.APICall"/>
+  <affected-histogram name="Net.QuicDiskCache.FailureReason"/>
 </histogram_suffixes>
 
 <histogram_suffixes name="NetworkErrors" separator=".">

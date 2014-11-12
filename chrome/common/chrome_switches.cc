@@ -344,9 +344,6 @@ const char kDisableSearchButtonInOmnibox[]  =
 // Disables using bubbles for session restore request.
 const char kDisableSessionCrashedBubble[] = "disable-session-crashed-bubble";
 
-// Disable SPDY/3.1. This is a temporary testing flag.
-const char kDisableSpdy31[]                 = "disable-spdy31";
-
 // Disables the suggestions service.
 const char kDisableSuggestionsService[]     = "disable-suggestions-service";
 
@@ -589,14 +586,6 @@ const char kDisableSettingsWindow[]          = "disable-settings-window";
 
 // Enable SPDY/4, aka HTTP/2. This is a temporary testing flag.
 const char kEnableSpdy4[]                   = "enable-spdy4";
-
-// Enables auto correction for misspelled words.
-const char kEnableSpellingAutoCorrect[]     = "enable-spelling-auto-correct";
-
-// Enables participation in the field trial for user feedback to spelling
-// service.
-const char kEnableSpellingFeedbackFieldTrial[] =
-    "enable-spelling-feedback-field-trial";
 
 // Enables a feature that holds back some SSLConnectJobs in order to
 // minimize the number of full SSL handshakes completed.
@@ -1111,6 +1100,15 @@ const char kSpeculativeResourcePrefetchingLearning[] = "learning";
 // Speculative resource prefetching is enabled.
 const char kSpeculativeResourcePrefetchingEnabled[] = "enabled";
 
+#if defined(ENABLE_SPELLCHECK)
+// Enables auto correction for misspelled words.
+const char kEnableSpellingAutoCorrect[]     = "enable-spelling-auto-correct";
+
+// Enables participation in the field trial for user feedback to spelling
+// service.
+const char kEnableSpellingFeedbackFieldTrial[] =
+    "enable-spelling-feedback-field-trial";
+
 // Specifies the URL where spelling service feedback data will be sent instead
 // of the default URL. This switch is for temporary testing only.
 // TODO(rouslan): Remove this flag when feedback testing is complete. Revisit by
@@ -1124,6 +1122,7 @@ const char kSpellingServiceFeedbackUrl[] = "spelling-service-feedback-url";
 // August 2013.
 const char kSpellingServiceFeedbackIntervalSeconds[] =
     "spelling-service-feedback-interval-seconds";
+#endif
 
 // Specifies the maximum SSL/TLS version ("ssl3", "tls1", "tls1.1", or
 // "tls1.2").

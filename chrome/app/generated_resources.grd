@@ -649,7 +649,7 @@ Psst! Incognito mode <ph name="SHORTCUT_KEY">$1<ex>(Ctrl+Shift+N)</ex></ph> may 
             Save &amp;as...
           </message>
           <message name="IDS_CONTENT_CONTEXT_PRINT" desc="The name of the Print... command in the content area context menu. Brings a dialog to select the print options">
-            P&amp;rint...
+            &amp;Print...
           </message>
           <message name="IDS_CONTENT_CONTEXT_VIEWPAGESOURCE" desc="The name of the View Page Source command in the content area context menu">
             &amp;View page source
@@ -670,13 +670,13 @@ Psst! Incognito mode <ph name="SHORTCUT_KEY">$1<ex>(Ctrl+Shift+N)</ex></ph> may 
             Inspect &amp;background page
           </message>
           <message name="IDS_CONTENT_CONTEXT_RELOAD" desc="The name of the Reload command in the content area context menu">
-            Re&amp;load
+            &amp;Reload
           </message>
           <message name="IDS_CONTENT_CONTEXT_RESTART_APP" desc="The name of the Restart Packaged App command in the packaged app context menu.">
             Simulate browser restart
           </message>
           <message name="IDS_CONTENT_CONTEXT_RELOAD_PACKAGED_APP" desc="The name of the Reload Packaged App command in the packaged app content area context menu">
-            Re&amp;load app
+            &amp;Reload app
           </message>
           <message name="IDS_CONTENT_CONTEXT_TRANSLATE" desc="The name of the Translate command in the content area context menu">
             &amp;Translate to <ph name="LANGUAGE">$1<ex>English</ex></ph>
@@ -689,7 +689,7 @@ Psst! Incognito mode <ph name="SHORTCUT_KEY">$1<ex>(Ctrl+Shift+N)</ex></ph> may 
             Save &amp;frame as...
           </message>
           <message name="IDS_CONTENT_CONTEXT_PRINTFRAME" desc="The name of the Print Frame command in the content area context menu">
-            P&amp;rint frame...
+            &amp;Print frame...
           </message>
           <message name="IDS_CONTENT_CONTEXT_VIEWFRAMESOURCE" desc="The name of the View Frame Source command in the content area context menu">
             &amp;View frame source
@@ -849,7 +849,7 @@ Psst! Incognito mode <ph name="SHORTCUT_KEY">$1<ex>(Ctrl+Shift+N)</ex></ph> may 
             Save &amp;As...
           </message>
           <message name="IDS_CONTENT_CONTEXT_PRINT" desc="In Title Case: The name of the Print... command in the content area context menu. Brings a dialog to select the print options">
-            P&amp;rint...
+            &amp;Print...
           </message>
           <message name="IDS_CONTENT_CONTEXT_VIEWPAGESOURCE" desc="In Title Case: The name of the View Page Source command in the content area context menu">
             &amp;View Page Source
@@ -870,13 +870,13 @@ Psst! Incognito mode <ph name="SHORTCUT_KEY">$1<ex>(Ctrl+Shift+N)</ex></ph> may 
             Inspect &amp;Background Page
           </message>
           <message name="IDS_CONTENT_CONTEXT_RELOAD" desc="In Title Case: The name of the Reload command in the content area context menu">
-            Re&amp;load
+            &amp;Reload
           </message>
           <message name="IDS_CONTENT_CONTEXT_RESTART_APP" desc="In Title Case: The name of the Restart Packaged App command in the packaged app context menu.">
             Simulate Browser Restart
           </message>
           <message name="IDS_CONTENT_CONTEXT_RELOAD_PACKAGED_APP" desc="In Title Case: The name of the Reload Packaged App command in the packaged app content area context menu">
-            Re&amp;load App
+            &amp;Reload App
           </message>
           <message name="IDS_CONTENT_CONTEXT_TRANSLATE" desc="In Title Case: The name of the Translate command in the content area context menu">
             &amp;Translate to <ph name="LANGUAGE">$1<ex>English</ex></ph>
@@ -889,7 +889,7 @@ Psst! Incognito mode <ph name="SHORTCUT_KEY">$1<ex>(Ctrl+Shift+N)</ex></ph> may 
             Save &amp;Frame As...
           </message>
           <message name="IDS_CONTENT_CONTEXT_PRINTFRAME" desc="In Title Case: The name of the Print Frame command in the content area context menu">
-            P&amp;rint Frame...
+            &amp;Print Frame...
           </message>
           <message name="IDS_CONTENT_CONTEXT_VIEWFRAMESOURCE" desc="In Title Case: The name of the View Frame Source command in the content area context menu">
             &amp;View Frame Source
@@ -1904,6 +1904,12 @@ Even if you have downloaded files from this website before, the website might ha
       <message name="IDS_DOWNLOAD_SEARCHRESULTSFOR" desc="Format string for search results">
         Search results for '<ph name="SEARCH_STRING">$1</ph>'
       </message>
+      <message name="IDS_DOWNLOAD_NO_SEARCH_RESULTS" desc="A message shown for when a search yield no results (no matching downloads).">
+        No search results found.
+      </message>
+      <message name="IDS_DOWNLOAD_NO_DOWNLOADS" desc="A message shown when the user has no downloads to show on chrome://downloads.">
+        No downloads found.
+      </message>
       <message name="IDS_DOWNLOAD_LINK_RESUME"
                desc="In the download view, 'Resume' link text">
         Resume
@@ -2002,6 +2008,10 @@ Even if you have downloaded files from this website before, the website might ha
           desc="Download context menu: Open the download using the default handler for the platform.">
             Open with system viewer
           </message>
+          <message name="IDS_DOWNLOAD_MENU_PLATFORM_OPEN_ALWAYS"
+          desc="Download context menu: Always open the download using the default handler for the platform.">
+            Always open with system viewer
+          </message>
           <message name="IDS_DOWNLOAD_MENU_CANCEL"
                    desc="Download context menu: Cancel">
             &amp;Cancel
@@ -2062,6 +2072,10 @@ Even if you have downloaded files from this website before, the website might ha
                    desc="In Title Case: Download context menu: Open the download using the default handler for the platform.">
             Open With System Viewer
           </message>
+          <message name="IDS_DOWNLOAD_MENU_PLATFORM_OPEN_ALWAYS"
+                   desc="In Title Case: Download context menu: Always open the download using the default handler for the platform.">
+            Always Open With System Viewer
+          </message>
           <message name="IDS_DOWNLOAD_MENU_CANCEL"
                    desc="In Title Case: Download context menu: Cancel">
             &amp;Cancel
@@ -2093,7 +2107,7 @@ Even if you have downloaded files from this website before, the website might ha
         </if>  <!-- not use_titlecase -->
         <if expr="is_win">
           <message name="IDS_DOWNLOAD_MENU_ALWAYS_OPEN_PDF_IN_READER"
-                   desc="Download context menu: Open when download using Adobe Reader">
+                   desc="Download context menu: Always open PDFs using Adobe Reader">
             Always open in Adobe Reader
           </message>
         </if>
@@ -2652,6 +2666,12 @@ Even if you have downloaded files from this website before, the website might ha
       </message>
       <message name="IDS_CERT_ERROR_NAME_CONSTRAINT_VIOLATION_DESCRIPTION" desc="Description of the error page for a certificate that contains a name outside of its scope">
         Server's certificate violates name constraints.
+      </message>
+      <message name="IDS_CERT_ERROR_VALIDITY_TOO_LONG_DETAILS" desc="Details of the error page for a certificate whose validity period is too long">
+        You attempted to reach <ph name="DOMAIN">&lt;strong&gt;$1<ex>paypal.com</ex>&lt;/strong&gt;</ph>, but the server presented a certificate for which the period is too long.
+      </message>
+      <message name="IDS_CERT_ERROR_VALIDITY_TOO_LONG_DESCRIPTION" desc="Description of the error page for a certificate whose validity period is too long">
+        The server certificate has a validity period that is too long.
       </message>
 
       <message name="IDS_CERT_ERROR_UNKNOWN_ERROR_DETAILS" desc="Details of the error page for an unknown ssl error">
@@ -4435,6 +4455,9 @@ Make sure you do not expose any sensitive information.
       </if>
       <message name="IDS_EXTENSION_PROMPT_WARNING_ALL_HOSTS" desc="Permission string for access to data on all websites.">
         Read and change all your data on the websites you visit
+      </message>
+      <message name="IDS_EXTENSION_PROMPT_WARNING_ALL_HOSTS_READ_ONLY" desc="Permission string for read-only access to data on all websites.">
+        Read all your data on the websites you visit
       </message>
       <message name="IDS_EXTENSION_PROMPT_WARNING_FAVICON" desc="Permission string for access to favicons.">
         Read the icons of the websites you visit
@@ -6814,7 +6837,10 @@ Keep your key file in a safe place. You will need it to create new versions of y
         Say "Ok Google" in a new tab, google.com, and the App Launcher
       </message>
       <message name="IDS_HOTWORD_SEARCH_ALWAYS_ON_DESCRIPTION" desc="Description of the hotword-always-on search preference.">
-        Say "Ok Google" when the screen is on and unlocked
+        Say "Ok Google" when the screen is on and unlocked.
+      </message>
+      <message name="IDS_HOTWORD_RETRAIN_LINK" desc="Link to retrain the hotword voice model.">
+        Retrain voice model
       </message>
       <message name="IDS_HOTWORD_SEARCH_PREF_DESCRIPTION" desc="Description of the hotword search preference">
         When you say "Ok Google," Chrome will search for what you say next.
@@ -6901,7 +6927,7 @@ Keep your key file in a safe place. You will need it to create new versions of y
           Not loaded yet
         </message>
         <message name="IDS_HELP_CENTER_VIEW_CONFLICTS" desc="The url of the Help center article for the View Conflicts page" translateable="false">
-          http://support.google.com/chrome/?p=<ph name="NAME">$1<ex>Hash</ex></ph>&amp;l=<ph name="LOCATION">$2<ex>Hash</ex></ph>&amp;d=<ph name="DESC">$3<ex>Hash</ex></ph>&amp;s=<ph name="SIGNER">$4<ex>Hash</ex></ph>
+          https://support.google.com/chrome/?p=<ph name="NAME">$1<ex>Hash</ex></ph>&amp;l=<ph name="LOCATION">$2<ex>Hash</ex></ph>&amp;d=<ph name="DESC">$3<ex>Hash</ex></ph>&amp;s=<ph name="SIGNER">$4<ex>Hash</ex></ph>
         </message>
         <if expr="use_titlecase">
         <message name="IDS_CONFLICTS_LEARN_MORE" desc="The Learn More button in the conflicting module bubble">
@@ -7482,6 +7508,9 @@ Keep your key file in a safe place. You will need it to create new versions of y
         </message>
         <message name="IDS_PASSWORD_MANAGER_TOOLTIP_MANAGE" desc="Text for the 'Manage Passwords' icon's 'saving passwords' state">
           Manage your passwords
+        </message>
+        <message name="IDS_PASSWORD_MANAGER_EMPTY_LOGIN" desc="A placeholder for the 'Manage Passwords' bubble's empty username label">
+          (No username)
         </message>
       </if>
       <if expr="is_android">
@@ -9619,7 +9648,7 @@ Keep your key file in a safe place. You will need it to create new versions of y
         Privacy policy
       </message>
       <message name="IDS_SAFE_BROWSING_PRIVACY_POLICY_URL" translateable="false">
-        http://www.google.com/chrome/browser/privacy/whitepaper.html#malware
+        https://www.google.com/chrome/browser/privacy/whitepaper.html#malware
       </message>
       <message name="IDS_SAFE_BROWSING_MALWARE_REPORTING_AGREE" desc="SafeBrowsing Malware v2 Details label next to checkbox">
         Automatically report details of possible security incidents to Google. <ph name="PRIVACY_PAGE_LINK">$1</ph>
@@ -9682,10 +9711,6 @@ Keep your key file in a safe place. You will need it to create new versions of y
       <message name="IDS_SSL_RELOAD" desc="The text for the button that reloads the page.">
         Reload
       </message>
-      <message name="IDS_SSL_NONOVERRIDABLE_MORE" desc="Body text for the explanation shown if user clicks on the Details button.">
-        <ph name="SITE">$1<ex>google.com</ex></ph> normally uses encryption to protect your information. When Chrome tried to connect to <ph name="SITE">$1<ex>google.com</ex></ph> this time, the website sent back unusual
-and incorrect credentials. Either an attacker is trying to pretend to be <ph name="SITE">$1<ex>google.com</ex></ph>, or a Wi-Fi sign-in screen has interrupted the connection. Your information is still secure because Chrome stopped the connection before any data was exchanged.
-      </message>
       <message name="IDS_SSL_NONOVERRIDABLE_PINNED" desc="A sentence to explain why the user can't proceed, plus a link to a help page about certificate pinning.">
       You cannot visit <ph name="SITE">$1<ex>google.com</ex></ph> right now because the website <ph name="BEGIN_LINK">&lt;a href="#" id="help-link"&gt;</ph>uses certificate pinning<ph name="END_LINK">&lt;/a&gt;</ph>. Network errors and attacks are usually temporary, so this page will probably work later.
       </message>
@@ -9694,9 +9719,6 @@ and incorrect credentials. Either an attacker is trying to pretend to be <ph nam
       </message>
       <message name="IDS_SSL_NONOVERRIDABLE_REVOKED" desc="A sentence to explain why the user can't proceed, plus a link to a help page about certificate revocation.">
       You cannot visit <ph name="SITE">$1<ex>google.com</ex></ph> right now because <ph name="BEGIN_LINK">&lt;a href="#" id="help-link"&gt;</ph>this certificate has been revoked<ph name="END_LINK">&lt;/a&gt;</ph>. Network errors and attacks are usually temporary, so this page will probably work later.
-      </message>
-      <message name="IDS_SSL_NONOVERRIDABLE_INVALID" desc="A sentence to explain why the user can't proceed.">
-      You cannot visit <ph name="SITE">$1<ex>google.com</ex></ph> right now because the website sent scrambled credentials that Chrome cannot process. Network errors and attacks are usually temporary, so this page will probably work later.
       </message>
 
       <!-- SSL Interstitial V2: Clock Errors -->
@@ -9734,10 +9756,6 @@ and incorrect credentials. Either an attacker is trying to pretend to be <ph nam
           &lt;p&gt;Please adjust the date and time from the &lt;strong&gt;General&lt;/strong&gt; section of the &lt;strong&gt;Settings&lt;/strong&gt; app.&lt;/p&gt;
         </message>
       </if>
-
-      <message name="IDS_SSL_V2_CLOCK_EXPLANATION" desc="Body text for the explanation shown if user clicks on the Advanced button for an SSL clock error.">
-        To establish a secure connection, your clock needs to be set correctly. This is because the certificates that websites use to identify themselves are only valid for specific periods of time. Since your device's clock is incorrect, Chromium cannot verify these certificates.
-      </message>
 
       <!-- Misc strings for SSL UI -->
       <message name="IDS_UNSAFE_FRAME_MESSAGE" desc="The text displayed in the content that is subsituted to an unsafe frame.">
@@ -10146,6 +10164,12 @@ Chrome ran out of memory.
         </message>
         <message name="IDS_OPTIONS_EASY_UNLOCK_TURN_OFF_BUTTON" desc="The label of the button to disable Easy unlock on the settings page and the turn off Easy unlock dialog.">
           Turn off
+        </message>
+        <message name="IDS_OPTIONS_EASY_UNLOCK_NOTIFICATION_OPTION_LABEL" desc="The label of the preference in the Smart Lock settings page to control whether notifications should be shown when unlocking the Chromebook.">
+          Get notified on your phone every time Smart Lock unlocks your <ph name="DEVICE_TYPE">$1<ex>Chromebook</ex></ph>.
+        </message>
+        <message name="IDS_OPTIONS_EASY_UNLOCK_MANAGE BLUETOOTH" desc="The label of the link in the Smart Lock settings page to open the Bluetooth settings.">
+          Manage Bluetooth settings
         </message>
         <message name="IDS_OPTIONS_EASY_UNLOCK_TURN_OFF_TITLE" desc="The title of the Easy unlock turn off dialog.">
           Turn off Chrome Smart Lock
@@ -11278,7 +11302,7 @@ Chrome ran out of memory.
           Access your open tabs on all of your devices.
         </message>
         <message name="IDS_NEW_TAB_OTHER_SESSIONS_LEARN_MORE_URL" desc="URL of help center page explaining what the 'Other Sessions' menu is.">
-          http://support.google.com/chrome/bin/answer.py?answer=185277&amp;hl=[GRITLANGCODE]
+          https://support.google.com/chrome/bin/answer.py?answer=185277&amp;hl=[GRITLANGCODE]
         </message>
         <message name="IDS_NEW_TAB_OTR_HEADING"
                  desc="Heading used when a person opens an OTR window">
@@ -11765,7 +11789,7 @@ Chrome ran out of memory.
         Default
       </message>
       <message name="IDS_PROFILE_ADD_PERSON_ENABLE" desc="The text for the settings checkbox that indicates whether new profiles can be added from the user manager.">
-        Enable user creation from the profile manager
+        Let anyone add a person to Chrome
       </message>
       <message name="IDS_PROFILE_BROWSER_GUEST_ENABLE" desc="The text for the settings checkbox that indicates whether guest mode is available for this browser.">
         Enable Guest browsing
@@ -13174,19 +13198,19 @@ Some features may be unavailable.  Please check that the profile exists and you 
       </message>
     </if>
 
-    <message name="IDS_SAVE_PASSWORD" desc="The status text that is used as tooltip text for the save password icon and as status text of the save password bubble when a password can be saved.">
-      Would you like to save this password?
+    <message name="IDS_SAVE_PASSWORD" desc="The title of the save password bubble when a password can be saved.">
+      Do you want Google Chrome to save your password for this site?
     </message>
     <message name="IDS_MANAGE_PASSWORDS_CONFIRM_GENERATED_TITLE" desc="The title text that is used in the manage passwords bubble when the user has generated a password.">
       Generated password saved
     </message>
-    <message name="IDS_MANAGE_PASSWORDS_CONFIRM_GENERATED_TEXT" desc="The text that is used in the manage passwords bubble when a generated password is saved. Text inside |bars| is link text.">
-      You can access it and all your |Google saved passwords| from any browser.
+    <message name="IDS_MANAGE_PASSWORDS_CONFIRM_GENERATED_TEXT" desc="A message that the browser shows after saving a password it has autogenerated for the user. This message appears in a bubble and contains a link to all the user's saved autogenerated passwords. The link text is a separate string in the translation console and appears here as placeholder text.">
+      You can access it and all your <ph name="SAVED_PASSWORDS_LINK">$1<ex>Google saved passwords</ex></ph> from any browser.
     </message>
     <message name="IDS_MANAGE_PASSWORDS_CONFIRM_GENERATED_TEXT_INFOBAR" desc="A message that the browser shows after saving a password it has autogenerated for the user. This message appears in an infobar and contains a link to all the user's saved autogenerated passwords. The link text is a separate string in the translation console and appears here as placeholder text.">
       Generated password saved. You can access it and all your <ph name="SAVED_PASSWORDS_LINK">$1<ex>Google saved passwords</ex></ph> from any browser.
     </message>
-    <message name="IDS_MANAGE_PASSWORDS_CONFIRM_GENERATED_LINK" desc="The text for a link to the user's saved autogenerated passwords. This is inserted into an infobar that the browser shows to the user after it saves an autogenerated password. The infobar uses a separate string in the translation console that has a placeholder for this link title.">
+    <message name="IDS_MANAGE_PASSWORDS_CONFIRM_GENERATED_LINK" desc="The text for a link to the user's saved autogenerated passwords. This is inserted into an infobar or a bubble that the browser shows to the user after it saves an autogenerated password. The infobar and the bubble use a separate string in the translation console that has a placeholder for this link title.">
       Google saved passwords
     </message>
     <message name="IDS_MANAGE_PASSWORDS_TITLE" desc="The title text that is used in the manage passwords bubble when a password is autofilled or after a user has stored a password.">
@@ -14824,11 +14848,35 @@ Do you accept?
     </message>
     <!-- Strings for notification shown when the Chromebook is added to Easy Unlock -->
     <message name="IDS_EASY_UNLOCK_CHROMEBOOK_ADDED_NOTIFICATION_TITLE" desc="Title for notification shown when this Chromebook is added to Easy Unlock as an additional Easy Unlock device.">
-      Smart Lock is now enabled
+      Smart Lock is almost ready
     </message>
     <message name="IDS_EASY_UNLOCK_CHROMEBOOK_ADDED_NOTIFICATION_MESSAGE" desc="Message for the notification shown when this Chromebook is added to Easy Unlock as an additional Easy Unlock device.">
-      Your phone can unlock this <ph name="DEVICE_TYPE">$1<ex>Chromebook</ex></ph>, too.
+      It will be activated next time you unlock this <ph name="DEVICE_TYPE">$1<ex>Chromebook</ex></ph>. With Smart Lock, your phone will unlock this device&#8212;without a password. Bluetooth will be turned on to enable Smart Lock.
     </message>
+    <message name="IDS_EASY_UNLOCK_CHROMEBOOK_ADDED_NOTIFICATION_ABOUT_BUTTON" desc="Label of a button on the new chrome notification to bring user to smart lock settings.">
+      About Smart Lock
+    </message>
+    <!-- Strings for the phone changed (aka old Chromebook setup) notification -->
+    <message name="IDS_EASY_UNLOCK_PAIRING_CHANGED_NOTIFICATION_TITLE" desc="Title for notification shown when the paired phone is changed.">
+      Smart Lock phone changed
+    </message>
+    <message name="IDS_EASY_UNLOCK_PAIRING_CHANGED_NOTIFICATION_MESSAGE" desc="Message for notification shown when the paired phone is changed.">
+      Next time you unlock this <ph name="DEVICE_TYPE">$1<ex>Chromebook</ex></ph>, Smart Lock will update and you can just click your picture to enter.
+    </message>
+    <message name="IDS_EASY_UNLOCK_PAIRING_CHANGED_NOTIFICATION_UPDATE_BUTTON" desc="Label of a button on the notification shown when the paired phone is changed to update Smart lock now.">
+      Update now
+    </message>
+    <message name="IDS_EASY_UNLOCK_NOTIFICATION_LEARN_MORE_BUTTON" desc="Label of a button on the notification to show Smart lock settings.">
+      Learn more
+    </message>
+    <!-- Strings for the phone change applied notification -->
+    <message name="IDS_EASY_UNLOCK_PAIRING_CHANGE_APPLIED_NOTIFICATION_TITLE" desc="Title for notification shown when the pairing change is applied.">
+      Phone change updated
+    </message>
+    <message name="IDS_EASY_UNLOCK_PAIRING_CHANGE_APPLIED_NOTIFICATION_MESSAGE" desc="Message for notification shown when the pairing change is applied.">
+      Your <ph name="PHONE_NAME">$1<ex>Moto X</ex></ph> can now unlock this <ph name="DEVICE_TYPE">$2<ex>Chromebook</ex></ph> too.
+    </message>
+
     <!-- Strings for the Easy Unlock setup dialog -->
     <!-- Step 1: Intro -->
     <message name="IDS_EASY_UNLOCK_SETUP_INTRO_HEADER_TITLE" desc="The text to show as the header title of the Easy Unlock dialog during the first, introductory step.">
@@ -14850,6 +14898,13 @@ Do you accept?
     <message name="IDS_EASY_UNLOCK_SETUP_INTRO_HOW_IS_THIS_SECURE_LINK_TEXT" desc="The text to show as the 'How is it secure?' link text in the Easy Unlock dialog. This link is visible during the first, introductory step.">
       How is it secure?
     </message>
+    <!-- Step 1.5: "Secure this phone to continue" -->
+    <message name="IDS_EASY_UNLOCK_SETUP_SECURE_PHONE_HEADER_TITLE" desc="The text to show as the header title of the Easy Unlock dialog after a phone has been found but is not secured by a lock screen.">
+      Secure this phone to continue.
+    </message>
+    <message name="IDS_EASY_UNLOCK_SETUP_SECURE_PHONE_HEADER_TEXT" desc="The text to show as the header body text of the Easy Unlock dialog after a suitable phone has been found but is not secured by a lock screen. Note that the &lt;a&gt; element surrounds a link; these HTML elements should be preserved in the translation.">
+      To keep your <ph name="DEVICE_TYPE">$1<ex>Chromebook</ex></ph> safe, Chrome Smart Lock requires a screen lock on your phone. &lt;a&gt;Learn how to secure your phone&lt;/a&gt;
+    </message>
     <!-- Step 2: Phone Found -->
     <message name="IDS_EASY_UNLOCK_SETUP_FOUND_PHONE_HEADER_TITLE" desc="The text to show as the header title of the Easy Unlock dialog during the second step, after a suitable phone has been found.">
       Use this phone to unlock your <ph name="DEVICE_TYPE">$1<ex>Chromebook</ex></ph>?
@@ -14860,21 +14915,50 @@ Do you accept?
     <message name="IDS_EASY_UNLOCK_SETUP_FOUND_PHONE_USE_THIS_PHONE_BUTTON_LABEL" desc="The text to show as the 'Use this phone' button label in the Easy Unlock dialog. This button is visible during the second step, after a suitable phone is found.">
       Use this phone
     </message>
+    <message name="IDS_EASY_UNLOCK_SETUP_FOUND_PHONE_DEVICE_FORMATTED_BUTTON_LABEL" desc="The text to show as the 'Use [insert_phone_name]' button label in the Easy Unlock dialog. This button is visible during the second step, after a suitable phone is found.">
+      Use <ph name="PHONE_NAME">$1<ex>Nexus 6</ex></ph>
+    </message>
+    <message name="IDS_EASY_UNLOCK_SETUP_FOUND_PHONE_SWITCH_PHONE_LINK_LABEL" desc="The text to show for the link to switch phones in the Easy Unlock dialog. This button is visible during the second step, after serveral suitable phones are found.">
+      Show another phone
+    </message>
     <message name="IDS_EASY_UNLOCK_SETUP_PAIRING_PHONE_FAILED_BUTTON_LABEL" desc="Text to show as a label for the button in Easy Unlock setup dialog when pairing Chrome with the phone detected during setup fails. Pairing is the second step in the setup. Clicking the button restarts the whole setup flow.">
       Restart
     </message>
+    <!-- Step 2.5: "Recommended: Set up Android Smart Lock" -->
+    <message name="IDS_EASY_UNLOCK_SETUP_ANDROID_SMART_LOCK_HEADER_TITLE" desc="The text to show as the header title of the Easy Unlock dialog to encourage the user to enable Android Smart Lock if it is not currently enabled.">
+      Recommended: Set up Android Smart Lock
+    </message>
+    <message name="IDS_EASY_UNLOCK_SETUP_ANDROID_SMART_LOCK_HEADER_TEXT" desc="The text to show as the header body text of the Easy Unlock dialog to encourage the user to enable Android Smart Lock if it is not currently enabled. Note that the &lt;a&gt; element surrounds a link; these HTML elements should be preserved in the translation.">
+      Update your phone's screen lock so it turns off when you're nearby. You'll unlock the phone faster, and enjoy a better Chrome Smart Lock experience. &lt;a&gt;About Android Smart Lock&lt;/a&gt;
+    </message>
+    <message name="IDS_EASY_UNLOCK_SETUP_ANDROID_SMART_LOCK_DONE_BUTTON_LABEL" desc="The text to show as the button label in the Easy Unlock dialog step for encouraging the user to enable Android Smart Lock. Clicking this button advances the dialog to step 3.">
+      Done
+    </message>
+    <message name="IDS_EASY_UNLOCK_SETUP_ANDROID_SMART_LOCK_ABOUT_LINK_TEXT" desc="The text to show as the link text to access the Android Smart Lock help article.">
+      About Android Smart Lock
+    </message>
     <!-- Step 3: "You're all set" -->
-    <message name="IDS_EASY_UNLOCK_SETUP_COMPLETE_HEADER_TITLE" desc="The text to show as the header title of the Easy Unlock dialog during the final step, confirming success.">
+    <message name="IDS_EASY_UNLOCK_SETUP_COMPLETE_HEADER_TITLE" desc="The text to show as the header title of the Easy Unlock dialog during the penultimate step, confirming success.">
       You’re all set!
     </message>
-    <message name="IDS_EASY_UNLOCK_SETUP_COMPLETE_HEADER_TEXT" desc="The text to show as the header body text of the Easy Unlock dialog during the final step, confirming success.">
+    <message name="IDS_EASY_UNLOCK_SETUP_COMPLETE_HEADER_TEXT" desc="The text to show as the header body text of the Easy Unlock dialog during the penultimate step, confirming success.">
       If you have other Chrome devices, they’ll be synced automatically, so your Android phone can unlock them, too.
     </message>
-    <message name="IDS_EASY_UNLOCK_SETUP_COMPLETE_TRY_IT_OUT_BUTTON_LABEL" desc="The text to show as the 'Try it out' button label in the Easy Unlock dialog. This button is visible during the final step, once the Easy Unlock setup succeeds.">
+    <message name="IDS_EASY_UNLOCK_SETUP_COMPLETE_TRY_IT_OUT_BUTTON_LABEL" desc="The text to show as the 'Try it out' button label in the Easy Unlock dialog. This button is visible during the penultimate step, once the Easy Unlock setup succeeds.">
       Try it out
     </message>
-    <message name="IDS_EASY_UNLOCK_SETUP_COMPLETE_SETTINGS_LINK_TEXT" desc="The text to show as the link text to access Easy Unlock settings. This button is visible during the final step, once the Easy Unlock setup succeeds.">
+    <message name="IDS_EASY_UNLOCK_SETUP_COMPLETE_SETTINGS_LINK_TEXT" desc="The text to show as the link text to access Easy Unlock settings. This button is visible during the penultimate step, once the Easy Unlock setup succeeds.">
       Smart Lock settings
+    </message>
+    <!-- Step 4: Post Lock Screen -->
+    <message name="IDS_EASY_UNLOCK_SETUP_POST_LOCK_HEADER_TITLE" desc="The text to show as the header title of the Easy Unlock dialog during the post lockscreen step, giving closure to the setup flow.">
+      Chrome Smart Lock is now on.
+    </message>
+    <message name="IDS_EASY_UNLOCK_SETUP_POST_LOCK_HEADER_TEXT" desc="The text to show as the header body of the Easy Unlock dialog during the post lockscreen step, giving closure to the setup flow. Note that the &lt;a&gt; element surrounds a link; these HTML elements should be preserved in the translation.">
+      When your phone is unlocked and nearby, you can just click your picture to enter. The lock icon shows Smart Lock status; mouse over it for more details. To change or turn off this feature, visit your &lt;a&gt;<ph name="DEVICE_TYPE">$1<ex>Chromebook</ex></ph>'s settings.&lt;/a&gt;
+    </message>
+    <message name="IDS_EASY_UNLOCK_SETUP_POST_LOCK_DISMISS_BUTTON_LABEL" desc="The text to show as the button label in the Easy Unlock dialog during the post lockscreen step. Clicking this button dismisses the dialog.">
+      Got it, thanks!
     </message>
     <!-- Error strings for the Easy Unlock setup dialog -->
     <message name="IDS_EASY_UNLOCK_LEARN_MORE_LINK_TITLE" desc="Text to use for links that point to more information about Easy Unlock in the easy unlock setup dialog.">
@@ -14911,14 +14995,17 @@ Do you accept?
     <message name="IDS_EASY_UNLOCK_SCREENLOCK_TOOLTIP_PHONE_NOT_AUTHENTICATED" desc="Tooltip for an icon on a user's lock screen pod shown by Easy Unlock when no phones eligible to unlock the Chromebook can be authenticated.">
       Unable to unlock. Enter your password.
     </message>
-    <message name="IDS_EASY_UNLOCK_SCREENLOCK_TOOLTIP_PHONE_NOT_NEARBY" desc="Tooltip for an icon on a user's lock screen pod shown by Easy Unlock when a phone eligible to unlock the Chromebook is detected, but it's not in the Chromebook's proximity.">
-      Can’t find your Android phone. Make sure it’s nearby.
-    </message>
     <message name="IDS_EASY_UNLOCK_SCREENLOCK_TOOLTIP_PHONE_LOCKED" desc="Tooltip for an icon on a user's lock screen pod shown by Easy Unlock when a phone eligible to unlock the Chromebook is detected, but it's locked and thus not allowed to unlock the Chromebook.">
       Your Android phone is locked. Unlock it to enter.
     </message>
     <message name="IDS_EASY_UNLOCK_SCREENLOCK_TOOLTIP_PHONE_UNLOCKABLE" desc="Tooltip for an icon on a user's lock screen pod shown by Easy Unlock when a phone eligible to unlock the Chromebook is detected, but it does not have lock screen enabled, in which case it is not allowed to unlock Chromebooks.">
       Your Android phone must have a lock screen enabled before it can unlock this <ph name="DEVICE_TYPE">$1<ex>Chromebook</ex></ph>. Otherwise, you will need to type in your password.
+    </message>
+    <message name="IDS_EASY_UNLOCK_SCREENLOCK_TOOLTIP_RSSI_TOO_LOW" desc="Tooltip for an icon on a user's lock screen pod shown by Easy Unlock when a phone eligible to unlock the Chromebook is detected, but it's not in the Chromebook's proximity (roughly >30 meters away).">
+      Bring your phone closer to your Chromebook to enter.
+    </message>
+    <message name="IDS_EASY_UNLOCK_SCREENLOCK_TOOLTIP_TX_POWER_TOO_HIGH" desc="Tooltip for an icon on a user's lock screen pod shown by Easy Unlock when a phone eligible to unlock the Chromebook is detected, but it's not right next to the Chromebook. This is only shown to users who turn on an advanced setting.">
+      Your Android phone is too far away. Bring it right next to your <ph name="DEVICE_TYPE">$1<ex>Chromebook</ex></ph> to enter.
     </message>
     <message name="IDS_EASY_UNLOCK_SCREENLOCK_TOOLTIP_INITIAL_AUTHENTICATED" desc="Tooltip text shown on lock screen when a phone eligible to unlock the Chromebook via Easy Unlock is detected and authenticated for the first time.">
       When your phone is unlocked and nearby, you can just click to enter. Otherwise, you'll see a locked icon and need to type your password.
@@ -14933,7 +15020,10 @@ Do you accept?
       Your <ph name="DEVICE_TYPE">$1<ex>Chromebook</ex></ph> has been manually locked. You'll need to enter your password to unlock it.
     </message>
     <message name="IDS_EASY_UNLOCK_SCREENLOCK_TOOLTIP_HARDLOCK_PAIRING_CHANGED" desc="Tooltip text shown on a user's lock screen pod when Easy Unlock feature is enabled for the user, but the pairing data is changed. A password has to be entered to unlock the device.">
-      One-time activation: Type your password to activate Chrome Smart Lock. Next time, you can just click your picture.
+      Your phone for Smart Lock changed. Type your password to update Smart Lock on this device. Next time, you can just click your picture to enter.
+    </message>
+    <message name="IDS_EASY_UNLOCK_SCREENLOCK_TOOLTIP_HARDLOCK_PAIRING_ADDED" desc="Tooltip text shown on a user's lock screen pod when Easy Unlock pairing data is synced on a new Chromebook.">
+      One-time activation: Type your password to activate Smart Lock. With Smart Lock, your phone will unlock this Chromebook&#8212;without a password. To change or disable this feature, visit your Chromebook's settings.
     </message>
     <message name="IDS_EASY_UNLOCK_SCREENLOCK_TOOLTIP_LOGIN_FAILURE" desc="Tooltip text shown on a user's lock screen when Smart Lock signin attempt fails.">
       Smart Lock couldn't verify your account. Type your password to enter.

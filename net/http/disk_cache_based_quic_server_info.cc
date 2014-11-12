@@ -17,44 +17,6 @@
 
 namespace net {
 
-// Histogram that tracks number of times data read/parse/write API calls of
-// QuicServerInfo to and from disk cache is called.
-enum QuicServerInfoAPICall {
-  QUIC_SERVER_INFO_START = 0,
-  QUIC_SERVER_INFO_WAIT_FOR_DATA_READY = 1,
-  QUIC_SERVER_INFO_PARSE = 2,
-  QUIC_SERVER_INFO_WAIT_FOR_DATA_READY_CANCEL = 3,
-  QUIC_SERVER_INFO_READY_TO_PERSIST = 4,
-  QUIC_SERVER_INFO_PERSIST = 5,
-  QUIC_SERVER_INFO_NUM_OF_API_CALLS = 6,
-};
-
-// Histogram that tracks failure reasons to read/load/write of QuicServerInfo to
-// and from disk cache.
-enum FailureReason {
-  WAIT_FOR_DATA_READY_INVALID_ARGUMENT_FAILURE = 0,
-  GET_BACKEND_FAILURE = 1,
-  OPEN_FAILURE = 2,
-  CREATE_OR_OPEN_FAILURE = 3,
-  PARSE_NO_DATA_FAILURE = 4,
-  PARSE_FAILURE = 5,
-  READ_FAILURE = 6,
-  READY_TO_PERSIST_FAILURE = 7,
-  PERSIST_NO_BACKEND_FAILURE = 8,
-  WRITE_FAILURE = 9,
-  NUM_OF_FAILURES = 10,
-};
-
-void RecordQuicServerInfoStatus(QuicServerInfoAPICall call) {
-  UMA_HISTOGRAM_ENUMERATION("Net.QuicDiskCache.APICall", call,
-                            QUIC_SERVER_INFO_NUM_OF_API_CALLS);
-}
-
-void RecordQuicServerInfoFailure(FailureReason failure) {
-  UMA_HISTOGRAM_ENUMERATION("Net.QuicDiskCache.FailureReason", failure,
-                            NUM_OF_FAILURES);
-}
-
 // Some APIs inside disk_cache take a handle that the caller must keep alive
 // until the API has finished its asynchronous execution.
 //
@@ -121,6 +83,7 @@ int DiskCacheBasedQuicServerInfo::WaitForDataReady(
   if (!callback.is_null()) {
     // Prevent a new callback for WaitForDataReady overwriting an existing
     // pending callback (|user_callback_|).
+    // TODO(rtenneti): Rename user_callback_ as wait_for_ready_callback_.
     if (!user_callback_.is_null()) {
       RecordQuicServerInfoFailure(WAIT_FOR_DATA_READY_INVALID_ARGUMENT_FAILURE);
       return ERR_INVALID_ARGUMENT;
@@ -144,10 +107,6 @@ bool DiskCacheBasedQuicServerInfo::IsDataReady() {
 }
 
 bool DiskCacheBasedQuicServerInfo::IsReadyToPersist() {
-  // TODO(rtenneti): Handle updates while a write is pending. Change
-  // Persist() to save the data to be written into a temporary buffer
-  // and then persist that data when we are ready to persist.
-  //
   // The data can be persisted if it has been loaded from the disk cache
   // and there are no pending writes.
   RecordQuicServerInfoStatus(QUIC_SERVER_INFO_READY_TO_PERSIST);
@@ -159,12 +118,29 @@ bool DiskCacheBasedQuicServerInfo::IsReadyToPersist() {
 
 void DiskCacheBasedQuicServerInfo::Persist() {
   DCHECK(CalledOnValidThread());
+  if (!IsReadyToPersist()) {
+    // Handle updates while a write is pending or if we haven't loaded from disk
+    // cache. Save the data to be written into a temporary buffer and then
+    // persist that data when we are ready to persist.
+    pending_write_data_ = Serialize();
+    return;
+  }
+  PersistInternal();
+}
+
+void DiskCacheBasedQuicServerInfo::PersistInternal() {
+  DCHECK(CalledOnValidThread());
   DCHECK_NE(GET_BACKEND, state_);
 
   DCHECK(new_data_.empty());
   CHECK(ready_);
   DCHECK(user_callback_.is_null());
-  new_data_ = Serialize();
+  if (pending_write_data_.empty()) {
+    new_data_ = Serialize();
+  } else {
+    new_data_ = pending_write_data_;
+    pending_write_data_.clear();
+  }
 
   RecordQuicServerInfoStatus(QUIC_SERVER_INFO_PERSIST);
   if (!backend_) {
@@ -174,6 +150,19 @@ void DiskCacheBasedQuicServerInfo::Persist() {
 
   state_ = CREATE_OR_OPEN;
   DoLoop(OK);
+}
+
+void DiskCacheBasedQuicServerInfo::OnExternalCacheHit() {
+  DCHECK(CalledOnValidThread());
+  DCHECK_NE(GET_BACKEND, state_);
+
+  RecordQuicServerInfoStatus(QUIC_SERVER_INFO_EXTERNAL_CACHE_HIT);
+  if (!backend_) {
+    RecordQuicServerInfoFailure(PERSIST_NO_BACKEND_FAILURE);
+    return;
+  }
+
+  backend_->OnExternalCacheHit(key());
 }
 
 DiskCacheBasedQuicServerInfo::~DiskCacheBasedQuicServerInfo() {
@@ -190,10 +179,16 @@ void DiskCacheBasedQuicServerInfo::OnIOComplete(CacheOperationDataShim* unused,
                                                 int rv) {
   DCHECK_NE(NONE, state_);
   rv = DoLoop(rv);
-  if (rv != ERR_IO_PENDING && !user_callback_.is_null()) {
+  if (rv == ERR_IO_PENDING)
+    return;
+  if (!user_callback_.is_null()) {
     CompletionCallback callback = user_callback_;
     user_callback_.Reset();
     callback.Run(rv);
+  }
+  if (ready_ && !pending_write_data_.empty()) {
+    DCHECK_EQ(NONE, state_);
+    PersistInternal();
   }
 }
 
@@ -379,6 +374,34 @@ int DiskCacheBasedQuicServerInfo::DoSetDone() {
   new_data_.clear();
   state_ = NONE;
   return OK;
+}
+
+void DiskCacheBasedQuicServerInfo::RecordQuicServerInfoStatus(
+    QuicServerInfoAPICall call) {
+  if (!backend_) {
+    UMA_HISTOGRAM_ENUMERATION("Net.QuicDiskCache.APICall.NoBackend", call,
+                              QUIC_SERVER_INFO_NUM_OF_API_CALLS);
+  } else if (backend_->GetCacheType() == net::MEMORY_CACHE) {
+    UMA_HISTOGRAM_ENUMERATION("Net.QuicDiskCache.APICall.MemoryCache", call,
+                              QUIC_SERVER_INFO_NUM_OF_API_CALLS);
+  } else {
+    UMA_HISTOGRAM_ENUMERATION("Net.QuicDiskCache.APICall.DiskCache", call,
+                              QUIC_SERVER_INFO_NUM_OF_API_CALLS);
+  }
+}
+
+void DiskCacheBasedQuicServerInfo::RecordQuicServerInfoFailure(
+    FailureReason failure) {
+  if (!backend_) {
+    UMA_HISTOGRAM_ENUMERATION("Net.QuicDiskCache.FailureReason.NoBackend",
+                              failure, NUM_OF_FAILURES);
+  } else if (backend_->GetCacheType() == net::MEMORY_CACHE) {
+    UMA_HISTOGRAM_ENUMERATION("Net.QuicDiskCache.FailureReason.MemoryCache",
+                              failure, NUM_OF_FAILURES);
+  } else {
+    UMA_HISTOGRAM_ENUMERATION("Net.QuicDiskCache.FailureReason.DiskCache",
+                              failure, NUM_OF_FAILURES);
+  }
 }
 
 }  // namespace net

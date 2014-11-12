@@ -10,7 +10,6 @@
 #include "base/metrics/field_trial.h"
 #include "base/metrics/histogram.h"
 #include "base/metrics/user_metrics_action.h"
-#include "base/path_service.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
@@ -122,7 +121,8 @@
 #include "extensions/renderer/dispatcher.h"
 #include "extensions/renderer/extension_helper.h"
 #include "extensions/renderer/extensions_render_frame_observer.h"
-#include "extensions/renderer/guest_view/guest_view_container.h"
+#include "extensions/renderer/guest_view/extensions_guest_view_container.h"
+#include "extensions/renderer/guest_view/mime_handler_view_container.h"
 #include "extensions/renderer/script_context.h"
 #endif
 
@@ -391,7 +391,7 @@ void ChromeContentRendererClient::RenderThreadStarted() {
   WebSecurityPolicy::registerURLSchemeAsDisplayIsolated(dom_distiller_scheme);
 
 #if defined(OS_CHROMEOS)
-  WebString external_file_scheme(ASCIIToUTF16(chrome::kExternalFileScheme));
+  WebString external_file_scheme(ASCIIToUTF16(content::kExternalFileScheme));
   WebSecurityPolicy::registerURLSchemeAsLocal(external_file_scheme);
 #endif
 
@@ -1596,9 +1596,15 @@ bool ChromeContentRendererClient::IsPluginAllowedToUseVideoDecodeAPI(
 content::BrowserPluginDelegate*
 ChromeContentRendererClient::CreateBrowserPluginDelegate(
     content::RenderFrame* render_frame,
-    const std::string& mime_type) {
+    const std::string& mime_type,
+    const GURL& original_url) {
 #if defined(ENABLE_EXTENSIONS)
-  return new extensions::GuestViewContainer(render_frame, mime_type);
+  if (mime_type == content::kBrowserPluginMimeType) {
+    return new extensions::ExtensionsGuestViewContainer(render_frame);
+  } else {
+    return new extensions::MimeHandlerViewContainer(
+        render_frame, mime_type, original_url);
+  }
 #else
   return NULL;
 #endif

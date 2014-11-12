@@ -92,6 +92,13 @@ function FileManager() {
    */
   this.selectionHandler_ = null;
 
+  /**
+   * Dialog action controller.
+   * @type {DialogActionController}
+   * @private
+   */
+  this.dialogActionController_ = null;
+
   // --------------------------------------------------------------------------
   // Parameters determining the type of file manager.
 
@@ -110,7 +117,9 @@ function FileManager() {
 
   /**
    * Startup parameters for this application.
-   * @type {?{includeAllFiles:boolean, action:string}}
+   * @type {?{includeAllFiles:boolean,
+   *          action:string,
+   *          shouldReturnLocalPath:boolean}}
    * @private
    */
   this.params_ = null;
@@ -166,6 +175,13 @@ function FileManager() {
    * @private
    */
   this.searchController_ = null;
+
+  /**
+   * Controller for directory scan.
+   * @type {ScanController}
+   * @private
+   */
+  this.scanController_ = null;
 
   /**
    * Controller for spinner.
@@ -324,44 +340,6 @@ function FileManager() {
    * @private
    */
   this.onEntriesChangedBound_ = null;
-
-  /**
-   * Bound function for onCancel_.
-   * @type {?function(this:FileManager, Event)}
-   * @private
-   */
-  this.onCancelBound_ = null;
-
-  // --------------------------------------------------------------------------
-  // Scan state.
-
-  /**
-   * Whether a scan is in progress.
-   * @type {boolean}
-   * @private
-   */
-  this.scanInProgress_ = false;
-
-  /**
-   * Whether a scan is updated at least once. If true, spinner should disappear.
-   * @type {boolean}
-   * @private
-   */
-  this.scanUpdatedAtLeastOnceOrCompleted_ = false;
-
-  /**
-   * Timer ID to delay UI refresh after a scan is completed.
-   * @type {number}
-   * @private
-   */
-  this.scanCompletedTimer_ = 0;
-
-  /**
-   * Timer ID to delay UI refresh after a scan is updated.
-   * @type {number}
-   * @private
-   */
-  this.scanUpdatedTimer_ = 0;
 
   // --------------------------------------------------------------------------
   // Miscellaneous FileManager's states.
@@ -586,7 +564,6 @@ var BOTTOM_MARGIN_FOR_PREVIEW_PANEL_PX = 52;
 
 // Anonymous "namespace".
 (function() {
-
   // Private variables and helper functions.
 
   /**
@@ -714,13 +691,18 @@ var BOTTOM_MARGIN_FOR_PREVIEW_PANEL_PX = 52;
       listBeingUpdated = null;
     });
 
-    dm.addEventListener('scan-started', this.onScanStarted_.bind(this));
-    dm.addEventListener('scan-completed', this.onScanCompleted_.bind(this));
-    dm.addEventListener('scan-failed', this.onScanCancelled_.bind(this));
-    dm.addEventListener('scan-cancelled', this.onScanCancelled_.bind(this));
-    dm.addEventListener('scan-updated', this.onScanUpdated_.bind(this));
-    dm.addEventListener('rescan-completed',
-                        this.onRescanCompleted_.bind(this));
+    this.initContextMenus_();
+    this.initCommands_();
+    assert(this.directoryModel_);
+    assert(this.spinnerController_);
+    assert(this.commandHandler);
+    assert(this.selectionHandler_);
+    this.scanController_ = new ScanController(
+        this.directoryModel_,
+        this.ui_.listContainer,
+        this.spinnerController_,
+        this.commandHandler,
+        this.selectionHandler_);
 
     this.directoryTree_.addEventListener('change', function() {
       this.ensureDirectoryTreeItemNotBehindPreviewPanel_();
@@ -750,8 +732,6 @@ var BOTTOM_MARGIN_FOR_PREVIEW_PANEL_PX = 52;
     }.bind(this));
 
     this.initDataTransferOperations_();
-    this.initContextMenus_();
-    this.initCommands_();
 
     this.updateFileTypeFilter_();
     this.selectionHandler_.onFileSelectionChanged();
@@ -1244,12 +1224,6 @@ var BOTTOM_MARGIN_FOR_PREVIEW_PANEL_PX = 52;
     this.ui_.dialogFooter.filenameInput.addEventListener(
         'focus', this.onFilenameInputFocus_.bind(this));
 
-    this.ui_.dialogFooter.okButton.addEventListener(
-        'click', this.onOk_.bind(this));
-    this.onCancelBound_ = this.onCancel_.bind(this);
-    this.ui_.dialogFooter.cancelButton.addEventListener(
-        'click', this.onCancelBound_);
-
     this.decorateSplitter(
         this.dialogDom_.querySelector('#navigation-list-splitter'));
 
@@ -1324,6 +1298,7 @@ var BOTTOM_MARGIN_FOR_PREVIEW_PANEL_PX = 52;
         this.dialogType == DialogType.SELECT_UPLOAD_FOLDER ||
         this.dialogType == DialogType.SELECT_SAVEAS_FILE;
 
+    assert(this.metadataCache_);
     this.fileFilter_ = new FileFilter(
         this.metadataCache_,
         false  /* Don't show dot files and *.crdownload by default. */);
@@ -1404,35 +1379,33 @@ var BOTTOM_MARGIN_FOR_PREVIEW_PANEL_PX = 52;
         this.volumeManager_,
         {
           // TODO (hirono): Make the real task controller and pass it here.
-          doAction: function(entry) {
-            if (this.dialogType == DialogType.FULL_PAGE) {
-              this.metadataCache_.get([entry], 'external', function(props) {
-                var tasks = new FileTasks(this);
-                tasks.init([entry], [props[0].contentMimeType || '']);
-                tasks.executeDefault();
-              }.bind(this));
-            } else {
-              var selection = this.getSelection();
-              if (selection.entries.length === 1 &&
-                  util.isSameEntry(selection.entries[0], entry)) {
-                this.onOk_();
-              }
-            }
-          }.bind(this)
+          doAction: this.doEntryAction_.bind(this)
         });
 
     // Create naming controller.
     assert(this.ui_.alertDialog);
+    assert(this.ui_.confirmDialog);
     this.namingController_ = new NamingController(
         this.ui_.listContainer,
         this.ui_.alertDialog,
+        this.ui_.confirmDialog,
         this.directoryModel_,
-        this.fileFilter_);
+        this.fileFilter_,
+        this.selectionHandler_);
 
     // Create spinner controller.
     this.spinnerController_ = new SpinnerController(
         this.ui_.listContainer.spinner, this.directoryModel_);
     this.spinnerController_.show();
+
+    // Create dialog action controller.
+    this.dialogActionController_ = new DialogActionController(
+        this.dialogType,
+        this.ui_.dialogFooter,
+        this.directoryModel_,
+        this.metadataCache_,
+        this.namingController_,
+        this.params_.shouldReturnLocalPath);
 
     // Update metadata to change 'Today' and 'Yesterday' dates.
     var today = new Date();
@@ -1957,10 +1930,9 @@ var BOTTOM_MARGIN_FOR_PREVIEW_PANEL_PX = 52;
    */
   FileManager.prototype.isOnDrive = function() {
     var rootType = this.directoryModel_.getCurrentRootType();
-    return rootType === VolumeManagerCommon.RootType.DRIVE ||
-           rootType === VolumeManagerCommon.RootType.DRIVE_SHARED_WITH_ME ||
-           rootType === VolumeManagerCommon.RootType.DRIVE_RECENT ||
-           rootType === VolumeManagerCommon.RootType.DRIVE_OFFLINE;
+    return rootType != null &&
+        VolumeManagerCommon.getVolumeTypeFromRootType(rootType) ==
+            VolumeManagerCommon.VolumeType.DRIVE;
   };
 
   /**
@@ -1985,7 +1957,7 @@ var BOTTOM_MARGIN_FOR_PREVIEW_PANEL_PX = 52;
       return;
 
     if (this.dialogType != DialogType.FULL_PAGE)
-      this.onCancel_();
+      this.ui_.dialogFooter.cancelButton.click();
   };
 
   /**
@@ -2267,7 +2239,7 @@ var BOTTOM_MARGIN_FOR_PREVIEW_PANEL_PX = 52;
       return true;
     }
     if (!this.ui_.dialogFooter.okButton.disabled) {
-      this.onOk_();
+      this.ui_.dialogFooter.okButton.click();
       return true;
     }
     return false;
@@ -2586,132 +2558,6 @@ var BOTTOM_MARGIN_FOR_PREVIEW_PANEL_PX = 52;
     }, 0);
   };
 
-  /**
-   * @private
-   */
-  FileManager.prototype.onScanStarted_ = function() {
-    if (this.scanInProgress_)
-      this.ui_.listContainer.endBatchUpdates();
-
-    if (this.commandHandler)
-      this.commandHandler.updateAvailability();
-
-    this.ui_.listContainer.startBatchUpdates();
-    this.scanInProgress_ = true;
-
-    this.scanUpdatedAtLeastOnceOrCompleted_ = false;
-    if (this.scanCompletedTimer_) {
-      clearTimeout(this.scanCompletedTimer_);
-      this.scanCompletedTimer_ = 0;
-    }
-
-    if (this.scanUpdatedTimer_) {
-      clearTimeout(this.scanUpdatedTimer_);
-      this.scanUpdatedTimer_ = 0;
-    }
-
-    this.spinnerController_.showLater();
-  };
-
-  /**
-   * @private
-   */
-  FileManager.prototype.onScanCompleted_ = function() {
-    if (!this.scanInProgress_) {
-      console.error('Scan-completed event recieved. But scan is not started.');
-      return;
-    }
-
-    if (this.commandHandler)
-      this.commandHandler.updateAvailability();
-    this.spinnerController_.hide();
-
-    if (this.scanUpdatedTimer_) {
-      clearTimeout(this.scanUpdatedTimer_);
-      this.scanUpdatedTimer_ = 0;
-    }
-
-    // To avoid flickering postpone updating the ui by a small amount of time.
-    // There is a high chance, that metadata will be received within 50 ms.
-    this.scanCompletedTimer_ = setTimeout(function() {
-      // Check if batch updates are already finished by onScanUpdated_().
-      if (!this.scanUpdatedAtLeastOnceOrCompleted_) {
-        this.scanUpdatedAtLeastOnceOrCompleted_ = true;
-      }
-
-      this.scanInProgress_ = false;
-      this.ui_.listContainer.endBatchUpdates();
-      this.scanCompletedTimer_ = 0;
-    }.bind(this), 50);
-  };
-
-  /**
-   * @private
-   */
-  FileManager.prototype.onScanUpdated_ = function() {
-    if (!this.scanInProgress_) {
-      console.error('Scan-updated event recieved. But scan is not started.');
-      return;
-    }
-
-    if (this.scanUpdatedTimer_ || this.scanCompletedTimer_)
-      return;
-
-    // Show contents incrementally by finishing batch updated, but only after
-    // 200ms elapsed, to avoid flickering when it is not necessary.
-    this.scanUpdatedTimer_ = setTimeout(function() {
-      // We need to hide the spinner only once.
-      if (!this.scanUpdatedAtLeastOnceOrCompleted_) {
-        this.scanUpdatedAtLeastOnceOrCompleted_ = true;
-        this.spinnerController_.hide();
-      }
-
-      // Update the UI.
-      if (this.scanInProgress_) {
-        this.ui_.listContainer.endBatchUpdates();
-        this.ui_.listContainer.startBatchUpdates();
-      }
-      this.scanUpdatedTimer_ = 0;
-    }.bind(this), 200);
-  };
-
-  /**
-   * @private
-   */
-  FileManager.prototype.onScanCancelled_ = function() {
-    if (!this.scanInProgress_) {
-      console.error('Scan-cancelled event recieved. But scan is not started.');
-      return;
-    }
-
-    if (this.commandHandler)
-      this.commandHandler.updateAvailability();
-    this.spinnerController_.hide();
-    if (this.scanCompletedTimer_) {
-      clearTimeout(this.scanCompletedTimer_);
-      this.scanCompletedTimer_ = 0;
-    }
-    if (this.scanUpdatedTimer_) {
-      clearTimeout(this.scanUpdatedTimer_);
-      this.scanUpdatedTimer_ = 0;
-    }
-    // Finish unfinished batch updates.
-    if (!this.scanUpdatedAtLeastOnceOrCompleted_) {
-      this.scanUpdatedAtLeastOnceOrCompleted_ = true;
-    }
-
-    this.scanInProgress_ = false;
-    this.ui_.listContainer.endBatchUpdates();
-  };
-
-  /**
-   * Handle the 'rescan-completed' from the DirectoryModel.
-   * @private
-   */
-  FileManager.prototype.onRescanCompleted_ = function() {
-    this.selectionHandler_.onFileSelectionChanged();
-  };
-
   FileManager.prototype.createNewFolder = function() {
     var defaultName = str('DEFAULT_NEW_FOLDER_NAME');
 
@@ -2843,8 +2689,8 @@ var BOTTOM_MARGIN_FOR_PREVIEW_PANEL_PX = 52;
    * @private
    */
   FileManager.prototype.onListKeyDown_ = function(event) {
-    switch (util.getKeyModifiers(event) + event.keyCode) {
-      case '8':  // Backspace => Up one directory.
+    switch (util.getKeyModifiers(event) + event.keyIdentifier) {
+      case 'U+0008':  // Backspace => Up one directory.
         event.preventDefault();
         // TODO(mtomasz): Use Entry.getParent() instead.
         if (!this.getCurrentDirectoryEntry())
@@ -2860,14 +2706,20 @@ var BOTTOM_MARGIN_FOR_PREVIEW_PANEL_PX = 52;
         }
         break;
 
-      case '13':  // Enter => Change directory or perform default action.
+      case 'Enter':  // Enter => Change directory or perform default action.
         // TODO(dgozman): move directory action to dispatchSelectionAction.
         var selection = this.getSelection();
-        if (selection.totalCount == 1 &&
+        if (selection.totalCount === 1 &&
             selection.entries[0].isDirectory &&
             !DialogType.isFolderDialog(this.dialogType)) {
-          event.preventDefault();
-          this.onDirectoryAction_(selection.entries[0]);
+          var item = this.ui.listContainer.currentList.getListItemByIndex(
+              selection.indexes[0]);
+          // If the item is in renaming process, we don't allow to change
+          // directory.
+          if (!item.hasAttribute('renaming')) {
+            event.preventDefault();
+            this.onDirectoryAction_(selection.entries[0]);
+          }
         } else if (this.dispatchSelectionAction_()) {
           event.preventDefault();
         }
@@ -2896,272 +2748,27 @@ var BOTTOM_MARGIN_FOR_PREVIEW_PANEL_PX = 52;
   };
 
   /**
-   * Handle a click of the cancel button.  Closes the window.
-   * TODO(jamescook): Make unload handler work automatically, crbug.com/104811
+   * Verifies the user entered name for file or folder to be created or
+   * renamed to. See also util.validateFileName.
    *
+   * @param {DirectoryEntry} parentEntry The URL of the parent directory entry.
+   * @param {string} name New file or folder name.
+   * @param {function(boolean)} onDone Function to invoke when user closes the
+   *    warning box or immediatelly if file name is correct. If the name was
+   *    valid it is passed true, and false otherwise.
    * @private
    */
-  FileManager.prototype.onCancel_ = function() {
-    chrome.fileManagerPrivate.cancelDialog();
-    window.close();
-  };
-
-  /**
-   * Tries to close this modal dialog with some files selected.
-   * Performs preprocessing if needed (e.g. for Drive).
-   * @param {Object} selection Contains urls, filterIndex and multiple fields.
-   * @private
-   */
-  FileManager.prototype.selectFilesAndClose_ = function(selection) {
-    var callSelectFilesApiAndClose = function(callback) {
-      var onFileSelected = function() {
-        callback();
-        if (!chrome.runtime.lastError) {
-          // Call next method on a timeout, as it's unsafe to
-          // close a window from a callback.
-          setTimeout(window.close.bind(window), 0);
-        }
-      };
-      if (selection.multiple) {
-        chrome.fileManagerPrivate.selectFiles(
-            selection.urls,
-            this.params_.shouldReturnLocalPath,
-            onFileSelected);
-      } else {
-        chrome.fileManagerPrivate.selectFile(
-            selection.urls[0],
-            selection.filterIndex,
-            this.dialogType != DialogType.SELECT_SAVEAS_FILE /* for opening */,
-            this.params_.shouldReturnLocalPath,
-            onFileSelected);
-      }
-    }.bind(this);
-
-    if (!this.isOnDrive() || this.dialogType == DialogType.SELECT_SAVEAS_FILE) {
-      callSelectFilesApiAndClose(function() {});
-      return;
-    }
-
-    var shade = this.document_.createElement('div');
-    shade.className = 'shade';
-    var footer = this.dialogDom_.querySelector('.button-panel');
-    var progress = footer.querySelector('.progress-track');
-    progress.style.width = '0%';
-    var cancelled = false;
-
-    var progressMap = {};
-    var filesStarted = 0;
-    var filesTotal = selection.urls.length;
-    for (var index = 0; index < selection.urls.length; index++) {
-      progressMap[selection.urls[index]] = -1;
-    }
-    var lastPercent = 0;
-    var bytesTotal = 0;
-    var bytesDone = 0;
-
-    var onFileTransfersUpdated = function(status) {
-      if (!(status.fileUrl in progressMap))
-        return;
-      if (status.total == -1)
-        return;
-
-      var old = progressMap[status.fileUrl];
-      if (old == -1) {
-        // -1 means we don't know file size yet.
-        bytesTotal += status.total;
-        filesStarted++;
-        old = 0;
-      }
-      bytesDone += status.processed - old;
-      progressMap[status.fileUrl] = status.processed;
-
-      var percent = bytesTotal == 0 ? 0 : bytesDone / bytesTotal;
-      // For files we don't have information about, assume the progress is zero.
-      percent = percent * filesStarted / filesTotal * 100;
-      // Do not decrease the progress. This may happen, if first downloaded
-      // file is small, and the second one is large.
-      lastPercent = Math.max(lastPercent, percent);
-      progress.style.width = lastPercent + '%';
-    }.bind(this);
-
-    var setup = function() {
-      this.document_.querySelector('.dialog-container').appendChild(shade);
-      setTimeout(function() { shade.setAttribute('fadein', 'fadein'); }, 100);
-      footer.setAttribute('progress', 'progress');
-      this.ui_.dialogFooter.cancelButton.removeEventListener(
-          'click', this.onCancelBound_);
-      this.ui_.dialogFooter.cancelButton.addEventListener('click', onCancel);
-      chrome.fileManagerPrivate.onFileTransfersUpdated.addListener(
-          onFileTransfersUpdated);
-    }.bind(this);
-
-    var cleanup = function() {
-      shade.parentNode.removeChild(shade);
-      footer.removeAttribute('progress');
-      this.ui_.dialogFooter.cancelButton.removeEventListener('click', onCancel);
-      this.ui_.dialogFooter.cancelButton.addEventListener(
-          'click', this.onCancelBound_);
-      chrome.fileManagerPrivate.onFileTransfersUpdated.removeListener(
-          onFileTransfersUpdated);
-    }.bind(this);
-
-    var onCancel = function() {
-      // According to API cancel may fail, but there is no proper UI to reflect
-      // this. So, we just silently assume that everything is cancelled.
-      chrome.fileManagerPrivate.cancelFileTransfers(
-          selection.urls, function(response) {});
-    }.bind(this);
-
-    var onProperties = function(properties) {
-      for (var i = 0; i < properties.length; i++) {
-        if (!properties[i] || properties[i].present) {
-          // For files already in GCache, we don't get any transfer updates.
-          filesTotal--;
-        }
-      }
-      callSelectFilesApiAndClose(cleanup);
-    }.bind(this);
-
-    setup();
-
-    // TODO(mtomasz): Use Entry instead of URLs, if possible.
-    util.URLsToEntries(selection.urls, function(entries) {
-      this.metadataCache_.get(entries, 'external', onProperties);
-    }.bind(this));
-  };
-
-  /**
-   * Handle a click of the ok button.
-   *
-   * The ok button has different UI labels depending on the type of dialog, but
-   * in code it's always referred to as 'ok'.
-   *
-   * @private
-   */
-  FileManager.prototype.onOk_ = function() {
-    if (this.dialogType == DialogType.SELECT_SAVEAS_FILE) {
-      // Save-as doesn't require a valid selection from the list, since
-      // we're going to take the filename from the text input.
-      var filename = this.ui_.dialogFooter.filenameInput.value;
-      if (!filename)
-        throw new Error('Missing filename!');
-
-      var directory = this.getCurrentDirectoryEntry();
-      this.namingController_.validateFileName(
-          directory, filename, function(isValid) {
-        if (!isValid)
-          return;
-
-        if (util.isFakeEntry(directory)) {
-          // Can't save a file into a fake directory.
-          return;
-        }
-
-        var selectFileAndClose = function() {
-          // TODO(mtomasz): Clean this up by avoiding constructing a URL
-          //                via string concatenation.
-          var currentDirUrl = directory.toURL();
-          if (currentDirUrl.charAt(currentDirUrl.length - 1) != '/')
-            currentDirUrl += '/';
-          this.selectFilesAndClose_({
-            urls: [currentDirUrl + encodeURIComponent(filename)],
-            multiple: false,
-            filterIndex: this.ui_.dialogFooter.selectedFilterIndex
-          });
-        }.bind(this);
-
-        directory.getFile(
-            filename, {create: false},
-            function(entry) {
-              // An existing file is found. Show confirmation dialog to
-              // overwrite it. If the user select "OK" on the dialog, save it.
-              this.confirm.show(strf('CONFIRM_OVERWRITE_FILE', filename),
-                                selectFileAndClose);
-            }.bind(this),
-            function(error) {
-              if (error.name == util.FileError.NOT_FOUND_ERR) {
-                // The file does not exist, so it should be ok to create a
-                // new file.
-                selectFileAndClose();
-                return;
-              }
-              if (error.name == util.FileError.TYPE_MISMATCH_ERR) {
-                // An directory is found.
-                // Do not allow to overwrite directory.
-                this.alert.show(strf('DIRECTORY_ALREADY_EXISTS', filename));
-                return;
-              }
-
-              // Unexpected error.
-              console.error('File save failed: ' + error.code);
-            }.bind(this));
-      }.bind(this));
-      return;
-    }
-
-    var files = [];
-    var selectedIndexes =
-        this.ui.listContainer.currentList.selectionModel.selectedIndexes;
-
-    if (DialogType.isFolderDialog(this.dialogType) &&
-        selectedIndexes.length == 0) {
-      var url = this.getCurrentDirectoryEntry().toURL();
-      var singleSelection = {
-        urls: [url],
-        multiple: false,
-        filterIndex: this.ui_.dialogFooter.selectedFilterIndex
-      };
-      this.selectFilesAndClose_(singleSelection);
-      return;
-    }
-
-    // All other dialog types require at least one selected list item.
-    // The logic to control whether or not the ok button is enabled should
-    // prevent us from ever getting here, but we sanity check to be sure.
-    if (!selectedIndexes.length)
-      throw new Error('Nothing selected!');
-
-    var dm = this.directoryModel_.getFileList();
-    for (var i = 0; i < selectedIndexes.length; i++) {
-      var entry = dm.item(selectedIndexes[i]);
-      if (!entry) {
-        console.error('Error locating selected file at index: ' + i);
-        continue;
-      }
-
-      files.push(entry.toURL());
-    }
-
-    // Multi-file selection has no other restrictions.
-    if (this.dialogType == DialogType.SELECT_OPEN_MULTI_FILE) {
-      var multipleSelection = {
-        urls: files,
-        multiple: true
-      };
-      this.selectFilesAndClose_(multipleSelection);
-      return;
-    }
-
-    // Everything else must have exactly one.
-    if (files.length > 1)
-      throw new Error('Too many files selected!');
-
-    var selectedEntry = dm.item(selectedIndexes[0]);
-
-    if (DialogType.isFolderDialog(this.dialogType)) {
-      if (!selectedEntry.isDirectory)
-        throw new Error('Selected entry is not a folder!');
-    } else if (this.dialogType == DialogType.SELECT_OPEN_FILE) {
-      if (!selectedEntry.isFile)
-        throw new Error('Selected entry is not a file!');
-    }
-
-    var singleSelection = {
-      urls: [files[0]],
-      multiple: false,
-      filterIndex: this.ui_.dialogFooter.selectedFilterIndex
-    };
-    this.selectFilesAndClose_(singleSelection);
+  FileManager.prototype.validateFileName_ = function(
+      parentEntry, name, onDone) {
+    var fileNameErrorPromise = util.validateFileName(
+        parentEntry,
+        name,
+        this.fileFilter_.isFilterHiddenOn());
+    fileNameErrorPromise.then(onDone.bind(null, true), function(message) {
+      this.alert.show(message, onDone.bind(null, false));
+    }.bind(this)).catch(function(error) {
+      console.error(error.stack || error);
+    });
   };
 
   /**
@@ -3241,7 +2848,9 @@ var BOTTOM_MARGIN_FOR_PREVIEW_PANEL_PX = 52;
         this.actionMenuItem_.style.backgroundImage = '';
       }
 
-      this.actionMenuItem_.label = actionItem.title;
+      this.actionMenuItem_.label =
+          actionItem.taskId === FileTasks.ZIP_UNPACKER_TASK_ID ?
+          str('ACTION_OPEN') : actionItem.title;
       this.actionMenuItem_.disabled = !!actionItem.disabled;
       this.actionMenuItem_.taskId = actionItem.taskId;
     }
@@ -3299,6 +2908,26 @@ var BOTTOM_MARGIN_FOR_PREVIEW_PANEL_PX = 52;
       this.preferences_ = prefs;
       callback(prefs);
     }.bind(this));
+  };
+
+  /**
+   * @param {FileEntry} entry
+   * @private
+   */
+  FileManager.prototype.doEntryAction_ = function(entry) {
+    if (this.dialogType == DialogType.FULL_PAGE) {
+      this.metadataCache_.get([entry], 'external', function(props) {
+        var tasks = new FileTasks(this);
+        tasks.init([entry], [props[0].contentMimeType || '']);
+        tasks.executeDefault_();
+      }.bind(this));
+    } else {
+      var selection = this.getSelection();
+      if (selection.entries.length === 1 &&
+          util.isSameEntry(selection.entries[0], entry)) {
+        this.ui_.dialogFooter.okButton.click();
+      }
+    }
   };
 
   /**

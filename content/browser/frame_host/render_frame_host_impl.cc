@@ -41,6 +41,7 @@
 #include "content/common/inter_process_time_ticks_converter.h"
 #include "content/common/navigation_params.h"
 #include "content/common/platform_notification_messages.h"
+#include "content/common/push_messaging_messages.h"
 #include "content/common/render_frame_setup.mojom.h"
 #include "content/common/swapped_out_messages.h"
 #include "content/public/browser/ax_event_notification_details.h"
@@ -390,6 +391,10 @@ bool RenderFrameHostImpl::OnMessageReceived(const IPC::Message &msg) {
     IPC_MESSAGE_HANDLER(AccessibilityHostMsg_Events, OnAccessibilityEvents)
     IPC_MESSAGE_HANDLER(AccessibilityHostMsg_LocationChanges,
                         OnAccessibilityLocationChanges)
+    IPC_MESSAGE_HANDLER(AccessibilityHostMsg_FindInPageResult,
+                        OnAccessibilityFindInPageResult)
+    IPC_MESSAGE_HANDLER(PushMessagingHostMsg_RequestPermission,
+                        OnRequestPushPermission)
 #if defined(OS_MACOSX) || defined(OS_ANDROID)
     IPC_MESSAGE_HANDLER(FrameHostMsg_ShowPopup, OnShowPopup)
     IPC_MESSAGE_HANDLER(FrameHostMsg_HidePopup, OnHidePopup)
@@ -1120,7 +1125,7 @@ void RenderFrameHostImpl::OnAccessibilityEvents(
       // Get the frame routing ids from out-of-process iframes and
       // browser plugin instance ids from guests and update the mappings in
       // FrameAccessibility.
-      for (unsigned int i = 0; i < params.size(); ++i) {
+      for (size_t i = 0; i < params.size(); ++i) {
         const AccessibilityHostMsg_EventParams& param = params[i];
         UpdateCrossProcessIframeAccessibility(
             param.node_to_frame_routing_id_map);
@@ -1193,6 +1198,36 @@ void RenderFrameHostImpl::OnAccessibilityLocationChanges(
     }
     // TODO(aboxhall): send location change events to web contents observers too
   }
+}
+
+void RenderFrameHostImpl::OnAccessibilityFindInPageResult(
+    const AccessibilityHostMsg_FindInPageResultParams& params) {
+  AccessibilityMode accessibility_mode = delegate_->GetAccessibilityMode();
+  if (accessibility_mode & AccessibilityModeFlagPlatform) {
+    BrowserAccessibilityManager* manager =
+        GetOrCreateBrowserAccessibilityManager();
+    if (manager) {
+      manager->OnFindInPageResult(
+          params.request_id, params.match_index, params.start_id,
+          params.start_offset, params.end_id, params.end_offset);
+    }
+  }
+}
+
+void RenderFrameHostImpl::OnRequestPushPermission(int request_id,
+                                                  bool user_gesture) {
+  if (!delegate()->GetAsWebContents())
+    return;
+
+  GetContentClient()->browser()->RequestPermission(
+      PERMISSION_PUSH_MESSAGING,
+      delegate()->GetAsWebContents(),
+      routing_id_,
+      GetLastCommittedURL().GetOrigin(),
+      user_gesture,
+      base::Bind(&RenderFrameHostImpl::PushPermissionRequestDone,
+                 weak_ptr_factory_.GetWeakPtr(),
+                 request_id));
 }
 
 #if defined(OS_MACOSX) || defined(OS_ANDROID)
@@ -1496,16 +1531,18 @@ void RenderFrameHostImpl::PlatformNotificationPermissionRequestDone(
       routing_id_, request_id, permission));
 }
 
+void RenderFrameHostImpl::PushPermissionRequestDone(int request_id,
+                                                    bool allowed) {
+  Send(new PushMessagingMsg_RequestPermissionResponse(routing_id_, request_id));
+}
+
 void RenderFrameHostImpl::UpdateCrossProcessIframeAccessibility(
-    const std::map<int32, int> node_to_frame_routing_id_map) {
-  std::map<int32, int>::const_iterator iter;
-  for (iter = node_to_frame_routing_id_map.begin();
-       iter != node_to_frame_routing_id_map.end();
-       ++iter) {
+    const std::map<int32, int>& node_to_frame_routing_id_map) {
+  for (const auto& iter : node_to_frame_routing_id_map) {
     // This is the id of the accessibility node that has a child frame.
-    int32 node_id = iter->first;
+    int32 node_id = iter.first;
     // The routing id from either a RenderFrame or a RenderFrameProxy.
-    int frame_routing_id = iter->second;
+    int frame_routing_id = iter.second;
 
     FrameTree* frame_tree = frame_tree_node()->frame_tree();
     FrameTreeNode* child_frame_tree_node = frame_tree->FindByRoutingID(
@@ -1518,15 +1555,12 @@ void RenderFrameHostImpl::UpdateCrossProcessIframeAccessibility(
 }
 
 void RenderFrameHostImpl::UpdateGuestFrameAccessibility(
-    const std::map<int32, int> node_to_browser_plugin_instance_id_map) {
-  std::map<int32, int>::const_iterator iter;
-  for (iter = node_to_browser_plugin_instance_id_map.begin();
-       iter != node_to_browser_plugin_instance_id_map.end();
-       ++iter) {
+    const std::map<int32, int>& node_to_browser_plugin_instance_id_map) {
+  for (const auto& iter : node_to_browser_plugin_instance_id_map) {
     // This is the id of the accessibility node that hosts a plugin.
-    int32 node_id = iter->first;
+    int32 node_id = iter.first;
     // The id of the browser plugin.
-    int browser_plugin_instance_id = iter->second;
+    int browser_plugin_instance_id = iter.second;
     FrameAccessibility::GetInstance()->AddGuestWebContents(
         this, node_id, browser_plugin_instance_id);
   }
@@ -1560,6 +1594,17 @@ BrowserAccessibilityManager*
       UMA_HISTOGRAM_COUNTS("Accessibility.FrameDidNotEnableCount", 1);
   }
   return browser_accessibility_manager_.get();
+}
+
+void RenderFrameHostImpl::ActivateFindInPageResultForAccessibility(
+    int request_id) {
+  AccessibilityMode accessibility_mode = delegate_->GetAccessibilityMode();
+  if (accessibility_mode & AccessibilityModeFlagPlatform) {
+    BrowserAccessibilityManager* manager =
+        GetOrCreateBrowserAccessibilityManager();
+    if (manager)
+      manager->ActivateFindInPageResult(request_id);
+  }
 }
 
 #if defined(OS_WIN)

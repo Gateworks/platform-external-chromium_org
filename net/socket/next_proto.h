@@ -27,7 +27,8 @@ enum NextProto {
   kProtoSPDYMinimumVersion = kProtoDeprecatedSPDY2,
   kProtoSPDY3 = 101,
   kProtoSPDY31 = 102,
-  kProtoSPDY4 = 103,  // SPDY4 is HTTP/2.
+  // HTTP/2 draft-14 was 103,
+  kProtoSPDY4 = 104,  // SPDY4 is HTTP/2 draft-15.
   kProtoSPDYMaximumVersion = kProtoSPDY4,
 
   kProtoQUIC1SPDY3 = 200,
@@ -50,9 +51,7 @@ NET_EXPORT NextProtoVector NextProtosWithSpdyAndQuic(bool spdy_enabled,
                                                      bool quic_enabled);
 
 // All of these also enable QUIC.
-NET_EXPORT NextProtoVector NextProtosSpdy3();
 NET_EXPORT NextProtoVector NextProtosSpdy31();
-NET_EXPORT NextProtoVector NextProtosSpdy31WithSpdy2();
 NET_EXPORT NextProtoVector NextProtosSpdy4Http2();
 
 }  // namespace net

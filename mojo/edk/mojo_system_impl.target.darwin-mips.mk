@@ -37,6 +37,7 @@ LOCAL_SRC_FILES := \
 	mojo/edk/system/channel.cc \
 	mojo/edk/system/channel_endpoint.cc \
 	mojo/edk/system/channel_endpoint_id.cc \
+	mojo/edk/system/channel_info.cc \
 	mojo/edk/system/core.cc \
 	mojo/edk/system/data_pipe.cc \
 	mojo/edk/system/data_pipe_consumer_dispatcher.cc \

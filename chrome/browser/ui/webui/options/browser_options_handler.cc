@@ -4,6 +4,7 @@
 
 #include "chrome/browser/ui/webui/options/browser_options_handler.h"
 
+#include <set>
 #include <string>
 #include <vector>
 
@@ -14,7 +15,6 @@
 #include "base/memory/singleton.h"
 #include "base/metrics/field_trial.h"
 #include "base/metrics/histogram.h"
-#include "base/path_service.h"
 #include "base/prefs/pref_service.h"
 #include "base/prefs/scoped_user_pref_update.h"
 #include "base/stl_util.h"
@@ -70,6 +70,9 @@
 #include "chrome/grit/generated_resources.h"
 #include "chrome/grit/locale_settings.h"
 #include "chromeos/chromeos_switches.h"
+#include "components/policy/core/common/policy_map.h"
+#include "components/policy/core/common/policy_namespace.h"
+#include "components/policy/core/common/policy_service.h"
 #include "components/proximity_auth/switches.h"
 #include "components/search_engines/template_url.h"
 #include "components/search_engines/template_url_service.h"
@@ -90,6 +93,7 @@
 #include "extensions/browser/extension_registry.h"
 #include "google_apis/gaia/gaia_auth_util.h"
 #include "google_apis/gaia/google_service_auth_error.h"
+#include "policy/policy_constants.h"
 #include "third_party/skia/include/core/SkBitmap.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/webui/web_ui_util.h"
@@ -192,6 +196,9 @@ BrowserOptionsHandler::~BrowserOptionsHandler() {
   // away so they don't try and call back to us.
   if (select_folder_dialog_.get())
     select_folder_dialog_->ListenerDestroyed();
+
+  g_browser_process->policy_service()->RemoveObserver(
+      policy::POLICY_DOMAIN_CHROME, this);
 }
 
 void BrowserOptionsHandler::GetLocalizedValues(base::DictionaryValue* values) {
@@ -282,6 +289,7 @@ void BrowserOptionsHandler::GetLocalizedValues(base::DictionaryValue* values) {
     { "hotwordConfirmMessage", IDS_HOTWORD_SEARCH_PREF_DESCRIPTION },
     { "hotwordNoDSPDesc", IDS_HOTWORD_SEARCH_NO_DSP_DESCRIPTION },
     { "hotwordAlwaysOnDesc", IDS_HOTWORD_SEARCH_ALWAYS_ON_DESCRIPTION },
+    { "hotwordRetrainLink", IDS_HOTWORD_RETRAIN_LINK },
     { "hotwordAudioLoggingEnable", IDS_HOTWORD_AUDIO_LOGGING_ENABLE },
     { "importData", IDS_OPTIONS_IMPORT_DATA_BUTTON },
     { "improveBrowsingExperience", IDS_OPTIONS_IMPROVE_BROWSING_EXPERIENCE },
@@ -823,6 +831,9 @@ void BrowserOptionsHandler::InitializeHandler() {
             base::Bind(&BrowserOptionsHandler::SetupPageZoomSelector,
                        base::Unretained(this)));
   }
+
+  g_browser_process->policy_service()->AddObserver(
+      policy::POLICY_DOMAIN_CHROME, this);
 
   ProfileSyncService* sync_service(
       ProfileSyncServiceFactory::GetInstance()->GetForProfile(profile));
@@ -1639,6 +1650,14 @@ void BrowserOptionsHandler::HandleRequestHotwordAvailable(
     if (HotwordService::IsExperimentalHotwordingEnabled()) {
       if (HotwordServiceFactory::IsHotwordHardwareAvailable()) {
         function_name = "BrowserOptions.showHotwordAlwaysOnSection";
+
+        // Show the retrain link if always-on is enabled.
+        if (profile->GetPrefs()->GetBoolean(
+                prefs::kHotwordAlwaysOnSearchEnabled)) {
+          web_ui()->CallJavascriptFunction(
+              "BrowserOptions.setHotwordRetrainLinkVisible",
+              base::FundamentalValue(true));
+        }
       } else {
         function_name = "BrowserOptions.showHotwordNoDspSection";
       }
@@ -2000,6 +2019,15 @@ void BrowserOptionsHandler::SetMetricsReportingCheckbox(bool checked,
       "BrowserOptions.setMetricsReportingCheckboxState",
       base::FundamentalValue(checked),
       base::FundamentalValue(disabled));
+}
+
+void BrowserOptionsHandler::OnPolicyUpdated(const policy::PolicyNamespace& ns,
+                                            const policy::PolicyMap& previous,
+                                            const policy::PolicyMap& current) {
+  std::set<std::string> different_keys;
+  current.GetDifferingKeys(previous, &different_keys);
+  if (ContainsKey(different_keys, policy::key::kMetricsReportingEnabled))
+    SetupMetricsReportingCheckbox();
 }
 
 }  // namespace options

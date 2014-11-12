@@ -167,6 +167,7 @@ static_library("browser") {
       "//cc",
       "//chrome/browser/devtools",
       "//chrome/installer/util",
+      "//components/app_modal_dialogs",
       "//components/autofill/content/browser",
       "//components/dom_distiller/content",
       "//components/keyed_service/content",
@@ -188,7 +189,7 @@ static_library("browser") {
       "//mojo/edk/system",
       "//mojo/environment:chromium",
       "//mojo/public/cpp/bindings",
-      "//mojo/public/js/bindings",
+      "//mojo/public/js",
       "//net:extras",
       "//net:net_with_v8",
       "//storage/browser",
@@ -264,6 +265,7 @@ static_library("browser") {
       "//chrome/browser/sync_file_system/drive_backend:sync_file_system_drive_proto",
       "//chrome/common/extensions/api",
       "//chrome/common/extensions/api:api_registration",
+      "//extensions/components/javascript_dialog_extensions_client",
     ]
     sources += rebase_path(gypi_values.chrome_browser_extensions_sources,
                            ".", "//chrome")
@@ -507,6 +509,7 @@ static_library("browser") {
       "//components/cdm/browser",
       "//components/enhanced_bookmarks",
       "//components/history/core/android",
+      "//components/resources:components_resources",
       "//components/web_contents_delegate_android",
       "//third_party/android_opengl/etc1",
     ]

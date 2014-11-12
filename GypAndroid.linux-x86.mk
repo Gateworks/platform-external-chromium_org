@@ -121,6 +121,7 @@ include $(LOCAL_PATH)/media/media_sse2.target.linux-x86.mk
 include $(LOCAL_PATH)/media/player_android.target.linux-x86.mk
 include $(LOCAL_PATH)/media/shared_memory_support.target.linux-x86.mk
 include $(LOCAL_PATH)/media/video_capture_android_jni_headers.target.linux-x86.mk
+include $(LOCAL_PATH)/mojo/edk/mojo_js_lib.target.linux-x86.mk
 include $(LOCAL_PATH)/mojo/edk/mojo_system_impl.target.linux-x86.mk
 include $(LOCAL_PATH)/mojo/libmojo_system_java.target.linux-x86.mk
 include $(LOCAL_PATH)/mojo/mojo_common_lib.target.linux-x86.mk
@@ -128,7 +129,6 @@ include $(LOCAL_PATH)/mojo/mojo_environment_chromium.target.linux-x86.mk
 include $(LOCAL_PATH)/mojo/mojo_environment_chromium_impl.target.linux-x86.mk
 include $(LOCAL_PATH)/mojo/mojo_java_set_jni_headers.target.linux-x86.mk
 include $(LOCAL_PATH)/mojo/mojo_jni_headers.target.linux-x86.mk
-include $(LOCAL_PATH)/mojo/mojo_js_bindings_lib.target.linux-x86.mk
 include $(LOCAL_PATH)/mojo/mojo_none.target.linux-x86.mk
 include $(LOCAL_PATH)/mojo/public/mojo_application_bindings.target.linux-x86.mk
 include $(LOCAL_PATH)/mojo/public/mojo_cpp_bindings.target.linux-x86.mk

@@ -92,6 +92,7 @@
             'crx_file/id_util_unittest.cc',
             'data_reduction_proxy/core/browser/data_reduction_proxy_auth_request_handler_unittest.cc',
             'data_reduction_proxy/core/browser/data_reduction_proxy_config_service_unittest.cc',
+            'data_reduction_proxy/core/browser/data_reduction_proxy_interceptor_unittest.cc',
             'data_reduction_proxy/core/browser/data_reduction_proxy_metrics_unittest.cc',
             'data_reduction_proxy/core/browser/data_reduction_proxy_prefs_unittest.cc',
             'data_reduction_proxy/core/browser/data_reduction_proxy_protocol_unittest.cc',
@@ -323,6 +324,7 @@
             # Dependencies of content_settings
             'components.gyp:content_settings_core_browser',
             'components.gyp:content_settings_core_common',
+            'components.gyp:content_settings_core_test_support',
 
             # Dependencies of crash
             'components.gyp:crash_test_support',
@@ -697,6 +699,8 @@
               'sources': [
                 'copresence/handlers/audio/audio_directive_handler_unittest.cc',
                 'copresence/handlers/audio/audio_directive_list_unittest.cc',
+                'copresence/handlers/directive_handler_unittest.cc',
+                'copresence/handlers/gcm_handler_unittest.cc',
                 'copresence/mediums/audio/audio_manager_unittest.cc',
                 'copresence/mediums/audio/audio_player_unittest.cc',
                 'copresence/mediums/audio/audio_recorder_unittest.cc',

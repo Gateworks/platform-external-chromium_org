@@ -11,15 +11,18 @@
 #include "components/storage_monitor/storage_monitor.h"
 #include "content/public/browser/child_process_security_policy.h"
 #include "content/public/browser/context_factory.h"
+#include "content/public/browser/devtools_http_handler.h"
 #include "content/public/common/result_codes.h"
-#include "content/shell/browser/shell_devtools_delegate.h"
+#include "content/shell/browser/shell_devtools_manager_delegate.h"
 #include "content/shell/browser/shell_net_log.h"
 #include "extensions/browser/app_window/app_window_client.h"
 #include "extensions/browser/browser_context_keyed_service_factories.h"
 #include "extensions/browser/extension_system.h"
+#include "extensions/browser/updater/update_service.h"
 #include "extensions/common/constants.h"
 #include "extensions/common/switches.h"
 #include "extensions/shell/browser/shell_browser_context.h"
+#include "extensions/shell/browser/shell_browser_context_keyed_service_factories.h"
 #include "extensions/shell/browser/shell_browser_main_delegate.h"
 #include "extensions/shell/browser/shell_desktop_controller.h"
 #include "extensions/shell/browser/shell_device_client.h"
@@ -59,16 +62,28 @@ using content::BrowserThread;
 
 namespace extensions {
 
+namespace {
+
+void CrxInstallComplete(bool success) {
+  VLOG(1) << "CRX download complete. Success: " << success;
+}
+}
+
 ShellBrowserMainParts::ShellBrowserMainParts(
     const content::MainFunctionParams& parameters,
     ShellBrowserMainDelegate* browser_main_delegate)
-    : extension_system_(NULL),
+    : devtools_http_handler_(nullptr),
+      extension_system_(nullptr),
       parameters_(parameters),
       run_message_loop_(true),
       browser_main_delegate_(browser_main_delegate) {
 }
 
 ShellBrowserMainParts::~ShellBrowserMainParts() {
+  if (devtools_http_handler_) {
+    // Note that Stop destroys devtools_http_handler_.
+    devtools_http_handler_->Stop();
+  }
 }
 
 void ShellBrowserMainParts::PreMainMessageLoopStart() {
@@ -170,8 +185,21 @@ void ShellBrowserMainParts::PreMainMessageLoopRun() {
       base::Bind(nacl::NaClProcessHost::EarlyStartup));
 #endif
 
-  devtools_delegate_.reset(
-      new content::ShellDevToolsDelegate(browser_context_.get()));
+  // TODO(rockot): Remove this temporary hack test.
+  std::string install_crx_id =
+      cmd->GetSwitchValueASCII(switches::kAppShellInstallCrx);
+  if (install_crx_id.size() != 0) {
+    CHECK(install_crx_id.size() == 32)
+        << "Extension ID must be exactly 32 characters long.";
+    UpdateService* update_service = UpdateService::Get(browser_context_.get());
+    update_service->DownloadAndInstall(install_crx_id,
+                                       base::Bind(CrxInstallComplete));
+  }
+
+  // CreateHttpHandler retains ownership over DevToolsHttpHandler.
+  devtools_http_handler_ =
+      content::ShellDevToolsManagerDelegate::CreateHttpHandler(
+          browser_context_.get());
   if (parameters_.ui_task) {
     // For running browser tests.
     parameters_.ui_task->Run();

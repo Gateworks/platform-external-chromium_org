@@ -9,7 +9,6 @@
 #include "base/compiler_specific.h"
 #include "base/files/file_path.h"
 #include "base/memory/scoped_ptr.h"
-#include "base/path_service.h"
 #include "base/prefs/json_pref_store.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
@@ -217,7 +216,11 @@ std::string OffTheRecordProfileImpl::GetProfileName() {
 }
 
 Profile::ProfileType OffTheRecordProfileImpl::GetProfileType() const {
+#if !defined(OS_CHROMEOS)
+  return profile_->IsGuestSession() ? GUEST_PROFILE : INCOGNITO_PROFILE;
+#else
   return INCOGNITO_PROFILE;
+#endif
 }
 
 base::FilePath OffTheRecordProfileImpl::GetPath() const {

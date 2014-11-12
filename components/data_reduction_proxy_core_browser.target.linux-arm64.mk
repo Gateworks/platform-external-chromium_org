@@ -28,6 +28,7 @@ LOCAL_SRC_FILES := \
 	components/data_reduction_proxy/core/browser/data_reduction_proxy_auth_request_handler.cc \
 	components/data_reduction_proxy/core/browser/data_reduction_proxy_config_service.cc \
 	components/data_reduction_proxy/core/browser/data_reduction_proxy_delegate.cc \
+	components/data_reduction_proxy/core/browser/data_reduction_proxy_interceptor.cc \
 	components/data_reduction_proxy/core/browser/data_reduction_proxy_metrics.cc \
 	components/data_reduction_proxy/core/browser/data_reduction_proxy_prefs.cc \
 	components/data_reduction_proxy/core/browser/data_reduction_proxy_protocol.cc \

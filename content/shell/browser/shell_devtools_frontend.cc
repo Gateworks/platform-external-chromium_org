@@ -6,7 +6,6 @@
 
 #include "base/command_line.h"
 #include "base/json/json_reader.h"
-#include "base/path_service.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
@@ -19,7 +18,7 @@
 #include "content/shell/browser/shell_browser_context.h"
 #include "content/shell/browser/shell_browser_main_parts.h"
 #include "content/shell/browser/shell_content_browser_client.h"
-#include "content/shell/browser/shell_devtools_delegate.h"
+#include "content/shell/browser/shell_devtools_manager_delegate.h"
 #include "content/shell/browser/webkit_test_controller.h"
 #include "content/shell/common/shell_switches.h"
 #include "net/base/filename_util.h"
@@ -40,10 +39,10 @@ ShellDevToolsFrontend* ShellDevToolsFrontend::Show(
       shell,
       agent.get());
 
-  ShellDevToolsDelegate* delegate = ShellContentBrowserClient::Get()
-                                        ->shell_browser_main_parts()
-                                        ->devtools_delegate();
-  shell->LoadURL(delegate->devtools_http_handler()->GetFrontendURL());
+  DevToolsHttpHandler* http_handler = ShellContentBrowserClient::Get()
+                                          ->shell_browser_main_parts()
+                                          ->devtools_http_handler();
+  shell->LoadURL(http_handler->GetFrontendURL());
 
   return devtools_frontend;
 }

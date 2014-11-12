@@ -168,6 +168,11 @@ void DataReductionProxyUsageStats::SetBypassType(
   triggering_request_ = true;
 }
 
+DataReductionProxyBypassType
+DataReductionProxyUsageStats::GetBypassType() const {
+  return last_bypass_type_;
+}
+
 void DataReductionProxyUsageStats::RecordBytesHistograms(
     net::URLRequest* request,
     const BooleanPrefMember& data_reduction_proxy_enabled,
@@ -250,7 +255,8 @@ void DataReductionProxyUsageStats::RecordBypassedBytesHistograms(
     return;
   }
 
-  if (data_reduction_proxy_params_->AreDataReductionProxiesBypassed(*request,
+  if (data_reduction_proxy_enabled.GetValue() &&
+      data_reduction_proxy_params_->AreDataReductionProxiesBypassed(*request,
                                                                     NULL)) {
     RecordBypassedBytes(last_bypass_type_,
                         DataReductionProxyUsageStats::NETWORK_ERROR,

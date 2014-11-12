@@ -285,10 +285,7 @@ void WebViewGuest::DidAttachToEmbedder() {
     SetUserAgentOverride("");
   }
 
-  std::string src;
-  if (attach_params()->GetString(webview::kAttributeSrc, &src) && !src.empty())
-    NavigateGuest(src, false /* force_navigation */);
-
+  bool is_pending_new_window = false;
   if (GetOpener()) {
     // We need to do a navigation here if the target URL has changed between
     // the time the WebContents was created and the time it was attached.
@@ -300,13 +297,22 @@ void WebViewGuest::DidAttachToEmbedder() {
       const NewWindowInfo& new_window_info = it->second;
       if (new_window_info.changed || !web_contents()->HasOpener())
         NavigateGuest(new_window_info.url.spec(), false /* force_navigation */);
-    } else {
-      NOTREACHED();
-    }
 
-    // Once a new guest is attached to the DOM of the embedder page, then the
-    // lifetime of the new guest is no longer managed by the opener guest.
-    GetOpener()->pending_new_windows_.erase(this);
+      // Once a new guest is attached to the DOM of the embedder page, then the
+      // lifetime of the new guest is no longer managed by the opener guest.
+      GetOpener()->pending_new_windows_.erase(this);
+
+      is_pending_new_window = true;
+    }
+  }
+
+  // Only read the src attribute if this is not a New Window API flow.
+  if (!is_pending_new_window) {
+    std::string src;
+    if (attach_params()->GetString(webview::kAttributeSrc, &src) &&
+        !src.empty()) {
+      NavigateGuest(src, false /* force_navigation */);
+    }
   }
 
   bool allow_transparency = false;
@@ -413,7 +419,6 @@ bool WebViewGuest::IsDragAndDropEnabled() const {
 void WebViewGuest::WillDestroy() {
   if (!attached() && GetOpener())
     GetOpener()->pending_new_windows_.erase(this);
-  DestroyUnattachedWindows();
 }
 
 bool WebViewGuest::AddMessageToConsole(WebContents* source,
@@ -1206,21 +1211,6 @@ void WebViewGuest::RequestNewWindowPermission(
                                    weak_ptr_factory_.GetWeakPtr(),
                                    guest->guest_instance_id()),
                                    false /* allowed_by_default */);
-}
-
-void WebViewGuest::DestroyUnattachedWindows() {
-  // Destroy() reaches in and removes the WebViewGuest from its opener's
-  // pending_new_windows_ set. To avoid mutating the set while iterating, we
-  // create a copy of the pending new windows set and iterate over the copy.
-  PendingWindowMap pending_new_windows(pending_new_windows_);
-  // Clean up unattached new windows opened by this guest.
-  for (PendingWindowMap::const_iterator it = pending_new_windows.begin();
-       it != pending_new_windows.end(); ++it) {
-    it->first->Destroy();
-  }
-  // All pending windows should be removed from the set after Destroy() is
-  // called on all of them.
-  DCHECK(pending_new_windows_.empty());
 }
 
 GURL WebViewGuest::ResolveURL(const std::string& src) {

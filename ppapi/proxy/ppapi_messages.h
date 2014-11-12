@@ -486,9 +486,13 @@ IPC_MESSAGE_CONTROL1(PpapiMsg_SetPreferences,
 
 // Sent in both directions to see if the other side supports the given
 // interface.
-IPC_SYNC_MESSAGE_CONTROL1_1(PpapiMsg_SupportsInterface,
+IPC_SYNC_MESSAGE_CONTROL1_1(PpapiMsg_IsInterfaceSupported,
                             std::string /* interface_name */,
                             bool /* result */)
+// Sent by the plugin side of the proxy to inform the renderer that a given
+// plugin interface (PPP_*) is supported.
+IPC_MESSAGE_CONTROL1(PpapiHostMsg_PluginSupportsInterface,
+                     std::string /* interface_name */)
 
 IPC_MESSAGE_CONTROL1(PpapiHostMsg_LogInterfaceUsage,
                      int /* interface_hash */)
@@ -870,11 +874,12 @@ IPC_MESSAGE_ROUTED1(PpapiHostMsg_PPBCore_ReleaseResource,
                     ppapi::HostResource)
 
 // PPB_Graphics3D.
-IPC_SYNC_MESSAGE_ROUTED3_2(PpapiHostMsg_PPBGraphics3D_Create,
+IPC_SYNC_MESSAGE_ROUTED3_3(PpapiHostMsg_PPBGraphics3D_Create,
                            PP_Instance /* instance */,
                            ppapi::HostResource /* share_context */,
                            std::vector<int32_t> /* attrib_list */,
                            ppapi::HostResource /* result */,
+                           gpu::Capabilities /* capabilities */,
                            ppapi::proxy::SerializedHandle /* shared_state */)
 IPC_SYNC_MESSAGE_ROUTED2_0(PpapiHostMsg_PPBGraphics3D_SetGetBuffer,
                            ppapi::HostResource /* context */,
@@ -1179,9 +1184,9 @@ IPC_SYNC_MESSAGE_ROUTED3_1(
 IPC_SYNC_MESSAGE_ROUTED1_1(PpapiHostMsg_PPBTesting_GetLiveObjectsForInstance,
                            PP_Instance /* instance */,
                            uint32 /* result */)
-IPC_SYNC_MESSAGE_ROUTED2_0(PpapiHostMsg_PPBTesting_SimulateInputEvent,
-                           PP_Instance /* instance */,
-                           ppapi::InputEventData /* input_event */)
+IPC_MESSAGE_ROUTED2(PpapiHostMsg_PPBTesting_SimulateInputEvent,
+                    PP_Instance /* instance */,
+                    ppapi::InputEventData /* input_event */)
 IPC_SYNC_MESSAGE_ROUTED1_0(
     PpapiHostMsg_PPBTesting_SetMinimumArrayBufferSizeForShmem,
     uint32_t /* threshold */)
@@ -1950,9 +1955,10 @@ IPC_MESSAGE_CONTROL4(PpapiPluginMsg_VideoDecoder_RequestTextures,
 IPC_MESSAGE_CONTROL2(PpapiHostMsg_VideoDecoder_AssignTextures,
                      PP_Size /* size */,
                      std::vector<uint32_t> /* texture_ids */)
-IPC_MESSAGE_CONTROL2(PpapiPluginMsg_VideoDecoder_PictureReady,
+IPC_MESSAGE_CONTROL3(PpapiPluginMsg_VideoDecoder_PictureReady,
                      int32_t /* decode_id */,
-                     uint32_t /* texture_id */)
+                     uint32_t /* texture_id */,
+                     PP_Rect /* visible_rect */)
 IPC_MESSAGE_CONTROL1(PpapiHostMsg_VideoDecoder_RecyclePicture,
                      uint32_t /* texture_id */)
 IPC_MESSAGE_CONTROL1(PpapiPluginMsg_VideoDecoder_DismissPicture,

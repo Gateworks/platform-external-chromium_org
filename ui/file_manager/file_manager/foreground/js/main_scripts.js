@@ -81,6 +81,7 @@
 //
 //<include src="app_installer.js">
 //<include src="cws_container_client.js">
+//<include src="dialog_action_controller.js">
 //<include src="directory_contents.js">
 //<include src="directory_model.js">
 //<include src="file_manager.js">
@@ -95,6 +96,7 @@
 //<include src="naming_controller.js">
 //<include src="navigation_list_model.js">
 //<include src="progress_center_item_group.js">
+//<include src="scan_controller.js">
 //<include src="search_controller.js">
 //<include src="share_client.js">
 //<include src="spinner_controller.js">

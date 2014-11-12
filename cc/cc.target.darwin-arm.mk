@@ -74,6 +74,7 @@ LOCAL_SRC_FILES := \
 	cc/debug/traced_value.cc \
 	cc/debug/unittest_only_benchmark.cc \
 	cc/debug/unittest_only_benchmark_impl.cc \
+	cc/input/input_handler.cc \
 	cc/input/page_scale_animation.cc \
 	cc/input/layer_selection_bound.cc \
 	cc/input/top_controls_manager.cc \

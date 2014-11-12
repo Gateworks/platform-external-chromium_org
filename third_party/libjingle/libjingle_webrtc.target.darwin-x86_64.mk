@@ -108,6 +108,9 @@ MY_DEFS_Debug := \
 	'-DXML_STATIC' \
 	'-DFEATURE_ENABLE_VOICEMAIL' \
 	'-DANDROID' \
+	'-DWEBRTC_LINUX' \
+	'-DWEBRTC_ANDROID' \
+	'-DWEBRTC_ANDROID_OPENSLES' \
 	'-DUSE_LIBPCI=1' \
 	'-DUSE_OPENSSL=1' \
 	'-DUSE_OPENSSL_CERTS=1' \
@@ -132,7 +135,9 @@ LOCAL_C_INCLUDES_Debug := \
 	$(LOCAL_PATH)/third_party/usrsctp \
 	$(gyp_shared_intermediate_dir) \
 	$(LOCAL_PATH)/third_party/expat/files/lib \
-	$(LOCAL_PATH)/third_party/boringssl/src/include
+	$(LOCAL_PATH)/third_party/boringssl/src/include \
+	$(LOCAL_PATH)/third_party/webrtc/overrides \
+	$(LOCAL_PATH)/third_party
 
 
 # Flags passed to only C++ (and not C) files.
@@ -230,6 +235,9 @@ MY_DEFS_Release := \
 	'-DXML_STATIC' \
 	'-DFEATURE_ENABLE_VOICEMAIL' \
 	'-DANDROID' \
+	'-DWEBRTC_LINUX' \
+	'-DWEBRTC_ANDROID' \
+	'-DWEBRTC_ANDROID_OPENSLES' \
 	'-DUSE_LIBPCI=1' \
 	'-DUSE_OPENSSL=1' \
 	'-DUSE_OPENSSL_CERTS=1' \
@@ -254,7 +262,9 @@ LOCAL_C_INCLUDES_Release := \
 	$(LOCAL_PATH)/third_party/usrsctp \
 	$(gyp_shared_intermediate_dir) \
 	$(LOCAL_PATH)/third_party/expat/files/lib \
-	$(LOCAL_PATH)/third_party/boringssl/src/include
+	$(LOCAL_PATH)/third_party/boringssl/src/include \
+	$(LOCAL_PATH)/third_party/webrtc/overrides \
+	$(LOCAL_PATH)/third_party
 
 
 # Flags passed to only C++ (and not C) files.

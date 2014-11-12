@@ -220,7 +220,11 @@ class WizardController : public BaseScreenDelegate,
   void OnTermsOfServiceAccepted();
   void OnControllerPairingFinished();
   void OnHostPairingFinished();
-  void OnDeviceNotDisabled();
+  void OnAutoEnrollmentCheckCompleted();
+
+  // Callback invoked once it has been determined whether the device is disabled
+  // or not.
+  void OnDeviceDisabledChecked(bool device_disabled);
 
   // Callback function after setting MetricsReporting.
   void InitiateMetricsReportingChangeCallback(bool enabled);
@@ -373,6 +377,10 @@ class WizardController : public BaseScreenDelegate,
   // Whether enrollment will be or has been recovered in the current wizard
   // instance.
   bool enrollment_recovery_;
+
+  // Whether the auto-enrollment check should be retried or the cached result
+  // returned if present.
+  bool retry_auto_enrollment_check_;
 
   // Time when the EULA was accepted. Used to measure the duration from the EULA
   // acceptance until the Sign-In screen is displayed.

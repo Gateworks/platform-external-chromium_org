@@ -160,6 +160,7 @@ LOCAL_SRC_FILES := \
 	content/renderer/notification_permission_dispatcher.cc \
 	content/renderer/notification_provider.cc \
 	content/renderer/push_messaging_dispatcher.cc \
+	content/renderer/push_permission_dispatcher.cc \
 	content/renderer/render_frame_impl.cc \
 	content/renderer/render_frame_proxy.cc \
 	content/renderer/render_process_impl.cc \
