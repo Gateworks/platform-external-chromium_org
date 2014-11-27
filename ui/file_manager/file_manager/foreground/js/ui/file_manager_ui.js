@@ -209,7 +209,10 @@ FileManagerUI.prototype.initAdditionalUI = function(table, grid, previewPanel) {
  */
 FileManagerUI.prototype.relayout = function() {
   this.locationLine.truncate();
-  this.listContainer.currentView.relayout();
+  if (this.listContainer.currentListType !==
+      ListContainer.ListType.UNINITIALIZED) {
+    this.listContainer.currentView.relayout();
+  }
 };
 
 /**
@@ -221,13 +224,13 @@ FileManagerUI.prototype.setCurrentListType = function(listType) {
 
   switch (listType) {
     case ListContainer.ListType.DETAIL:
-      this.toggleViewButton.classList.add('table');
-      this.toggleViewButton.classList.remove('grid');
+      this.toggleViewButton.classList.remove('table');
+      this.toggleViewButton.classList.add('grid');
       break;
 
     case ListContainer.ListType.THUMBNAIL:
-      this.toggleViewButton.classList.add('grid');
-      this.toggleViewButton.classList.remove('table');
+      this.toggleViewButton.classList.remove('grid');
+      this.toggleViewButton.classList.add('table');
       break;
 
     default:

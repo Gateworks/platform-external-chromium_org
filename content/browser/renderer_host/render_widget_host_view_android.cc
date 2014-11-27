@@ -477,8 +477,6 @@ void RenderWidgetHostViewAndroid::Focus() {
   host_->SetInputMethodActive(true);
   if (overscroll_effect_)
     overscroll_effect_->Enable();
-  if (selection_controller_)
-    selection_controller_->SetTemporarilyHidden(false);
 }
 
 void RenderWidgetHostViewAndroid::Blur() {
@@ -486,8 +484,6 @@ void RenderWidgetHostViewAndroid::Blur() {
   host_->Blur();
   if (overscroll_effect_)
     overscroll_effect_->Disable();
-  if (selection_controller_)
-    selection_controller_->SetTemporarilyHidden(true);
 }
 
 bool RenderWidgetHostViewAndroid::HasFocus() const {
@@ -1517,9 +1513,14 @@ void RenderWidgetHostViewAndroid::MoveCaret(const gfx::Point& point) {
     host_->MoveCaret(point);
 }
 
-void RenderWidgetHostViewAndroid::HideTextHandles() {
+void RenderWidgetHostViewAndroid::DismissTextHandles() {
   if (selection_controller_)
     selection_controller_->HideAndDisallowShowingAutomatically();
+}
+
+void RenderWidgetHostViewAndroid::SetTextHandlesTemporarilyHidden(bool hidden) {
+  if (selection_controller_)
+    selection_controller_->SetTemporarilyHidden(hidden);
 }
 
 void RenderWidgetHostViewAndroid::OnShowingPastePopup(
@@ -1536,7 +1537,7 @@ void RenderWidgetHostViewAndroid::OnShowingPastePopup(
   insertion_bound.visible = true;
   insertion_bound.edge_top = point;
   insertion_bound.edge_bottom = point;
-  HideTextHandles();
+  DismissTextHandles();
   ShowSelectionHandlesAutomatically();
   selection_controller_->OnSelectionEditable(true);
   selection_controller_->OnSelectionEmpty(true);

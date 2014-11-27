@@ -17334,6 +17334,9 @@ Therefore, the affected-histogram name has to have at least one dot in it.
 
 <histogram name="Net.QuicClientHelloServerConfigState"
     enum="QuicServerConfigState">
+  <obsolete>
+    Deprecated as of 11/2014. Replaced by Net.QuicInchoateClientHelloReason.
+  </obsolete>
   <owner>rtenneti@chromium.org</owner>
   <summary>
     The reason (the state of the server config) for sending inchoate ClientHello
@@ -17399,6 +17402,15 @@ Therefore, the affected-histogram name has to have at least one dot in it.
   </summary>
 </histogram>
 
+<histogram name="Net.QuicInchoateClientHelloReason"
+    enum="QuicServerConfigState">
+  <owner>rtenneti@chromium.org</owner>
+  <summary>
+    The reason (the state of the server config) for sending inchoate ClientHello
+    to the server.
+  </summary>
+</histogram>
+
 <histogram name="Net.QuicNumSentClientHellos">
   <owner>rch@chromium.org</owner>
   <summary>The number of client hello messages sent.</summary>
@@ -17448,11 +17460,30 @@ Therefore, the affected-histogram name has to have at least one dot in it.
   <summary>Time spent to load QUIC server information from disk cache.</summary>
 </histogram>
 
+<histogram name="Net.QuicServerInfo.DiskCacheState"
+    enum="QuicServerConfigState">
+  <owner>rtenneti@chromium.org</owner>
+  <summary>
+    The state of the QUIC server information when it's loaded from the disk
+    cache.
+  </summary>
+</histogram>
+
 <histogram name="Net.QuicServerInfo.DiskCacheWaitForDataReadyTime"
     units="milliseconds">
   <owner>rtenneti@chromium.org</owner>
   <summary>
     Time spent waiting to load QUIC server information from disk cache.
+  </summary>
+</histogram>
+
+<histogram name="Net.QuicServerInfo.ExpectConfigMissingFromDiskCache"
+    enum="BooleanMissingFromDiskCache">
+  <owner>rtenneti@chromium.org</owner>
+  <summary>
+    The number of times AlternateProtocolMap supports QUIC, but there is no QUIC
+    server information in the disk cache. This is recorded whenever QUIC server
+    information is loaded from the disk cache.
   </summary>
 </histogram>
 
@@ -25112,6 +25143,32 @@ Therefore, the affected-histogram name has to have at least one dot in it.
   </summary>
 </histogram>
 
+<histogram name="Plugin.Flash.ClickSize.AspectRatio">
+  <owner>tommycli@chromium.org</owner>
+  <summary>
+    Aspect ratio of Flash plugins users click at least once. The aspect ratio is
+    multiplied by 100 and stored as a rounded integer.
+  </summary>
+</histogram>
+
+<histogram name="Plugin.Flash.ClickSize.Height" units="pixels">
+  <owner>tommycli@chromium.org</owner>
+  <summary>Height of Flash plugins users click at least once.</summary>
+</histogram>
+
+<histogram name="Plugin.Flash.ClickSize.Width" units="pixels">
+  <owner>tommycli@chromium.org</owner>
+  <summary>Width of Flash plugins users click at least once.</summary>
+</histogram>
+
+<histogram name="Plugin.Flash.TinyContentSize" enum="FlashTinyContentSize">
+  <owner>tommycli@chromium.org</owner>
+  <summary>
+    Collects the sizes of all loaded Flash plugin instances. This is for
+    determining the prevalence of tiny flash plugin instances.
+  </summary>
+</histogram>
+
 <histogram name="Plugin.FlashNavigateUsage" enum="FlashNavigateUsageType">
   <owner>Please list the metric's owners. Add more owner tags as needed.</owner>
   <summary>Record usage of PPB_Flash.Navigate() Pepper API.</summary>
@@ -25123,7 +25180,7 @@ Therefore, the affected-histogram name has to have at least one dot in it.
   <summary>Collects Flash usage data.</summary>
 </histogram>
 
-<histogram name="Plugin.PowerSaverPeripheralHeuristic"
+<histogram name="Plugin.PowerSaver.PeripheralHeuristic"
     enum="PluginPowerSaverPeripheralHeuristicDecision">
   <owner>tommycli@chromium.org</owner>
   <summary>
@@ -25135,7 +25192,7 @@ Therefore, the affected-histogram name has to have at least one dot in it.
   </summary>
 </histogram>
 
-<histogram name="Plugin.PowerSaverUnthrottle"
+<histogram name="Plugin.PowerSaver.Unthrottle"
     enum="PluginPowerSaverUnthrottleMethod">
   <owner>tommycli@chromium.org</owner>
   <summary>
@@ -41293,6 +41350,11 @@ Therefore, the affected-histogram name has to have at least one dot in it.
   <int value="1" label="Migrated"/>
 </enum>
 
+<enum name="BooleanMissingFromDiskCache" type="int">
+  <int value="0" label="Has data in disk cache"/>
+  <int value="1" label="Missing data in disk cache"/>
+</enum>
+
 <enum name="BooleanOrphan" type="int">
   <int value="0" label="Non-orphan"/>
   <int value="1" label="Orphan"/>
@@ -45905,6 +45967,13 @@ Therefore, the affected-histogram name has to have at least one dot in it.
       label="Rejected because of other headers (e.g., custom headers)."/>
   <int value="14" label="The total number of rejected navigate requests."/>
   <int value="15" label="The total number of navigate requests."/>
+</enum>
+
+<enum name="FlashTinyContentSize" type="int">
+  <int value="0" label="1x1 or smaller"/>
+  <int value="1" label="5x5 or smaller"/>
+  <int value="2" label="10x10 or smaller"/>
+  <int value="3" label="Large"/>
 </enum>
 
 <enum name="FlashUsage" type="int">
@@ -52557,6 +52626,7 @@ To add a new entry, add it with any value and run test to compute valid value.
   <int value="2" label="SERVER_CONFIG_CORRUPTED"/>
   <int value="3" label="SERVER_CONFIG_EXPIRED"/>
   <int value="4" label="SERVER_CONFIG_INVALID_EXPIRY"/>
+  <int value="5" label="SERVER_CONFIG_VALID"/>
 </enum>
 
 <enum name="QuicSessionErrorCodes" type="int">
