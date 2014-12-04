@@ -700,6 +700,7 @@ public class ContentViewCore
         mRenderCoordinates.reset();
         initPopupZoomer(mContext);
         mImeAdapter = createImeAdapter(mContext);
+        attachImeAdapter();
 
         mAccessibilityInjector = AccessibilityInjector.newInstance(this);
 
@@ -1331,7 +1332,7 @@ public class ContentViewCore
     }
 
     private void clearUserSelection() {
-        if (isSelectionEditable()) {
+        if (mFocusedNodeEditable) {
             if (mInputConnection != null) {
                 int selectionEnd = Selection.getSelectionEnd(mEditable);
                 mInputConnection.setSelection(selectionEnd, selectionEnd);
@@ -2250,7 +2251,7 @@ public class ContentViewCore
         for (int i = 0; i < items.length; i++) {
             popupItems.add(new SelectPopupItem(items[i], enabled[i]));
         }
-        if (DeviceFormFactor.isTablet(mContext) && !multiple) {
+        if (DeviceFormFactor.isTablet(mContext) && !multiple && !isTouchExplorationEnabled()) {
             mSelectPopup = new SelectPopupDropdown(this, popupItems, bounds, selectedIndices);
         } else {
             mSelectPopup = new SelectPopupDialog(this, popupItems, multiple, selectedIndices);

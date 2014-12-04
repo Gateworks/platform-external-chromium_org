@@ -4,9 +4,18 @@
 
 #include "chrome/browser/notifications/notification_ui_manager_android.h"
 
+#include "base/android/jni_string.h"
 #include "base/logging.h"
 #include "base/strings/string16.h"
 #include "chrome/browser/notifications/profile_notification.h"
+#include "jni/NotificationUIManager_jni.h"
+#include "ui/gfx/android/java_bitmap.h"
+#include "ui/gfx/image/image.h"
+
+using base::android::AttachCurrentThread;
+using base::android::ConvertJavaStringToUTF8;
+using base::android::ConvertUTF16ToJavaString;
+using base::android::ConvertUTF8ToJavaString;
 
 // static
 NotificationUIManager* NotificationUIManager::Create(PrefService* local_state) {
@@ -14,9 +23,37 @@ NotificationUIManager* NotificationUIManager::Create(PrefService* local_state) {
 }
 
 NotificationUIManagerAndroid::NotificationUIManagerAndroid() {
+  java_object_.Reset(
+      Java_NotificationUIManager_create(
+          AttachCurrentThread(),
+          reinterpret_cast<intptr_t>(this),
+          base::android::GetApplicationContext()));
 }
 
-NotificationUIManagerAndroid::~NotificationUIManagerAndroid() {
+NotificationUIManagerAndroid::~NotificationUIManagerAndroid() {}
+
+void NotificationUIManagerAndroid::OnNotificationClicked(
+    JNIEnv* env, jobject java_object, jstring notification_id) {
+  std::string id = ConvertJavaStringToUTF8(env, notification_id);
+
+  auto iter = profile_notifications_.find(id);
+  if (iter == profile_notifications_.end())
+    return;
+
+  const Notification& notification = iter->second->notification();
+  notification.delegate()->Click();
+}
+
+void NotificationUIManagerAndroid::OnNotificationClosed(
+    JNIEnv* env, jobject java_object, jstring notification_id) {
+  std::string id = ConvertJavaStringToUTF8(env, notification_id);
+
+  auto iter = profile_notifications_.find(id);
+  if (iter == profile_notifications_.end())
+    return;
+
+  const Notification& notification = iter->second->notification();
+  notification.delegate()->Close(true /** by_user **/);
 }
 
 void NotificationUIManagerAndroid::Add(const Notification& notification,
@@ -30,7 +67,25 @@ void NotificationUIManagerAndroid::Add(const Notification& notification,
   // Takes ownership of |profile_notification|.
   AddProfileNotification(profile_notification);
 
-  // TODO(peter): Display the notification on the Android system.
+  JNIEnv* env = AttachCurrentThread();
+
+  ScopedJavaLocalRef<jstring> id = ConvertUTF8ToJavaString(
+      env, profile_notification->notification().id());
+  ScopedJavaLocalRef<jstring> title = ConvertUTF16ToJavaString(
+      env, notification.title());
+  ScopedJavaLocalRef<jstring> body = ConvertUTF16ToJavaString(
+      env, notification.message());
+
+  SkBitmap icon_bitmap = notification.icon().AsBitmap();
+  ScopedJavaLocalRef<jobject> icon = gfx::ConvertToJavaBitmap(&icon_bitmap);
+
+  int platform_id = Java_NotificationUIManager_displayNotification(
+      env, java_object_.obj(), id.obj(), title.obj(), body.obj(), icon.obj());
+
+  std::string notification_id = profile_notification->notification().id();
+  platform_notifications_[notification_id] = platform_id;
+
+  notification.delegate()->Display();
 }
 
 bool NotificationUIManagerAndroid::Update(const Notification& notification,
@@ -152,9 +207,24 @@ void NotificationUIManagerAndroid::CancelAll() {
   profile_notifications_.clear();
 }
 
+bool NotificationUIManagerAndroid::RegisterNotificationUIManager(JNIEnv* env) {
+  return RegisterNativesImpl(env);
+}
+
 void NotificationUIManagerAndroid::PlatformCloseNotification(
-    ProfileNotification* notification) const {
-  // TODO(peter): Remove the notification from the Android system.
+    ProfileNotification* profile_notification) {
+  std::string id = profile_notification->notification().id();
+
+  auto iterator = platform_notifications_.find(id);
+  if (iterator == platform_notifications_.end())
+    return;
+
+  int platform_id = iterator->second;
+  platform_notifications_.erase(id);
+
+  Java_NotificationUIManager_closeNotification(AttachCurrentThread(),
+                                               java_object_.obj(),
+                                               platform_id);
 }
 
 void NotificationUIManagerAndroid::AddProfileNotification(
@@ -184,3 +254,4 @@ ProfileNotification* NotificationUIManagerAndroid::FindProfileNotification(
 
   return iter->second;
 }
+

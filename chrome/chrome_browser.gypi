@@ -1049,6 +1049,8 @@
       'browser/safe_browsing/safe_browsing_tab_observer.h',
       'browser/safe_browsing/srt_global_error_win.cc',
       'browser/safe_browsing/srt_global_error_win.h',
+      'browser/search/contextual_search_policy_handler_android.cc',
+      'browser/search/contextual_search_policy_handler_android.h',
       'browser/search/contextual_search_promo_source_android.cc',
       'browser/search/contextual_search_promo_source_android.h',
       'browser/search/iframe_source.cc',
@@ -2207,6 +2209,8 @@
       'browser/first_run/try_chrome_dialog_view.cc',
       'browser/first_run/try_chrome_dialog_view.h',
       'browser/first_run/upgrade_util.cc',
+      'browser/google/did_run_updater_win.cc',
+      'browser/google/did_run_updater_win.h',
       'browser/hang_monitor/hang_crash_dump_win.cc',
       'browser/hang_monitor/hang_crash_dump_win.h',
       'browser/hang_monitor/hung_plugin_action.cc',
@@ -2766,6 +2770,7 @@
       'android/java/src/org/chromium/chrome/browser/JavascriptAppModalDialog.java',
       'android/java/src/org/chromium/chrome/browser/NavigationPopup.java',
       'android/java/src/org/chromium/chrome/browser/net/spdyproxy/DataReductionProxySettings.java',
+      'android/java/src/org/chromium/chrome/browser/NotificationUIManager.java',
       'android/java/src/org/chromium/chrome/browser/omnibox/AnswersImage.java',
       'android/java/src/org/chromium/chrome/browser/omnibox/AutocompleteController.java',
       'android/java/src/org/chromium/chrome/browser/omnibox/OmniboxPrerender.java',
@@ -3375,6 +3380,12 @@
             ['win_use_allocator_shim==1', {
               'dependencies': [
                 '<(allocator_target)',
+              ],
+            }],
+            ['branding!="Chrome"', {
+              'sources!': [
+                'browser/google/did_run_updater_win.cc',
+                'browser/google/did_run_updater_win.h',
               ],
             }],
           ],

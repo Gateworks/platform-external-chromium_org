@@ -79,6 +79,7 @@ class CONTENT_EXPORT BrowserAccessibilityManagerAndroid
   void ScrollToMakeNodeVisible(JNIEnv* env, jobject obj, jint id);
   void SetTextFieldValue(JNIEnv* env, jobject obj, jint id, jstring value);
   void SetSelection(JNIEnv* env, jobject obj, jint id, jint start, jint end);
+  jboolean AdjustSlider(JNIEnv* env, jobject obj, jint id, jboolean increment);
 
   // Return the id of the next node in tree order in the direction given by
   // |forwards|, starting with |start_id|, that matches |element_type|,
@@ -114,6 +115,11 @@ class CONTENT_EXPORT BrowserAccessibilityManagerAndroid
   bool PreviousAtGranularity(
       int32 granularity, int cursor_index,
       BrowserAccessibilityAndroid* node, int32* start_index, int32* end_index);
+
+  // Set accessibility focus. This sends a message to the renderer to
+  // asynchronously load inline text boxes for this node only, enabling more
+  // accurate movement by granularities on this node.
+  void SetAccessibilityFocus(JNIEnv* env, jobject obj, jint id);
 
  protected:
   // AXTreeDelegate overrides.

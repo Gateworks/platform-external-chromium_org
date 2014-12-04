@@ -38,6 +38,7 @@
 #include "chrome/browser/ui/search/search_tab_helper.h"
 #include "chrome/browser/ui/tab_contents/core_tab_helper.h"
 #include "chrome/browser/ui/tab_helpers.h"
+#include "chrome/common/instant_types.h"
 #include "chrome/common/url_constants.h"
 #include "components/google/core/browser/google_url_tracker.h"
 #include "components/google/core/browser/google_util.h"
@@ -377,18 +378,13 @@ void TabAndroid::Observe(int type,
 }
 
 void TabAndroid::OnFaviconAvailable(const gfx::Image& image) {
-  ScopedJavaLocalRef<jobject> bitmap;
-  SkBitmap favicon = image
-          .AsImageSkia()
-          .GetRepresentation(
-               ResourceBundle::GetSharedInstance().GetMaxScaleFactor())
-          .sk_bitmap();
+  SkBitmap favicon = image.AsImageSkia().GetRepresentation(1.0f).sk_bitmap();
+  if (favicon.empty())
+    return;
 
-  if (!favicon.empty()) {
-    bitmap = gfx::ConvertToJavaBitmap(&favicon);
-  }
-  JNIEnv* env = base::android::AttachCurrentThread();
-  Java_Tab_onFaviconAvailable(env, weak_java_tab_.get(env).obj(), bitmap.obj());
+  JNIEnv *env = base::android::AttachCurrentThread();
+  Java_Tab_onFaviconAvailable(env, weak_java_tab_.get(env).obj(),
+                              gfx::ConvertToJavaBitmap(&favicon).obj());
 }
 
 void TabAndroid::Destroy(JNIEnv* env, jobject obj) {
@@ -536,7 +532,8 @@ TabAndroid::TabLoadStatus TabAndroid::LoadUrl(JNIEnv* env,
           chrome::ExtractSearchTermsFromURL(GetProfile(), gurl);
       if (!search_terms.empty() &&
           prerenderer->CanCommitQuery(web_contents_.get(), search_terms)) {
-        prerenderer->Commit(search_terms);
+        EmbeddedSearchRequestParams request_params(gurl);
+        prerenderer->Commit(search_terms, request_params);
 
         if (prerenderer->UsePrerenderedPage(gurl, &params))
           return FULL_PRERENDERED_PAGE_LOAD;
@@ -602,7 +599,8 @@ TabAndroid::TabLoadStatus TabAndroid::LoadUrl(JNIEnv* env,
         SearchTabHelper::FromWebContents(web_contents_.get());
     if (!search_terms.empty() && search_tab_helper &&
         search_tab_helper->SupportsInstant()) {
-      search_tab_helper->Submit(search_terms);
+      EmbeddedSearchRequestParams request_params(gurl);
+      search_tab_helper->Submit(search_terms, request_params);
       return DEFAULT_PAGE_LOAD;
     }
     load_params.is_renderer_initiated = is_renderer_initiated;
