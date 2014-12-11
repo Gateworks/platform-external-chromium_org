@@ -941,7 +941,7 @@ const Experiment kExperiments[] = {
     IDS_FLAGS_DISABLE_EASY_SIGNIN_NAME,
     IDS_FLAGS_DISABLE_EASY_SIGNIN_DESCRIPTION,
     kOsCrOSOwnerOnly,
-    SINGLE_VALUE_TYPE(chromeos::switches::kDisableEasySignin),
+    SINGLE_VALUE_TYPE(proximity_auth::switches::kDisableEasySignin),
   },
   {
     "enable-easy-unlock-proximity-detection",
@@ -1646,6 +1646,13 @@ const Experiment kExperiments[] = {
     IDS_FLAGS_DISABLE_VIEWS_RECT_BASED_TARGETING_DESCRIPTION,
     kOsCrOS | kOsWin | kOsLinux,
     SINGLE_VALUE_TYPE(views::switches::kDisableViewsRectBasedTargeting)
+  },
+  {
+    "enable-link-disambiguation-popup",
+    IDS_FLAGS_ENABLE_LINK_DISAMBIGUATION_POPUP_NAME,
+    IDS_FLAGS_ENABLE_LINK_DISAMBIGUATION_POPUP_DESCRIPTION,
+    kOsCrOS | kOsWin,
+    SINGLE_VALUE_TYPE(switches::kEnableLinkDisambiguationPopup)
   },
 #endif
 #if defined(ENABLE_EXTENSIONS)

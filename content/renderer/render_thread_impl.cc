@@ -623,8 +623,11 @@ void RenderThreadImpl::Shutdown() {
 
 #if defined(ENABLE_WEBRTC)
   RTCPeerConnectionHandler::DestructAllHandlers();
-
-  peer_connection_factory_.reset();
+  // |peer_connection_factory_| cannot be deleted until after the main message
+  // loop has been destroyed.  This is because there may be pending tasks that
+  // hold on to objects produced by the PC factory that depend on threads owned
+  // by the PC factory.  Once those tasks have been freed, the factory can be
+  // deleted.
 #endif
   RemoveFilter(vc_manager_->video_capture_message_filter());
   vc_manager_.reset();
@@ -1345,7 +1348,10 @@ void RenderThreadImpl::OnCreateNewView(const ViewMsg_New_Params& params) {
                          params.hidden,
                          params.never_visible,
                          params.next_page_id,
-                         params.screen_info);
+                         params.initial_size,
+                         params.enable_auto_resize,
+                         params.min_size,
+                         params.max_size);
 }
 
 GpuChannelHost* RenderThreadImpl::EstablishGpuChannelSync(
