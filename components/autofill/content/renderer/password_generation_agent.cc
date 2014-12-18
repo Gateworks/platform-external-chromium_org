@@ -42,10 +42,7 @@ bool GetAccountCreationPasswordFields(
   for (size_t i = 0; i < control_elements.size(); i++) {
     blink::WebInputElement* input_element =
         toWebInputElement(&control_elements[i]);
-    // Only pay attention to visible password fields.
-    if (input_element &&
-        input_element->isTextField() &&
-        input_element->hasNonEmptyBoundingBox()) {
+    if (input_element && input_element->isTextField()) {
       num_input_elements++;
       if (input_element->isPasswordField())
         passwords->push_back(*input_element);
@@ -301,6 +298,7 @@ void PasswordGenerationAgent::DetermineGenerationElement() {
 
   DVLOG(2) << "Password generation eligible form found";
   generation_element_ = password_elements_[0];
+  generation_element_.setAttribute("aria-autocomplete", "list");
   password_generation::LogPasswordGenerationEvent(
       password_generation::GENERATION_AVAILABLE);
 }
