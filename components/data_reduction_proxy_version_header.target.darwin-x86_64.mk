@@ -22,7 +22,7 @@ $(gyp_shared_intermediate_dir)/components/data_reduction_proxy/core/common/versi
 $(gyp_shared_intermediate_dir)/components/data_reduction_proxy/core/common/version.h: export PATH := $(subst $(ANDROID_BUILD_PATHS),,$(PATH))
 $(gyp_shared_intermediate_dir)/components/data_reduction_proxy/core/common/version.h: $(LOCAL_PATH)/chrome/VERSION $(LOCAL_PATH)/components/data_reduction_proxy/core/common/version.h.in $(GYP_TARGET_DEPENDENCIES)
 	@echo "Gyp action: Generating version header file: "$(gyp_shared_intermediate_dir)/components/data_reduction_proxy/core/common/version.h" ($@)"
-	$(hide)cd $(gyp_local_path)/components; mkdir -p $(gyp_shared_intermediate_dir)/components/data_reduction_proxy/core/common; python ../build/util/version.py -e "VERSION_FULL=\"40.0.2214.69\"" data_reduction_proxy/core/common/version.h.in "$(gyp_shared_intermediate_dir)/components/data_reduction_proxy/core/common/version.h"
+	$(hide)cd $(gyp_local_path)/components; mkdir -p $(gyp_shared_intermediate_dir)/components/data_reduction_proxy/core/common; python ../build/util/version.py -e "VERSION_FULL=\"40.0.2214.87\"" data_reduction_proxy/core/common/version.h.in "$(gyp_shared_intermediate_dir)/components/data_reduction_proxy/core/common/version.h"
 
 
 

@@ -47,6 +47,7 @@ public class ImeTest extends ContentShellTestBase {
             "<br/><textarea id=\"textarea\" rows=\"4\" cols=\"20\"></textarea>" +
             "<br/><p><span id=\"plain_text\">This is Plain Text One</span></p>" +
             "</form></body></html>");
+    private static final int COMPOSITION_KEY_CODE = 229;
 
     private TestAdapterInputConnection mConnection;
     private ImeAdapter mImeAdapter;
@@ -591,6 +592,44 @@ public class ImeTest extends ContentShellTestBase {
 
     @SmallTest
     @Feature({"TextInput", "Main"})
+    public void testAccentKeyCodesFromPhysicalKeyboard() throws Throwable {
+        DOMUtils.focusNode(mWebContents, "textarea");
+        assertWaitForKeyboardStatus(true);
+
+        // The calls below are a reflection of what a physical keyboard sends when the noted
+        // key is pressed on the device.  Exercise care when altering to make sure that the test
+        // reflects reality.
+        mConnection = (TestAdapterInputConnection) getAdapterInputConnection();
+        waitAndVerifyEditableCallback(mConnection.mImeUpdateQueue, 0, "", 0, 0, -1, -1);
+
+        // H
+        dispatchKeyEvent(mConnection, new KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_H));
+        dispatchKeyEvent(mConnection, new KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_H));
+        assertEquals("h", mConnection.getTextBeforeCursor(9, 0));
+
+        // I
+        dispatchKeyEvent(mConnection, new KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_I));
+        dispatchKeyEvent(mConnection, new KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_I));
+        assertEquals("hi", mConnection.getTextBeforeCursor(9, 0));
+
+        // ALT-I  (circomflex accent key on virtual keyboard)
+        dispatchKeyEvent(
+                mConnection, new KeyEvent(
+                        0, 0, KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_I, 0, KeyEvent.META_ALT_ON));
+        dispatchKeyEvent(
+                mConnection, new KeyEvent(
+                        0, 0, KeyEvent.ACTION_UP, KeyEvent.KEYCODE_I, 0, KeyEvent.META_ALT_ON));
+        assertEquals("hiˆ", mConnection.getTextBeforeCursor(9, 0));
+
+        // O  (accented key)
+        dispatchKeyEvent(mConnection, new KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_O));
+        assertEquals("hi", mConnection.getTextBeforeCursor(9, 0));
+        dispatchKeyEvent(mConnection, new KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_O));
+        assertEquals("hiô", mConnection.getTextBeforeCursor(9, 0));
+    }
+
+    @SmallTest
+    @Feature({"TextInput", "Main"})
     public void testSetComposingRegionOutOfBounds() throws Throwable {
         DOMUtils.focusNode(mWebContents, "textarea");
         assertWaitForKeyboardStatus(true);
@@ -662,7 +701,7 @@ public class ImeTest extends ContentShellTestBase {
         // H
         expectUpdateStateCall(mConnection);
         setComposingText(mConnection, "h", 1);
-        assertEquals(KeyEvent.KEYCODE_H, mImeAdapter.mLastSyntheticKeyCode);
+        assertEquals(COMPOSITION_KEY_CODE, mImeAdapter.mLastSyntheticKeyCode);
 
         // Simulate switch of input fields.
         finishComposingText(mConnection);
@@ -670,7 +709,7 @@ public class ImeTest extends ContentShellTestBase {
         // H
         expectUpdateStateCall(mConnection);
         setComposingText(mConnection, "h", 1);
-        assertEquals(KeyEvent.KEYCODE_H, mImeAdapter.mLastSyntheticKeyCode);
+        assertEquals(COMPOSITION_KEY_CODE, mImeAdapter.mLastSyntheticKeyCode);
     }
 
     @SmallTest
@@ -905,6 +944,15 @@ public class ImeTest extends ContentShellTestBase {
             @Override
             public void run() {
                 connection.deleteSurroundingText(before, after);
+            }
+        });
+    }
+
+    private void dispatchKeyEvent(final AdapterInputConnection connection, final KeyEvent event) {
+        ThreadUtils.runOnUiThreadBlocking(new Runnable() {
+            @Override
+            public void run() {
+                mImeAdapter.dispatchKeyEvent(event);
             }
         });
     }
