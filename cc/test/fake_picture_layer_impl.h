@@ -55,7 +55,6 @@ class FakePictureLayerImpl : public PictureLayerImpl {
   using PictureLayerImpl::CanHaveTilings;
   using PictureLayerImpl::DoPostCommitInitializationIfNeeded;
   using PictureLayerImpl::MinimumContentsScale;
-  using PictureLayerImpl::GetViewportForTilePriorityInContentSpace;
   using PictureLayerImpl::SanityCheckTilingState;
   using PictureLayerImpl::GetRecycledTwinLayer;
   using PictureLayerImpl::UpdatePile;
@@ -91,6 +90,10 @@ class FakePictureLayerImpl : public PictureLayerImpl {
 
   gfx::Rect visible_rect_for_tile_priority() {
     return visible_rect_for_tile_priority_;
+  }
+
+  gfx::Rect viewport_rect_for_tile_priority_in_content_space() {
+    return viewport_rect_for_tile_priority_in_content_space_;
   }
 
   void set_fixed_tile_size(const gfx::Size& size) { fixed_tile_size_ = size; }

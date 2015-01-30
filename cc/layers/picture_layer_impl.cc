@@ -313,7 +313,7 @@ void PictureLayerImpl::AppendQuads(RenderPass* render_pass,
   // normally the same as draw viewport but can be independently overridden by
   // embedders like Android WebView with SetExternalDrawConstraints.
   gfx::Rect scaled_viewport_for_tile_priority = gfx::ScaleToEnclosingRect(
-      GetViewportForTilePriorityInContentSpace(), max_contents_scale);
+      viewport_rect_for_tile_priority_in_content_space_, max_contents_scale);
 
   size_t missing_tile_count = 0u;
   size_t on_demand_missing_tile_count = 0u;
@@ -520,12 +520,11 @@ void PictureLayerImpl::UpdateTilePriorities(
       (layer_tree_impl()->CurrentBeginFrameArgs().frame_time -
        base::TimeTicks()).InSecondsF();
 
-  gfx::Rect viewport_rect_in_layer_space =
-      GetViewportForTilePriorityInContentSpace();
+  UpdateViewportRectForTilePriorityInContentSpace();
   bool tiling_needs_update = false;
   for (size_t i = 0; i < tilings_->num_tilings(); ++i) {
     if (tilings_->tiling_at(i)->NeedsUpdateForFrameAtTimeAndViewport(
-            current_frame_time_in_seconds, viewport_rect_in_layer_space)) {
+            current_frame_time_in_seconds, viewport_rect_for_tile_priority_in_content_space_)) {
       tiling_needs_update = true;
       break;
     }
@@ -547,7 +546,7 @@ void PictureLayerImpl::UpdateTilePriorities(
     // Pass |occlusion_in_content_space| for |occlusion_in_layer_space| since
     // they are the same space in picture layer, as contents scale is always 1.
     tiling->ComputeTilePriorityRects(tree,
-                                     viewport_rect_in_layer_space,
+                                     viewport_rect_for_tile_priority_in_content_space_,
                                      ideal_contents_scale_,
                                      current_frame_time_in_seconds,
                                      occlusion_in_content_space);
@@ -558,7 +557,7 @@ void PictureLayerImpl::UpdateTilePriorities(
   layer_tree_impl()->DidModifyTilePriorities();
 }
 
-gfx::Rect PictureLayerImpl::GetViewportForTilePriorityInContentSpace() const {
+void PictureLayerImpl::UpdateViewportRectForTilePriorityInContentSpace() {
   // If visible_rect_for_tile_priority_ is empty or
   // viewport_rect_for_tile_priority is set to be different from the device
   // viewport, try to inverse project the viewport into layer space and use
@@ -566,7 +565,6 @@ gfx::Rect PictureLayerImpl::GetViewportForTilePriorityInContentSpace() const {
   gfx::Rect visible_rect_in_content_space = visible_rect_for_tile_priority_;
   gfx::Rect viewport_rect_for_tile_priority =
       layer_tree_impl()->ViewportRectForTilePriority();
-
   if (visible_rect_in_content_space.IsEmpty() ||
       layer_tree_impl()->DeviceViewport() != viewport_rect_for_tile_priority) {
     gfx::Transform view_to_layer(gfx::Transform::kSkipInitialization);
@@ -577,7 +575,8 @@ gfx::Rect PictureLayerImpl::GetViewportForTilePriorityInContentSpace() const {
               view_to_layer, viewport_rect_for_tile_priority));
     }
   }
-  return visible_rect_in_content_space;
+  viewport_rect_for_tile_priority_in_content_space_ =
+      visible_rect_in_content_space;
 }
 
 PictureLayerImpl* PictureLayerImpl::GetPendingOrActiveTwinLayer() const {
@@ -1349,7 +1348,8 @@ void PictureLayerImpl::AsValueInto(base::debug::TracedValue* state) const {
   state->EndArray();
 
   state->BeginArray("tile_priority_rect");
-  MathUtil::AddToTracedValue(GetViewportForTilePriorityInContentSpace(), state);
+  MathUtil::AddToTracedValue(viewport_rect_for_tile_priority_in_content_space_,
+                             state);
   state->EndArray();
 
   state->BeginArray("visible_rect");
@@ -1420,7 +1420,7 @@ bool PictureLayerImpl::AllTilesRequiredForActivationAreReadyToDraw() const {
   if (visible_rect_for_tile_priority_.IsEmpty())
     return true;
 
-  gfx::Rect rect = GetViewportForTilePriorityInContentSpace();
+  gfx::Rect rect = viewport_rect_for_tile_priority_in_content_space_;
   rect.Intersect(visible_rect_for_tile_priority_);
 
   for (size_t i = 0; i < tilings_->num_tilings(); ++i) {
