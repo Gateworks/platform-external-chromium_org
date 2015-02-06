@@ -167,7 +167,7 @@ class CC_EXPORT PictureLayerImpl
   float MinimumContentsScale() const;
   float SnappedContentsScale(float new_contents_scale);
   void ResetRasterScale();
-  gfx::Rect GetViewportForTilePriorityInContentSpace() const;
+  void UpdateViewportRectForTilePriorityInContentSpace();
   PictureLayerImpl* GetRecycledTwinLayer() const;
   void UpdatePile(scoped_refptr<PicturePileImpl> pile);
 
@@ -222,6 +222,7 @@ class CC_EXPORT PictureLayerImpl
   // from regular draws. Save a copy of the required draw properties of the last
   // frame that has a valid viewport for prioritizing tiles.
   gfx::Rect visible_rect_for_tile_priority_;
+  gfx::Rect viewport_rect_for_tile_priority_in_content_space_;
 
   friend class PictureLayer;
   DISALLOW_COPY_AND_ASSIGN(PictureLayerImpl);
